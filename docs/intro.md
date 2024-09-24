@@ -6,16 +6,14 @@ name: fig:nm_hero_right
 alt: neurominer logo
 ---
 ```
-## Manual for NeuroMiner Version 1.2
+## Manual for NeuroMiner Version 1.3
 
 Software written by Nikolaos Koutsouleris, Clara Vetter & Ariane Wiegand
 
 Manual written by Dom Dwyer
 
-with contributions from
-Ariane Wiegand, Clara Vetter, Carlos Cabral, Shalaila Haas, Anne Ruef, Adyasha Khuntia, Elif Sarisik, Madalina Buciuman, Mark Dong, Paolo Enrico, Lisa-Maria Neuner, Clara Weyer
 
-Version release date: 21st September 2023
+Version release date: 24st September 2024
 
 ## How to cite NeuroMiner
 
