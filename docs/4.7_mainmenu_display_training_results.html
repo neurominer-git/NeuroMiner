@@ -499,7 +499,7 @@ document.write(`
 <img alt="Neurominer result viewer, statistical comparison" src="_images/NM_resultviewer_statistical_comparison.png" />
 <p class="caption"><span class="caption-number">Fig. 13 </span><span class="caption-text">Within the main results display, the user can go to the ”Comparisons” menu item and then select the option to calculate statistical differences between separate models</span><a class="headerlink" href="#fig-nm-resultviewer-statistical-comparsion" title="Permalink to this image">#</a></p>
 </div>
-<p>See <a class="reference internal" href="#fig-nm-resultviewer-visual-comparsion"><span class="std std-numref">Fig. 14</span></a>: The user can also perform ”Visual Comparisons”. The user needs to select some performance measures that they want to compare visually in the top-half of the pop-up box using the ”Select” column tick-boxes, then select the analyses in the lower-half of the pop-up box. Then simply press ”Visualize”. If the bar plots are not good then the user can change it to ”Line plots” and then press ”Visualize” again.</p>
+<p>See <code class="xref std std-numref docutils literal notranslate"><span class="pre">fig:NM_resultviewer_visual_comparsion</span></code>: The user can also perform ”Visual Comparisons”. The user needs to select some performance measures that they want to compare visually in the top-half of the pop-up box using the ”Select” column tick-boxes, then select the analyses in the lower-half of the pop-up box. Then simply press ”Visualize”. If the bar plots are not good then the user can change it to ”Line plots” and then press ”Visualize” again.</p>
 <div class="figure align-default" id="fig-nm-resultviewer-visual-comparsion">
 <img alt="Neurominer result viewer, visual comparisons" src="_images/NM_resultviewer_visual_comparison.png" />
 <p class="caption"><span class="caption-number">Fig. 14 </span><span class="caption-text">Within the main results display, the user can go to the ”Comparisons” menu item and then select the option to display visual comparisons between separate models</span><a class="headerlink" href="#fig-nm-resultviewer-visual-comparsion" title="Permalink to this image">#</a></p>
@@ -511,7 +511,7 @@ document.write(`
 </div>
 <div class="section" id="classification-performance">
 <h2>Classification performance<a class="headerlink" href="#classification-performance" title="Permalink to this heading">#</a></h2>
-<p>See <a class="reference internal" href="#fig-display-cvperf"><span class="std std-numref">Fig. 15</span></a>: NeuroMiner was built to work with hyperparameter optimization within a nested-cross validation framework as a standard. In this plot, you will see the inner-cycle, CV1, mean test performance plotted in blue and then the outer cycle, CV2, mean test performance plotted in red. Each point represents a hyperparameter combination. This gives an indication of how the hyperparameter combinations are influencing the test performance. On the right, the display also shows heatmaps that show how the performance in the CV1/CV2 folds changes over the permutations.</p>
+<p>See <code class="xref std std-numref docutils literal notranslate"><span class="pre">fig:Display_CVperf</span></code>: NeuroMiner was built to work with hyperparameter optimization within a nested-cross validation framework as a standard. In this plot, you will see the inner-cycle, CV1, mean test performance plotted in blue and then the outer cycle, CV2, mean test performance plotted in red. Each point represents a hyperparameter combination. This gives an indication of how the hyperparameter combinations are influencing the test performance. On the right, the display also shows heatmaps that show how the performance in the CV1/CV2 folds changes over the permutations.</p>
 <div class="figure align-default" id="fig-display-cvperf">
 <img alt="Neurominer result viewer, cv performance plot" src="_images/Display_CVperf.png" />
 <p class="caption"><span class="caption-number">Fig. 15 </span><span class="caption-text">Result viewer: Cross-validation performance</span><a class="headerlink" href="#fig-display-cvperf" title="Permalink to this image">#</a></p>
@@ -519,7 +519,7 @@ document.write(`
 </div>
 <div class="section" id="generalization-error">
 <h2>Generalization error<a class="headerlink" href="#generalization-error" title="Permalink to this heading">#</a></h2>
-<p>See <a class="reference internal" href="#fig-display-generror"><span class="std std-numref">Fig. 16</span></a>: Another way to look at CV2 test performance is with the generalization error, which is calculated in NeuroMiner as the CV1-test performance minus the CV2 test performance.</p>
+<p>See <code class="xref std std-numref docutils literal notranslate"><span class="pre">fig:Display_GenError</span></code>: Another way to look at CV2 test performance is with the generalization error, which is calculated in NeuroMiner as the CV1-test performance minus the CV2 test performance.</p>
 <div class="figure align-default" id="fig-display-generror">
 <img alt="Neurominer result viewer, generalization error" src="_images/Display_GenError.png" />
 <p class="caption"><span class="caption-number">Fig. 16 </span><span class="caption-text">Result viewer: Generalization error</span><a class="headerlink" href="#fig-display-generror" title="Permalink to this image">#</a></p>
@@ -527,7 +527,7 @@ document.write(`
 </div>
 <div class="section" id="model-complexity">
 <h2>Model complexity<a class="headerlink" href="#model-complexity" title="Permalink to this heading">#</a></h2>
-<p>See <a class="reference internal" href="#fig-display-complexity"><span class="std std-numref">Fig. 17</span></a>. In NeuroMiner, complexity is defined as the percentage of support vectors divided by the number of subjects in the tested fold. This feature is useful to determine how varying parameter combinations may affect the fit of the model.</p>
+<p>See <code class="xref std std-numref docutils literal notranslate"><span class="pre">fig:Display_Complexity</span></code>. In NeuroMiner, complexity is defined as the percentage of support vectors divided by the number of subjects in the tested fold. This feature is useful to determine how varying parameter combinations may affect the fit of the model.</p>
 <div class="figure align-default" id="fig-display-complexity">
 <img alt="Neurominer result viewer, complexity" src="_images/Display_Complexity.png" />
 <p class="caption"><span class="caption-number">Fig. 17 </span><span class="caption-text">Result viewer: Model complexity</span><a class="headerlink" href="#fig-display-complexity" title="Permalink to this image">#</a></p>
@@ -539,7 +539,7 @@ document.write(`
 </div>
 <div class="section" id="ensemble-diversity">
 <h2>Ensemble diversity<a class="headerlink" href="#ensemble-diversity" title="Permalink to this heading">#</a></h2>
-<p>See <a class="reference internal" href="#fig-display-ensemblediv"><span class="std std-numref">Fig. 18</span></a>: This is a measure of Shannon entropy across CV1 models for each CV2 partition. A higher entropy means higher disagreement between the CV1 models. This measure is useful because increased entropy will often result in a better fitting model at the CV2 level. It is useful to note that entropy can be maximized as a performance criterion in addition to accuracy.</p>
+<p>See <code class="xref std std-numref docutils literal notranslate"><span class="pre">fig:Display_EnsembleDiv</span></code>: This is a measure of Shannon entropy across CV1 models for each CV2 partition. A higher entropy means higher disagreement between the CV1 models. This measure is useful because increased entropy will often result in a better fitting model at the CV2 level. It is useful to note that entropy can be maximized as a performance criterion in addition to accuracy.</p>
 <div class="figure align-default" id="fig-display-ensemblediv">
 <img alt="Neurominer result viewer, ensemble diversity" src="_images/Display_EnsembleDiv.png" />
 <p class="caption"><span class="caption-number">Fig. 18 </span><span class="caption-text">Result viewer: Ensemble diversity</span><a class="headerlink" href="#fig-display-ensemblediv" title="Permalink to this image">#</a></p>
@@ -547,7 +547,7 @@ document.write(`
 </div>
 <div class="section" id="model-selection-frequency">
 <h2>Model selection frequency<a class="headerlink" href="#model-selection-frequency" title="Permalink to this heading">#</a></h2>
-<p>See <a class="reference internal" href="#fig-display-modelselection"><span class="std std-numref">Fig. 19</span></a>: Within an ensemble framework, the models that are selected within the inner, CV1, cycle are then applied to the outer test data. For example, if it is a 10x10 CV1 framework with a winner-takes-all method of model selection, then 100 models will be applied to the held-out CV2 test fold. This plot displays the percentage of times that each parameter combination was selected.</p>
+<p>See <code class="xref std std-numref docutils literal notranslate"><span class="pre">fig:Display_ModelSelection</span></code>: Within an ensemble framework, the models that are selected within the inner, CV1, cycle are then applied to the outer test data. For example, if it is a 10x10 CV1 framework with a winner-takes-all method of model selection, then 100 models will be applied to the held-out CV2 test fold. This plot displays the percentage of times that each parameter combination was selected.</p>
 <div class="figure align-default" id="fig-display-modelselection">
 <img alt="Neurominer result viewer, model selection" src="_images/Display_ModelSelection.png" />
 <p class="caption"><span class="caption-number">Fig. 19 </span><span class="caption-text">Result viewer: Model selection frequency</span><a class="headerlink" href="#fig-display-modelselection" title="Permalink to this image">#</a></p>
@@ -555,7 +555,7 @@ document.write(`
 </div>
 <div class="section" id="multi-group-results">
 <h2>Multi-group results<a class="headerlink" href="#multi-group-results" title="Permalink to this heading">#</a></h2>
-<p>If a multi-group analysis is conducted the results display will change to accommodate the groups. There will be a result section for each classifier and one results section for the multigroup model (see <a class="reference internal" href="#fig-display-multigroup"><span class="std std-numref">Fig. 20</span></a>).</p>
+<p>If a multi-group analysis is conducted the results display will change to accommodate the groups. There will be a result section for each classifier and one results section for the multigroup model (see <code class="xref std std-numref docutils literal notranslate"><span class="pre">fig:Display_MultiGroup</span></code>).</p>
 <div class="figure align-left" id="fig-display-multigroup">
 <img alt="Neurominer result viewer, model selection" src="_images/Display_MultiGroup.png" />
 <p class="caption"><span class="caption-number">Fig. 20 </span><span class="caption-text">Result viewer: Multi-group display</span><a class="headerlink" href="#fig-display-multigroup" title="Permalink to this image">#</a></p>

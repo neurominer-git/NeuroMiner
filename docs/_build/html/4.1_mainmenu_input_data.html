@@ -545,7 +545,7 @@ contrasts)</p></li>
 <li><p>functional connectivity matrices (e.g., in the MATLAB workspace)</p></li>
 <li><p>DTI streamline matrices (e.g., in the MATLAB workspace)</p></li>
 </ul>
-<p>In NeuroMiner, each dataset is called a ’modality’ and multiple modalities can be entered at the same time to allow <a class="reference internal" href="4.2.00_paramtemp_data_fusion.html#paramtemp-data-fusion"><span class="std std-ref">data fusion</span></a>. For example, you can choose to perform machine learning on structural neuroimaging data alone or in combination with cognitive data. If data has not been entered and NeuroMiner does not detect a “NM” structure in the MATLAB workspace, then the user will be given the
+<p>In NeuroMiner, each dataset is called a ’modality’ and multiple modalities can be entered at the same time to allow <a class="reference internal" href="_sources/4.2.00_paramtemp_data_fusion.html#paramtemp-data-fusion"><span class="std std-ref">data fusion</span></a>. For example, you can choose to perform machine learning on structural neuroimaging data alone or in combination with cognitive data. If data has not been entered and NeuroMiner does not detect a “NM” structure in the MATLAB workspace, then the user will be given the
 option to <strong>1 | load data for model discovery and cross-validation</strong>.
 Selecting this option will transfer the user to the “NM data workspace
 manager”, which is an adaptive menu that changes based on selections,
@@ -559,7 +559,7 @@ menu that is configured for classification using NIFTI (neuroimaging) :</p>
 <div class="figure align-default" id="fig-3-0-nm-dataentry-select-data-origin">
 <img alt="neurominer data entry types" src="_images/NM_dataentry_select_data_origin.png" />
 </div>
-<p>These <a class="reference internal" href="#datainput-format"><span class="std std-ref">data input format</span></a> options will be described in more detail in the following sections.</p>
+<p>These <a class="reference internal" href="_sources/4.1_mainmenu_input_data.html#datainput-format"><span class="std std-ref">data input format</span></a> options will be described in more detail in the following sections.</p>
 <div class="admonition-notification-warning-error-messages admonition">
 <p class="admonition-title">Notification, Warning, &amp; Error Messages</p>
 <p>When data is entered, NeuroMiner checks whether it has been successfully entered and performs a number of pre-screening quality control measures. Messages related to successful data entry, unsuccessful data entry, or warnings are issued at the top of the screen, such as:</p>
@@ -589,7 +589,7 @@ menu that is configured for classification using NIFTI (neuroimaging) :</p>
 </div>
 <div class="section" id="read-in-additional-image-s-for-weighting">
 <h4>Read in additional image(s) for weighting<a class="headerlink" href="#read-in-additional-image-s-for-weighting" title="Permalink to this heading">#</a></h4>
-<p>This option gives you the opportunity to enter an image that will be used during preprocessing to weight the brain image features. It is specifically designed for when parcellated brain regions have been entered or when the WFU PickAtlas has been used to select brain parcels. In these cases, the image will consist of independent brain regions (e.g., the hippocampus, frontal lobe, cingulate cortex etc.). You can therefore enter a map of the same brain regions that have weights associated with each parcel based on the degree of importance of each region; e.g., 1 for the hippocampus, 2 for the frontal lobe, 3 for the cingulate. This weight map can then be used during preprocessing to up- or down-weight the features in the analysis (see <a class="reference internal" href="4.2.02_paramtemp_preprocessing_pipeline.html#preproc-rank-weight"><span class="std std-ref">Rank / Weight features</span></a>).</p>
+<p>This option gives you the opportunity to enter an image that will be used during preprocessing to weight the brain image features. It is specifically designed for when parcellated brain regions have been entered or when the WFU PickAtlas has been used to select brain parcels. In these cases, the image will consist of independent brain regions (e.g., the hippocampus, frontal lobe, cingulate cortex etc.). You can therefore enter a map of the same brain regions that have weights associated with each parcel based on the degree of importance of each region; e.g., 1 for the hippocampus, 2 for the frontal lobe, 3 for the cingulate. This weight map can then be used during preprocessing to up- or down-weight the features in the analysis (see <a class="reference internal" href="_sources/4.2.02_paramtemp_preprocessing_pipeline.html#preproc-rank-weight"><span class="std std-ref">Rank / Weight features</span></a>).</p>
 </div>
 <div class="section" id="describe-data">
 <h4>Describe data<a class="headerlink" href="#describe-data" title="Permalink to this heading">#</a></h4>
@@ -621,7 +621,7 @@ selected, the menu will change to the following:</p>
 <div class="section" id="involve-unlabeled-cases-in-the-analysis">
 <h4>Involve unlabeled cases in the analysis<a class="headerlink" href="#involve-unlabeled-cases-in-the-analysis" title="Permalink to this heading">#</a></h4>
 <p>This gives the option to use cases that do not have a label for semi-supervised learning.
-Select <a class="reference internal" href="#note-space-defining-img"><span class="std std-ref">space-defining image</span></a>.
+Select <a class="reference internal" href="_sources/4.1_mainmenu_input_data.html#note-space-defining-img"><span class="std std-ref">space-defining image</span></a>.
 Map image files to samples Use the pop-up SPM dialogue box to select the images for the samples together or for the groups separately. We recommend printing the absolute paths of the images in a text file and then use the ”ed” feature of the SPM dialogue box (bottom left) to paste the paths. You will be prompted to enter the groups one after the other.</p>
 </div>
 <div class="section" id="define-global-multiplier">
@@ -635,7 +635,7 @@ Inspect image information and check registration This option will allow the user
 </div>
 <div class="section" id="id1">
 <h4>Read in additional image(s) for weighting<a class="headerlink" href="#id1" title="Permalink to this heading">#</a></h4>
-<p>This option gives you the opportunity to enter an image that will be used during preprocessing to weight the brain image features. For example, when parcellated brain regions have been entered or when the WFU PickAtlas has been used to select brain parcels the image will consist of independent brain regions (e.g., the hippocampus, frontal lobe, cingulate cortex etc.). You can therefore enter a map of the same brain regions that have weights associated with each parcel based on the degree of importance of each region; e.g., 1 for the hippocampus, 2 for the frontal lobe, 3 for the cingulate. This weight map can then be used during preprocessing to up- or down-weight the features in the analysis (see <a class="reference internal" href="4.2.02_paramtemp_preprocessing_pipeline.html#preproc-rank-weight"><span class="std std-ref">Rank / Weight features</span></a>). Alternatively, reliability coefficient images that are calculated during multi-site studies (e.g., with traveling subjects) can be entered here.</p>
+<p>This option gives you the opportunity to enter an image that will be used during preprocessing to weight the brain image features. For example, when parcellated brain regions have been entered or when the WFU PickAtlas has been used to select brain parcels the image will consist of independent brain regions (e.g., the hippocampus, frontal lobe, cingulate cortex etc.). You can therefore enter a map of the same brain regions that have weights associated with each parcel based on the degree of importance of each region; e.g., 1 for the hippocampus, 2 for the frontal lobe, 3 for the cingulate. This weight map can then be used during preprocessing to up- or down-weight the features in the analysis (see <a class="reference internal" href="_sources/4.2.02_paramtemp_preprocessing_pipeline.html#preproc-rank-weight"><span class="std std-ref">Rank / Weight features</span></a>). Alternatively, reliability coefficient images that are calculated during multi-site studies (e.g., with traveling subjects) can be entered here.</p>
 </div>
 <div class="section" id="id2">
 <h4>Describe data<a class="headerlink" href="#id2" title="Permalink to this heading">#</a></h4>
@@ -683,7 +683,7 @@ A common situation is when you have a vector containing numbers representing gro
 </div>
 <div class="section" id="inspect-matrix-data-and-select-features-for-import">
 <h4>Inspect matrix data and select features for import<a class="headerlink" href="#inspect-matrix-data-and-select-features-for-import" title="Permalink to this heading">#</a></h4>
-<p>Once the previous settings are entered, this option appears. It will open a results display where the data can be viewed as a heatmap, scaled, and features can be added or removed either by the user or they can be filtered based on a threshold (see <a class="reference internal" href="#fig-3-1-nm-feature-selector"><span class="std std-numref">Fig. 4</span></a>). For example, after scaling features, you could establish a threshold where features with a scaled value above 0.8 are removed from the analysis. Alternatively, you might be concerned about the number of NaN (”Not a Number”) values being pruned or imputed in later analyses and so you could filter out the features with, for example, more than 25% missing values.</p>
+<p>Once the previous settings are entered, this option appears. It will open a results display where the data can be viewed as a heatmap, scaled, and features can be added or removed either by the user or they can be filtered based on a threshold (see <code class="xref std std-numref docutils literal notranslate"><span class="pre">fig:3.1_NM_feature_selector</span></code>). For example, after scaling features, you could establish a threshold where features with a scaled value above 0.8 are removed from the analysis. Alternatively, you might be concerned about the number of NaN (”Not a Number”) values being pruned or imputed in later analyses and so you could filter out the features with, for example, more than 25% missing values.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The formatting of the item selector along with some functionalities might alter between MATLAB versions older than 2021a and more recent versions. This is due to incompatibilities of MATLAB’s App Designer with these older versions.</p>
@@ -849,7 +849,7 @@ A common situation is when you have a vector containing numbers representing gro
 <p>Once covariates have been added, this option will pop up in the menu. Select “6” if you want to delete the covariates from the workspace.</p>
 <div class="section" id="finish-data-import-for-discovery-cross-validation">
 <h4>7/8 | Finish data import for discovery &amp; cross-validation<a class="headerlink" href="#finish-data-import-for-discovery-cross-validation" title="Permalink to this heading">#</a></h4>
-<p>This option will finish the data import section. It is important to note that once this is selected <strong>you will no longer be able to modify any part of the data</strong>, including the addition of other modalities, covariates, or anything else. If there are changes, then you will need to enter the data again. Once the data has been processed, the user can however test models by entering <a class="reference internal" href="4.8_mainmenu_OOCV_analysis.html#oocv-analysis"><span class="std std-ref">out-of-sample data</span></a> (e.g., external data from another center or group).</p>
+<p>This option will finish the data import section. It is important to note that once this is selected <strong>you will no longer be able to modify any part of the data</strong>, including the addition of other modalities, covariates, or anything else. If there are changes, then you will need to enter the data again. Once the data has been processed, the user can however test models by entering <a class="reference internal" href="_sources/4.8_mainmenu_OOCV_analysis.html#oocv-analysis"><span class="std std-ref">out-of-sample data</span></a> (e.g., external data from another center or group).</p>
 </div>
 </div>
 </div>
