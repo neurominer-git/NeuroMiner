@@ -1,4 +1,4 @@
-# NeuroMiner 1.2 Feanor
+# NeuroMiner 1.3
 
 NeuroMiner has been continuously developed by [Nikolaos Koutsouleris](https://www.imprs-tp.mpg.de/person/43420/2484), [Clara Vetter](https://cdn0.scrvt.com/4d3e519fe5939342b95c7312343779ef/d44b9dca07ed3899/0915c2a47419/Clara_Vetter_CV.pdf) and [Ariane Wiegand](https://www.psych.mpg.de/person/123169/1496336) since 2009 to provide clinical researchers with cutting-edge machine learning methods for the analysis of heterogeneous data, such as clinical and neurocognitive read-outs, structural and functional neuroimaging data, and genetic information. 
 
