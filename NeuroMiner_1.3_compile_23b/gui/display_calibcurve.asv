@@ -1,0 +1,50 @@
+function display_calibcurve(y_true, y_probs)
+    % plotInteractiveCalibrationCurve Creates an interactive plot for calibration curve
+    %   y_true - True binary labels (0 or 1)
+    %   y_probs - Predicted probabilities
+
+    % Create figure with normalized units
+    f = figure('Name', 'Interactive Calibration Curve', 'NumberTitle', 'off', 'Units', 'normalized');
+
+    % Positioning constants
+    controlHeight = 0.05;
+    controlSpacing = 0.02;
+    textWidth = 0.4;
+    sliderWidth = 0.2;
+    checkboxWidth = 0.2;
+    axesHeight = 0.8;
+
+    % UI control for number of bins
+    uicontrol(f, 'Style', 'text', 'Units', 'normalized', ...
+              'Position', [controlSpacing, 1 - controlHeight, textWidth, controlHeight], ...
+              'String', 'Number of Bins:');
+    hBins = uicontrol(f, 'Style', 'slider', 'Units', 'normalized', ...
+                      'Min', 1, 'Max', 20, 'Value', 10, ...
+                      'Position', [textWidth + 2 * controlSpacing, 1 - controlHeight, sliderWidth, controlHeight], ...
+                      'Callback', @(es,ed) updatePlot());
+
+    % UI control for smoothing
+    hSmooth = uicontrol(f, 'Style', 'checkbox', 'Units', 'normalized', ...
+                        'Position', [textWidth + sliderWidth + 3 * controlSpacing, 1 - controlHeight, checkboxWidth, controlHeight], ...
+                        'String', 'Smooth Curve', 'Callback', @(es,ed) updatePlot());
+
+    % Axes for plot, positioned below the controls
+    ax = axes(f, 'Units', 'normalized', 'Position', [controlSpacing+0.05, controlSpacing+0.05, 1 - 2 * controlSpacing-, axesHeight]);
+
+
+    % Function to update the plot
+    function updatePlot()
+        numBins = round(get(hBins, 'Value'));
+        smoothCurve = get(hSmooth, 'Value');
+
+        % Clear current axes
+        cla(ax);
+
+        % Plot the calibration curve with the specified number of bins
+        nk_PerfCalibrationAnalysis(ax, y_true, y_probs, numBins, smoothCurve);
+    end
+
+    % Initial plot
+    updatePlot();
+
+end

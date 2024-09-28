@@ -1,0 +1,36 @@
+function rT = probtransform(L_tr, tr, ts, method)
+
+L_tr(L_tr==-1 | L_tr==2)=0;
+
+if ~exist('ts','var') || isempty(ts)
+    rT = zeros(size(tr));
+    nC = size(tr,1);
+        
+    % Run in LOO mode
+    for i=1:nC
+        idx = true(nC,1); idx(i) = false;
+        L_tr_i = L_tr(idx);
+        tr_i = tr(idx);
+        switch method
+            case 'platt'
+                numPositive = sum(labels);
+                numNegative = numel(labels) - numPositive;
+                weightPositive = numNegative / numPositive;
+                weightNegative = 1;
+
+% Use logistic regression with class weights to fit the Platt scaling model
+model = fitglm(tr_i, L_tr_i, 'Distribution', 'binomial', 'Link', 'logit', 'Weights', labels.*weightPositive + (1-labels).*weightNegative);
+
+                model = fitglm('Distribution', 'binomial', 'Link', 'logit');
+            case 'isotonic'
+                model = fitrgp(tr_i, L_tr_i, 'KernelFunction', 'Exponential', 'FitMethod', 'exact');
+        end
+        rT(i) = model.predict(tr(i));
+    end
+else
+    PTR = exp(tr)./(1+exp(tr)); 
+    BBQ = buildBBQ( PTR, L_tr,[]);
+    PTE =exp(tr)./(1+exp(tr)); 
+    rT = predictBBQ(BBQ,PTE,1); 
+end
+

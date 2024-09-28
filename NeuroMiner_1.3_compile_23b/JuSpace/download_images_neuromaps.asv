@@ -1,0 +1,79 @@
+import requests
+import os
+
+api_url = 'https://api.github.com/repos/juryxy/JuSpace/contents/JuSpace_v1.5/atlas?ref=JuSpace_v1.5'
+
+headers = {}
+
+response = requests.get(api_url, headers=headers)
+
+if response.status_code == 200:
+        files = response.json()
+else:
+    print(f"Error: Unable to fetch folder contents. Please download the files manually from the JuSpace Github page: https://github.com/juryxy/JuSpace")
+    files = []
+
+atlas_folder = os.path.join(data_dir,'Atlas')
+
+if not os.path.exists(atlas_folder):
+    os.makedirs(atlas_folder)
+
+for file_info in files:
+    if file_info['type'] == 'file':
+        file_url = file_info['download_url']
+        file_name = file_info['name']
+
+        file_content = requests.get(file_url).content
+
+        with open(os.path.join(atlas_folder, file_name), 'wb') as f:
+            f.write(file_content)
+        print(f"Downloaded: {file_name}")
+    else:
+        print(f"Please download {file_info['name']} manually from the Github page: https://github.com/juryxy/JuSpace")
+
+if software == 'neuromaps':
+    try:
+        __import__('neuromaps')
+    except ModuleNotFoundError:
+        print(f'Package "{package_name}" is NOT available. Please install the Python package neuromaps before continuing.')
+    
+    #warnings = __import__('warnings')
+    #warnings.filterwarnings("ignore")
+    
+    from neuromaps.datasets import fetch_annotation
+    
+    neuromaps_folder = os.path.join(data_dir,'neuromaps')
+    
+    fetch_annotation(tags='PET',space="MNI152", data_dir=neuromaps_folder, verbose=0)
+elif software == 'JuSpace':
+    
+    api_url = 'https://api.github.com/repos/juryxy/JuSpace/contents/JuSpace_v1.5/PETatlas?ref=JuSpace_v1.5'
+    
+    headers = {}
+    
+    response = requests.get(api_url, headers=headers)
+    
+    if response.status_code == 200:
+        files = response.json()
+    else:
+        print(f"Error: Unable to fetch folder contents. Please download the files manually from the JuSpace Github page: https://github.com/juryxy/JuSpace")
+        files = []
+    
+    JuSpace_folder = os.path.join(data_dir,'JuSpace')
+    
+    if not os.path.exists(JuSpace_folder):
+        os.makedirs(JuSpace_folder)
+    
+    
+    for file_info in files:
+        if file_info['type'] == 'file':
+            file_url = file_info['download_url']
+            file_name = file_info['name']
+    
+            file_content = requests.get(file_url).content
+    
+            with open(os.path.join(JuSpace_folder, file_name), 'wb') as f:
+                f.write(file_content)
+            print(f"Downloaded: {file_name}")
+        else:
+            print(f"Skipping directory: {file_info['name']}")

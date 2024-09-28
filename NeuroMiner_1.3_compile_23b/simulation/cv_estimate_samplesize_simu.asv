@@ -1,0 +1,172 @@
+function [results, simulated_data] = cv_estimate_samplesize_simu(setup)
+% Input arguments
+% setup : structure with necessary information
+% setup.mode = 'pre' or 'posthoc'
+%   setup.output.outputdir
+%
+% setup.pre.Nfeats
+% setup.pre.Nmarkers
+% setup.pre.Ncases
+% setup.pre.eventprob
+% setup.pre.AUCmax
+% setup.pre.AUCmin
+% setup.pre.Nbatches
+% setup.pre.BatchPerc
+% setup.pre.NcasesMiss
+% setup.pre.NfeatsMiss
+% setup.pre.algorithm
+% setup.pre.Nreps
+% setup.pre.seed
+%
+% the following dont have to be set(defaults: 1,1,5,5,1)
+% setup.pre.RAND.OuterPerm = 1; % ==> Outer cross-validation permutations
+% setup.pre.RAND.InnerPerm = 1; % ==> Inner cross-validation permutations
+% setup.pre.RAND.OuterFold = 5; % ==> Outer cross-validation folds
+% setup.pre.RAND.InnerFold = 5; % ==> Inner cross-validation folds
+% setup.pre.RAND.Decompose = 1;
+%
+%
+% setup.posthoc.Data
+% setup.posthoc.Modalities
+% setup.posthoc.DataLabel
+% setup.posthoc.Nfeats
+% setup.posthoc.Ncases
+% setup.posthoc.NRanalysis
+% setup.posthoc.verbose
+% setup.posthoc.add2orig
+% setup.posthoc.NReps
+% setup.posthoc.SitesIdx
+% setup.posthoc.condIdx
+% setup.posthoc.seed
+%
+% setup.save_performance_flag
+% setup.output.save_simdata_flag
+% setup.output.plot_flag
+
+if (isfield(setup.output, 'save_performance_flag') && setup.output.save_performance_flag) || (isfield(setup.output, 'save_simdata_flag') && setup.output.save_simdata_flag) || (isfield(setup.output, 'plot_flag') && setup.output.plot_flag)
+    if isfield(setup.output, 'outputdir') && ~isempty(setup.output.outputdir)
+        if  ~exist(setup.output.outputdir, 'dir')
+            mkdir(setup.output.outputdir);
+        end
+    else
+        setup.output.outputdir = pwd;
+    end
+
+    setup.output.outputdir = [setup.output.outputdir, '/SampleSizeEstimation_', datestr(datetime('now'), 'dd-mmm-yyyy')]
+    try
+        mkdir(setup.output.outputdir);
+        cd(setup.output.outputdir);
+    catch
+        warning('output directory already exists');
+    end
+
+end
+
+if setup.mode == 'pre'
+    % pre
+    %algorithms = {'LINKERNSVM', 'LINSVM', 'L2LR', 'L1LR', 'L1SVC'};
+    %     IN.Nfeats = setup.pre.Nfeats; %str2num(app.NfeaturesEditField.Value);
+    %     IN.Nmarkers = str2num(app.ratioofpredictivemarkersEditField.Value);
+    %     IN.Ncases = str2num(app.NcasesEditField.Value);
+    %     IN.eventprob = str2num(app.eventrateEditField.Value);
+    %     IN.AUCmax = app.maxAUCEditField.Value;
+    %     IN.AUCmin = app.minAUCEditField.Value;
+    %     IN.Nbatches = app.NbatchesEditField.Value;
+    %     IN.BatchPerc = app.BatchPercEditField.Value;
+    %     IN.NcasesMiss = app.caseswithmissingvaluesEditField.Value;
+    %     IN.NfeatsMiss = app.fractionofmissingfeaturespercaseEditField.Value;
+    %     IN.algorithm = algorithms{app.MLmethodDropDown.Value};
+    %
+    %     IN.NReps = app.repetitionsperhyperparameterEditField.Value;
+    if ~isfield(setup.output, 'outputdir') || isempty(setup.output.outputdir)
+        setup.pre.outputdir = pwd;
+    end
+    if isfield(setup.output, 'save_performance_flag')
+        setup.pre.save_performance_flag = setup.output.save_performance_flag;
+    end
+    if isfield(setup.output, 'save_simdata_flag')
+        setup.pre.save_simdata_flag = setup.output.save_simdata_flag;
+    end
+    if isfield(setup.output, 'plot_flag')
+        setup.pre.plot_flag = setup.output.plot_flag;
+    end
+
+    [results, simulated_data] = nk_SimulateML(setup.pre);
+else
+    %post-hoc
+    IN.Data = setup.posthoc.NM.Y{1,M};
+    IN.Modalities = setup.posthoc.NM.analysis{1,setup.posthoc.NRanalysis}.params.TrainParam.FUSION.M;
+    IN.DataLabel= setup.posthoc.NM.label;
+    IN.Nfeats = size(setup.posthoc.Data,2);
+    IN.Ncases = simGrid;
+    IN.NRanalysis = setup.posthoc.NRanalysis;
+    IN.verbose = setup.posthoc.verbose;
+    IN.add2orig = setup.posthoc.add2orig;
+    IN.NReps = setup.posthoc.NReps;
+    IN.SitesIdx = setup.posthoc.dummycodedSites;
+    IN.condIdx = setup.posthoc.simCond;
+
+
+    if ~isfield(setup.output, 'outputdir') || isempty(setup.output.outputdir)
+        setup.posthoc.outputdir = pwd;
+    end
+    if isfield(setup.output, 'save_performance_flag')
+        setup.postho.save_performance_flag = setup.output.save_performance_flag;
+    end
+    if isfield(setup.output, 'save_simdata_flag')
+        setup.pre.save_simdata_flag = setup.output.save_simdata_flag;
+    end
+    if isfield(setup.output, 'plot_flag')
+        setup.pre.plot_flag = setup.output.plot_flag;
+    end
+
+    [perf_results, simulated_data] = nk_SimulateML(IN);
+end
+
+
+end
+
+
+
+function updateSimPlan(app, simGrid, add2orig, NReps, sites, simCond)
+
+%app.simPlanGrid = uitable(app.postTab, 'Data', simGrid, 'Position', [270,50, 200,130]);
+if simCond == 0
+    condName = 'label';
+    text = sprintf('SIMULATION PLAN: \n%d ROUNDS, %d REPS PER ROUND\nGroups defined by %s\n',size(simGrid,2), NReps, condName);
+
+elseif simCond > 0
+    condName = app.NM.covnames(simCond);
+    % text = sprintf('SIMULATION PLAN: \n%d ROUNDS, %d REPS PER ROUND\nGroups defined by %s\n',size(simGrid,2), NReps, condName{1});
+
+else
+    %text = sprintf('SIMULATION PLAN: \n%d ROUNDS, %d REPS PER ROUND\n',size(simGrid,2), NReps);
+
+end
+% for i=1:size(simGrid,1)
+%     line = sprintf('Group %d: ', i);
+%     for j=1:size(simGrid,2)
+%         line = sprintf('%s %d', line, simGrid(i,j));
+%     end
+%     % text = sprintf('%s\n', text, line);
+% end
+
+% if add2orig
+%     % text = sprintf('%s\nsimulated data will be added to original data', text);
+% end
+
+
+
+% app.simGrid = simGrid;
+% app.add2orig = add2orig;
+%
+% app.SetupButton.Enable = 'on';
+% app.SimulateButton_post.Enable = 'on';
+% app.NSims = size(simGrid,2);
+% app.NReps = NReps;
+% app.dummycodedSites = sites;
+% app.simCond = simCond;
+%
+% app.NGroups = size(simGrid,1);
+
+end
