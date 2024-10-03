@@ -8,23 +8,8 @@ echo '****************************************'
 echo '        VERSION 1.2 Feanor              '
 echo '****************************************'
 
-# compiled with matlab 
-R2023b
- so MCR main is 
-R2023b
-. Needs to change if different MCR is used.
-export LD_LIBRARY_PATH=/data/core-psy-pronia/opt/matlab/
-R2023b
-/runtime/glnxa64:
-/data/core-psy-pronia/opt/matlab/
-R2023b
-/bin/glnxa64:
-/data/core-psy-pronia/opt/matlab/
-R2023b
-/sys/os/glnxa64:
-/data/core-psy-pronia/opt/matlab/
-R2023b
-/sys/opengl/lib/glnxa64
+# compiled with matlab R2023b so MCR main is R2023b. Needs to change if different MCR is used.
+export LD_LIBRARY_PATH=/data/core-psy-pronia/opt/matlab/R2023b/runtime/glnxa64:/data/core-psy-pronia/opt/matlab/R2023b/bin/glnxa64:/data/core-psy-pronia/opt/matlab/R2023b/sys/os/glnxa64:/data/core-psy-pronia/opt/matlab/R2023b/sys/opengl/lib/glnxa64
 export JOB_DIR=$PWD
 NEUROMINER=/data/core-psy-pronia/opt/NM/NeuroMinerMCCMain_1.3_R2023b_core/for_testing
 export ACTION=mli

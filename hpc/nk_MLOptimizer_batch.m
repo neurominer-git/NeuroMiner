@@ -62,10 +62,10 @@ if ischar(preprocmaster) && exist(preprocmaster,'file')
     preprocmat = load(preprocmaster); 
 %     updatePathFunction = @(x) strrep(x,parentdir, jobdir);
 %     preprocmat.featmat{1,1} = cellfun(updatePathFunction, preprocmat.featmat{1,1}, 'UniformOutput', false);
-%     lfl = 2; 
+    lfl = 2; 
 %     preprocmat.featmat = preprocmat.featmat;
-% else
-%     preprocmat = []; lfl = 1;
+else
+    preprocmat = []; lfl = 1;
 end
 
 action = struct('addrootpath',1, ...
