@@ -95,7 +95,7 @@ function [Results, FileNames, RootPath] = nk_MLInterpreter(inp)
 % See also:
 %   nk_CreateData4MLInterpreter, nk_PerfInitSpatial, nk_ApplyTrainedPreproc
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, last modified 10/2025
+% (c) Nikolaos Koutsouleris, last modified 08/2024
 global SVM RFE MODEFL CV SCALE SAV CVPOS FUSION
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%% INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -205,12 +205,20 @@ for h=1:nclass
                 Results.BinResults(h).Modality(nx).Y_mapped_cil = zeros(mY2,nY2(nx),ix);
                 Results.BinResults(h).Modality(nx).Y_mapped_std = zeros(mY2,nY2(nx),ix);
                 Results.BinResults(h).Modality(nx).ShapleyValues = zeros(mY2,nY2(nx),ix);
+                if inp.refdataflag
+                    Results.BinResults(h).Modality(nx).refdata = inp.X.sY{nx}{1,1};
+                     Results.BinResults(h).Modality(nx).refdataflag = inp.refdataflag;
+                end
             case 'regression'
                 Results.RegrResults.Modality(nx).Y_mapped = zeros(mY2,nY2(nx),ix);
                 Results.RegrResults.Modality(nx).Y_mapped_ciu = zeros(mY2,nY2(nx),ix);
                 Results.RegrResults.Modality(nx).Y_mapped_cil = zeros(mY2,nY2(nx),ix);
                 Results.RegrResults.Modality(nx).Y_mapped_std = zeros(mY2,nY2(nx),ix);
                 Results.RegrResults.Modality(nx).ShapleyValues = zeros(mY2,nY2(nx),ix);
+                if inp.refdataflag
+                    Results.RegrResults.Modality(nx).refdata = inp.X.sY{nx}{1,1};
+                    Results.RegrResults.Modality(nx).refdataflag = inp.refdataflag;
+                end
         end
         
         % If a statistical map should be used, determine the subspace for feature modification
@@ -252,7 +260,7 @@ end
 permfile = fullfile(inp.rootdir,[SAV.matname '_MLIpermmat_ID' inp.id '.mat']);
 if exist(permfile,'file') && inp.ovrwrtperm == 2
     fprintf('\nLoading %s', permfile);
-    load(permfile,"RandFeats","wts")
+    load(permfile,"RandFeats")
 else
     clc
     sprintf('Generating random feature subspaces ... \n\n\n');
@@ -404,8 +412,6 @@ TRstr = [Sstr 'Y'];
 for f=1:ix % Loop through CV2 permutations
 
     for d=1:jx % Loop through CV2 folds
-
-        [nY(nx),datatype(nx),inp] = get_dimsizes_MLI(inp,nx,FUSION);
         
         fprintf('\n--------------------------------------------------------------------------')
         if ~GridAct(f,d) 
@@ -475,10 +481,6 @@ for f=1:ix % Loop through CV2 permutations
                     % Perform preprocessing of CV1/CV2 data
                     [ inp, contfl, analysis, mapY, GD, MD, Param, paramfl, mapYocv ] = nk_ApplyTrainedPreproc(analysis, inp, paramfl);
 
-                    if inp.refdataflag
-                        [inp,mapY,mapYocv] = compute_average_mapY(inp,mapY,mapYocv,CV,f,d,nx);
-                    end
-
                     if contfl, continue; end
 
                     % Can we use a pretrained model saved on disk?
@@ -489,8 +491,6 @@ for f=1:ix % Loop through CV2 permutations
                     end
                     if ~fndMD, MD = cell(nclass,1); end
                     predOrig = cell(nclass,1);
-                    predOrigW = cell(nclass,1); % NEW: aligned weights per column of predOrig{h}
-
                     % -----------------------------------------------------------------
                     for h=1:nclass  % Loop through binary comparisons
     
@@ -530,26 +530,6 @@ for f=1:ix % Loop through CV2 permutations
                                     % convert feature mask to logical index, if needed
                                     ul=size(Fkl,2); totLearn = totLearn + ul;
                                     if ~islogical(Fkl), F = Fkl ~= 0; else, F = Fkl; end
-                                    
-                                    % --- Retrieve boosting weights for this param/fold/permutation/class (if present)
-                                    Wkl = []; useW = false;
-                                    if isfield(RFE,'Filter') && isfield(RFE.Filter,'EnsembleStrategy') ...
-                                       && isfield(GD,'Weights') && ~isempty(GD.Weights)
-                                        EnsStrat = RFE.Filter.EnsembleStrategy;
-                                        if isfield(EnsStrat,'type') && EnsStrat.type ~= 9
-                                            if numel(GD.Weights) >= Pspos(m) && ~isempty(GD.Weights{Pspos(m)}) ...
-                                               && numel(GD.Weights{Pspos(m)}) >= 1 ...
-                                               && numel(GD.Weights{Pspos(m)}{k,l,h}) >= 1
-                                                Wkl = GD.Weights{Pspos(m)}{k,l,h};
-                                                if ~isempty(Wkl) && numel(Wkl)==ul
-                                                    Wkl = max(Wkl(:),0);
-                                                    s   = sum(Wkl);
-                                                    if s>0, Wkl = Wkl./s; end
-                                                    useW = true;
-                                                end
-                                            end
-                                        end
-                                    end
 
                                     % Get data pointers for current dichotomization
                                     TrInd = mapY.TrInd{k,l}{h};
@@ -590,9 +570,6 @@ for f=1:ix % Loop through CV2 permutations
                                         uD = zeros(size(CV2,1),ul);
                                     end
                                     if FullPartFlag, TR = [ TR; CV1]; end
-
-                                    TR_cell{k,l} = TR;
-                                    CV2_cell{k,l} = CV2;
  
                                    % Get and build label info
                                     modelTrL = mapY.TrL{k,l}{h};                         
@@ -645,12 +622,6 @@ for f=1:ix % Loop through CV2 permutations
                                         uD(:,u) = nk_DetrendPredictions2(beta, p, uD(:,u)); 
                                     end    
                                     predOrig{h} = [predOrig{h} uD];
-                                    if isempty(predOrigW{h}), predOrigW{h} = []; end
-                                    if useW && numel(Wkl)==ul
-                                        predOrigW{h} = [predOrigW{h} Wkl(:).'];
-                                    else
-                                        predOrigW{h} = [predOrigW{h} ones(1, ul)];
-                                    end
                                 end
                             end
                         end
@@ -663,11 +634,8 @@ for f=1:ix % Loop through CV2 permutations
                     switch inp.MLI.method
                         case {'posneg'}
                             predInterp = cell(nTs, nclass, 2);
-                            predInterpW_pos = cell(nTs, nclass);  % weights per column of predInterp{q,h,1}
-                            predInterpW_neg = cell(nTs, nclass);  % weights per column of predInterp{q,h,2}
                         case {'median','medianflip','random','medianmirror','shapley','tree'}
                             predInterp = cell(nTs, nclass);
-                            predInterpW     = cell(nTs, nclass);  % weights per column of predInterp{q,h}
                     end
                     mapInterp = cell(nclass, nM);
                     mapInterp_ciu = cell(nclass, nM);
@@ -747,28 +715,16 @@ for f=1:ix % Loop through CV2 permutations
                             end
                         end
              
-                        % What shapley case saves in inp.X.(Ycovstr) has one dimension more than usual
+                        % What shapley case saves in inp.X.Ycov has one dimension more than usual
                         % because it replaces the modified value not only with one random value but
                         % with each values available in the training sample once
                         % the preprocesssed data are stored in mapYcov
                         % Preprocess modified data
                         switch inp.MLI.method
                             case {'posneg','median','medianflip','medianmirror','random','tree'}
-                                if inp.refdataflag
-                                    modificationflag = true;
-                                    [inp, ~, mapYocv] = compute_average_mapY(inp,mapY,mapYocv,CV,f,d,nx,modificationflag);
-                                else
-                                    [ inp, ~, ~, ~, ~, ~, ~, ~, mapYocv] = nk_ApplyTrainedPreproc(analysis, inp, paramfl, Param);
-                                end
+                                [ inp, ~, ~, ~, ~, ~, ~, ~, mapYocv] = nk_ApplyTrainedPreproc(analysis, inp, paramfl, Param);
                             case 'shapley'
-                                if inp.oocvflag
-                                    if isfield(inp,'issmoothed') && inp.issmoothed
-                                        Yocvstr = 'sYocv2';
-                                    else
-                                        Yocvstr = 'Yocv2';
-                                    end
-                                else
-                                    if isfield(inp,'issmoothed') && inp.issmoothed
+                                if isfield(inp,'issmoothed') && inp.issmoothed
                                     % here we would need to potentially
                                     % account for multiple binary
                                     % classifier-related optimizations of 
@@ -777,14 +733,10 @@ for f=1:ix % Loop through CV2 permutations
                                     % the moment this will only work for
                                     % simple binary classification and
                                     % regression
-                                        Yocvstr = 'sYocv';
-                                    else
-                                        Yocvstr = 'Yocv';
-                                    end
+                                    M = inp.X.sYocv;
+                                else
+                                    M = inp.X.Yocv;
                                 end
-
-                                M = inp.X.(Yocvstr);
-                                
                                 % M can be a cell array if smoothing has
                                 % been used during model optimization:
                                 % M{classifier}{smoothing kernel}:
@@ -796,27 +748,27 @@ for f=1:ix % Loop through CV2 permutations
                                     % binary-optimized preprocessing
                                     % because the training data matrix will
                                     % vary across classifiers.
-                                    nxM = numel(M{1}); nxY = size(inp.X.(Yocvstr){1}{1},3); 
+                                    nxM = numel(M{1}); nxY = size(inp.X.sYocv{1}{1},3); 
                                     Mij = cell(nclass,1);
                                     for i=1:nxY
                                         for curclass = 1:nclass
                                             Mij{curclass} = cell(nxM,1);
                                             for j=1:nxM, Mij{curclass}{j} = M{curclass}{j}(:,:,i); end
                                         end
-                                        inp.X.(Yocvstr) = Mij;
+                                        inp.X.sYocv = Mij;
                                         fprintf('\nOperating on data version #%g',i);
                                         [ inp, ~, ~, ~, ~, ~, ~, ~, mapYocv] = nk_ApplyTrainedPreproc(analysis, inp, paramfl, Param);
                                         mapYocv_all.(['mapYocv' num2str(i)]) = mapYocv;
                                     end
-                                    inp.X.(Yocvstr) = M;
+                                    inp.X.sYocv = M;
                                 else
-                                    for i=1:size(inp.X.(Yocvstr),3)
-                                        inp.X.(Yocvstr) = M(:,:,i);
+                                    for i=1:size(inp.X.Yocv,3)
+                                        inp.X.Yocv = M(:,:,i);
                                         fprintf('\nOperating on data version #%g',i);
                                         [ inp, ~, ~, ~, ~, ~, ~, ~, mapYocv] = nk_ApplyTrainedPreproc(analysis, inp, paramfl, Param);
                                         mapYocv_all.(['mapYocv' num2str(i)]) = mapYocv;
                                     end
-                                    inp.X.(Yocvstr) = M;
+                                    inp.X.Yocv = M;
                                 end
                                 % store number of data instances for later
                                 n_all = length(fieldnames(mapYocv_all));
@@ -954,17 +906,6 @@ for f=1:ix % Loop through CV2 permutations
                                                 predInterp{q,h,1} = [predInterp{q,h,1} uD_pos];
                                                 predInterp{q,h,2} = [predInterp{q,h,2} uD_neg];
 
-                                                % Append aligned weights (same Wkl for pos/neg blocks)
-                                                if isempty(predInterpW_pos{q,h}), predInterpW_pos{q,h} = []; end
-                                                if isempty(predInterpW_neg{q,h}), predInterpW_neg{q,h} = []; end
-                                                if useW && numel(Wkl)==ul
-                                                    wrow = Wkl(:).';
-                                                else
-                                                    wrow = ones(1, ul);
-                                                end
-                                                predInterpW_pos{q,h} = [predInterpW_pos{q,h} wrow];
-                                                predInterpW_neg{q,h} = [predInterpW_neg{q,h} wrow];
-
                                             case {'median','medianflip','medianmirror','random'}
 
                                                 uD = zeros(size(OCV,1),ul);
@@ -990,12 +931,6 @@ for f=1:ix % Loop through CV2 permutations
                                                     end    
                                                 end
                                                 predInterp{q,h} = [predInterp{q,h} uD];
-                                                if isempty(predInterpW{q,h}), predInterpW{q,h} = []; end
-                                                if useW && numel(Wkl)==ul
-                                                    predInterpW{q,h} = [predInterpW{q,h} Wkl(:).'];
-                                                else
-                                                    predInterpW{q,h} = [predInterpW{q,h} ones(1, ul)];
-                                                end
                                             
                                             case 'shapley'
 
@@ -1036,12 +971,6 @@ for f=1:ix % Loop through CV2 permutations
                                                 end
                                                 uD = mean(uD_all,3);    
                                                 predInterp{q,h} = [predInterp{q,h} uD];
-                                                if isempty(predInterpW{q,h}), predInterpW{q,h} = []; end
-                                                if useW && numel(Wkl)==ul
-                                                    predInterpW{q,h} = [predInterpW{q,h} Wkl(:).'];
-                                                else
-                                                    predInterpW{q,h} = [predInterpW{q,h} ones(1, ul)];
-                                                end
                                             
                                             case 'tree'
                                                 error('Case tree is not yet implemented')
@@ -1054,7 +983,19 @@ for f=1:ix % Loop through CV2 permutations
                         % Remove artificial data from inp structure
                         % otherwise nk_ApplyTrainedPreproc may not work
                         % properly.
-                        inp.X = rmfield(inp.X, Yocvstr );
+                        if inp.oocvflag
+                            if isfield(inp,'issmoothed') && inp.issmoothed
+                                inp.X = rmfield(inp.X, 'sYocv2' );
+                            else
+                                inp.X = rmfield(inp.X, 'Yocv2' );
+                            end
+                        else
+                            if isfield(inp,'issmoothed') && inp.issmoothed
+                                inp.X = rmfield(inp.X, 'sYocv' );
+                            else
+                                inp.X = rmfield(inp.X, 'Yocv' );
+                            end
+                        end
                     end
                 end
 
@@ -1071,40 +1012,16 @@ for f=1:ix % Loop through CV2 permutations
                         fprintf('\n\tCase %s (%g of %g cases)', cases{tInd(q)}, q, numel(tInd));
 
                         for h=1:nclass
-                            if ~isempty(predOrigW{h}) && numel(predOrigW{h}) == size(predOrig{h},2)
-                                Oh = nk_WeightedMedianRows(predOrig{h}(q,:), predOrigW{h});  
-                            else
-                                Oh = nm_nanmedian(predOrig{h}(q,:), 2);
-                            end
+                            Oh = nm_nanmedian(predOrig{h}(q,:),2);
 
                             for nx = 1:nM
-                                
                                 fMapIdx = find( inp.MLI.Modality{nx}.MAP.mapidx{h} );
-                                
                                 switch inp.MLI.method
-                                    
                                     case 'posneg'
-                                        if ~isempty(predInterpW_pos{q,h}) && numel(predInterpW_pos{q,h}) == size(predInterp{q,h,1},2)
-                                            Rpos = nk_WeightedMedianRows(predInterp{q,h,1}, predInterpW_pos{q,h});
-                                        else
-                                            Rpos = nm_nanmedian(predInterp{q,h,1}, 2);
-                                        end
-                                        if ~isempty(predInterpW_neg{q,h}) && numel(predInterpW_neg{q,h}) == size(predInterp{q,h,2},2)
-                                            Rneg = nk_WeightedMedianRows(predInterp{q,h,2}, predInterpW_neg{q,h});
-                                        else
-                                            Rneg = nm_nanmedian(predInterp{q,h,2}, 2);
-                                        end
-                                        Rh = [Rpos Rneg];
-                                    
+                                        Rh = [ nm_nanmedian(predInterp{q,h,1},2) nm_nanmedian(predInterp{q,h,2},2)]; 
                                     case {'median','medianflip','medianmirror','random','shapley'}
-                                        if ~isempty(predInterpW{q,h}) && numel(predInterpW{q,h}) == size(predInterp{q,h},2)
-                                            Rh = nk_WeightedMedianRows(predInterp{q,h}, predInterpW{q,h});
-                                        else
-                                            Rh = nm_nanmedian(predInterp{q,h}, 2);
-                                        end
-                                
+                                        Rh = nm_nanmedian(predInterp{q,h},2);
                                 end
-
                                 [mapInterp{h, nx}(q,:), ...
                                 mapInterp_ciu{h, nx}(q,:), ...
                                 mapInterp_cil{h, nx}(q,:), ...
@@ -1145,7 +1062,13 @@ for f=1:ix % Loop through CV2 permutations
                         end
                     end
                     fprintf('\nSaving %s', oMLIpath);
-                    save(oMLIpath,'predOrig', 'predOrigW', 'predInterp', 'mapInterp_ciu', 'mapInterp_cil', 'mapInterp_std', 'predInterpW', 'predInterpW_pos', 'predInterpW_neg', 'shapleyValues', 'operm','ofold');
+                    refdataflag = inp.refdataflag;
+                    if iscell(inp.X.sY)
+                        refdata = inp.X.sY{nx}{1,1};
+                    else
+                        refdata = inp.X.sY;
+                    end
+                    save(oMLIpath,'predOrig', 'predInterp', 'mapInterp', 'mapInterp_ciu', 'mapInterp_cil', 'mapInterp_std', 'shapleyValues', 'operm','ofold','refdataflag','refdata');
                 end
                 if saveparam 
                     fprintf('\nSaving %s', OptModelPath); save(OptModelPath, 'MD', 'ofold','operm'); 
@@ -1161,13 +1084,6 @@ for f=1:ix % Loop through CV2 permutations
                     fprintf('\n\nLoading MLI results for CV2 partition [ %g, %g ]:', f, d);
                     fprintf('\n%s',vnam);
                     load(vpth)
-                    
-                    % Backward-compatible guards (files created before weights existed):
-                    if ~exist('predOrigW','var'),          predOrigW = [];           end
-                    if ~exist('predInterpW','var'),        predInterpW = [];         end
-                    if ~exist('predInterpW_pos','var'),    predInterpW_pos = [];     end
-                    if ~exist('predInterpW_neg','var'),    predInterpW_neg = [];     end
-
                     if inp.recompute_estimates == 1
                         fprintf('\nRecomputing MLI prediction change estimates in CV2 partition [ %g, %g ]:', f, d);
                         %% Step 5: Evaluate impact of input data modifications using obtained predictions
@@ -1176,36 +1092,15 @@ for f=1:ix % Loop through CV2 permutations
                             fprintf('\n\tCase ''%s'' (%g of %g cases)', cases{tInd(q)}, q, numel(tInd));
                             
                             for h=1:nclass
-                                if ~isempty(predOrigW{h}) && numel(predOrigW{h}) == size(predOrig{h},2)
-                                    Oh = nk_WeightedMedianRows(predOrig{h}(q,:), predOrigW{h});  
-                                else
-                                    Oh = nm_nanmedian(predOrig{h}(q,:), 2);
-                                end
+                                Oh = nm_nanmedian(predOrig{h}(q,:),2);
                             
                                 for nx = 1:nM
                                     fMapIdx = find( inp.MLI.Modality{nx}.MAP.mapidx{h} );
                                     switch inp.MLI.method
-                                    
                                         case 'posneg'
-                                            if ~isempty(predInterpW_pos{q,h}) && numel(predInterpW_pos{q,h}) == size(predInterp{q,h,1},2)
-                                                Rpos = nk_WeightedMedianRows(predInterp{q,h,1}, predInterpW_pos{q,h});
-                                            else
-                                                Rpos = nm_nanmedian(predInterp{q,h,1}, 2);
-                                            end
-                                            if ~isempty(predInterpW_neg{q,h}) && numel(predInterpW_neg{q,h}) == size(predInterp{q,h,2},2)
-                                                Rneg = nk_WeightedMedianRows(predInterp{q,h,2}, predInterpW_neg{q,h});
-                                            else
-                                                Rneg = nm_nanmedian(predInterp{q,h,2}, 2);
-                                            end
-                                            Rh = [Rpos Rneg];
-                                        
+                                            Rh = [ nm_nanmedian(predInterp{q,h,1},2) nm_nanmedian(predInterp{q,h,2},2)]; 
                                         case {'median','medianflip','medianmirror','random','shapley'}
-                                            if ~isempty(predInterpW{q,h}) && numel(predInterpW{q,h}) == size(predInterp{q,h},2)
-                                                Rh = nk_WeightedMedianRows(predInterp{q,h}, predInterpW{q,h});
-                                            else
-                                                Rh = nm_nanmedian(predInterp{q,h}, 2);
-                                            end
-                                    
+                                            Rh = nm_nanmedian(predInterp{q,h},2);
                                     end
                                     [mapInterp{h, nx}(q,:), ...
                                      mapInterp_ciu{h, nx}(q,:), ...
@@ -1217,7 +1112,7 @@ for f=1:ix % Loop through CV2 permutations
                             end
                         end
                         fprintf('\nSaving %s', oMLIpath); 
-                        save(oMLIpath,'predOrig', 'predOrigW', 'predInterp', 'mapInterp', 'mapInterp_ciu', 'mapInterp_cil', 'mapInterp_std', 'predInterpW', 'predInterpW_pos', 'predInterpW_neg', 'shapleyValues', 'operm','ofold');
+                        save(oMLIpath,'predOrig', 'predInterp', 'mapInterp', 'mapInterp_ciu', 'mapInterp_cil', 'mapInterp_std', 'shapleyValues', 'operm','ofold');
                     end
                 end 
         end
@@ -1237,6 +1132,10 @@ for f=1:ix % Loop through CV2 permutations
                         Results.BinResults(h).Modality(nx).Y_mapped_cil(tInd,:,f) = mapInterp_cil{h,nx};
                         Results.BinResults(h).Modality(nx).Y_mapped_std(tInd,:,f) = mapInterp_std{h,nx};
                         Results.BinResults(h).Modality(nx).ShapleyValues(tInd,:,f) = shapleyValues{h,nx};
+                        if inp.refdataflag
+                            Results.BinResults(h).Modality(nx).refdata = inp.X.sY{nx}{1,1};
+                            Results.BinResults(h).Modality(nx).refdataflag = inp.refdataflag;
+                        end
                     case 'regression'
                         Results.RegrResults.Modality(nx).modality_num = inp.tF(nx);
                         Results.RegrResults.Modality(nx).modality_type = inp.X(nx).datatype;
@@ -1246,6 +1145,10 @@ for f=1:ix % Loop through CV2 permutations
                         Results.RegrResults.Modality(nx).Y_mapped_cil(tInd,:,f) = mapInterp_cil{h,nx};
                         Results.RegrResults.Modality(nx).Y_mapped_std(tInd,:,f) = mapInterp_std{h,nx};
                         Results.RegrResults.Modality(nx).ShapleyValues(tInd,:,f) = shapleyValues{h,nx};
+                        if inp.refdataflag
+                            Results.RegrResults.Modality(nx).refdata = inp.X.sY{nx}{1,1};
+                            Results.RegrResults.Modality(nx).refdataflag = inp.refdataflag;
+                        end
                 end
             end
         end
@@ -1265,6 +1168,10 @@ for h = 1:nclass
                 Results.BinResults(h).Modality(nx).ShapleyValues = nm_nanmean(Results.BinResults(h).Modality(nx).ShapleyValues(:,:,1:ol),3);
                 Results.BinResults(h).RangePred = inp.MLI.RangePred(h);
                 vols = Results.BinResults(h).Modality(nx).Y_mapped;
+                if inp.refdataflag
+                    Results.BinResults(h).Modality(nx).refdata = inp.X.sY{nx}{1,1};
+                    Results.BinResults(h).Modality(nx).refdataflag = inp.refdataflag;
+                end
             case 'regression'
                 Results.RegrResults.Modality(nx).Y_mapped       = nm_nanmean(Results.RegrResults.Modality(nx).Y_mapped(:,:,1:ol),3);
                 Results.RegrResults.Modality(nx).Y_mapped_ciu   = nm_nanmean(Results.RegrResults.Modality(nx).Y_mapped_ciu(:,:,1:ol),3);
@@ -1273,6 +1180,10 @@ for h = 1:nclass
                 Results.RegrResults.Modality(nx).ShapleyValues  = nm_nanmean(Results.RegrResults.Modality(nx).ShapleyValues(:,:,1:ol),3);
                 Results.RegrResults.RangePred = inp.MLI.RangePred(h);
                 vols = Results.RegrResults.Modality(nx).Y_mapped; 
+                if inp.refdataflag
+                    Results.RegrResults.Modality(nx).refdata = inp.X.sY{nx}{1,1};
+                    Results.RegrResults.Modality(nx).refdataflag = inp.refdataflag;
+                end
         end
         
         % Write image files to disk
