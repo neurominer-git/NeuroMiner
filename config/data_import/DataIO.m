@@ -64,6 +64,7 @@ if isfield(IO,'label') && sum(any(isnan(IO.label)))>0
     IO.nangroup = 1; IO.nan_subjects = sum(sum(isnan(IO.label),2));
 end
 
+
 labelmanage = {'add to existing','overwrite existing','skip'};
 delimiters = {'comma','semi','space','tab','bar'};
 globals = {'no globals','user-defined','computed by SPM'};
