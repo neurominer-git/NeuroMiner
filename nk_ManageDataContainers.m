@@ -314,7 +314,7 @@ if strcmp(IO.datasource,'matrix')
     IO.sheets = inp.na_str;
     IO.M_edit = inp.na_str;
     IO.featnames_cv = inp.featnames{inp.currmodal};
-    IO.case_edit = inp.datadescriptor{1, 1}.input_settings.case_edit;
+    IO.case_edit = inp.datadescriptor{1, 1}.input_settings.case_edit; % CHECK // 
 else
     if strcmp(IO.datasource,'spm')
         IO.datasource = 'nifti'; 
