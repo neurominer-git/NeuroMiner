@@ -1439,8 +1439,9 @@ if hObject.Value > 1
     handles.SubIndex = any(groups(:,gindex),2);
     switch handles.modeflag
         case 'classification'
-            if isfield(handles.NM.analysis{handles.curranal}.OOCV{g_oocvind}.BinResults{handles.curlabel}.Group{gindex(1)},'PermAnal')
-                handles.PermAnal = handles.NM.analysis{handles.curranal}.OOCV{g_oocvind}.BinResults{handles.curlabel}.Group{gindex(1)}.PermAnal.ModelPermSignificance(handles.curclass);
+            if isfield(handles,'MultiClass'), fldname = 'MultiResults'; else, fldname = 'BinResults'; end
+            if isfield(handles.NM.analysis{handles.curranal}.OOCV{g_oocvind}.(fldname){handles.curlabel}.Group{gindex(1)},'PermAnal')
+                handles.PermAnal = handles.NM.analysis{handles.curranal}.OOCV{g_oocvind}.(fldname){handles.curlabel}.Group{gindex(1)}.PermAnal.ModelPermSignificance(handles.curclass);
             else
                 if isfield(handles,'PermAnal'), handles = rmfield(handles,'PermAnal'); end
             end

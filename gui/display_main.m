@@ -18,20 +18,20 @@ switch h_list{h_val}
         handles.pnModelPerf.Visible         = 'off';
         handles.pnVisual.Visible            = 'off';
         handles.pnBinary.Visible            = 'on';
-        
-
+  
         if strcmpi(h_classlist{h_class},'Multi-group classifier')
             handles.oocvview = false;
             handles.cmdExportCobWeb.Visible = 'on';
             handles.selOneVsAll_Info.Enable  = 'on';
-            set([handles.tglSort, handles.tglClrSwp, handles.tglP, handles.tglPercRank, handles.cmdPerfDCA, handles.cmdCalib], Enable='off');
+            %set(get(handles.pnBinRegrPerfCmd, 'Children'), 'Enable', 'off');
             load_selYAxis(handles)
             load_selModelMeasures(handles)
+            
             handles = display_multiclassplot(handles);
             handles = sel_onevsone(handles, handles.selOneVsAll_Info);
             load_selCase(handles,handles.MultiClass.cases)
         else
-            set([handles.tglSort, handles.tglClrSwp, handles.tglP, handles.tglPercRank, handles.cmdPerfDCA, handles.cmdCalib], Enable='on');
+            %set(get(handles.pnBinRegrPerfCmd, 'Children'), 'Enable', 'on');
             if isfield(handles,'MultiClass') && isfield(handles.MultiClass,'spideraxes') 
                 handles.MultiClass.spideraxes.Title.Visible='off';
             end
@@ -46,22 +46,15 @@ switch h_list{h_val}
                 [~,oocvind] = get_oocvind(handles);
                 if handles.OOCV(oocvind).flag
                     if isfield(handles,'MultiClass'), fldname = 'MultiResults'; else, fldname = 'BinResults'; end
-                    if ~iscell(handles.OOCV(oocvind).data.(fldname))
-                        OOCVres = handles.OOCV(oocvind).data.(fldname);
-                        handles.OOCV(oocvind).data.(fldname) = [];
-                        handles.OOCV(oocvind).data.(fldname){handles.curlabel} = OOCVres;
-                    else
-                        OOCVres = handles.OOCV(oocvind).data.(fldname){handles.curlabel};
-                    end
-                    if isfield(OOCVres,'PermAnal')
-                        handles.PermAnal = OOCVres.PermAnal.ModelPermSignificance(h_class);
+                    if isfield(handles.OOCV(oocvind).data.(fldname){handles.curlabel},'PermAnal')
+                        handles.PermAnal = handles.OOCV(oocvind).data.(fldname){handles.curlabel}.PermAnal.ModelPermSignificance(h_class);
                     else
                         if isfield(handles,'PermAnal'), handles = rmfield(handles,'PermAnal'); end
                     end
                     handles = display_classplot_oocv(h_class, handles);
                     load_selCase(handles,handles.OOCVinfo.Analyses{handles.curranal}.cases{oocvind});
-                    if isfield(handles.OOCV(oocvind).data, fldname) && isfield(handles.OOCV(oocvind).data.(fldname){1},'Group')
-                        Groups = handles.OOCV(oocvind).data.(fldname){1}.Group;
+                    if isfield(handles.OOCV(oocvind).data,fldname) && isfield(handles.OOCV(oocvind).data.(fldname){h_class},'Group')
+                        Groups = handles.OOCV(oocvind).data.(fldname){h_class}.Group;
                         GroupNames = cell(numel(Groups)+1,1);
                         GroupNames{1} = 'Show entire OOCV sample';
                         for g=2:numel(Groups)+1
@@ -96,6 +89,7 @@ switch h_list{h_val}
         handles.axes20.Visible='off'; drawnow
         handles.cmdExportAxes20.Visible = 'off';
         
+
         if strcmp(handles.selCVoocv.Enable,'on') && handles.selCVoocv.Value > 1
 
             [~,oocvind] = get_oocvind(handles);
@@ -115,7 +109,6 @@ switch h_list{h_val}
             end
 
             [handles, oocvind] = get_oocvind(handles);
-
             % Check whether the labels are known
             labels_known = handles.OOCVinfo.Analyses{handles.curranal}.labels_known(oocvind);
 
@@ -126,7 +119,7 @@ switch h_list{h_val}
             end
             
             if ~labels_known
-                handles = display_regrplot_oocv_labels_unknown(handles);
+                handles = display_regrplot_oocv_labels_unknown(h_class, handles);
             else
                 handles  = display_regrplot(handles, [], false, true, false, 0.2);
                 handles.oocvview = true;
@@ -148,12 +141,15 @@ switch h_list{h_val}
         handles.pnModelPerf.Visible         ='off';
         handles.pnBinary.Visible            ='off';
         handles.pnVisual.Visible            ='on';
-        load_selVisMeasDropDown(handles);
-        load_selComponents(handles.selComponent, handles.visdata{handles.curmodal, handles.curlabel}, handles.curclass, handles.curmodal);
+        load_selModality(handles)
         handles = display_visual(handles);
 
     case 'ML Interpreter results'
         
+        %handles.pnModelPerf.Visible         ='off';
+        %handles.pnBinary.Visible            ='off';
+        %handles.pnVisual.Visible            ='on';
+        %load_selModality(handles)
         handles.MLIapp = appMLI(handles);
         handles.selModelMeasures.Value = 1;
         display_main(handles);
@@ -170,10 +166,4 @@ switch h_list{h_val}
             case 'bagged'
                 handles                     = display_modelperf_bagged(handles);
         end
-end
-
-if ~strcmp(h_list{h_val},'Visualization results') && isfield(handles,'pn3DView')
-    fig = ancestor(handles.pn3DView,'figure');
-    orig = getappdata(handles.pn3DView,'OrigWBMFcn');
-    if ~isempty(orig), set(fig,'WindowButtonMotionFcn', orig); end
 end

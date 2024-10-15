@@ -19,23 +19,14 @@ function [axes_handles, cb_ax] = nk_PrintFeatRelev25D(Features, ...
 %   ModelNames          - Cell array of model titles.
 %   ScoreName           - String representing the name of the score (e.g., 'Score').
 %   HoldOutRange        - Two-element vector specifying the transparent score range [min, max].
-%   FigureName          - (Optional) Name of the figure
-%   RGBposneg           - (Optional) 2x3 array with RGBposneg(1,:)
-%                           containing the RGB color triplet for the
-%                           positive range and RGBposneg(2,:) and
-%                           containing the RGB color triplet for the negative range.
-%   RGBback             - (Optional) rgb triplet specifying the background
-%                           color of the each axis object
 %   ColorbarRange       - (Optional) Two-element vector specifying [min, max] of the colorbar.
 %   SortBy              - (Optional) String specifying whether to sort by 'absolute' or 'original' scores. Default is 'absolute'.
 %   Order               - (Optional) String specifying 'ascending' or 'descending' order. Default is 'descending'.
 %   RectangleHeightMode - (Optional) String specifying rectangle height mode ('proportional', 'constant'). Default is 'constant'.
-%   MinAlpha            - (Optional) maximum alpha level for positive and
-%                         negative colorbar areas
+%
 % Outputs:
-%   axes_handles        - Cell array of axes handles for each subplot.
-%   cb_ax               - handle of colorbar
-
+%   axes_handles - Cell array of axes handles for each subplot.
+%   cb_ax
 % Handle default inputs
 if ~exist('SortBy', 'var') || isempty(SortBy)
     SortBy = 'absolute';
@@ -100,7 +91,7 @@ end
 max_nFeatures = max(cellfun(@length, Features));
 
 % Calculate font size based on the maximum number of features
-minFontSize = 7;
+minFontSize = 8;
 maxFontSize = 14;
 maxFeaturesForScaling = 15;
 if max_nFeatures <= maxFeaturesForScaling
@@ -112,10 +103,10 @@ fontSize = max(minFontSize, fontSize);
 
 % Create figure
 % Get the screen size
-%screenSize = get(0, 'screensize');
+screenSize = get(0, 'screensize');
 
 % Create a figure with screen size dimensions
-fig = figure('Name', FigureName, 'Color', 'w', 'Units', 'normalized');%,'Position', [0 0 screenSize(3) screenSize(4)]);
+fig = figure('Name', FigureName, 'Color', 'w', 'Units', 'normalized','Position', [0 0 screenSize(3) screenSize(4)]);
 
 % Create temporary, invisible axes for text extent calculation
 temp_ax = axes('Parent', fig, 'Visible', 'off');

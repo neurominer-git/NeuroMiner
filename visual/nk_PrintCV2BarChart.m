@@ -12,10 +12,9 @@ if ~hx
             'Tag',WinTag, ...
             'MenuBar','none', ...
             'Position', D.figuresz, ...
-            'Color', [0.9 0.9 0.9], ...
-            'Visible','off');
+            'Color', [0.9 0.9 0.9]);
     else
-        D.h = h; set(0,'CurrentFigure',h); clf;
+        D.h = h; set(0,'CurrentFigure',h); clf
     end
 else
     h = D.h; set(0,'CurrentFigure',h)
@@ -95,7 +94,6 @@ for p=1:numel(D.ax)
             set(h_legend,'FontSize',8);
         end
         hold off
-        D.h.Visible='on';  
     else
         set(h,'CurrentAxes',D.ax{p}.h);
         for i = 1:D.nclass
@@ -121,8 +119,6 @@ for p=1:numel(D.ax)
             end
         end
     end
-    
-    
 end
 
 if multiflag
@@ -175,4 +171,4 @@ if multiflag
     end
 end 
 drawnow
-end
+ 

@@ -30,10 +30,10 @@ end
 
 % Addition 22/01/2024: Enable the use of simulated annealing for parameter
 % optimization. 
-if isfield(GRD,'OptMode') 
-    ParamOptimizationMode = GRD.OptMode.type;
+if isfield(inp,'ParamOptimizationMode')
+    ParamOptimizationMode = inp.ParamOptimizationMode;
 else
-    ParamOptimizationMode = 'brute-force';
+    ParamOptimizationMode = 'bruteforce';
 end
 
 tdir = pwd; if isfield(inp,'rootdir'), tdir = inp.rootdir; end
@@ -94,6 +94,7 @@ switch MODEFL
         binmode = 0;
 end
     
+DISP.dimension = [];
 GDanalname  = [strout '_CVresults' inp.varstr '_ID' id '.mat'];
 GDanalpth   = fullfile(tdir,GDanalname);
 
@@ -123,6 +124,8 @@ for curclass = 1:nclass
 end
 
 algostr = GetMLType(SVM);
+DISP.algostr = algostr; DISP.figbin=[]; DISP.binwintitle = '';
+DISP.Pdesc = Params_desc;
 
 % Setup CV2 container variables:
 if ~exist('GridAct','var') || isempty(GridAct), ...
@@ -228,9 +231,6 @@ for h=1:nclass
 end
 [~, ~, ~, ~, act] = nk_ReturnEvalOperator(SVM.GridParam);
 
-DISP.dimension = [];
-DISP.algostr = algostr; DISP.figbin=[]; DISP.binwintitle = '';
-DISP.Pdesc = Params_desc;
 if ~batchflag && RFE.dispres
    DISP.binwintitle = sprintf('NM Optimization Viewer => Analysis [#%g]: %s', inp.curanal, inp.P.analysis_id);
 end
@@ -245,7 +245,6 @@ ol = 0; ll = 1; GridUsed = false(size(GridAct));
 if GDfl == -1
     
     % Scale the labels
-    inp.orig_labels = label;
     label = nk_LabelTransform(PREPROC,MODEFL,label);
     inp.labels = label;
     
@@ -266,7 +265,7 @@ if GDfl == -1
     end
 
     % Perform required spatial ops on mask image
-    inp = nk_SmoothMask( PREPROC, inp, inp.P );
+    inp = nk_SmoothMask( PREPROC, inp.P );
 
     % Set template flag
     if isfield(PREPROC,'TEMPLPROC') && ~isempty(PREPROC.TEMPLPROC) && PREPROC.TEMPLPROC
@@ -274,7 +273,6 @@ if GDfl == -1
     end
 else
      % Scale the labels
-    inp.orig_labels = label;
     label = nk_LabelTransform(PREPROC,MODEFL,label);
     inp.labels = label;
 end
@@ -418,16 +416,16 @@ for f=1:ix % Loop through CV2 permutations
 
             % %%%%%%%%%%%%%%%%%%%%% PREPARATIONS %%%%%%%%%%%%%%%%%%%%%%
             % CV1 test data performance measures
-            GD.TR       = nan(nPs(1),nclass,nl);
-            GD.sTR      = nan(nPs(1),nclass,nl);
+            GD.TR       = zeros(nPs(1),nclass,nl);
+            GD.sTR     = zeros(nPs(1),nclass,nl);
 
             % CV2 test data performance measures
-            GD.TS       = nan(nPs(1),nclass,nl); 
-            GD.mTS      = nan(nPs(1),nclass,nl); % mean ?
-            GD.sTS      = nan(nPs(1),nclass,nl); % sd ?
+            GD.TS       = zeros(nPs(1),nclass,nl); 
+            GD.mTS      = zeros(nPs(1),nclass,nl); % mean ?
+            GD.sTS      = zeros(nPs(1),nclass,nl); % sd ?
 
             % Generalization error between CV1 and CV2 test data
-            GD.ERR      = nan(nPs(1),nclass,nl);
+            GD.ERR      = zeros(nPs(1),nclass,nl);
 
             % Final binary classifier / predictor results on CV2 test
             % data
@@ -435,32 +433,32 @@ for f=1:ix % Loop through CV2 permutations
 
             % Multi-group classification measures
             if MULTI.flag
-               GD.MultiTR       = nan(nPs(1),nl); % performance on CV1 test data
-               GD.MultiTS       = nan(nPs(1),nl); % performance on CV2 test data
-               GD.MultiERR      = nan(nPs(1),nl); % generalization error
+               GD.MultiTR       =  zeros(nPs(1),nl); % performance on CV1 test data
+               GD.MultiTS       =  zeros(nPs(1),nl); % performance on CV2 test data
+               GD.MultiERR      = zeros(nPs(1),nl); % generalization error
                GD.MultiCV1TrPred= cell(nPs(1),nl); % CV1 traindata predictions
                GD.MultiCV1CVPred= cell(nPs(1),nl); % CV1 test data predictions
                GD.MultiCV1TrProb= cell(nPs(1),ngroups,nl); % CV1 traindata predictions
                GD.MultiCV1CVProb= cell(nPs(1),ngroups,nl); % CV1 test data predictions
                GD.MultiPred     = cell(nPs(1),nl); % CV2 test data predictions
-               GD.MultiM_DivT   = nan(nPs(1),nl);
-               GD.MultiSD_DivT  = nan(nPs(1),nl);             
-               GD.MultiM_DivV   = nan(nPs(1),nl);
-               GD.MultiSD_DivV  = nan(nPs(1),nl);
-               GD.MultiCV2Div   = nan(nPs(1),nl);
-               GD.MultiCV2DivDec= nan(nPs(1),nl);
+               GD.MultiM_DivT   = zeros(nPs(1),nl);
+               GD.MultiSD_DivT  = zeros(nPs(1),nl);             
+               GD.MultiM_DivV   = zeros(nPs(1),nl);
+               GD.MultiSD_DivV  = zeros(nPs(1),nl);
+               GD.MultiCV2Div   = zeros(nPs(1),nl);
+               GD.MultiCV2DivDec= zeros(nPs(1),nl);
             end
 
             % Mean model complexity across CV1 partitions
-            GD.C        = nan(nPs(1),nclass,nl);
+            GD.C        = zeros(nPs(1),nclass,nl);
 
             % Diversity measures for CV1 and CV2 test data
-            GD.M_DivT   = nan(nPs(1),nclass,nl);
-            GD.SD_DivT  = nan(nPs(1),nclass,nl);             
-            GD.M_DivV   = nan(nPs(1),nclass,nl);
-            GD.SD_DivV  = nan(nPs(1),nclass,nl);
-            GD.CV2Div   = nan(nPs(1),nclass,nl);
-            GD.CV2DivDec= nan(nPs(1),nclass,nl);
+            GD.M_DivT   = zeros(nPs(1),nclass,nl);
+            GD.SD_DivT  = zeros(nPs(1),nclass,nl);             
+            GD.M_DivV   = zeros(nPs(1),nclass,nl);
+            GD.SD_DivV  = zeros(nPs(1),nclass,nl);
+            GD.CV2Div   = zeros(nPs(1),nclass,nl);
+            GD.CV2DivDec= zeros(nPs(1),nclass,nl);
 
             % Models params
             MD          = cell(nPs(1),nl);  % models
@@ -506,12 +504,10 @@ for f=1:ix % Loop through CV2 permutations
             %%%%%%%%%%%%%%%% PARAMETER OPTIMIZATION %%%%%%%%%%%%%%%%
             % Addition 22/01/2024: Enable the use of simulated annealing for parameter optimization. 
             switch ParamOptimizationMode
-                case 'brute-force'
-                    [ GD, MD, DISP ] = nk_MLOptimizer_ParamCycler(GD, MD, DISP, Ps, Params_desc, mapY, algostr, f, d, n_preml, nclass, ngroups, batchflag, [], combcell);
+                case 'bruteforce'
+                    [ GD, MD ] = nk_MLOptimizer_ParamCycler(GD, MD, DISP, Ps, Params_desc, mapY, algostr, f, d, n_preml, nclass, ngroups, batchflag, [], combcell);
                 case 'simanneal'
-                    [ GD, MD, DISP ] = nk_MLOptimizer_ParamAnnealer(GD, MD, DISP, Ps, Params_desc, mapY, algostr, f, d, n_preml, nclass, ngroups, batchflag, [], combcell); 
-                case 'bayesopt'
-                    [ GD, MD, DISP ] = nk_MLOptimizer_ParamBayes(GD, MD, DISP, Ps, Params_desc, mapY, algostr, f, d, n_preml, nclass, ngroups, batchflag, [], combcell);
+                    [ GD, MD ] = nk_MLOptimizer_ParamAnnealer(GD, MD, DISP, Ps, Params_desc, mapY, algostr, f, d, n_preml, nclass, batchflag, [], combcell);
             end
             
             %%%%%%%%%%%%%%%% MODEL SELECTION LOGIC %%%%%%%%%%%%%%%%%
@@ -520,7 +516,12 @@ for f=1:ix % Loop through CV2 permutations
             %%%%%%%%%% WRAPPER-BASED LEARNING AT OPTIMA %%%%%%%%%%%% 
             if isfield(RFE.Wrapper,'optflag') && RFE.Wrapper.optflag == 1
                 RFE.Wrapper.flag = 1;
-                [ GD, MD ] = nk_MLOptimizer_ParamCycler(GD, MD, DISP, Ps, Params_desc, mapY, algostr, f, d, n_preml, nclass, ngroups, batchflag, GD.BinaryGridSelection, combcell);
+                switch ParamOptimizationMode
+                    case 'bruteforce'
+                        [ GD, MD ] = nk_MLOptimizer_ParamCycler(GD, MD, DISP, Ps, Params_desc, mapY, algostr, f, d, n_preml, nclass, ngroups, batchflag, GD.BinaryGridSelection, combcell);
+                    case 'simanneal'
+                        [ GD, MD ] = nk_MLOptimizer_ParamAnnealer(GD, MD, DISP, Ps, Params_desc, mapY, algostr, f, d, n_preml, nclass, batchflag, [], combcell);
+                end
                 [ GD, MultiBinBind ] = nk_ModelNodeSelector(GD, MD, label, f, d, nclass, Ps, Params_desc, combcell, act);
             end
             
@@ -690,7 +691,7 @@ for f=1:ix % Loop through CV2 permutations
                     % Best performance measures
                     if (isfield(GRD,'NodeSelect') && ( GRD.NodeSelect.mode ~= 1)) || combcell
                         GDanalysis.bestP{curclass}{ll,curlabel}      = GD.BinaryGridSelection{curclass}{curlabel}.bestP;
-                        if MULTI.flag && numel(GD.MultiGroupGridSelection{curlabel}.bestP)==nclass
+                        if MULTI.flag
                             GDanalysis.multi_bestP{curclass}{ll,curlabel} = GD.MultiGroupGridSelection{curlabel}.bestP{curclass};
                         end
                         GDanalysis.bestPpos{curclass}{ll,curlabel}   = GD.BinaryGridSelection{curclass}{curlabel}.Npos;
@@ -857,11 +858,7 @@ for f=1:ix % Loop through CV2 permutations
                             GDanalysis.multi_bestTR(f,d,curlabel) = nm_nanmean(GD.MultiGroupGridSelection{curlabel}.bestacc);
                             GDanalysis.multi_bestTS(f,d,curlabel) = nm_nanmean(GD.MultiGroupGridSelection{curlabel}.besttestparam);
                             % Store multi-group grid position
-                            if iscell(GDanalysis.multi_bestPpos)
-                                GDanalysis.multi_bestPpos{ll,curlabel} = GD.MultiGroupGridSelection{curlabel}.Npos;
-                            else
-                                GDanalysis.multi_bestPpos(ll,curlabel) = GD.MultiGroupGridSelection{curlabel}.Npos;
-                            end
+                            GDanalysis.multi_bestPpos{ll,curlabel} = GD.MultiGroupGridSelection{curlabel}.Npos;
                             % Select from multi-group prediction grid   
                             for zu=1:GD.MultiGroupGridSelection{curlabel}.Nodes
                                 MultiPred = [MultiPred GD.MultiGroupGridSelection{curlabel}.bestpred{zu}];
@@ -1007,9 +1004,9 @@ if GDfl || batchflag == 0 || batchflag == 2
     % ********************** ANALYSIS ACROSS PERMS ************************
     switch MODEFL
         case 'regression'
-            lb = inp.label;
+            lb = inp.labels;
             if MULTILABEL.flag && isfield(MULTILABEL,'sel')
-               lb = inp.orig_labels(:,MULTILABEL.sel);
+               lb = inp.labels(:,MULTILABEL.sel);
             end
             GDanalysis.Regr = nk_ComputeEnsembleProbability(GDanalysis.predictions(:,1,:), lb);
 

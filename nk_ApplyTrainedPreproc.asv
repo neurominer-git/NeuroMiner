@@ -54,13 +54,14 @@ end
 
 if smoothonly
     inp = nk_PerfInitSpatial(analysis, inp, paramfl);
+    nM = numel(inp.PREPROC);
+    inp.issmoothed = true(1,nM);
     inp.smoothonly = false;
-    inp.issmoothed = true;
     Param = [];
 else
     Yocv = []; 
-    issmoothed = false; if isfield(inp,'issmoothed') && inp.issmoothed, issmoothed = true; end
     nM = numel(inp.PREPROC);
+    issmoothed = false(1,nM); if isfield(inp,'issmoothed') && any(inp.issmoothed), issmoothed = inp.issmoothed; end
     if ~isfield(inp,'saveparam'), inp.saveparam = false; end
 
     P = cell(1, nM); mapY = cell(1, nM); mapYocv = cell(1,nM); 
@@ -97,7 +98,7 @@ else
         % consist of NaN
 
         % Has the [imaging] data been smoothed already?
-        if issmoothed, sstr='s'; else, sstr=''; end
+        if issmoothed(n), sstr='s'; else, sstr=''; end
 
         % Training/CV data extraction from container
         Y = inp.X(n).([ sstr 'Y']);
@@ -142,6 +143,8 @@ else
         end
         
         % now we are ready to run the preprocessing pipeline
+        tparamfl.currmodal = n;
+
         if inp.stacking
             [mapY{n}, Param{n}, P{n}, mapYocv{n}] = nk_PerfPreprocessMeta(inp, inp.label, tparamfl);
         else
@@ -171,9 +174,12 @@ else
 
     % Transfer mapped data to appropriate container
     if nM > 1
-       mapY = nk_mapY2Struct(mapY, true);
+       mapY = nk_mapY2Struct(mapY, P, inp, analysis);
+       [iy,jy] = size(mapY.Tr);
+       mapY = nk_DealWithNaNCases(mapY, iy, jy, inp.nclass, true);
        if (iscell(mapYocv) && ~sum(cellfun(@isempty,mapYocv))) || ( ~iscell(mapYocv) && ~isempty(mapYocv))
-           mapYocv = nk_mapY2Struct(mapYocv, true); 
+           mapYocv = nk_mapY2Struct(mapYocv, paramfl, inp, analysis); 
+           mapYocv = nk_DealWithNaNCases(mapYocv, iy, jy, inp.nclass, true);
        end
     else
         mapY = mapY{n};

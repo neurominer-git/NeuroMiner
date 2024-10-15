@@ -1,41 +1,35 @@
-function [axes_handles, cb_ax] = nk_PrintFeatRelev25D(Features, ...
-                        Scores, ClassNames, ModelNames, ScoreName, FigureName, ...
-                        HoldOutRange, ColorbarRange, RGBposneg, RGBback, ...
-                        SortBy, Order, RectangleHeightMode, MinAlpha)
-% nk_PrintFeatRelev25D - Visualizes feature relevance with scaled rectangles.
-% ==================================================================================
-% Supports multiple feature sets displayed side by side, each within their own axes.
-%
-% Syntax:
-%  [axes_handles, cb_ax] = nk_PrintFeatRelev25D(Features, ...
-%                        Scores, ClassNames, ModelNames, ScoreName, FigureName, ...
-%                        HoldOutRange, ColorbarRange, RGBposneg, RGBback, ...
-%                        SortBy, Order, RectangleHeightMode, MinAlpha)
+function axes_handles = nk_PrintFeatRelev25D_GUI(data, ParentAxes)
+% nk_PrintFeatRelev25D_GUI - Modified function for GUI integration.
 %
 % Inputs:
-%   Features            - Cell array of feature name arrays.
-%   Scores              - Cell array of score arrays.
-%   ClassNames          - Cell array of class name pairs.
-%   ModelNames          - Cell array of model titles.
-%   ScoreName           - String representing the name of the score (e.g., 'Score').
-%   HoldOutRange        - Two-element vector specifying the transparent score range [min, max].
-%   FigureName          - (Optional) Name of the figure
-%   RGBposneg           - (Optional) 2x3 array with RGBposneg(1,:)
-%                           containing the RGB color triplet for the
-%                           positive range and RGBposneg(2,:) and
-%                           containing the RGB color triplet for the negative range.
-%   RGBback             - (Optional) rgb triplet specifying the background
-%                           color of the each axis object
-%   ColorbarRange       - (Optional) Two-element vector specifying [min, max] of the colorbar.
-%   SortBy              - (Optional) String specifying whether to sort by 'absolute' or 'original' scores. Default is 'absolute'.
-%   Order               - (Optional) String specifying 'ascending' or 'descending' order. Default is 'descending'.
-%   RectangleHeightMode - (Optional) String specifying rectangle height mode ('proportional', 'constant'). Default is 'constant'.
-%   MinAlpha            - (Optional) maximum alpha level for positive and
-%                         negative colorbar areas
-% Outputs:
-%   axes_handles        - Cell array of axes handles for each subplot.
-%   cb_ax               - handle of colorbar
+%   data       - Data structure containing all necessary inputs.
+%   ParentAxes - Handle to the axes where the plot will be displayed.
 
+% Extract variables from data
+Features = data.Features;
+Scores = data.Scores;
+ClassNames = data.ClassNames;
+ModelNames = data.ModelNames;
+ScoreName = data.ScoreName;
+HoldOutRange = data.HoldOutRange;
+ColorbarRange = data.ColorbarRange;
+SortBy = data.SortBy;
+Order = data.Order;
+RectangleHeightMode = data.RectangleHeightMode;
+MinAlpha = data.MinAlpha;
+
+% The rest of the function remains the same, except:
+% - Replace figure creation with plotting into ParentAxes.
+% - Ensure all plotting commands direct output to ParentAxes.
+
+% Example adjustment:
+% Instead of creating a new figure, use ParentAxes
+% For any new axes created within the function, specify 'Parent', ParentAxes
+% For example:
+% axes(ParentAxes);
+% hold(ParentAxes, 'on');
+
+% [Implement the rest of the plotting logic here, directing plots to ParentAxes]
 % Handle default inputs
 if ~exist('SortBy', 'var') || isempty(SortBy)
     SortBy = 'absolute';
@@ -45,21 +39,6 @@ if ~exist('Order', 'var') || isempty(Order)
 end
 if ~exist('RectangleHeightMode', 'var') || isempty(RectangleHeightMode)
     RectangleHeightMode = 'constant';
-end
-if ~exist('FigureName', 'var') || isempty(FigureName)
-    FigureName = 'Ranked feature plot';
-end
-if ~exist('RGBposneg', 'var') || isempty(RGBposneg)
-    rgb_pos = rgb("red");
-    rgb_neg = rgb("blue");
-else
-    rgb_pos = RGBposneg(1,:);
-    rgb_neg = RGBposneg(2,:);
-end
-if ~exist('RGBback', 'var') || isempty(RGBback)
-    rgb_back = [1 1 1];
-else
-    rgb_back = RGBback;
 end
 
 % Provide default values for ColorbarRange and HoldOutRange if not provided
@@ -100,7 +79,7 @@ end
 max_nFeatures = max(cellfun(@length, Features));
 
 % Calculate font size based on the maximum number of features
-minFontSize = 7;
+minFontSize = 8;
 maxFontSize = 14;
 maxFeaturesForScaling = 15;
 if max_nFeatures <= maxFeaturesForScaling
@@ -111,11 +90,7 @@ end
 fontSize = max(minFontSize, fontSize);
 
 % Create figure
-% Get the screen size
-%screenSize = get(0, 'screensize');
-
-% Create a figure with screen size dimensions
-fig = figure('Name', FigureName, 'Color', 'w', 'Units', 'normalized');%,'Position', [0 0 screenSize(3) screenSize(4)]);
+fig = figure('Color', 'w', 'Units', 'normalized', 'Position', [0.1, 0.1, 0.8, 0.6]);
 
 % Create temporary, invisible axes for text extent calculation
 temp_ax = axes('Parent', fig, 'Visible', 'off');
@@ -146,8 +121,8 @@ for idx = 1:numSets
 
     % Compute widths based on absolute score values
     Widths = abs(ScoresSet);
-    %scaling_factor =  10 / max_abs_score; % Scale to a maximum width of 10
-    %Widths = Widths * scaling_factor;
+    scaling_factor = 10 / max_abs_score; % Scale to a maximum width of 10
+    Widths = Widths * scaling_factor;
 
     % Calculate the required width for text labels
     for i = 1:length(FeaturesSet)
@@ -157,7 +132,7 @@ for idx = 1:numSets
         delete(dummy_text);
         text_width = text_extent(3);
 
-        x_position = Widths(i) + 0.2 + text_width;
+        x_position = Widths(i) + 0.1 + text_width;
         max_required_width = max(max_required_width, x_position + 0.5); % Extra padding
     end
 end
@@ -177,7 +152,7 @@ x_tick_values = 0:(numTicks - 1);
 x_tick_labels = arrayfun(@(x) sprintf('%d', x), x_tick_values, 'UniformOutput', false);
 
 % Map the x-tick values to positions in the plot
-x_tick_positions = x_tick_values * (ceil(max_abs_score) / max(x_tick_values));
+x_tick_positions = x_tick_values * (max_required_width / max(x_tick_values));
 
 % Determine rectangle heights based on RectangleHeightMode
 if strcmp(RectangleHeightMode, 'constant')
@@ -201,15 +176,6 @@ end
 
 % Second pass: Plotting
 for idx = 1:numSets
-
-    % Adjust axes position to use the maximum required width
-    left = 0.1 + (idx - 1) * (main_ax_width + subplot_spacing);
-    ax_position = [left, 0.25, main_ax_width, 0.65]; % Adjusted bottom and height
-
-    axes_handles{idx} = axes('Position', ax_position);
-    main_ax = axes_handles{idx};
-    hold(main_ax, 'on');
-
     % Processing data
     FeaturesSet = Features{idx};
     ScoresSet = Scores{idx};
@@ -226,16 +192,16 @@ for idx = 1:numSets
     FaceColors = zeros(length(ScoresSet), 3);
     for i = 1:length(ScoresSet)
         if ScoresSet(i) >= 0
-            FaceColors(i, :) = rgb_pos; % Red
+            FaceColors(i, :) = [1, 0, 0]; % Red
         else
-            FaceColors(i, :) = rgb_neg; % Blue
+            FaceColors(i, :) = [0, 0, 1]; % Blue
         end
     end
 
     % Compute widths based on absolute score values
     Widths = abs(ScoresSet);
-    %scaling_factor = 10 / max_abs_score; % Scale to a maximum width of 10
-    %Widths = Widths * scaling_factor;
+    scaling_factor = 10 / max_abs_score; % Scale to a maximum width of 10
+    Widths = Widths * scaling_factor;
 
     % Sorting features based on user options
     switch lower(SortBy)
@@ -285,6 +251,14 @@ for idx = 1:numSets
         y_positions = total_height - (1:numFeatures) * rect_height;
     end
 
+    % Adjust axes position to use the maximum required width
+    left = 0.1 + (idx - 1) * (main_ax_width + subplot_spacing);
+    ax_position = [left, 0.25, main_ax_width, 0.65]; % Adjusted bottom and height
+
+    axes_handles{idx} = axes('Position', ax_position);
+    main_ax = axes_handles{idx};
+    hold(main_ax, 'on');
+
     % Draw the rectangles and feature descriptions
     for idxFeature = 1:numFeatures
         y_position = y_positions(idxFeature);
@@ -306,12 +280,12 @@ for idx = 1:numSets
         refWidth = max_required_width * 0.6; % Adjust as needed
         if width < refWidth
             % Place text outside the rectangle
-            textX = x_position + width + 0.2;
+            textX = x_position + width + 0.1;
             alignment = 'left';
             TextColor = [0, 0, 0];
         else
             % Place text inside the rectangle
-            textX = x_position + width - 0.2;
+            textX = x_position + width - 0.1;
             alignment = 'right';
             % Decide text color based on rectangle brightness
             if Brightness < 0.5
@@ -330,10 +304,6 @@ for idx = 1:numSets
 
     % Adjust axes
     xlim(main_ax, [0, max_required_width]);
-    if HoldOutRange(2) >0
-        idxc = str2double(x_tick_labels) == HoldOutRange(2);
-        xline(x_tick_positions(idxc),':','Color','k');
-    end
     if strcmp(RectangleHeightMode, 'constant')
         ylim(main_ax, [0, max_nFeatures * rect_height]);
     else % 'proportional'
@@ -343,7 +313,7 @@ for idx = 1:numSets
     % Show x-axis, hide y-axis
     set(main_ax, 'YColor', 'none', 'TickLength', [0 0], 'YTick', []);
     set(main_ax, 'XAxisLocation', 'bottom');
-    
+
     % Set x-axis ticks and labels
     set(main_ax, 'XTick', x_tick_positions, 'XTickLabel', x_tick_labels, 'FontSize', fontSize);
 
@@ -381,8 +351,6 @@ for idx = 1:numSets
     % Hide the placeholder plots from the figure
     set(p1, 'Visible', 'off');
     set(p2, 'Visible', 'off');
-
-    main_ax.Color = rgb_back; 
 end
 
 % Create a common colorbar as a single image object
@@ -413,9 +381,9 @@ for i = 1:n
         alpha = min_alpha + (1 - min_alpha) * (score_abs - HoldOutRange(2)) / (max_abs_score - HoldOutRange(2));
         alpha = max(0, min(1, alpha));
         if score >= 0
-            color = rgb_pos; % Red
+            color = [1, 0, 0]; % Red
         else
-            color = rgb_neg; % Blue
+            color = [0, 0, 1]; % Blue
         end
     end
     colorbarImage(i, 1, :) = color;
@@ -444,3 +412,4 @@ set(cb_ax, 'YTick', colorbar_ticks, 'YTickLabel', colorbar_tick_labels, 'FontSiz
 ylabel(cb_ax, ScoreName, 'FontSize', fontSize, 'FontWeight','bold');
 
 end
+
