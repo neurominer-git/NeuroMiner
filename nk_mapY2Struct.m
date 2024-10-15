@@ -1,4 +1,50 @@
 function [out, Param] = nk_mapY2Struct(mapY, Param, paramfl, inp)
+% nk_mapY2Struct  Map and concatenate multi-modal data structures.
+%
+% Syntax:
+%   [out, Param] = nk_mapY2Struct(mapY, Param, paramfl, inp)
+%
+% Description:
+%   This function maps and optionally concatenates data structures from multiple modalities into a single multi-modal structure. 
+%   It handles binary and multi-class data preprocessing and intermediate data fusion scenarios, with modality concatenation
+%   activated based on specific flags.
+%
+% Inputs:
+%   mapY    - Cell array containing data structures for each modality (1 x nModality). 
+%             Each element of mapY contains fields like 'Tr' (training), 'CV' (cross-validation), 'Ts' (test), and 'VI' (variable importance).
+%   Param   - Structure containing parameters for each modality and data type (1 x nModality).
+%   paramfl - Cell array specifying pre-computed parameter options (1 x nModality). 
+%             Contains subfields such as:
+%           * 'PXopt' indicating optimized models' hyperparameters, 
+%           * 'P' describing hyperparameter dimension of optimized data shelves.
+%           * 'PXunique' describing the unique hyperparameter combination
+%               in PXopt
+%
+%   inp     - Structure specifying input options for multi-class preprocessing, including 'nclass' for the number of classes.
+%
+% Outputs:
+%   out     - Concatenated structure of multi-modal data. Fields include 'Tr', 'CV', 'Ts', and 'VI', with data combined across modalities.
+%   Param   - Updated parameter structure reflecting the selected parameters after concatenation.
+%
+% Details:
+%   - The function operates under various fusion flags (FUSION.flag) to determine the level of data concatenation.
+%     0, 1, 3: No or limited fusion (data from individual modalities is retained separately).
+%     2: Full multi-modal fusion, combining data across modalities into a single structure.
+%   - Handles both binary and multi-class preprocessing scenarios, accommodating different data structures.
+%   - Automatically identifies and removes columns in parameter matrices that contain only one value across all modalities.
+%   - A bug related to intermediate data fusion was resolved on 14/10/2024.
+%
+% Example:
+%   [out, Param] = nk_mapY2Struct(mapY, Param, paramfl, inp);
+%
+% Global Variables:
+%   FUSION  - A global structure controlling the fusion behavior based on the fusion flag.
+%
+% Notes:
+%   - Make sure that the structure of mapY and paramfl follows the expected format for the selected preprocessing type.
+%   - Data is merged into a single matrix, ensuring consistency across modalities by matching parameter options.
+%
+% See also: cellmat_mergecols, cellmat_mergerows
 
 global FUSION
 
@@ -84,6 +130,12 @@ switch FUSION.flag
                                         out.Ts{k,l}{j} = cell(cntPXopt,1);
                                         out.VI{k,l}{j} = cell(cntPXopt,1);
                                     end
+                                end
+                                % Check if parameter columns consist only one value
+                                % and remove these columns
+                                if width(paramfl{i}.P{j}.opt) ~= width(paramfl{i}.PXopt{j})
+                                    idx_rem = all(diff(paramfl{i}.PXopt{j}) == 0, 1);
+                                    paramfl{i}.PXopt{j}(:,idx_rem) = [];
                                 end
                                 shelf_ind = find(ismember(paramfl{i}.P{j}.opt,paramfl{i}.PXopt{j},'rows'));
                                 p_opt = paramfl{i}.P{j}.opt(shelf_ind,:);
@@ -201,6 +253,12 @@ switch FUSION.flag
                                 cntPXopt = height(paramfl{i}.PXopt{j});
                                 if i==1
                                     if multiproc, out.Ts{k,l} = cell(cntPXopt,1); else, out.Ts{k,l}{j} = cell(cntPXopt,1); end
+                                end
+                                % Check if parameter columns consist only one value
+                                % and remove these columns
+                                if width(paramfl{i}.P{j}.opt) ~= width(paramfl{i}.PXopt{j})
+                                    idx_rem = all(diff(paramfl{i}.PXopt{j}) == 0, 1);
+                                    paramfl{i}.PXopt{j}(:,idx_rem) = [];
                                 end
                                 shelf_ind = find(ismember(paramfl{i}.P{j}.opt,paramfl{i}.PXopt{j},'rows'));
                                 p_opt = paramfl{i}.P{j}.opt(shelf_ind,:);
