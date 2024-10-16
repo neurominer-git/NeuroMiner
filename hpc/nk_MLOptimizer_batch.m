@@ -60,10 +60,7 @@ fprintf('\n')
 % %%%%%%%%%%%%%%%%%%%%%%%%% INITIALIZE NeuroMiner %%%%%%%%%%%%%%%%%%%%%%%%%
 if ischar(preprocmaster) && exist(preprocmaster,'file')
     preprocmat = load(preprocmaster); 
-%     updatePathFunction = @(x) strrep(x,parentdir, jobdir);
-%     preprocmat.featmat{1,1} = cellfun(updatePathFunction, preprocmat.featmat{1,1}, 'UniformOutput', false);
-    lfl = 2; 
-%     preprocmat.featmat = preprocmat.featmat;
+    lfl = 2;
 else
     preprocmat = []; lfl = 1;
 end
@@ -91,7 +88,7 @@ inp = struct('analind',			analind, ...
                 'batchflag',    true);
 				
 inp.GridAct = nk_GenGridAct_batch(NM.analysis{analind}.params.cv, curCPU, numCPU, CV2x1, CV2x2, CV2y1, CV2y2);
-inp.preprocmat = preprocmat;                            
+inp.preprocmat = preprocmat.featmat;                           
 inp = nk_GetAnalModalInfo_config(NM, inp);
                                 
 nk_MLOptimizerPrep(7, inp, 'NM:HPC:MLOPTIMIZER');

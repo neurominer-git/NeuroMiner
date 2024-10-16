@@ -75,8 +75,7 @@ if ~isstruct(enind)
             'remvarcomp',    fl, ...
             'devmap',        fl, ...
             'JuSpace',       fl,...
-            'ROImeans',      fl, ...
-            'skewcorr',      fl);
+            'ROImeans',      fl);
     elseif (EXPERT || DEV) && ~imaging_flag
         EF = struct('correctnuis', fl, ...
             'reducedim',     fl, ...
@@ -92,8 +91,7 @@ if ~isstruct(enind)
             'remmeandiff',   fl, ...
             'rankfeat',      fl, ...
             'remvarcomp',    fl, ...
-            'devmap',        fl, ...
-            'skewcorr',      fl);
+            'devmap',        fl);
 
         if DEV
             EF.graphComputation = fl;
@@ -118,8 +116,7 @@ if ~isstruct(enind)
             'remvarcomp',    fl, ...
             'devmap',        fl,...
             'JuSpace',       fl,...
-            'ROImeans',      fl, ...
-            'skewcorr',      fl);
+            'ROImeans',      fl);
     else
         EF = struct('correctnuis', fl, ...
             'reducedim',     fl, ...
@@ -135,8 +132,7 @@ if ~isstruct(enind)
             'remmeandiff',   fl, ...
             'rankfeat',      fl, ...
             'remvarcomp',    fl, ...
-            'devmap',        fl, ...
-            'skewcorr',      fl);
+            'devmap',        fl);
     end
 
 else
@@ -349,7 +345,7 @@ act = nk_input(titlestr, 0,'mq', actstr, actmnu);
 switch act
     
     case 98
-        PREPROC = config_spatialfilter( PREPROC, navistr, NM.brainmask{varind}, NM.datadescriptor{varind}.input_settings.Thresh);
+        PREPROC = config_spatialfilter(PREPROC, navistr, NM.brainmask{varind});
         
     case 99
         PREPROC = config_targetscaling(PREPROC, navistr);
@@ -544,10 +540,8 @@ if modflag && ~replflag
             cmd = 20;
         case 'ROImeans'
             cmd = 21;
-        case 'skewcorr'
-            cmd = 22;
         case 'customPreproc'
-            cmd = 23;
+            cmd = 22;
     end
    
 else    
@@ -608,7 +602,7 @@ else
                 case 'elimzero'
                     cmdstr = 'Prune non-informative columns from data matrix';                      cmdmnu = 10;
                 case 'rankfeat'
-                    cmdstr = 'Rank, weight, or mask features';                                              cmdmnu = 11;
+                    cmdstr = 'Rank / Weight features';                                              cmdmnu = 11;
                 case 'remmeandiff'
                     if isfield(NM,'covars') && ~isempty(NM.covars)
                         cmdstr = 'Remove group-level differences using offset correction';          cmdmnu = 12;
@@ -632,13 +626,11 @@ else
                 case 'graphComputation'
                     cmdstr = 'Compute individual networks from input data';                         cmdmnu = 19;
                 case 'JuSpace'
-                    cmdstr = 'Spatial correlation coeffcients from neuromaps (PET, SPECT or CELL maps; JuSpace Toolbox)'; cmdmnu = 20; 
+                    cmdstr = 'Correlation with neurotransmitter systems (PET oder SPECT maps; JuSpace Toolbox)';                cmdmnu = 20; 
                 case 'ROImeans'
-                    cmdstr = 'Compute ROI mean values';                                             cmdmnu = 21;
-                case 'skewcorr'
-                    cmdstr = 'Apply skewness correction';                                           cmdmnu = 22;
+                    cmdstr = 'Compute ROI mean values';                                             cmdmnu = 21; 
                 case 'customPreproc'
-                    cmdstr = 'Add a custom preproc function (from .m-file)';                        cmdmnu = 23;
+                    cmdstr = 'Add a custom preproc function (from .m-file)';                        cmdmnu = 22;
 
             end
             [actstr, actmnu] = ConcatMenu(actstr, actmnu, cmdstr, cmdmnu);
@@ -701,8 +693,6 @@ switch cmd
     case 21
         CURACT = config_ROImeans(NM, varind, CURACT, navistr);
     case 22
-        CURACT = config_skewcorr(CURACT, navistr);
-    case 23
         CURACT = config_customPreproc(CURACT, navistr);
     
 end
@@ -746,10 +736,21 @@ end
 %%%% GROUP PROCESSING MODE (if multi-class available) %%%%
 function CURACT = config_binmod(NM, label, CURACT)
 
+% Default parameter
+if isfield(CURACT,'BINMOD') && ~isempty(CURACT.BINMOD)
+    switch CURACT.BINMOD, case 1, tBINMOD = 1; case 0, tBINMOD = 2; case 2, tBINMOD = 3; end
+else
+    if max(label(:,1))>2 && strcmp(modeflag,'classification') 
+        tBINMOD = 0; % Multi-group
+    else
+        tBINMOD = 1; % Binary mode
+    end
+end
+
 if max(label(:,1))<=2 || ~strcmp(NM.modeflag,'classification')
     CURACT.BINMOD = 1;
 else
-    CURACT.BINMOD = ~CURACT.BINMOD;
+    CURACT.BINMOD = nk_input('Group processing mode',0, 'm', 'binary|multi-group',[1,0], tBINMOD);
 end
 
 end
@@ -780,7 +781,7 @@ function CURACT = config_covars(NM, varind, CURACT, navistr)
 
 if ~isfield(CURACT,'PX'), CURACT.PX = []; end
 
-act = 1; while act > 0, [CURACT, act] = nk_UnivCorrProcs_config(NM, CURACT, varind, navistr); end
+act = 1; while act > 0, [CURACT, act] = nk_PartialCorrelations_config(NM, CURACT, varind, navistr); end
 
 CURACT.cmd = 'correctnuis';
 
@@ -916,7 +917,7 @@ end
 
 % -------------------------------------------------------------------------
 %%%% SPATIAL FILTERING %%%%
-function CURACT = config_spatialfilter( CURACT , navistr, brainmask, Thresh)
+function CURACT = config_spatialfilter( CURACT , navistr, brainmask)
 
 if isfield(CURACT,'SPATIAL') 
     SPATIAL = CURACT.SPATIAL;
@@ -924,7 +925,7 @@ if isfield(CURACT,'SPATIAL')
 else
     SPATIAL = []; PX = [];
 end
-[SPATIAL, PX ] = nk_Spatial_config(SPATIAL, PX, [], navistr, brainmask, Thresh);
+[SPATIAL, PX ] = nk_Spatial_config(SPATIAL, PX, [], navistr, brainmask);
 if ~isempty(SPATIAL), SPATIAL.PX = PX; CURACT.SPATIAL = SPATIAL; end
 
 end
@@ -1008,9 +1009,10 @@ end
 function CURACT = config_JuSpace(NM, varind, CURACT, navistr)
 
 if ~isfield(CURACT,'JUSPACE'), CURACT.JUSPACE=[]; end
+%if ~isfield(CURACT,'PX'), CURACT.PX = []; end
 datadesc = NM.datadescriptor{varind}; brainmask = [];
 if datadesc.type, brainmask = NM.brainmask{varind}; end
-act = 1; while act >0, [ CURACT.JUSPACE, act ] = JuSpace_config(CURACT.JUSPACE, brainmask, datadesc.input_settings.Thresh, navistr); end
+act = 1; while act >0, [ CURACT.JUSPACE, act ] = JuSpace_config(CURACT.JUSPACE, brainmask, navistr); end
 CURACT.cmd = 'JuSpace';
 		
 end
@@ -1019,38 +1021,12 @@ end
 function CURACT = config_ROImeans(NM, varind, CURACT, navistr)
 
 if ~isfield(CURACT,'ROIMEANS'), CURACT.ROIMEANS=[]; end
+%if ~isfield(CURACT,'PX'), CURACT.PX = []; end
 datadesc = NM.datadescriptor{varind}; brainmask = [];
 if datadesc.type, brainmask = NM.brainmask{varind}; end
-act = 1; while act >0, [ CURACT.ROIMEANS, act ] = cv_ROImeans_config(CURACT.ROIMEANS, brainmask, datadesc.input_settings.Thresh, navistr); end
+act = 1; while act >0, [ CURACT.ROIMEANS, act ] = cv_ROImeans_config(CURACT.ROIMEANS, brainmask, navistr); end
 CURACT.cmd = 'ROImeans';
 
-end
-
-% -------------------------------------------------------------------------
-function CURACT = config_skewcorr(CURACT, navistr)
-% config_skewcorr: Configures the SKEWCORR sub-structure, 
-%                  calling nk_SkewCorr_config in a loop.
-
-    % If the structure doesn't exist yet, initialize it
-    if ~isfield(CURACT, 'SKEWCORR')
-        CURACT.SKEWCORR = [];
-    end
-    % If there's a PX structure for hyperparams, pass it along:
-    if ~isfield(CURACT, 'PX')
-        CURACT.PX = [];
-    end
-    
-    % Typically, we run a while loop with an "act" to let user
-    % repeatedly tweak the config.  For example:
-    act = 1;
-    while act > 0
-        % Call your "nk_SkewCorr_config"
-        [CURACT.SKEWCORR, CURACT.PX, act] = nk_SkewCorr_config(CURACT.SKEWCORR, CURACT.PX, navistr);
-        % "act" might be 0 when user is done
-    end
-
-    % The final "cmd" indicates which step this is
-    CURACT.cmd = 'skewcorr';
 end
 
 % -------------------------------------------------------------------------
