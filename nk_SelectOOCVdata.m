@@ -1,8 +1,7 @@
-function [NM, Y, oocvind, fldnam, dattype] = nk_SelectOOCVdata(NM, oocvflag, selflag, multiflag)
+function [NM, Y, oocvind, fldnam, dattype] = nk_SelectOOCVdata(NM, oocvflag, selflag)
 
 oocvind = []; fldnam = []; dattype = [];
 if ~exist('selflag','var') || isempty(selflag), selflag = 0; end
-if ~exist('multiflag','var') || isempty(multiflag), multiflag = 0; end
 if ~isfield(NM,'C') && ~isfield(NM,'OOCV') && ~selflag, return; end
 switch selflag 
     case 0
@@ -17,14 +16,12 @@ switch oocvflag
     case 2
         fldnam = 'C'; St = 'Calibration Data Manager'; dattype = 'calibration data';
 end
-if isfield(NM,fldnam), Y = NM.(fldnam); end 
+if isfield(NM,fldnam), Y = NM.(fldnam); end; nO = numel(Y);
 act = true;
-
 while act  
-
-    O = NM_OOCV_Manager('title',St,'list',Y,'mode',selstr,'multiselection',multiflag);
+    O = nk_OOCVDataIO('title',St,'list',Y,'mode',selstr);
     
-    if isfield(O,'delete')
+    if isfield(O,'delete'),
         Y(O.delete)=[];
         NM.(fldnam)(O.delete)=[];
     elseif isfield(O,'Items') && ~isempty(O.Items)
@@ -35,7 +32,7 @@ while act
     end
 end
 if isfield(O,'SelItem')
-    if ~isempty(O.SelItem)
+    if ~isempty(O.SelItem), 
         oocvind = O.SelItem;
     else
         oocvind = 1; 

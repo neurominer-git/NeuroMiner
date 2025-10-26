@@ -1,3 +1,4 @@
+
 function [IO, act, mess] = DataIO(NM, parentstr, IO, mess, varind)
 % =========================================================================
 % function [IO, act, mess] = DataIO(NM, parentstr, IO, mess)
@@ -495,8 +496,7 @@ switch datasource
             switch groupmode 
 
                 case {1,2} % MATLAB workspace or file as data source 
-                    
-                    
+
                     groupmode_varstr = 'variable name(s) (cell array of strings)'; 
                     switch groupmode
                         case 1 %%%%%% MATLAB workspace
@@ -530,24 +530,9 @@ switch datasource
                             %% Collect info about and check the label array
                             if (~oocvflag || IO.labels_known) 
                                 if ~strcmp(IO.label_edit,na_str), [ check_str, mess, IO ] = CheckTabFile(IO, 'check_label', na_str, mess); else, check_str = na_str; end
-                                
                                 mn_label_edit = sprintf('Enter name of label variable (%s) in %s [ %s ]|', mn_label_edit_m, groupmode_str, check_str); 
                                 mn_act = [ mn_act 'def_labels' ]; mn_str = [mn_str mn_label_edit];
-                               
-
-                                if isfield(IO,'label') && size(IO.label,2) > 1
-                                    if isfield(IO,'desc_labels') && iscell(IO.desc_labels) && size(IO.desc_labels,2) > 1
-                                        desc_labels_str = strjoin(IO.desc_labels,', ');
-                                    else
-                                        desc_labels_str = na_str;
-                                    end
-                                    mn_labelnames_edit = sprintf('MULTI-LABEL MODE: Provide descriptions for these %g labels [ %s ]|', size(IO.label,2), desc_labels_str );
-                                    mn_act = [ mn_act 'def_label_names' ]; mn_str = [mn_str mn_labelnames_edit];
-                                end
-
                             end
-
-                          
 
                             %% Collect info about and check the cases array
                             if ~strcmp(IO.case_edit,na_str), [ check_str, mess, IO] = CheckTabFile(IO, 'check_ID', na_str, mess); else, check_str = na_str; end
@@ -605,6 +590,7 @@ switch datasource
                             end
 
                             if ~oocvflag || IO.labels_known
+                                IO.label_edit = label_edit;
                                 [check_str, mess, IO] = CheckTabFile(IO, 'check_label', na_str, mess);
                                 if isfield(IO,'t_Y') && ~isempty(IO.t_Y),fprintf('Successfully opened %g x %g table file.',size(IO.t_Y,1),size(IO.t_Y,2)); end
                                 mn_label_edit = sprintf('Specify column header containing the label data [ %s ]|', check_str); 
@@ -632,11 +618,9 @@ switch datasource
                         mn_act = [ mn_act 'sel_matsource' ]; mn_str = [mn_str mn_groupmode];
                     end
 
-
                 case 5 %     XML read in (not implemented yet)
 
             end
-
 
             if (~CheckReadyStatus(mess) && (~sum(strcmp({M_edit,col_edit,case_edit},na_str)) || ~sum(strcmp({M_edit, matrix_edit, col_edit, case_edit},na_str))))
                mn_display_matrix = 'Inspect matrix data and select features for import|'; mn_act = [ mn_act 'm_inspect' ]; mn_str = [mn_str mn_display_matrix ] ; 
@@ -829,23 +813,14 @@ switch act
         end
         
     case 'def_label_names'
-        if isfield(IO,'desc_labels') && iscell(IO.desc_labels) && size(IO.desc_labels,2) > 1
-            desc_labels = IO.desc_labels;
+        if isfield(IO,'desc_labels')
+            desc_labels = IO.desc_labels{i};
         else
-            if isfield(IO, 'L')
-                desc_labels = repmat({[]},size(IO.L,2),1);
-                for i=1:size(IO.L,2)
-                    IO.desc_labels{i} = nk_input(sprintf('Provide description for label #%g',i),0,'s',desc_labels{i});
-                end
-            elseif isfield(IO, 'label')
-                desc_labels = repmat({[]},size(IO.label,2),1);
-                IO = rmfield(IO, 'desc_labels'); 
-                for i=1:size(IO.label,2)
-                    IO.desc_labels{i} = nk_input(sprintf('Provide description for label #%g',i),0,'s',desc_labels{i});
-                end
-            end
+            desc_labels = repmat({[]},size(IO.L,2),1);
         end
-
+        for i=1:size(IO.L,2)
+            IO.desc_labels{i} = nk_input(sprintf('Provide description for label #%g',i),0,'s',desc_labels{i});
+        end
     case 'sel_covmanage'
         covmanage_edit = nk_input('How should NM deal with covariates in the SPM.mat',0,'mq', ...
             'Add to existing NM covariates|Overwrite existing NM covariates|Skip SPM covariate import',1:3,covmanage_edit);
@@ -862,19 +837,13 @@ switch act
         [IO, mess ] = SPMimport(IO,Thresh,'check_cov');
         
     case 'def_spacedefimg'
-        switch IO.datasource
-            case {'nifti','spm'}
-                mask_str = 'image';
-            case 'surf'
-                mask_str = 'surface';
-        end
         if isfield(IO,'wfu') && IO.wfu && ~strcmp(IO.datasource,'surf') && ~oocvflag
             try
                 wfu_str = sprintf('WFU Pickatlas (%s)',wfu_pickatlas_version);
             catch
                 wfu_str = 'WFU Pickatlas';
             end
-            IO.wfu_flag = nk_input(['Retrieve space-defining ' mask_str ' from'],0,'mq',[wfu_str '|Space-defining file'],[1,2],wfu_flag);
+            IO.wfu_flag = nk_input('Retrieve space-defining image from',0,'mq',[wfu_str '|Space-defining image file'],[1,2],wfu_flag);
         else
             IO.wfu_flag = 2;
         end
@@ -887,8 +856,7 @@ switch act
             IO.Thresh = nk_DataIO3_SpaceDefImage_config(IO.Vm, Lm);
             
         elseif IO.wfu_flag == 2
-           
-            [brainmask, Vm] = nk_FileSelector(1,IO.datasource, mask_str, IO.spacedef_filt);
+            [brainmask, Vm] = nk_FileSelector(1,IO.datasource,'Select space-defining image', IO.spacedef_filt);
             if isempty(brainmask), return, end
             if isempty(Vm)
                 mess = GenerateMessageEntry(mess,'ERROR: I can read MGZ files only in Linux!');
@@ -954,8 +922,7 @@ switch act
         end
         
     case 'sel_img'
-
-        if varind > 1 && ~any(isinf(IO.n_subjects)), t_n_samples = 1; else, t_n_samples = n_samples; end
+        if varind > 1, t_n_samples = 1; else, t_n_samples = n_samples; end
         IO.PP = []; t_n_subjects = nan(1, t_n_samples);
         for i=1:t_n_samples
             if ~oocvflag
@@ -971,17 +938,15 @@ switch act
                     hdrstr = sprintf('Select %s images for independent test data', IO.datasource );
                 end
             end
-            Pi=[];  
+            
             if isfield(IO,'P') && numel(IO.P)>=i 
-                try
                 if t_n_samples ~= n_samples && (~oocvflag || (oocvflag && IO.labels_known))
                     Pi = char(IO.P');
                 else
                     Pi = IO.P{i}; 
                 end
-                catch
-                    Pi=[]; 
-                end
+            else
+                Pi=[];  
             end
             [P, V, mess] = nk_FileSelector(t_n_subjects(i), datasource, hdrstr, IO.filt, Pi, [], mess);
             if ~isempty(P) && ~isempty(V)    
@@ -990,23 +955,18 @@ switch act
                 break
             end	
         end
-        % Check this code
-        if ~isempty(IO.PP) && t_n_samples ~= n_samples && (~oocvflag || (oocvflag && IO.labels_known))
+
+        if ~isempty(IO.PP) && (t_n_samples ~= n_samples && (~oocvflag || (oocvflag && IO.labels_known)))
             P = IO.P{1}; V = IO.V{1};
-            % This will not work for the first data modality
             cnt1 = 1; cnt2 = IO.n_subjects(1);
             for i=1:n_samples-1
                 IO.P{i} = P( cnt1:cnt2,: ); IO.V{i} = V(cnt1:cnt2);
                 cnt1 = cnt1 + IO.n_subjects(i);
                 cnt2 = cnt2 + IO.n_subjects(i+1);
             end
-            try
-                IO.P{i+1} = P( cnt1:cnt2,: ); IO.V{i+1} = V(cnt1:cnt2);
-            catch
-                fprintf('problem')
-            end
+            IO.P{i+1} = P( cnt1:cnt2,: ); IO.V{i+1} = V(cnt1:cnt2);
         end
-        % ----
+
         if ~isempty(IO.PP)
             IO.PP(1,:)=[]; 
             [IO,mess] = RetrieveImageInfo(IO, datasource,mess);
@@ -1059,14 +1019,14 @@ switch act
         if iscell(label_edit), label_edit = strjoin(label_edit,','); end
         label_edit = nk_input(sprintf('Define labels: %s in %s',groupmode_varstr, groupmode_str),0,'s', label_edit);
         t_label_edit = strsplit(label_edit,',');
-        if isscalar(t_label_edit)
+        if numel(t_label_edit)==1
             label_edit = deblank(char(t_label_edit));
         else
             label_edit = regexprep(t_label_edit,',','');
             label_edit = regexprep(label_edit,' ','');
         end
         IO.label_edit = label_edit;
-    
+        
     case 'def_cases'
         case_edit = nk_input(sprintf('Define cases: %s in %s', groupmode_varstr, groupmode_str),0,'s', case_edit);
        
@@ -1133,7 +1093,7 @@ switch act
                     t_Y = readtable(IO.M_edit,'delimiter',IO.delimit);  
                     t_label = table2array(t_Y(:,{IO.label_edit}));
                 case 4
-                    t_Y = readtable(IO.M_edit,'Sheet',IO.sheet);  
+                    t_Y = readtable(IO.M_edit);  
                     t_label = table2array(t_Y(:,{IO.label_edit}));
             end
         end
@@ -1141,10 +1101,8 @@ switch act
         ylabel('# of measurements in bins'); 
         xlabel('Label measurements'); 
         title(sprintf('Histogram analysis of target label (in %s) for regression',groupmode_str)); 
-        drawnow
         
  case 'disp_img'
-     
         nk_PrintLogo
         if iscell(IO.PP), PP = char(IO.PP); F = char(IO.F); else, PP= IO.PP; F=IO.F; end
         fprintf('\n\n'); fprintf('Found %g image files in setup:',size(PP,1));
@@ -1251,16 +1209,8 @@ switch act
                         if strcmp(IO.modeflag,'regression') && strcmp(datasource,'nifti') && IO.labels_known
                             IO.L = evalin('base',IO.label_edit); 
                         end
+                        %[IO.ID, IO.files] = nk_DefineCaseNames2(IO.PP, sum(IO.n_subjects_all));
                         IO = DefineLabels(IO, modeflag);
-                    end
-                    % If you don't find any ID here try to create the ID
-                    % field now
-                    if ~isfield(IO,'ID') || isempty(IO.ID)
-                        try
-                            [IO.ID, IO.files] = nk_DefineCaseNames2(IO.PP, sum(IO.n_subjects_all));
-                        catch
-                            fprintf('\nUnable to generate IDs from these images.')
-                        end
                     end
                     
                 case 'surf'
@@ -1271,15 +1221,7 @@ switch act
                     % Read in label from workspace in case of regression
                     if strcmp(IO.modeflag,'regression'), IO.L = evalin('base',IO.label_edit); end
                     IO = DefineLabels(IO, modeflag);
-                    % If you don't find any ID here try to create the ID
-                    % field now
-                    if ~isfield(IO,'ID') || isempty(IO.ID)
-                        try
-                            [IO.ID, IO.files] = nk_DefineCaseNames2(IO.PP, sum(IO.n_subjects_all));
-                        catch
-                            fprintf('\nUnable to generate IDs from these images.')
-                        end
-                    end
+                   
                 case 'matrix'
                     [IO, mess] = ReadTabular(IO, groupmode, mess);
                    

@@ -14,11 +14,10 @@ end
 method          = 'posneg';
 upper_thresh    = 95;
 lower_thresh    = 5;
-nperms          = 1024; % 2^10, i.e. for up to 10 features all coalitions will be covered in shapley
+nperms          = 1000;
 max_iter        = 1000;
 n_visited       = 100;
 frac            = .1;
-samplefrac      = .25;
 usemap          = 0;
 mapfeat         = 'cvr';
 cutoff          = [-2 2];
@@ -42,8 +41,6 @@ if isimaging
     MLIcsvdesc   = [];
     MLIcsvnum    = [];
 end
-% samples = 'All';
-% sampleID = '';
 
 if ~defaultsfl
 
@@ -76,96 +73,59 @@ if ~defaultsfl
             MLIcsvdesc   = MLI.Modality{M}.imgops.csvdesc;
             MLIcsvnum    = MLI.Modality{M}.imgops.csvnum;        
         end
-
-        % if isfield(MLI,'samples')
-        %     samples = MLI.samples;
-        %     sampleID = MLI.sampleID;
-        % end
-        if isfield(MLI,'frac')
-            samplefrac = MLI.frac;
-        end
     end
 
     switch method
         case 'posneg'
             MethodStr = sprintf('Upper/lower percentiles (%g%%/%g%%)', upper_thresh, lower_thresh);
-            OcclusionUpperThreshStr = sprintf('|Define upper percentile [ %g ]', upper_thresh);
-            OcclusionLowerThreshStr = sprintf('|Define lower percentile [ %g ]', lower_thresh);
+            OcclusionUpperThreshStr = sprintf('Define upper percentile [ %g ]|', upper_thresh);
+            OcclusionLowerThreshStr = sprintf('Define lower percentile [ %g ]|', lower_thresh);
             DEFMETHOD = 1;
-            % DEFSAMPLES = 1;
             mnuact = [1 2 3];
         case 'median'
             MethodStr = 'Median';
             OcclusionUpperThreshStr = '';
             OcclusionLowerThreshStr = '';
             DEFMETHOD = 2;
-            % DEFSAMPLES = 1;
             mnuact = 1;
         case 'medianflip'
             MethodStr = 'Median span flipped';
             OcclusionUpperThreshStr = '';
             OcclusionLowerThreshStr = '';
             DEFMETHOD = 3;
-            % DEFSAMPLES = 1;
-            mnuact = 1;
-        case 'medianmirror'
-            MethodStr = '100-quantile (median mirror)';
-            OcclusionUpperThreshStr = '';
-            OcclusionLowerThreshStr = '';
-            DEFMETHOD = 4;
-            %DEFSAMPLES = 1;
             mnuact = 1;
         case 'random'
             MethodStr = 'Random value';
             OcclusionUpperThreshStr = '';
             OcclusionLowerThreshStr = '';
-            DEFMETHOD = 5;
-            % DEFSAMPLES = 1;
+            DEFMETHOD = 4;
             mnuact = 1;
-        case 'shapley'
-            MethodStr = 'Shapley values';
-            OcclusionUpperThreshStr = '';
-            OcclusionLowerThreshStr = '';
-            DEFMETHOD = 6;
-            % DEFSAMPLES = 1;
-            mnuact = 1;
-%         case 'tree'
-%             MethodStr = 'Treeinterpreter';
-%             OcclusionUpperThreshStr = '';
-%             OcclusionLowerThreshStr = '';
-%             DEFMETHOD = 6;
-%             DEFSAMPLES = 1;
-%             mnuact = 1;
     end
-    OcclusionMethodStr = ['Define occlusion method [ ' MethodStr ' ]']; 
+    OcclusionMethodStr = ['Define occlusion method [ ' MethodStr ' ]|']; 
     
     if isinf(nperms)
         IterStr = 'Automated stopping';
     else
         IterStr = sprintf('%g iterations', nperms);
     end
-    OcclusionIterStr = ['|Define no. of iterations [ ' IterStr ' ]']; 
+    OcclusionIterStr = ['Define no. of iterations [ ' IterStr ' ]|']; 
     mnuact = [mnuact 4];
     
-    if isinf(nperms) && ~isequal(method, 'shapley')
-        OcclusionVisitedStr = ['|Define minimum number of feature visits [ ' num2str(n_visited) ' ]'];
+    if isinf(nperms)
+        OcclusionVisitedStr = ['Define minimum number of feature visits [ ' num2str(n_visited) ' ]|'];
         mnuact = [ mnuact 5 ];
     else
         OcclusionVisitedStr = '';
     end
-    if ~isequal(method, 'shapley')
-        OcclusionFracStr = ['|Define fraction (0-1) of features to be visited per iteration [ ' num2str(frac) ' ]'];
-        mnuact = [ mnuact 6 ];
-    else
-        OcclusionFracStr = '';
-    end
+    OcclusionFracStr = ['Define fraction of features to be visited per iteration [ ' num2str(frac) ' ]|'];
+    mnuact = [ mnuact 6 ];
     
     if ~usemap 
         MapFlagStr = 'no map specified'; 
     else
         MapFlagStr = 'yes';
     end
-    OcclusionMapFlagStr = ['|Use map from model visualization to operate in pre-determined feature space [ ' MapFlagStr ' ]'];
+    OcclusionMapFlagStr = ['Use map from model visualization to operate in pre-determined feature space [ ' MapFlagStr ' ]|'];
     mnuact = [ mnuact 7 ];
     if usemap
         switch mapfeat
@@ -176,9 +136,9 @@ if ~defaultsfl
             case 'p_FDR_sgn'
                MapFeatStr = 'Sign-based consistency map (p value, FDR-corrected)'; DEFMAP = 3;   
         end
-        OcclusionMapFeatStr = ['|Define which map to use [ ' MapFeatStr ' ]'];
+        OcclusionMapFeatStr = ['Define which map to use [ ' MapFeatStr ' ]|'];
         mnuact = [ mnuact 8 ];
-        OcclusionMapCutoffStr = ['|Define map cutoff value (scalar or 2-value vector) [ ' num2str(cutoff) ' ]'];
+        OcclusionMapCutoffStr = ['Define map cutoff value (scalar or 2-value vector) [ ' num2str(cutoff) ' ]|'];
         mnuact = [ mnuact 9 ];
         switch cutoffmode
             case 'absolute'
@@ -186,14 +146,14 @@ if ~defaultsfl
             case 'percentile'
                 DEFCUTOFFMODE = 2;
         end
-        OcclusionMapCutoffModeStr = ['|Define map cutoff method [ ' cutoffmode ' ]'];
+        OcclusionMapCutoffModeStr = ['Define map cutoff method [ ' cutoffmode ' ]|'];
         mnuact = [ mnuact 10 ];
         if numel(cutoff)>1
             MapCutoffOperatorStr = {'<,>', '<=,>=', '>,<', '>=,<='};
         else
             MapCutoffOperatorStr = {'<', '<=', '>', '>=', '==', '~='};
         end
-        OcclusionMapCutoffOperator = ['|Define map cutoff operator [ ' MapCutoffOperatorStr{cutoffoperator} ' ]'];
+        OcclusionMapCutoffOperator = ['Define map cutoff operator [ ' MapCutoffOperatorStr{cutoffoperator} ' ]|'];
         mnuact = [ mnuact 11 ];
     else
         OcclusionMapFeatStr = '';
@@ -202,16 +162,9 @@ if ~defaultsfl
         OcclusionMapCutoffOperator = '';
     end
 
-    if ~isequal(method, 'shapley')
-        ZnormDataOpts = {'No, only group-level normalization', ...
-            'Yes, mean centering at the case level', ...
-            'Yes, Z-normalization at the case level', ...
-            'Yes, scaling to [-1,1] at the case level'};
-        OcclusionZnormData = ['|Normalize prediction change estimates at the case level [ ' ZnormDataOpts{znormdata} ' ]' ];
-        mnuact = [ mnuact 12 ];
-    else
-        OcclusionZnormData = '';
-    end
+    ZnormDataOpts = {'None','Mean centering','Z-normalization'};
+    OcclusionZnormData = ['Produce z-normalized prediction change estimates [ ' ZnormDataOpts{znormdata} ' ]' ];
+    mnuact = [ mnuact 12 ];
     OcclusionAtlasFlag = '';
     OcclusionAtlasImgFile = '';
     OcclusionAtlasCSVDelim = '';
@@ -234,11 +187,11 @@ if ~defaultsfl
             else
                 AtlasCSVname = 'undefined'; CSVname_ext = '';
             end
-            OcclusionAtlasFlag =    '|Bind data modification to neuroanatomical atlas [ yes ]' ;
-            OcclusionAtlasImgFile =  [ '|Define & import atlas imaging file [ ' AtlasFilename Filename_ext ' ]' ];
-            OcclusionAtlasCSVFile =  [ '|Define atlas descriptor file [ ' AtlasCSVname CSVname_ext ' ]' ];
-            OcclusionAtlasCSVDelim = [ '|Define delimiter used in atlas descriptor file [ ' char(MLIcsvdelim) ' ]' ];
-            OcclusionAtlasCSVID =    [ '|Define ID column in atlas descriptor file [ ' MLIcsvid ' ]' ];
+            OcclusionAtlasFlag =    '|Bind data modification to neuroanatomical atlas [ yes ]|' ;
+            OcclusionAtlasImgFile =  [ 'Define & import atlas imaging file [ ' AtlasFilename Filename_ext ' ]|' ];
+            OcclusionAtlasCSVFile =  [ 'Define atlas descriptor file [ ' AtlasCSVname CSVname_ext ' ]|' ];
+            OcclusionAtlasCSVDelim = [ 'Define delimiter used in atlas descriptor file [ ' char(MLIcsvdelim) ' ]|' ];
+            OcclusionAtlasCSVID =    [ 'Define ID column in atlas descriptor file [ ' MLIcsvid ' ]' ];
             OcclusionAtlasCSVCol =   [ '|Define descriptor column in atlas descriptor file [ ' MLIcsvcol ' ]' ];
             if ~strcmp(MLIcsvfile,'undefined')
                 OcclusionAtlasCSVFileRead = '|Import atlas descriptor file';
@@ -248,31 +201,6 @@ if ~defaultsfl
             end
             
         end
-    end
-
-    % OcclusionSamplesStr = ['|Define for which sample(s) to interpret the model [ ' samples ' ]|'];
-    % mnuact = [ mnuact 20 ];
-    % 
-    % if isequal(samples, 'User-defined')
-    %     if isempty(sampleID)
-    %         sampleIDstr = '';
-    %     elseif numel(sampleID) > 4
-    %         sampleIDstr = [num2str(numel(sampleID)) ' IDs'];
-    %     else
-    %         sampleIDstr = strjoin(sampleID);
-    %     end
-    %     OcclusionSampleIDStr = ['|Specify sample ID(s) for which to interpret the model [ ' sampleIDstr ' ]|'];
-    %     mnuact = [ mnuact 21 ];
-    % else
-    %     OcclusionSampleIDStr = '';
-    % end
-
-
-    if isequal(method,'shapley')
-        SampleFracStr = ['|Define fraction (0-1) of training samples to be visited per iteration [ ' num2str(samplefrac) ' ]'];
-        mnuact = [mnuact 22];
-    else
-        SampleFracStr = '';
     end
     
     mnustr = [ OcclusionMethodStr ...
@@ -293,11 +221,7 @@ if ~defaultsfl
               OcclusionAtlasCSVDelim ...
               OcclusionAtlasCSVID ...
               OcclusionAtlasCSVCol ...
-              OcclusionAtlasCSVFileRead ...
-              SampleFracStr ];
-              % OcclusionSamplesStr ...
-              % OcclusionSampleIDStr ...
-              
+              OcclusionAtlasCSVFileRead ];
     
     nk_PrintLogo
     if numel(MLI.Modality) >= M && isfield(MLI.Modality{M},'imgops') && ~isempty(MLI.Modality{M}.imgops) && ...
@@ -323,13 +247,8 @@ if ~defaultsfl
                 ['Replace feature with upper and lower percentile cutoffs|' ...
                  'Replace feature with median|' ...
                  'Replace feature by adding/subtracting the median quantile|' ...
-                 'Replace feature by its mirror value at the median quantile (100-quantile approach)|' ...
-                 'Replace feature by randomly picking a value from the feature''s training sample distribution|' ...
-                 'Replace features according to Shapley'], ...
-                 {'posneg','median','medianflip','medianmirror','random','shapley'}, DEFMETHOD));
-%                  'Replace features according to Shapley|' ...
-%                  'Use treeinterpreter'], ...
-%                  {'posneg','median','medianflip','random','shapley','tree'}, DEFMETHOD));
+                 'Replace feature by randomly picking a value from the feature''s training sample distribution'], ...
+                 {'posneg','median','medianflip','random'}, DEFMETHOD));
         case 2
             upper_thresh = nk_input('Define upper percentile', 0, 'e', upper_thresh);
         case 3
@@ -383,7 +302,7 @@ if ~defaultsfl
                      1:6, cutoffoperator);
             end
         case 12
-            znormdata = nk_input('Define centering procedure', 0, 'm', 'None|Mean centering|Z-normalization|Scaling to [-1, 1]', 1:4, znormdata);
+            znormdata = nk_input('Define centering procedure', 0, 'm', 'None|Mean centering|Z-normalization', 1:3, znormdata);
         case 13
             MLIatlasflag = ~MLIatlasflag;
         case 14
@@ -421,31 +340,13 @@ if ~defaultsfl
             MLIcsvcol = spm_input('Define the name of the table column containing the ROI labels', 0,'s', MLIcsvcol);
         case 19
             try
-                MLIcsvdesc = MLI.Modality{M}.imgops.T.(MLIcsvcol);
+                MLIcsvdesc =  MLI.Modality{M}.imgops.T.(MLIcsvcol);
                 MLIcsvnum =  MLI.Modality{M}.imgops.T.(MLIcsvid);
             catch ERR
                 errordlg(sprintf('The atlas descriptor file %s could not be processed!\nError: %s\nCheck your settings!', ...
                     MLIcsvfile, ERR.message), 'MLI configuration module');
             end
-        % case 20
-        %     samples = char(nk_input('Define samples as an array of IDs', 0, 'm', ...
-        %         ['All|' ...
-        %          'User-defined' ], ...
-        %          {'All','User-defined'}, DEFSAMPLES));
-        % case 21
-        %     try 
-        %         sampleID = strjoin(sampleID);
-        %     catch
-        %         sampleID = sampleID;
-        %     end
-        %     while ~iscellstr(sampleID)
-        %         sampleID = nk_input('Enter sample IDs as a cell array of strings (e.g. {''ID1'',''ID2''})', 0, 'e', sampleID);
-        %     end
-        %     %make sure the cell array of strings is in one column
-        %     sampleID = reshape(sampleID,size(sampleID,1)*size(sampleID,2),1);
 
-        case 22
-            samplefrac = nk_input('Define fraction of training samples to be visited per iteration', 0, 'e', samplefrac);
     end
 end
 MLI.method = method;
@@ -455,7 +356,6 @@ MLI.lower_thresh = lower_thresh;
 MLI.max_iter = max_iter;
 MLI.n_visited = n_visited;
 MLI.znormdata = znormdata;
-MLI.frac = samplefrac;
 MLI.Modality{M}.frac = frac;
 MLI.Modality{M}.MAP.flag = usemap;
 MLI.Modality{M}.MAP.map = mapfeat;
@@ -476,9 +376,3 @@ if isimaging
 else
     MLI.Modality{M}.imgops = [];
 end
-% MLI.samples = samples;
-% try
-%     MLI.sampleID = sampleID_cell;
-% catch
-%     MLI.sampleID = sampleID;
-% end

@@ -34,7 +34,7 @@
 %A. Thayananthan, Technical Report, Department of Engineering, University of Cambridge, September 2005.
 
 
-function [probs, weights, alphas, used, chosen_kernels_]= mc_rvm(PHI,tdata,kernel_,maxIts)
+function [probs, weights,alphas, used, chosen_kernels_]= mc_rvm(PHI,tdata,kernel_,maxIts)
 
 % dimensions
 % N number of training data
@@ -71,11 +71,9 @@ for p=1:P
     weights{p}=zeros(1,1);
 end
 
-try
-    [weights, used, alphas] = UpdateParams(PHI,tdata,weights,alphas,maxIts);
-catch ME
-    fprintf('\n%s', ME.message);
-end
+
+[weights, used, alphas] = UpdateParams(PHI,tdata,weights,alphas,maxIts);
+   
 PHI2=cell(P,1);
 
 for p=1:P
@@ -185,11 +183,8 @@ for i=1:maxIts
             s=S;
             q=Q;
         end
-        try
-            [new_alpha,l_inc]=SolveForAlpha(s',q',S',Q',alpha{p}(k));
-        catch
-            fprintf('problem');
-        end
+        
+        [new_alpha,l_inc]=SolveForAlpha(s',q',S',Q',alpha{p}(k));
         l_inc_vec(k)=l_inc;
         alpha_vec(k)=new_alpha;
         
@@ -411,52 +406,26 @@ betaED=0;
 function [new_alpha,l_inc]=SolveForAlpha(s,q,S,Q,old_alpha)
 ALPHA_MAX		= 1e12;
 
-[n, ~] = size(s);
+[n, ~]=size(s);
 
-index = (1:n)';
-C = zeros(n, 1);
-CC = zeros(2 * n - 1, 1);
-
-for i = 1:n
-    SS = -s(index ~= i);
-    P = poly(SS)';
-    PP = conv(P, P);
-    
-    % Clip PP values to avoid overflow
-    PP = min(max(PP, -1e6), 1e6);  % Adjust limits based on your data
-    
-    % Prevent overflow in q(i)
-    q(i) = min(max(q(i), -1e6), 1e6);  % Clip q(i) values
-    
-    temp = q(i) * q(i) * PP;
-    
-    % Check for Inf values and handle them
-    if any(isinf(temp))
-        warning('Overflow detected in CC computation');
-        temp = sign(temp) * realmax;  % Cap at maximum finite value
-    end
-    
-    CC = CC + temp;
-    C = C + P;
+index=(1:n)';
+C=zeros(n,1);
+CC=zeros(2*n-1,1);
+for i=1:n
+   SS=-s(index~=i);
+   P=poly(SS)';
+   PP=conv(P,P);
+   CC=CC+q(i)*q(i)*PP;
+   C=C+P;
 end
-
-P = poly(-s);
-PP = n * conv(P, P)';
-CC0 = conv(P, C)';
-
-% Adjust for size differences between CC and CC0
+P=poly(-s);
+PP=n*conv(P,P)';
+CC0=conv(P,C)';
+%CC=[0; CC];
 nx = numel(CC0) - numel(CC);
-if nx > 0
-    CC = [zeros(nx, 1); CC];  % Pad CC if smaller
-elseif nx < 0
-    CC0 = [zeros(-nx, 1); CC0];  % Pad CC0 if smaller
-end
-if size(CC0,2)>1 && size(CC,1)>1
-    CC0=CC0';
-    CCC = CC + CC0;  % Ensure CCC is a column vector
-else
-    CCC = [CC + CC0; 0];  % Ensure CCC is a column vector
-end
+
+CC=[zeros(nx,1); CC];
+CCC=[CC+CC0; 0];
 
 r=roots(PP-CCC);
 

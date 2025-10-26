@@ -16,16 +16,16 @@ for i = 1:nVarIn
     elseif strcmpi(varargin{i}, 'Analysis')
         
         handles.GDdims = varargin{i+3};
-        handles = load_GDdims(handles, varargin{i+1}, handles.label, handles.GDdims);
+        handles = load_GDdims(handles, varargin{i+1}, handles.NM.label, handles.GDdims);
 
     elseif strcmpi(varargin{i}, 'Visdata')
     
         vis = varargin{i+1};
         if ~isempty(vis)
             [nM, nL] = size(vis);
-            for m=1:nM
-                for l=1:nL
-                    handles.visdata_table(m, l) = create_visdata_tables(vis{m,l}, [], [], 'create');
+            for n=1:nM
+                for m=1:nL
+                    handles.visdata_table(n, m) = create_visdata_tables(vis{n,m}, [], [], 'create');
                 end
             end
             handles.visdata = vis;

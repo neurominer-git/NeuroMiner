@@ -25,12 +25,12 @@ function [optparam, optind, optfound, optmodel] = ...
 %  optfound      :   Flag whether an optimal model has been identified
 %  optmodel      :   Optimized model
 %==========================================================================
-%(c) Nikolaos Koutsouleris, 04/2024
+%(c) Nikolaos Koutsouleris, 05/2017
 global VERBOSE TRAINFUNC 
 
 r = rfe_algo_settings(Y, label, Ynew, labelnew, Ps, FullFeat, FullParam, ActStr);
 S = []; Sind = 1:r.kFea; k = r.kFea; 
-optfound = 0; optparam = r.optparam; param = nan; 
+optfound = 0; optparam = r.optparam;
 
 if VERBOSE
     fprintf('\n-----------------------------')
@@ -49,27 +49,20 @@ if VERBOSE
 end
 
 lstep = 1;
-if r.lperc
-    if r.PercMode == 1
-        lstep = ceil((numel(Sind)/100)*r.lperc);
-    else
-        lstep = r.lperc;
-    end
-end
+%% Start Wrapper: FORWARD FEATURE SELECTION
+if r.lperc, lstep = ceil((numel(Sind)/100)*r.lperc); end
 
 Opt = struct('S',[],'Param',[],'ParamTs',[]);
 
-%% Start Wrapper: FORWARD FEATURE SELECTION
 switch r.WeightSort 
     
     case 1 %% Sorting is done according to CV1 test performance
 
-        while k > r.MinNum 
+        while k > r.MinNum %%% condition might need to be checked with Nikos
 
             lc = numel(Sind);
             if ~lc, break; end
             val = zeros(lc,1); 
-            valts = val;
 
             if VERBOSE, fprintf('\n\tFeature pool size: %4.0f out of %4.0f, block size: %4.0f feature(s) ',numel(S), numel(Sind), lstep); end
 
@@ -79,7 +72,6 @@ switch r.WeightSort
                 tY = r.Y(:,kS); T = r.T(:,kS);
                 [~, model] = TRAINFUNC(tY, label, 1, Ps);
                 val(lc) = nk_GetTestPerf(T, r.L, [], model, tY);
-                if r.CritFlag, valts(lc) = nk_GetTestPerf(r.TT(:,kS), r.LL, [], model, tY); end
                 lc = lc - 1;
             end
             
@@ -93,8 +85,7 @@ switch r.WeightSort
             tY = r.Y(:,kS); T = r.T(:,kS);
             [~, model] = TRAINFUNC(tY, label, 1, Ps);
             param = nk_GetTestPerf(T, r.L, [], model, tY);
-            if r.CritFlag, paramts = nk_GetTestPerf(r.TT(:,kS), r.LL, [], model, tY); else, paramts = []; end
-
+            
             % Add feature to feature space only if current performance is better
             % then previous space
             % Finally trained model will have only a performance == optparam
@@ -114,24 +105,12 @@ switch r.WeightSort
                 if VERBOSE, fprintf('=> NEW optimum: # Features: %4.0f ==> %s = %g', numel(S), ActStr, optparam); end
                 Opt.S{end+1} = S; Opt.Param = [Opt.Param optparam];
             end
-            
-            % Early stopping using critical gap detection.
-            if r.CritFlag
-                crit = 100-(paramts*100/optparam); 
-                if crit >= r.CritGap 
-                    if VERBOSE, fprintf('\n=> Critical gap between optimal [%g] and test performance [%g] detected (=%g). ABORT further optimization.', optparam, paramts, crit ); end
-                    break
-                end
-            end
 
             % Remove selected features from feature pool
             Sind(ind(rind)) = [];
 
-            % Recompute lstep according to current feature pool if
-            % percentage mode has been activated
-            if r.PercMode == 1 && r.lperc
-                lstep = ceil((numel(Sind)/100)*r.lperc);
-            end
+            % Recompute lstep according to current feature pool
+            if r.lperc, lstep = ceil((numel(Sind)/100)*r.lperc); end
             k = k - numel(rind);
             
         end

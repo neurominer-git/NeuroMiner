@@ -63,8 +63,6 @@ if exist('SVM','var') && ~isempty(SVM) && isfield(SVM,'prog')
                     clstr = 'L2-reg-L2-loss SVC [primal]';
                 case 3
                     clstr = 'L2-reg-L1-loss SVC [dual]';
-                case 4
-                    clstr = 'Multi-Class SVC [Crammer-Singer]';
                 case 5
                     clstr = 'L1-reg-L2-loss SVC';
                 case 6

@@ -1,5 +1,6 @@
 function load_selPager(handles, perpage)
 
+if ~exist('perpage','var') || isempty(perpage), perpage = 50; end
 if strcmp(handles.popupmenu1.String{handles.popupmenu1.Value},'Multi-group classifier')
     multiflag = true;
 else
@@ -7,19 +8,14 @@ else
 end
 
 if handles.curmodal<= size(handles.visdata,1) && handles.visdata{handles.curmodal, handles.curlabel}.params.visflag ~= 1 && ~multiflag 
-    
     nfeats = handles.visdata{handles.curmodal,handles.curlabel}.params.nfeats;
-    if ~exist('perpage','var') || isempty(perpage)
-        perpage = 40; 
-    end
-    
     if nfeats > perpage
         vec = 1:perpage:nfeats;
         if vec(end) < nfeats, vec(end+1) = nfeats; end
         for i=1:numel(vec)-1
             popuplist{i} = sprintf('%g:%g',vec(i),vec(i+1));
         end
-        popuplist{end+1} = sprintf('%g:%g',vec(1),vec(end));
+        popuplist{end} = sprintf('%g:%g',vec(1),vec(end));
         set(handles.selPager, 'String', popuplist); 
         set(handles.selPager,'Enable','on');
     else
@@ -27,10 +23,10 @@ if handles.curmodal<= size(handles.visdata,1) && handles.visdata{handles.curmoda
         set(handles.selPager, 'String', popuplist); 
         set(handles.selPager,'Enable','off');
     end
-    set(handles.popupSortFeat,'Enable','on');
+    set(handles.tglSortFeat,'Enable','on');
     set(handles.cmdExportFeats,'Enable','on');
 else
     set(handles.selPager,'Enable','off');
-    set(handles.popupSortFeat,'Enable','off');
+    set(handles.tglSortFeat,'Enable','off');
     set(handles.cmdExportFeats,'Enable','off');
 end

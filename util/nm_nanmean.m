@@ -17,7 +17,7 @@ function y = nm_nanmean(x,dim)
 %    See also MEAN
 
 % -------------------------------------------------------------------------
-%    author:      Jan Gl√§scher
+%    author:      Jan Gl‰scher
 %    affiliation: Neuroimage Nord, University of Hamburg, Germany
 %    email:       glaescher@uke.uni-hamburg.de
 %    
@@ -37,7 +37,6 @@ end
 
 % Replace NaNs with zeros.
 nans = isnan(x);
-fullnans = sum(nans,dim) == size(x,2);
 if anynan(x)
     try
         x(isnan(x)) = 0;
@@ -73,6 +72,6 @@ count(i) = ones(size(i));
 y = sum(x,dim)./count;
 y(i) = i + NaN;
 
-y(fullnans) = nan;
+
 
 % $Id: nm_nanmean.m,v 1.1 2004/07/15 22:42:13 glaescher Exp glaescher $

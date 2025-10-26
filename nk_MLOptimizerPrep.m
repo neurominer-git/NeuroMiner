@@ -1,116 +1,16 @@
 function [act, inp, NMo] = nk_MLOptimizerPrep(act, inp, parentstr)
 % =========================================================================
 % [act, inp] = nk_MLOptimizerPrep(act, inp, parentstr)
-% Configure and run NM's ML training & CV optimizer (interactive or batch)
-% ========================================================================= 
-% DESCRIPTION
-%   Entry point for preparing and launching the NeuroMiner (NM) machine
-%   learning training and cross-validation (CV) module. Supports:
-%     • Interactive menu-driven setup (analysis selection, mode, files, grid)
-%     • Batch execution using a prefilled `inp` struct
-%     • Simulation mode (act == 999) using xNM instead of NM
-%
-%   Depending on the selected "operation mode" (inp.lfl), the function can:
-%     1) Compute everything from scratch
-%     2) Use existing PreprocData MATs
-%     3) Assemble from existing CVdatamat files
-%     4) Assemble from existing CVresults MATs
-%
-% SYNTAX
-%   % Interactive (typical):
-%   [act, inp]  = nk_MLOptimizerPrep([], [], 'MAIN INTERFACE');
-%
-%   % Batch (provide NM and CV via inp.NM / inp.CV, set batchflag=2):
-%   [act, inp]  = nk_MLOptimizerPrep(6, inp, 'BATCH');
-%
-%   % Simulation mode (use xNM, act==999):
-%   [~, inp]    = nk_MLOptimizerPrep(999, [], 'SIM');
-%
-% INPUTS
-%   act        : Scalar action code. If empty and not batch mode, an
-%                interactive menu is shown. Special:
-%                  0   -> exit
-%                  1   -> select analyses
-%                  2   -> choose operation mode (lfl)
-%                  3   -> specify files (depending on lfl)
-%                  4   -> toggle overwrite behavior
-%                  5   -> select CV2 grid partitions
-%                 6/7  -> proceed (train/aggregate)
-%                999   -> simulation mode using xNM
-%
-%   inp        : Struct with runtime configuration. If empty, defaults are
-%                created from NM/xNM. Important fields include:
-%                  analind     : Analysis index/indices (default: 1)
-%                  lfl         : Operation mode (1..4, see above; default 1)
-%                  preprocmat  : PreprocData MAT master (cell), used if lfl=2
-%                  gdmat       : CVdatamat master (cell), used if lfl=3
-%                  gdanalmat   : CVresults MATs (cellstr), used if lfl=4
-%                  varstr      : Optional variable name suffix(es)
-%                  concatfl    : Modality concatenation flag(s)
-%                  ovrwrt      : Overwrite policy for target files (1=Yes,2=No)
-%                  update      : Update/refresh derived files when using precomputed data
-%                  HideGridAct : If true, skip CV2 grid selection
-%                  batchflag   : 0=interactive, 1=batch (non-deployed),
-%                                2=batch with inp.NM / inp.CV supplied
-%                  debugall    : Save all models and training data (DEV only)
-%                  debugopt    : Save chosen optimum results/models (DEV only)
-%                In batchflag==2, you must provide:
-%                  inp.NM      : NM struct
-%                  inp.CV      : CV struct array
-%
-%   parentstr  : Char label for breadcrumb / UI display.
-%
-% OUTPUTS
-%   act        : Final action taken (useful if menu-driven).
-%   inp        : Finalized runtime configuration (with computed defaults,
-%                grid selections, resolved paths, etc.).
-%   NMo        : (optional) Returns the current NM struct after processing
-%                (mirrors NM or xNM depending on mode).
-%
-% GLOBALS (read/modified)
-%   CV, NM, xNM, simFlag, JSMEM, DEBUG, DEV
-%
-% BEHAVIOR & SIDE EFFECTS
-%   • Initializes or updates `inp` from NM/xNM and selected analyses.
-%   • May delete prior analysis results (GDdims, visdata, OOCV) if the user
-%     confirms when starting from scratch.
-%   • Configures overwrite/update flags based on lfl and ovrwrt.
-%   • Builds/loads preproc/CV masters depending on mode and selections.
-%   • Calls the nested MLOptimizerPrep() to run optimization per analysis,
-%     saving results under analysis.rootdir / <method>/.
-%   • Updates NM/xNM.analysis{…} with GDdims and related metrics.
-%
-% OPERATION MODES (inp.lfl)
-%   1  Compute all from scratch (no Preproc/CV MATs required)
-%   2  Use existing PreprocData MATs (compute CVdatamats/results)
-%   3  Assemble from existing CVdatamats (aggregate / tweak selection)
-%   4  Assemble from existing CVresults (aggregate only; hides grid selection)
-%
-% NOTES
-%   • act==999 enters simulation mode: uses xNM, sets simFlag, prepares
-%     full grid (all CV2 partitions selected).
-%   • For multiple analyses, grid selection may be hidden if CV structures
-%     are not equal across analyses.
-%   • When DEV is true, extra debug toggles appear in the menu.
-%
-% SEE ALSO
-%   nk_GetAnalModalInfo_config, nk_GenPreprocMaster2, nk_GenCVdataMaster2,
-%   nk_GenCVresultsMaster, nk_CVGridSelector, nk_SelectAnalysis,
-%   nk_SetupGlobalVariables, nk_MLOptimizer_main
-%
-% COPYRIGHT
-%   (c) Nikolaos Koutsouleris 06/2024
+% =========================================================================
+% This function allows the interactive and batch use of the ML training and
+% cross-validation module of NM
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris 06/2024
+% (c) Nikolaos Koutsouleris 09/2022
 
-global CV NM xNM simFlag JSMEM DEBUG DEV  %xNM for simulation 
+global CV NM xNM simFlag JSMEM %xNM for simulation 
 
-JSMEM = []; NMo = [];
-clearNM = false; 
-if exist('inp','var') && ~isempty(inp) && inp.batchflag==2
-    NM = inp.NM; inp = rmfield(inp,'NM'); 
-    CV = inp.CV; inp = rmfield(inp,'CV'); 
-end
+JSMEM = [];
+
 na_str = '?';
 if ~exist('inp','var') || isempty(inp)
     inp = struct('analind',1, ...
@@ -123,9 +23,7 @@ if ~exist('inp','var') || isempty(inp)
         'ovrwrt', 2, ...
         'update', true, ...
         'HideGridAct', false, ...
-        'batchflag', false, ...
-        'debugall', false, ...
-        'debugopt', false);
+        'batchflag', false);
     if act == 999
         inp.analind = xNM.analind;
         inp.simFlag =true;
@@ -203,10 +101,10 @@ if ~isempty(analysis)
     inp.sfieldnames = {'','preprocmat','gdmat','gdanalmat'};
 
     if ~isfield(inp,'simFlag') || ~inp.simFlag
-        nk_SetupGlobalVariables(NM.analysis{inp.analind(1)}.params, 'setup_main', 0);
+        nk_SetupGlobVars2(NM.analysis{inp.analind(1)}.params, 'setup_main', 0);
         [ix, jx] = size(CV(1).TrainInd);
     else
-        nk_SetupGlobalVariables(xNM.analysis{inp.analind(1)}.params, 'setup_main', 0);
+        nk_SetupGlobVars2(xNM.analysis{inp.analind(1)}.params, 'setup_main', 0);
         [ix, jx] = size(xNM.cv(1).TrainInd);
     end
 
@@ -226,14 +124,12 @@ if ~isempty(analysis)
         if inp.lfl > 1, lflcnt = 1; end
     end
 
-    if inp.lfl == 4, inp.HideGridAct = true; else, inp.HideGridAct = false; end
-
     ModeStr   = sprintf('Operation mode of ML training module [ %s ]|',LFL_opts{inp.lfl-lflcnt});          ModeAct = 2;
 
-    if inp.lfl>1 && ~inp.batchflag
+    if inp.lfl>1
         % precomputed
         nTargFiles = na_str; mT=1;
-        if isfield(inp,inp.sfieldnames{inp.lfl}) && ~isempty(inp.(inp.sfieldnames{inp.lfl}))
+        if isfield(inp,inp.sfieldnames{inp.lfl}) && ~isempty(inp.(inp.sfieldnames{inp.lfl})),
             if iscell(inp.(inp.sfieldnames{inp.lfl}){1})
                 nT = sum(sum(~cellfun(@isempty, inp.(inp.sfieldnames{inp.lfl}){1})));
                 if numel(inp.(inp.sfieldnames{inp.lfl})) == numel(inp.varind)
@@ -275,7 +171,6 @@ if ~isempty(analysis)
     else
         GridSelectStr = ''; GridSelectAct = [];
     end
-
     %% Build interactive menu
     menustr = [ AnalSelectStr ...
         ModeStr ...
@@ -289,25 +184,11 @@ if ~isempty(analysis)
         OverWriteAct ...
         GridSelectAct ];
 
-    if ~isdeployed && DEV
-        debugallstr = 'no'; debugoptstr = 'no';
-        if isfield(inp,'debugall') && inp.debugall, debugallstr = 'yes'; end
-        if isfield(inp,'debugopt') && inp.debugopt, debugoptstr = 'yes'; end
-        menustr = [ menustr ...
-            sprintf('DEBUGGING: Save all models and respective training data [ %s ]|',debugallstr) ...
-            sprintf('DEBUGGING: Save chosen optimum results with models [ %s ]|',debugoptstr) ];
-        menuact = [ menuact 30 31];
-    end
-
     disallow = false;
 
     %% Check whether all parameters are available
     if (~sum(inp.GridAct(:)) && ~inp.HideGridAct) || isempty(inp.analind), disallow = true; end
-    if inp.lfl>1 
-        if ~isfield(inp, inp.sfieldnames{inp.lfl}) || isempty(inp.(inp.sfieldnames{inp.lfl})) || (iscell(inp.(inp.sfieldnames{inp.lfl})) && isempty(inp.(inp.sfieldnames{inp.lfl}){1}))
-            disallow = true; 
-        end
-    end
+    if inp.lfl>1, if ~isfield(inp, inp.sfieldnames{inp.lfl}) || isempty(inp.(inp.sfieldnames{inp.lfl})), disallow = true; end; end
 
     if ~disallow, menustr = [menustr 'PROCEED >>>']; menuact = [menuact 6]; end
 
@@ -337,7 +218,9 @@ if ~isempty(analysis)
     end
 
     %% Display menu and act on user selections
-    nk_PrintLogo
+    if ~isdeployed
+        nk_PrintLogo
+    end
     mestr = 'ML Training module run-time configuration'; navistr = [parentstr ' >>> ' mestr]; fprintf('\nYou are here: %s >>>',parentstr);
     if ~inp.batchflag, act = nk_input(mestr, 0, 'mq', menustr, menuact); end
     algostr = getAlgoStr(analysis);
@@ -417,10 +300,6 @@ if ~isempty(analysis)
             if inp.ovrwrt ==1, inp.ovrwrt=2; elseif inp.ovrwrt == 2, inp.ovrwrt = 1; end
         case 5
             t_act = 1; while t_act > 0 && t_act < 11, [ t_act, inp.GridAct ] = nk_CVGridSelector(ix,jx, inp.GridAct, 0); end
-        case 30
-            inp.debugall = ~inp.debugall;
-        case 31
-            inp.debugopt = ~inp.debugopt;
         case {6,7,999}
             if inp.lfl ~=2, inp.preprocmat = []; end
             % act==7 is the automation option. Make sure that inp is properly defined
@@ -438,62 +317,53 @@ if ~isempty(analysis)
                 inp.GridAct             = true(ix,jx);
                 
             end
-            if isdeployed || ~DEV
-                clear DEBUG
-            else
-                if inp.debugall, DEBUG.eachmodel = true; end
-                if inp.debugopt, DEBUG.optmodel = true; end
-            end
             % Run through multiple analyses if needed    
             for i=1:nA
                 tNM.runtime.curanal = inp.analind(i);
                 % Configure inp structure according to actual analysis
                 inp = nk_GetAnalModalInfo_config(tNM, inp); 
-                inp.curanal = inp.analind(i);
                 if inp.HideGridAct, [ ix, jx ] = size(NM.analysis{inp.analind(i)}.params.cv.TrainInd); inp.GridAct = true(ix,jx); end
                 inp.analysis_id = tNM.analysis{inp.analind(i)}.id;
                 
-                % check whether alternative label should be used (only
-                % necessary if analysis were set up with older NM
-                % structure)
-                if isfield(tNM.analysis{inp.analind(i)}.params,'label') && tNM.analysis{inp.analind(i)}.params.label.altlabelflag
-
-                    tNM.label = tNM.analysis{inp.analind(i)}.params.label.label; 
-                    tNM.modeflag = tNM.analysis{inp.analind(i)}.params.label.modeflag;  
-                    %altlabel = true;
+                % check whether alternative label should be used
+                if isfield(tNM.analysis{inp.analind(i)}.params.TrainParam, 'LABEL') && tNM.analysis{inp.analind(i)}.params.TrainParam.LABEL.flag
+                    tNM.label = tNM.analysis{inp.analind(i)}.params.TrainParam.LABEL.newlabel; 
+                    tNM.modeflag = tNM.analysis{inp.analind(i)}.params.TrainParam.LABEL.newmode;  
                 end
                 tNM.analysis{inp.analind(i)} = MLOptimizerPrep(tNM, tNM.analysis{inp.analind(i)}, inp);
-                nk_SetupGlobalVariables(tNM.analysis{inp.analind(i)}.params, 'clear', 0)
-              
+                nk_SetupGlobVars2(tNM.analysis{inp.analind(i)}.params, 'clear', 0);
             end
             % Copy back results to NM/xNM
             if ~isfield(inp,'simFlag') || ~inp.simFlag
-
-                if isfield(tNM.analysis{inp.analind(i)}.params, 'label') && tNM.analysis{inp.analind(i)}.params.label.altlabelflag
+                if isfield(tNM.analysis{inp.analind(i)}.params.TrainParam, 'LABEL') && tNM.analysis{inp.analind(i)}.params.TrainParam.LABEL.flag
                     tNM.label = NM.label; 
                     tNM.modeflag = NM.modeflag; 
                 end
                 NM = tNM;
-                NM = rmfield(NM,'runtime');
             else
+                if isfield(tNM.analysis{inp.analind(i)}.params.TrainParam, 'LABEL') && tNM.analysis{inp.analind(i)}.params.TrainParam.LABEL.flag
+                    tNM.label = NM.label; 
+                    tNM.modeflag = NM.modeflag; 
+                end
                 xNM = tNM;
-                xNM = rmfield(xNM,'runtime');
             end
             clear tNM
             h = findobj('Tag','PrintCVBarsBin'); if ~isempty(h), delete(h); end
-            
+            NM = rmfield(NM,'runtime');
     end
 end
 
-if nargout == 3, NMo = NM; end
-if clearNM, clear NM; end
+if nargout == 3
+    NMo = NM;
+else
+    NMo = [];
+end
 
-% _________________________________________________________________________
 function analysis = MLOptimizerPrep(dat, analysis, inp1)
 
 global PARMODE MULTI SAV MODEFL CV PREPROC RAND FUSION META SVM
 
-nk_SetupGlobalVariables(analysis.params, 'setup_strat', 0, inp1.varind(1));
+nk_SetupGlobVars2(analysis.params, 'setup_strat', 0, inp1.varind(1));
 strout = nk_Preprocess_StrCfg([], []);
 
 % Define # of classifiers to train (1 for multi-group classification & regression)
@@ -502,9 +372,7 @@ inp1.probflag = false;
 
 % **************************** ANALYSIS SETUP *****************************
 ld = 1; if FUSION.flag == 3, ld = numel(inp1.F); end
-inp1.unique_groups = unique(dat.label); 
-inp1.unique_groups(isnan(inp1.unique_groups))=[];
-inp1.ngroups = numel(inp1.unique_groups);
+inp1.ngroups = max(dat.label);
 hx = size(dat.label,2);
 analysis.Time                               = zeros(ld,1);
 analysis.TrainPerformanceBin                = zeros(ld,inp1.nclass,hx);
@@ -543,36 +411,27 @@ if ~isfield(inp1,'rootdir') || isempty(inp1.rootdir) || ~exist(inp1.rootdir,'dir
 else
     inp1.rootdir = fullfile(analysis.rootdir,mthstr);
 end
-inp1.maindir = analysis.rootdir;
-if ~exist(inp1.rootdir,'dir'), mkdir(inp1.rootdir);end
 
-% Write some info to command line
-clc
-fprintf('******************************\n')
-fprintf('**  PARAMETER OPTIMIZATION  **\n')
-fprintf('******************************\n')
+if ~exist(inp1.rootdir,'dir'), mkdir(inp1.rootdir);end
 
 for i = 1:inp1.nF
 
     %% Get Training / CV data (Y) & Build modality suffix
-    inp2  = nk_DefineFusionModeParams(dat, analysis, inp1.F, inp1.nF, i);
+    inp2  = nk_SetFusionMode2(dat, analysis, inp1.F, inp1.nF, i);
     inp   = catstruct(inp1,inp2); clear inp2
     if isfield(dat,'time'), inp.time2event = dat.time; end
     if inp.lfl == 2, inp.preprocmat = preprocmat{i,:,:}; end
 
+    
     inp.stranalysis = SAV.matname; strGDdimsfile = fullfile(inp.rootdir, ...
         [inp.stranalysis '_CVdimanalysis' strout '_ID' dat.id '.mat']);
 
     [~, PreML] = nk_GenPreML(PREPROC);
 
     maxacc = zeros(inp.nclass, 1); maxtestacc = zeros(inp.nclass,1 );
-    
-    if isfield(SVM,'ParameterOptimizationMode')
-        inp.ParameterOptimizationMode = SVM.ParameterOptimizationMode;
-    end
 
     % *********************************** GO **********************************
-    if isfield(inp,'simFlag') && inp.simFlag
+    if isfield(inp,'simFlag')&& inp.simFlag
         if ~isempty(inp.gdanalmat)
         % Load precomputed CVresults file
             load(inp.gdanalmat{i}); GDdims{i} = GDanalysis;
@@ -589,7 +448,7 @@ for i = 1:inp1.nF
             GDdims{i} = nk_MLOptimizer_main(inp, dat.id, PreML);
         end
     end
-    if inp.batchflag ==0 || inp.batchflag ==2 || (isfield(inp,'simFlag') &&inp.simFlag)
+    if ~inp.batchflag || (isfield(inp,'simFlag') &&inp.simFlag)
         GDdims{i}.datadescriptor = dat.datadescriptor{inp.tF};
         % Retrieve best accuracies of binary classifiers from grid structure
         for j = 1:inp.nclass
@@ -599,9 +458,9 @@ for i = 1:inp1.nF
             analysis.TestPerformanceBin(i,j) = maxtestacc(j);
             switch MODEFL
                 case 'regression'
-                    analysis.TestPerformanceBinPermAggr(i,j,:)            = GDdims{i}.Regr.costfun_crit;
+                    analysis.TestPerformanceBinPermAggr(i,j,:)        = GDdims{i}.Regr.costfun_crit;
                 case 'classification'
-                    analysis.TestPerformanceBinPermAggr(i,j,:)            = GDdims{i}.BinClass{j}.costfun_crit;
+                    analysis.TestPerformanceBinPermAggr(i,j,:)        = GDdims{i}.BinClass{j}.costfun_crit;
                     if RAND.Decompose ~= 9
                         analysis.TestPerformanceBinPermAggrMajVote(i,j,:) = GDdims{i}.BinClass{j}.prob_contigency.BAC;
                     end
@@ -641,4 +500,21 @@ analysis.status = 1;
 if ~inp.batchflag || (~isfield(inp,'simFlag') || ~inp.simFlag)
     fprintf('\nSaving %s', strGDdimsfile);
     save(strGDdimsfile,'analysis');
+end
+
+function [DR, BINMOD, FEATSEL, CLUST, COVAR] = get_preproc_params(PREPROC)
+
+DR=[]; FEATSEL=[]; CLUST=[]; COVAR=[]; BINMOD=[];
+if isfield(PREPROC,'FEATSEL'), FEATSEL = PREPROC.FEATSEL; end
+if isfield(PREPROC,'BINMOD'), BINMOD = PREPROC.BINMOD; end
+if isfield(PREPROC,'ACTPARAM')
+    for i=1:numel(PREPROC.ACTPARAM)
+        if isfield(PREPROC.ACTPARAM{i},'DR')
+            DR = PREPROC.ACTPARAM{i}.DR;
+        elseif isfield(PREPROC.ACTPARAM{i},'CLUST')
+            CLUST = PREPROC.ACTPARAM{i}.CLUST;
+        elseif isfield(PREPROC.ACTPARAM{i},'COVAR')
+            COVAR = PREPROC.ACTPARAM{i}.COVAR;
+        end
+    end
 end

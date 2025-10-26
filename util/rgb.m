@@ -30,7 +30,6 @@
 %     This program is public domain and may be distributed freely.
 %     Author: Kristj�n J�nasson, Dept. of Computer Science, University of
 %     Iceland (jonasson@hi.is). June 2009.
-%     Changes made by Nikolaos Koutsouleris, 10/2025
 %
 %   REFERENCES
 %     [1] "CSS Color module level 3", W3C (World Wide Web Consortium)
@@ -43,22 +42,18 @@
 %     [3] "Web colors", http://en.wikipedia.org/wiki/Web_colors
 %
 %     [4] "X11 color names" http://en.wikipedia.org/wiki/X11_color_names
-% =========================================================================
-function [rgb, varargout] = rgb(s)
+function [rgb] = rgb(s)
   persistent num name
   if isempty(num) % First time rgb is called
     [num,name] = getcolors();
     name = lower(name);
     num = reshape(hex2dec(num), [], 3);
-    I = num < 240;
-    num(I)  = num(I)/256;
-    num(~I) = ((num(~I) - 240)/15 + 15)/16;
+    % Divide most numbers by 256 for "aesthetic" reasons (green=[0 0.5 0])
+    I = num < 240;  % (interpolate F0--FF linearly from 240/256 to 1.0)
+    num(I) = num(I)/256;
+    num(~I) = ((num(~I) - 240)/15 + 15)/16; + 240;
   end
-
-  % ---------- NEW PICK‑A‑COLOUR MODE ------------------------------------
-  if strcmpi(s,'pick')
-    [rgb,varargout{1}] = pickColorInteractive();
-  elseif strcmpi(s,'chart')
+  if strcmpi(s,'chart')
     showcolors()
   elseif strcmpi(s,'getcolors')
     [rgb.num, rgb.name] = getcolors;
@@ -71,126 +66,51 @@ function [rgb, varargout] = rgb(s)
     end
   end
 end
-
-%======================================================================
-function [cTriplet,cName] = pickColorInteractive()
-    [hex,name] = getcolors();          % palettes
-    h = showcolors(true);              % interactive modal picker
-    uiwait(h);                         % wait for click / close
-    idx = getappdata(h,'SelectedIndex');
-    if isempty(idx)                    % user closed without picking
-        cTriplet = []; cName = '';
-    else
-        cTriplet = hex2dec(hex(idx,:))/255;   % 0–1 triple
-        cName    = name{idx};
-    end
-    if isvalid(h), delete(h); end
-end
-%======================================================================
-
-function hFig = showcolors(interactive)
-  if nargin<1, interactive = false; end
+function showcolors()
   [num,name] = getcolors();
-
-  % Grouping (unchanged)
-  grp = {'White','Gray','Red','Pink','Orange','Yellow','Brown','Green','Blue','Purple','Grey'};
-  J   = [1,3,6,8,9,10,11];
-  fl = lower(grp); nl = lower(name);
-  n  = zeros(1,numel(grp));
-  for i=1:numel(grp)
-      n(i) = strmatch(fl{i}, nl, 'exact'); 
+  grp = {'White', 'Gray', 'Red', 'Pink', 'Orange', 'Yellow', 'Brown'...
+    , 'Green', 'Blue', 'Purple', 'Grey'};
+  J = [1,3,6,8,9,10,11];
+  fl = lower(grp);
+  nl = lower(name);
+  for i=1:length(grp)
+    n(i) = strmatch(fl{i}, nl, 'exact'); 
   end
-
-  % ---- Create our OWN modal figure (no gcf/clf!) ----
-  hFig = figure('Name','RGB Color Picker', ...
-                'NumberTitle','off', ...
-                'MenuBar','none', 'ToolBar','none', ...
-                'Color','w', 'Visible','off', ...
-                'HandleVisibility','callback', ...
-                'WindowStyle','modal', ...
-                'Tag','rgb_color_picker');
-
-  % Center on screen
-  ss = get(0,'ScreenSize');
-  wh = 0.6*ss(3:4);    % 60% of screen
-  xy = ss(1:2) + 0.5*ss(3:4) - wh/2;
-  set(hFig,'Position',[xy wh]);
-
-  % Ensure uiwait can resume on close
-  set(hFig,'CloseRequestFcn', @(src,evt) onClosePicker(src));
-
-  % Axes that fill the window
-  ax = axes('Parent',hFig, 'Position',[0 0 1 1], 'Visible','off');
-  hold(ax,'on');
-
-  % Layout metrics (same logic, cleaned a bit)
+  clf
+  p = get(0,'screensize');
+  wh = 0.6*p(3:4);
+  xy0 = p(1:2)+0.5*p(3:4) - wh/2;
+  set(gcf,'position', [xy0 wh]);
+  axes('position', [0 0 1 1], 'visible', 'off');
+  hold on
   x = 0;
   N = 0;
   for i=1:length(J)-1
-      N = max(N, n(J(i+1)) - n(J(i)) + (J(i+1) - J(i))*1.3);
+    N = max(N, n(J(i+1)) - n(J(i)) + (J(i+1) - J(i))*1.3); 
   end
   h = 1/N;
   w = 1/(length(J)-1);
   d = w/30;
-  idx = 1;
-
-  for col = 1:length(J)-1
-
-      y = 1 - h;
-
-      % column header
-      tHead = text(ax, x+w/2, y+h/10, [grp{J(col)} ' colors'], ...
-                   'FontWeight','bold','VerticalAlignment','bottom', ...
-                   'HorizontalAlignment','center','FontSize',10,'Color','k');
+  for col = 1:length(J)-1;
+    y = 1 - h;
+    for i=J(col):J(col+1)-1
+      t = text(x+w/2, y+h/10 , [grp{i} ' colors']);
+      set(t, 'fontw', 'bold', 'vert','bot', 'horiz','cent', 'fontsize',10);
       y = y - h;
-
-      for k = n(J(col)):n(J(col+1))-1
-          % Get color triplet WITHOUT calling clf/gcf; use rgb(name{k}) or hex.
-          c = rgb(name{k});  % safe here; uses persistent tables
-
-          bright = (c(1)+2*c(2)+c(3))/4;
-          txtcolor = 'k'; if bright < 0.5, txtcolor = 'w'; end
-
-          r = rectangle(ax, 'Position',[x+d, y, w-2*d, h], 'FaceColor', c, 'EdgeColor','none');
-          t = text(ax, x+w/2, y+h/2, name{k}, 'Color', txtcolor, ...
-                   'VerticalAlignment','middle', 'HorizontalAlignment','center', 'FontSize', 9);
-
-          if interactive
-              set(r,'ButtonDownFcn', @(~,~) clickColor(hFig, idx));
-              set(t,'ButtonDownFcn', @(~,~) clickColor(hFig, idx));
-          end
-
-          y   = y - h;
-          idx = idx + 1;
+      for k = n(i):n(i+1)-1
+        c = rgb(name{k});
+        bright = (c(1)+2*c(2)+c(3))/4;
+        if bright < 0.5, txtcolor = 'w'; else txtcolor = 'k'; end
+        rectangle('position',[x+d,y,w-2*d,h],'facecolor',c);
+        t = text(x+w/2, y+h/2, name{k}, 'color', txtcolor);
+        set(t, 'vert', 'mid', 'horiz', 'cent', 'fontsize', 9);
+        y = y - h;
       end
-
       y = y - 0.3*h;
-      x = x + w;
-  end
-
-  if nargout==0
-      clear hFig
-  else
-      set(hFig,'Visible','on'); drawnow;
+    end
+    x = x + w;
   end
 end
-
-function onClosePicker(src)
-    if ~isvalid(src), return; end
-    if ~isappdata(src,'SelectedIndex')
-        setappdata(src,'SelectedIndex',[]);   % indicate "no selection"
-    end
-    try uiresume(src); catch, end             % resume uiwait safely
-    delete(src);                              % close the picker
-end
-
-function clickColor(hFig, idx)
-    if isvalid(hFig)
-        setappdata(hFig,'SelectedIndex',idx);
-        uiresume(hFig);
-    end
-end
-
 function [hex,name] = getcolors()
   css = {
     %White colors

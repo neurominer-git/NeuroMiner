@@ -61,7 +61,7 @@ end
 % Check whether previous feature names exists and make sure that the order
 % of features in the new modality matches the order of features in previous modalities
 if isfield(IO,'oocvflag') && IO.oocvflag && isfield(IO,'featnames')
-    if ~isfield(IO,'feat_reordered') || ~IO.feat_reordered
+    if ~IO.feat_reordered
         ind = zeros(1,numel(IO.featnames)); flg = false;
         for i=1:numel(IO.featnames)
             ii = strcmp(IO.s_featnames,IO.featnames{i});
@@ -126,14 +126,9 @@ else
                 else
                     IO.n_subjects = zeros(1,numel(unique(IO.s_label(IO.nonnan_label),'stable'))); 
                 end
-                
                 tdesc_groups = IO.desc_groups;
                 for j=1:nL
-                    if isfield(IO, 'oocvflag') && IO.oocvflag && IO.labels_known
-                        desc_groups = IO.desc_groups; 
-                    else
-                        desc_groups = unique(IO.s_label(IO.nonnan_label(:,j),j),'stable');
-                    end
+                    desc_groups = unique(IO.s_label(IO.nonnan_label(:,j),j),'stable');
                     IO.n_samples(j) = numel(desc_groups);
                     if nL>1
                         IO.desc_groups{j} = desc_groups;

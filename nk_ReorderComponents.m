@@ -4,8 +4,8 @@ function [cov_mat, reorder] = nk_ReorderComponents(T, S, method)
 if ~exist('method','var') || isempty(method), method = 'mi'; end
 switch method
     case 'mi'
-        S = nm_discretize(S);
-        T = nm_discretize(T);
+        S = discretize(S);
+        T = discretize(T);
 end
 
 switch method

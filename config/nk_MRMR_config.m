@@ -44,9 +44,9 @@ act = nk_input(mestr,0,'mq', menustr, menuact);
 
 switch act 
     case 1
-        t_act = 1; while t_act > 0, [params.MRMR, t_act] = nk_DiscSym_config( params.MRMR, navistr ); end
+        t_act = 1; while t_act > 0, [params.MRMR, t_act] = nk_DiscSym_config( params.MRMR, navistr ); end;
     case 2
-        if params.MRMR.mRMRscheme == 1, params.MRMR.mRMRscheme=2; else, params.MRMR.mRMRscheme=1; end
+        params.MRMR.mRMRschteme = nk_input('mRMR scheme',0,'MID|MIQ',[1,2], mRMRscheme);
     case 3
         params.MRMR.NumFeat = nk_input('Number of features to select?',0,'e',NumFeat);
 end

@@ -70,7 +70,6 @@
 
 function varargout = barwitherr(errors,varargin)
 global OCTAVE
-
 % Check how the function has been called based on requirements for "bar"
 if nargin < 3
     % This is the same as calling bar(y)
@@ -88,7 +87,7 @@ else
         % get their indices in ascending order for use with the bar
         % locations which will be in ascending order:
         values = varargin{2};
-        [~, xOrder] = sort(varargin{1});
+        [tmp xOrder] = sort(varargin{1});
     end
 end
 
@@ -112,7 +111,7 @@ if any(size(values) ~= size(lowerErrors))
     error('The values and errors have to be the same length')
 end
 
-[nRows, nCols] = size(values);
+[nRows nCols] = size(values);
 handles.bar = bar(varargin{:}); % standard implementation of bar fn
 hold on
 hBar = handles.bar;
@@ -126,11 +125,9 @@ if nRows > 1
         else
           if verLessThan('matlab', '8.4')
               % Original graphics:
-              drawnow
               x = get(get(handles.bar(col),'children'),'xdata');
           else
               % New graphics:
-              drawnow
               x =  handles.bar(col).XData + [handles.bar(col).XOffset];
           end
         end
@@ -165,4 +162,3 @@ switch nargout
         varargout{1} = hBar;
         varargout{2} = hErrorbar;
 end
-

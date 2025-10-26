@@ -17,7 +17,7 @@ function y = nm_nanmedian(x,dim, protect)
 %    See also MEDIAN
 
 % -------------------------------------------------------------------------
-%    author:      Jan Gl√§scher
+%    author:      Jan Gl‰scher
 %    affiliation: Neuroimage Nord, University of Hamburg, Germany
 %    email:       glaescher@uke.uni-hamburg.de
 %    
@@ -39,7 +39,6 @@ end
 
 siz  = size(x);
 n    = size(x,dim);
-fullnans = sum(isnan(x),dim) == size(x,2);
 
 % Permute and reshape so that DIM becomes the row dimension of a 2-D array
 perm = [dim:max(length(size(x)),dim) 1:dim-1];
@@ -51,30 +50,7 @@ x = sort(x,1);
 
 % identify and replace NaNs
 nans = isnan(x);
-if anynan(x)
-    try
-        x(isnan(x)) = 0;
-    catch ERROR
-        switch ERROR.identifier
-            case 'MATLAB:nomem'
-                %for-loop to avoid out of memory error if x is 3-dimensional
-                if length(size(x)) == 3
-                    for i=1:size(x,length(size(x)))
-                        temp = x(:,:,i);
-                        temp(isnan(temp)) = 0;
-                        try
-                            x(:,:,i) = temp;
-                        catch
-                        end
-                    end
-                else
-                    rethrow(ERROR)
-                end
-            otherwise
-                rethrow(ERROR)
-        end
-    end
-end
+x(isnan(x)) = 0;
 
 % new dimension of x
 [n m] = size(x);
@@ -102,5 +78,4 @@ end
 % permute and reshape back
 siz(dim) = 1;
 y = ipermute(reshape(y,siz(perm)),perm);
-y(fullnans) = nan;
 % $Id: nm_nanmedian.m,v 1.2 2007/07/30 17:19:19 glaescher Exp glaescher $

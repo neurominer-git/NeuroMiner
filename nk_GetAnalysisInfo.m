@@ -1,6 +1,6 @@
 function str = nk_GetAnalysisInfo(dat, analysis)
 
-if iscell(analysis.params.datadescriptor), nvar = length(analysis.params.datadescriptor); else, nvar = 1; end
+if iscell(analysis.params.datadescriptor), nvar = length(analysis.params.datadescriptor); else nvar = 1; end
 showmodalmax = Inf;
 showmodalvec = 1:nvar;
 params = analysis.params;
@@ -9,13 +9,13 @@ if isempty(FUSION), FUSION.flag = 0; end
 nF=1; str=[];
 if nvar > 1
     nF = numel(FUSION.M);
-    if nF>1
+    if nF>1,
         strmod = sprintf('%g MODALITIES',nF);
     else
         strmod = 'MODALITY';
     end
     str{1} = sprintf('ANALYSIS OPERATES ON %s', strmod); 
-    for j=1:nF
+    for j=1:nF, 
         if j > showmodalmax, fprintf(' ...'); break; end;
         str{end+1} = sprintf(' #%g', FUSION.M(j)); 
     end

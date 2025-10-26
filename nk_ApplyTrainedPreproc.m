@@ -1,7 +1,7 @@
 function [ inp, contfl, analysis, mapY, GD, MD, Param, P, mapYocv ] = nk_ApplyTrainedPreproc(analysis, inp, paramfl, Param)
 % =========================================================================
 % [ contfl, analysis, mapY, GD, MD, Param, P, mapYocv ] = ...
-%                           nk_ApplyTrainedPreproc(analysis, inp, paramfl)
+%                           nk_ApplyTrainedPreproc2(analysis, inp, paramfl)
 % =========================================================================
 % Main function to compute /load and return preprocessing parameters and
 % preprocessed data for trained analysis chains. The functions is used by
@@ -13,24 +13,12 @@ function [ inp, contfl, analysis, mapY, GD, MD, Param, P, mapYocv ] = nk_ApplyTr
 % 
 % Input:
 % -------
-% analysis
-% inp
-% paramfl: struct => use_exist,         Use existing data
-%                    loadparam,         Load parameter files
-%                    found,             Flag for found data files
-%                    write,             Write parameters to disk 
-%                    CV1op,             Operate at CV1 level
-%                    multiflag          Multi-class mode
-%                    template_flag      Run preprocessing on all data to
-%                                       generate template for reordering
-%                                       operations
-% Param :   Pretrained parameter structure
 %
 % Output:
 % -------
-% inp, contfl, analysis, mapY, GD, MD, Param, P, mapYocv
+%
 % =========================================================================
-% (c) Nikolaos Koutsouleris, 08/2023
+% (c) Nikolaos Koutsouleris, 12/2021
 
 global VERBOSE PREPROC SAV OCTAVE
 
@@ -54,14 +42,13 @@ end
 
 if smoothonly
     inp = nk_PerfInitSpatial(analysis, inp, paramfl);
-    nM = numel(inp.PREPROC);
-    inp.issmoothed = true(1,nM);
     inp.smoothonly = false;
+    inp.issmoothed = true;
     Param = [];
 else
     Yocv = []; 
+    issmoothed = false; if isfield(inp,'issmoothed') && inp.issmoothed, issmoothed = true; end
     nM = numel(inp.PREPROC);
-    issmoothed = false(1,nM); if isfield(inp,'issmoothed') && any(inp.issmoothed), issmoothed = inp.issmoothed; end
     if ~isfield(inp,'saveparam'), inp.saveparam = false; end
 
     P = cell(1, nM); mapY = cell(1, nM); mapYocv = cell(1,nM); 
@@ -78,12 +65,7 @@ else
             if exist(inp.optpreprocmat{inp.f,inp.d},'file')
                 fprintf('\nLoading optimized pre-processing parameters for CV2 [%g,%g]:\n%s', ...
                         inp.f, inp.d, inp.optpreprocmat{inp.f,inp.d}); 
-                load(inp.optpreprocmat{inp.f,inp.d}); 
-                if iscell(paramfl)
-                    paramfl{1}.found= true;
-                else
-                    paramfl.found = true;
-                end
+                load(inp.optpreprocmat{inp.f,inp.d}); paramfl.found = true;
             else
                 if VERBOSE, fprintf('ERROR: Loading of pre-computed parameters not possible because path to file does not anymore exist. Update your paths!'); end
             end
@@ -98,7 +80,7 @@ else
         % consist of NaN
 
         % Has the [imaging] data been smoothed already?
-        if issmoothed(n), sstr='s'; else, sstr=''; end
+        if issmoothed, sstr='s'; else, sstr=''; end
 
         % Training/CV data extraction from container
         Y = inp.X(n).([ sstr 'Y']);
@@ -143,19 +125,18 @@ else
         end
         
         % now we are ready to run the preprocessing pipeline
-        tparamfl.currmodal = n;
-
         if inp.stacking
             [mapY{n}, Param{n}, P{n}, mapYocv{n}] = nk_PerfPreprocessMeta(inp, inp.label, tparamfl);
         else
             [mapY{n}, Param{n}, P{n}, mapYocv{n}] = nk_PerfPreprocess(Y, inp, inp.label, tparamfl, Yocv);
         end
+
     end
         
     % Save parameters to disk
     if isfield(inp,'saveparam') && inp.saveparam
         CV2p = inp.f; CV2f = inp.d; 
-        if isfield(inp,'CV1') && inp.CV1 == 1
+        if isfield(inp,'CV1')
             CV1p = inp.CV1p;  CV1f = inp.CV1f;
         else
             CV1p = []; CV1f = [];
@@ -174,12 +155,9 @@ else
 
     % Transfer mapped data to appropriate container
     if nM > 1
-       [mapY, Param] = nk_mapY2Struct(mapY, Param, P, inp);
-       [iy,jy] = size(mapY.Tr);
-       mapY = nk_DealWithNaNCases(mapY, iy, jy, inp.nclass, true);
+       mapY = nk_mapY2Struct(mapY, true);
        if (iscell(mapYocv) && ~sum(cellfun(@isempty,mapYocv))) || ( ~iscell(mapYocv) && ~isempty(mapYocv))
-           mapYocv = nk_mapY2Struct(mapYocv, Param, P, inp); 
-           mapYocv = nk_DealWithNaNCases(mapYocv, iy, jy, inp.nclass, true);
+           mapYocv = nk_mapY2Struct(mapYocv, true); 
        end
     else
         mapY = mapY{n};

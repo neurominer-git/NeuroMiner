@@ -15,15 +15,14 @@ fclose(fid);
 % ===================================================================================================
 NMpath        		= params{1}{1};					% NM root folder
 datpath             = params{1}{2};					% NM structure
-jobdir              = params{1}{3};                 % job/output directory
-analind             = str2double(params{1}{4});		% Analysis index to identify analysis for HPC
-curCPU              = str2double(params{1}{5});		% Current CPU to be used
-numCPU              = str2double(params{1}{6});	    % Number of CPUs in the submitted job
-CV2x1               = str2double(params{1}{7});	    % Range param for CV2 grid definition: Perm start CV2
-CV2x2               = str2double(params{1}{8});	    % Range param for CV2 grid definition: Perm end CV2
-CV2y1               = str2double(params{1}{9});	    % Range param for CV2 grid definition: Fold start CV2
-CV2y2               = str2double(params{1}{10});	% Range param for CV2 grid definition: Fold end CV2
-ovrwrtfl            = str2double(params{1}{11});
+analind             = str2double(params{1}{3});		% Analysis index to identify analysis for HPC
+curCPU              = str2double(params{1}{4});		% Current CPU to be used
+numCPU              = str2double(params{1}{5});	% Number of CPUs in the submitted job
+CV2x1               = str2double(params{1}{6});	% Range param for CV2 grid definition: Perm start CV2
+CV2x2               = str2double(params{1}{7});	% Range param for CV2 grid definition: Perm end CV2
+CV2y1               = str2double(params{1}{8});	% Range param for CV2 grid definition: Fold start CV2
+CV2y2               = str2double(params{1}{9});	% Range param for CV2 grid definition: Fold end CV2
+ovrwrtfl            = str2double(params{1}{10});
 
 if ~isdeployed
     addpath(NMpath);
@@ -31,29 +30,7 @@ end
 warning('off','MATLAB:FINITE:obsoleteFunction')
 fprintf('\nLoading NM structure: %s',datpath)
 load(datpath);
-
-% change analysis rootpath in batch mode
-if isdeployed
-    if jobdir(end) == '/'
-        jobdir = jobdir(1:end-1);
-    end
-    parentdir = NM.analysis{1,analind}.parentdir;
-    if parentdir(end) == '/'
-        parentdir = parentdir(1:end-1);
-    end
-    NM.analysis{1,analind}.parentdir = jobdir;
-    NM.analysis{1,analind}.rootdir = strrep(NM.analysis{1,analind}.rootdir,parentdir,jobdir);
-    NM.analysis{1,analind}.logfile = strrep(NM.analysis{1,analind}.logfile,parentdir,jobdir);
-    NM.analysis{1,analind}.paramdir = strrep(NM.analysis{1,analind}.paramdir,parentdir,jobdir);
-    NM.analysis{1,analind}.paramfile = strrep(NM.analysis{1,analind}.paramfile,parentdir,jobdir);
-
-    
-end
-
 assignin('base','NM',NM);
-
-fprintf('\nThe updated path of the NM structure root dir is: %s',NM.analysis{1,analind}.rootdir)
-fprintf('\n')
 
 % %%%%%%%%%%%%%%%%%%%%%%%%% INITIALIZE NeuroMiner %%%%%%%%%%%%%%%%%%%%%%%%%
 action = struct('addrootpath',1, ...

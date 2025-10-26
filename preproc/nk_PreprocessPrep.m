@@ -6,9 +6,9 @@ function [act, analdim, p, GridAct, mapY, strout] = nk_PreprocessPrep( act, anal
 % This function allows the interactive and batch use of the preprocessing
 % module of NM.
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris 05/2024
+% (c) Nikolaos Koutsouleris 09/2022
 
-global PREPROC MODEFL CV DR SAV RAND USEPARAMEXIST FUSION TEMPL CALIB MULTI STACKING NM OCTAVE CALIBUSE CVPOS
+global PREPROC MODEFL CV DR SAV RAND USEPARAMEXIST FUSION TEMPL CALIB MULTI STACKING NM OCTAVE JSMEM
 clc
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%% SETUP PARAMS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -19,11 +19,6 @@ if ~exist('p','var') || isempty(p)
                 'useparamfl',   2, ...
                 'HideGridAct',  false, ...
                 'batchflag',    false);
-end
-
-if p.batchflag == 2
-    NM = p.NM;  
-    CV = p.CV; 
 end
 
 yesnostr = {'yes','no'};
@@ -45,7 +40,7 @@ if numel(NM.analysis) > 1
     menustr = ['Select analysis to operate on [ ' AnalSelStr ' ]|']; menuact = 1;
 else
     analdim = 1; menuact = []; menustr = [];
-    analysis = NM.analysis{analdim}; nk_SetupGlobalVariables(analysis.params, 'setup_main', 0); 
+    analysis = NM.analysis{analdim}; nk_SetupGlobVars2(analysis.params, 'setup_main', 0); 
     [operms,ofolds] = size(CV.TrainInd);
     if (~exist('GridAct','var') || isempty(GridAct)) || ~isequal(size(GridAct), [operms ofolds]) 
         GridAct = true(operms,ofolds);
@@ -84,7 +79,7 @@ switch act
         while tact>0, [ tact, tanaldim,~, showmodalvec, brief ] = nk_SelectAnalysis(NM, 0, 'MAIN INTERFACE >> PREPROCESSING MODULE', tanaldim, [], 0, showmodalvec, brief); end;
         if ~isempty(tanaldim) 
             analdim = tanaldim;
-            analysis = NM.analysis{analdim}; nk_SetupGlobalVariables(analysis.params, 'setup_main', 0); 
+            analysis = NM.analysis{analdim}; nk_SetupGlobVars2(analysis.params, 'setup_main', 0); 
 
             nA = numel(analdim);
             if nA>1
@@ -111,9 +106,8 @@ switch act
         if p.writefl == 1, p.writefl=2; elseif p.writefl == 2, p.writefl = 1; end
     case 5
         %% Get info from user which CV2 partitions to operate upon?   
-        [operms,ofolds] = size(NM.analysis{analdim(1)}.params.cv.TrainInd);
+        [operms,ofolds] = size(CV.TrainInd);
         t_act = 1; while t_act > 0 && t_act < 10, [ t_act, GridAct ] = nk_CVGridSelector(operms, ofolds, GridAct, 0); end
-
     case {6,7}
         nA=numel(analdim);
 
@@ -126,7 +120,7 @@ switch act
             fprintf('**********************************\n')
             fprintf('\nWorking on analysis #%g: %s', analdim(i), analysis.id);
 
-            nk_SetupGlobalVariables(analysis.params, 'setup_main', 0); 
+            nk_SetupGlobVars2(analysis.params, 'setup_main', 0); 
             if p.HideGridAct
                 [ operms, ofolds] = size(NM.analysis{analdim(i)}.params.cv.TrainInd);
                 GridAct = true(operms,ofolds);
@@ -136,7 +130,6 @@ switch act
 
             NM.runtime.curanal = analdim(i);
             tdir = pwd; if isfield(analysis,'rootdir') && exist(analysis.rootdir,'dir'), tdir = analysis.rootdir; end
-            if ~exist(analysis.rootdir,'dir'), mkdir(analysis.rootdir);end
             % Define modality-independent parameters of current analysis as global variables
             
             if ~isempty(STACKING) && STACKING.flag ==1
@@ -173,36 +166,26 @@ switch act
                 paramfl.use_exist = false; USEPARAMEXIST = false;
             end
             
-            CALIBUSE = false;
+            %CALIBUSE = false;
             kbin = 1;
             %% Define program parameters
             if strcmp(MODEFL,'classification') && RAND.Decompose ~= 9, kbin = length(CV.class{1,1}); end
             datid       = NM.id;
-        
             switch act
                 case 6
-
-                 for j = 1:nM
-
-                    paramfl.currmodal = j;
-                    
+                for j = 1:nM
+    
                     %% Get Training / CV data (Y) & Build modality suffix
-                    inp = nk_DefineFusionModeParams(NM, analysis, F, nM, j);
+                    inp = nk_SetFusionMode2(NM, analysis, F, nM, j);
     
                     %fprintf('\nWORKING ON MODALITY #%g', j);
                     if numel(inp.PREPROC)>1
                         Y = inp.X(j).Y; 
-                        if isfield(inp.X(j),'altY')
-                            inp.AltY = inp.X(j).altY;
-                        end
                         PREPROC = inp.PREPROC{j};
-                        if isfield(inp.X(j),'Yw'); inp.iYw = inp.X(j).Yw; end
+                        if isfield(inp.X(j),'Yw'); inp.Yw = inp.X(j).Yw; end
                     else
                         Y = inp.X.Y; 
-                        if isfield(inp.X,'altY')
-                            inp.AltY = inp.X(j).altY;
-                        end
-                        if isfield(inp.X,'Yw'); inp.iYw = inp.X.Yw; end
+                        if isfield(inp.X,'Yw'); inp.Yw = inp.X.Yw; end
                         PREPROC = inp.PREPROC; 
                     end
     
@@ -217,20 +200,50 @@ switch act
                     labels = nk_LabelTransform(PREPROC, MODEFL, inp.labels);
     
                     % For imaging data: DATA FILTERING / SMOOTHING / RESLICING (in the future)
-                    Y = nk_PerfSpatFilt( Y, PREPROC, inp.X );
-                    inp = nk_SmoothMask( PREPROC, inp );
-
-                    CALIB.calibflag = false;
-                    % Check whether calibration data is available 
-                    if isfield(inp, 'C') && inp.C{1,1}.calibflag
-                        CALIB.calibflag = inp.C{1,1}.calibflag;
-                        P = inp.X;
-                        CYfile = inp.C{1,1}.Y; 
-                        load(CYfile, 'CY');
-                        inp.C{1,1}.Y = CY;
-                        inp.C{1,1}.Y = nk_PerfSpatFilt(inp.C{1,1}.Y, PREPROC, P);
+                    Y = nk_PerfSpatFilt2( Y, PREPROC, inp.X );
+                    if isfield(inp,'Yw') 
+                        fprintf('\nSmoothing weighting map')
+                        inp.Yw = nk_PerfSpatFilt2( inp.Yw, PREPROC, inp.X ); 
+                    else
+                        if isfield(PREPROC,'ACTPARAM')
+                            I = arrayfun( @(j) isfield(PREPROC.ACTPARAM{j},'RANK'), 1:numel( PREPROC.ACTPARAM ));
+                            if any(I) 
+                                I = find(I);
+                                for z=1:numel(I)
+                                    if isfield(PREPROC.ACTPARAM{I(z)}.RANK,'EXTERN')
+                                        if iscell(PREPROC.ACTPARAM{I(z)}.RANK.EXTERN)
+                                            inp.Yw = PREPROC.ACTPARAM{I(z)}.RANK.EXTERN{j};
+                                        else
+                                            inp.Yw = PREPROC.ACTPARAM{I(z)}.RANK.EXTERN;
+                                        end
+                                        inp.Yw = nk_PerfSpatFilt2( inp.Yw, PREPROC, inp.X ); 
+                                        break
+                                    end
+                                end
+                            end
+                        end
                     end
-
+                    % Check whether calibration data is available 
+                    if exist('C','var') && ~isempty(C) && isfield(PREPROC,'CALIB') && ~isempty(PREPROC.CALIB),
+                        CALIB.flag = true;
+                        C = nk_PerfSpatFilt2( C, PREPROC, P ); 
+                    elseif isfield(PREPROC,'TEMPLPROC') && ~isempty(PREPROC.TEMPLPROC) && PREPROC.TEMPLPROC
+                        % For factorization methods: TEMPLATE MAPPING 
+                        if PREPROC.BINMOD
+                            ukbin = kbin; SrcParam.binmult = 1;
+                        else
+                            ukbin = 1; SrcParam.binmult = 0;
+                        end
+                        SrcParam.CV1perm = 1; SrcParam.CV1fold = 1;
+                        for curclass = 1 : ukbin
+                            SrcParam.u = curclass;
+                            SrcParam.TrX = find(labels == CV.class{1,1}{curclass}.groups(1) | labels == CV.class{1,1}{curclass}.groups(2));
+                            InputParam.Tr = Y(SrcParam.TrX,:);
+                            JSMEM = []; % reset memory for juspace 
+                            [TEMPL.Tr{curclass}, TEMPL.Param{curclass}] = nk_GenPreprocSequence(InputParam, PREPROC, SrcParam);
+                        end
+                    end
+    
                     % ======================== PREPROCESSING PIPELINE ========================
                     % These stepps require cross-validation as they require group-level
                     % information flows
@@ -241,8 +254,7 @@ switch act
                             if ~GridAct(ix,jx), continue; end
     
                             inp.f = ix; inp.d = jx; inp.nclass = kbin;
-                            CVPOS.CV2p = ix; CVPOS.CV2f = jx;
-							
+    
                             %% Construct output filename(s) and check for their existence
                             strout = nk_Preprocess_StrCfg(ix, jx);
                             % Run preprocessing on the data matrix
@@ -252,22 +264,17 @@ switch act
                             savnamP = [matname strout inp.varstr '_PreprocDataParam_ID' datid];
                             savmatP = fullfile(tdir,[savnamP '.mat']);
                             paramfl.pth = savmatP; 
-
                             if ~OVRWRT
                                 flg=0;
                                 if exist(savmatY,'file'), fprintf('\n Training / CV file detected:\n%s\nDo not overwrite.', savnamY); flg=1; end
                                 if WRITEPARAM, if exist(savmatP,'file'), fprintf('\n Parameter file detected:\n%s\n%s\nDo not overwrite.', savnamP); end; end
-                                if flg, continue; end
+                                if flg, continue; end;
                             end
-
-                            inp.maindir = analysis.rootdir;
-                            inp.id = datid;
-
+    
                             fprintf('\n\n'); fprintf('********************** CV2 partition [%g, %g] ********************** ',ix,jx)
     
-                            %% Prepare parameter container, if paramfl = true
+                            % Prepare parameter container, if paramfl = true
                             paramfl.found = 0;
-                            %paramfl.writeCV1 = true;
                             if paramfl.use_exist
                                 try 
                                     load(paramfl.pth);
@@ -277,14 +284,7 @@ switch act
                                     paramfl.found = 0;
                                 end
                             end
-                            
-                            %% For factorization methods: TEMPLATE MAPPING   
-                            if isfield(PREPROC,'TEMPLPROC') && ~isempty(PREPROC.TEMPLPROC) && PREPROC.TEMPLPROC
-                                paramfl.templateflag = true;
-                            end
-                            
-                            
-                            %% Perform preprocessing
+    
                             [mapY, Param] = nk_PerfPreprocess(Y, inp, labels, paramfl);
     
                             outfold = jx; outperm = ix;
@@ -306,24 +306,23 @@ switch act
                                 end
                                 clear FEAT Param mapY id dimension savmat savnam strout volnum sigflag clustflag signum clustnum
                             end
-                            if exist('TEMPL','var') && ~isempty(TEMPL), clear TEMPL; end
                         end
                     end
+    
                 end
+                if ~isempty(TEMPL), clear TEMPL; end
     
             case 7
-
-                nk_SetupGlobalVariables(analysis.params, 'setup_strat', 1);                 
-
-                %% Get Training / CV data (Y) & Build modality suffix
-                inp = nk_DefineFusionModeParams(NM, analysis, F, nM, 1);
-                inp.nM = nM;
-                inp.multiflag = 0; if ~isempty(MULTI) && MULTI.flag, inp.multiflag = nk_input('Select models at multi-group optimum', 0,'yes|no',[1,0],1); end
-                if isfield(NM,'covars'); inp.covars = NM.covars; else, inp.covars = []; end
-                inp.covars_oocv = []; inp.ll=1;
                 
                 % LABEL SCALING (regression only)
-                labels = nk_LabelTransform(PREPROC, MODEFL, inp.labels);
+                nk_SetupGlobVars2(analysis.params, 'setup_strat', 1); 
+                labels = nk_LabelTransform(PREPROC, MODEFL, NM.label);
+                %% Get Training / CV data (Y) & Build modality suffix
+                inp = nk_SetFusionMode2(NM, analysis, F, nM, 1);
+                inp.nM = nM;
+                inp.multiflag = 0; if ~isempty(MULTI) && MULTI.flag, inp.multiflag = nk_input('Select models at multi-group optimum', 0,'yes|no',[1,0],1); end
+                if isfield(NM,'covars'); inp.covars = NM.covars; else inp.covars = []; end
+                inp.covars_oocv = []; inp.ll=1;
                 
                 for ix=1:operms % Loop through CV2 perms
     
@@ -338,7 +337,7 @@ switch act
                             savmatY  = fullfile(tdir,[savnamY '.mat']);
                             savnamP = [matname strout inp.varstr '_PreprocDataParamMeta_ID' datid];
                             savmatP = fullfile(tdir,[savnamP '.mat']);
-                          
+                            
                             paramfl.found = 0;
                             if paramfl.use_exist
                                 try 
@@ -349,10 +348,9 @@ switch act
                                     paramfl.found = 0;
                                 end
                             end
-                            for curlabel = 1:size(labels,2)
-                                inp.curlabel=curlabel;
-                                mapY(curlabel) = nk_PerfPreprocessMeta(inp, labels(:,curlabel), paramfl);
-                            end                                 
+                            
+                            [mapY, Param] = nk_PerfPreprocessMeta(inp, labels, paramfl);
+                                 
                             outfold = jx; outperm = ix;
                             
                             if p.saveproc
@@ -376,7 +374,7 @@ switch act
                         end
                 end
             end
-            nk_SetupGlobalVariables(NM.analysis{analdim(i)}.params, 'clear', 0);
+            nk_SetupGlobVars2(NM.analysis{analdim(i)}.params, 'clear', 0);
         end
 end
 

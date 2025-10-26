@@ -64,7 +64,7 @@ if ~defaultsfl
             standardize_flag = nk_input('Standardize data',0,'yes|no',[1,0],standardize_flag);
         case 4
             nmaxflag = nk_input('Specify max # of iterations',0,'yes|no',[1,0]);
-            if nmaxflag
+            if nmaxflag, 
                 nmax = nk_input('Max # of iterations',0,'e',nmax);
             else
                 nmax = [];

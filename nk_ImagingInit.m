@@ -1,5 +1,5 @@
 function [spmrootdir, fsrootdir, jurootdir] = nk_ImagingInit(neurominerpath, imaging_init_path, delete_existing)
-global DEV
+
 if ~exist('delete_existing','var') || isempty(delete_existing)
     delete_existing = false;
 end
@@ -7,11 +7,7 @@ end
 if ~exist(imaging_init_path,'file') || delete_existing
     spmrootdir = uigetdir(neurominerpath,'Specify SPM directory');
     fsrootdir = uigetdir(neurominerpath,'Specify Freesurfer MATLAB directory');
-    if DEV
-        jurootdir = uigetdir(neurominerpath,'Specify JuSpace directory');
-    else
-        jurootdir = [];
-    end
+    jurootdir = uigetdir(neurominerpath,'Specify JuSpace directory');
     save(imaging_init_path,'spmrootdir','fsrootdir','jurootdir');
 else
     P = load(imaging_init_path); 
@@ -40,15 +36,13 @@ else
             end
         end
     end
-    if DEV
-        if exist('jurootdir','var') && ~isnumeric(jurootdir) && ~exist(jurootdir,'dir')
-            tjurootdir = fileparts(which('JuSpace'));
-            if ~isempty(tjurootdir)
-                jurootdir = tjurootdir;
-                try
-                    save(imaging_init_path,'jurootdir','-append')
-                    fprintf('\nUpdated the JuSpace toolbox path according to the system settings.')
-                end
+    if exist('jurootdir','var') && ~isnumeric(jurootdir) && ~exist(jurootdir,'dir')
+        tjurootdir = fileparts(which('JuSpace'));
+        if ~isempty(tjurootdir)
+            jurootdir = tjurootdir; 
+            try
+                save(imaging_init_path,'jurootdir','-append')
+                fprintf('\nUpdated the JuSpace toolbox path according to the system settings.')
             end
         end
     end

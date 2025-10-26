@@ -5,11 +5,16 @@ function [mappedX, mapping] = fa(X, no_dims)
 %
 % Perform factor analysis on dataset X in order to reduce its
 % dimensionality to no_dims dimensions. The reduced data representation is
-% returned in mappedX. Additionally, a metric of goodness of fit (the final
-% log-likelihood) is stored in mapping.loglik.
-%
+% returned in mappedX.
+
 % This file is part of the Matlab Toolbox for Dimensionality Reduction.
+% The toolbox can be obtained from http://homepage.tudelft.nl/19j49
+% You are free to use, change, or redistribute this code in any way you
+% want for non-commercial purposes. However, it is appreciated if you 
+% maintain the name of the original author.
+%
 % (C) Laurens van der Maaten, Delft University of Technology
+
 
     if ~exist('no_dims', 'var')
         no_dims = 2;
@@ -25,21 +30,22 @@ function [mappedX, mapping] = fa(X, no_dims)
     epsilon = 1e-5;
     iter = 0;
     max_iter = 200;
-    
+
     % Initialize FA model
     Sig = eye(D);               % initial variances
     A = rand(D, no_dims);       % initial linear mapping
-    ll = -Inf;                  % initialize log-likelihood
-    
+
     % Main loop
     while iter < max_iter
+       
+        % Update number of iterations
         iter = iter + 1;
         if rem(iter, 5) == 0
             fprintf('.');
         end
 
         % Perform E-step
-        invC = inv(A * A' + Sig);           % compute inverse of covariance matrix
+        invC = inv(A * A' + Sig);                               % compute inverse of covariance matrix
         M = A' * invC * X;
         SC = n * (eye(no_dims) - A' * invC * A) + M * M';
 
@@ -51,17 +57,13 @@ function [mappedX, mapping] = fa(X, no_dims)
         newll = 0.5 * (log(det(invC)) - sum(sum((invC * X) .* X)) / n);
 
         % Check for convergence
-        if iter ~= 1 && abs(newll - ll) < epsilon
+        if iter ~=1 && abs(newll - ll) < epsilon
             break;
         end
         ll = newll;
     end
     
-    % Store the mapping and goodness-of-fit metric
-    mapping.M = A;
-    mapping.loglik = ll;  % Final log-likelihood as goodness-of-fit metric
-
     % Apply linear mapping
+    mapping.M = A;
     mappedX = X' * mapping.M;
     disp(' ');
-end

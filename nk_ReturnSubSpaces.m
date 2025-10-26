@@ -19,11 +19,11 @@ function [Y, Thresh] = nk_ReturnSubSpaces(V, Vm, n_samples, n_subjects, Thresh, 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % (c) Nikolaoas Koutsouleris, 03/2017
 
-if ~exist('V', 'var') || isempty(V)
+if ~exist('V', 'var') || isempty(V),
     n_samples=1; n_subjects=Inf;
     V = spm_vol(spm_select(n_subjects,'image','Select images to read-in'));
 end
-if ~exist('Vm', 'var') || isempty(Vm)
+if ~exist('Vm', 'var') || isempty(Vm),
     Vm = spm_vol(spm_select(1,'image','Select space-defining image'));
 end
 if ~exist('Thresh','var') || isempty(Thresh)
@@ -92,18 +92,10 @@ for sl=1:Vm.dim(3)
                             d = spm_slice_vol( V(i), M1, Vm.dim(1:2), 1 );
                         end
                     catch
-                        if iscell(V)
-                            error('\nFile problem: %s,',V{j}(i).fname)
-                        else
-                            error('\nFile problem: %s,',V(i).fname)
-                        end
+                        error('\nFile problem: %s,',V{j}(i).fname)
                     end
                     if any(isnan(d))
-                        if iscell(V)
-                            fprintf('\nFile problem: %s,',V{j}(i).fname);
-                        else
-                            fprintf('\nFile problem: %s,',V(i).fname);
-                        end
+                        fprintf('\nNan in image %s', V{j}(i).fname);
                     end
                     y(i,:) = d(ind0);
                 end

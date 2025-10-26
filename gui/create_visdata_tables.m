@@ -19,9 +19,9 @@ switch act
                 VTBL.tbl(curclass).ind = ind;
                 VTBL.tbl(curclass).array = [ind v.MEAN{curclass}(ind), v.SE{curclass}(ind), ...
                     v.MEAN_CV2{curclass}(ind), v.SE_CV2{curclass}(ind), ...
-                    v.CVRatio{curclass}(ind), v.Prob_CV2{curclass}(ind)] ;
+                    v.CVRatio{curclass}(ind), v.CVRatio_CV2{curclass}(ind), v.Prob_CV2{curclass}(ind)] ;
                 VTBL.tbl(curclass).colnames = ...
-                    {'Feature', 'SortIndex', 'Mean_W', 'StErr_W', 'Mean_W_GM', 'StErr_W_GM', 'CVratio', 'P_Relia95CI_GM'};
+                    {'Feature', 'SortIndex', 'Mean_W', 'StErr_W', 'Mean_W_GM', 'StErr_W_GM', 'CVratio', 'CVratio_GM', 'P_Relia95CI_GM'};
                 if isfield(v,'SignBased_CV2')
                     if iscell(v.SignBased_CV2)
                         vx = v.SignBased_CV2{curclass}(ind);
@@ -66,7 +66,7 @@ switch act
             VTBL.tbl.ind = ind; 
             VTBL.tbl.array = [ind v.MEAN(ind), v.SE(ind), v.MEAN_CV2(ind), v.SE_CV2(ind), v.CVRatio(ind), v.CVRatio_CV2(ind), v.Prob_CV2(ind), ...
                 v.SignBased_CV2(ind), v.SignBased_CV2_z(ind), v.SignBased_CV2_p_uncorr(ind), v.SignBased_CV2_p_fdr(ind) ];
-            VTBL.tbl.colnames = {'Feature', 'SortIndex', 'Mean_W', 'StErr_W', 'Mean_W_GM', 'StErr_W_GM', 'CVratio', 'P_Relia95CI_GM', ...
+            VTBL.tbl.colnames = {'Feature', 'SortIndex', 'Mean_W', 'StErr_W', 'Mean_W_GM', 'StErr_W_GM', 'CVratio', 'CVratio_GM', 'P_Relia95CI_GM', ...
                 'SignConst', 'Z_SignConst', 'P_SignConst', 'Pfdr_SignConst'};
             VTBL.tbl.rownames = v.params.features(ind)';
             if isfield(v,'Spearman_CV2') && isfield(v,'Spearman_CV2_uncorr')
@@ -83,17 +83,7 @@ switch act
                 VTBL.tbl.colnames = [VTBL.tbl.colnames, 'Z_Perm', 'P_Perm_CV2', 'Pfdr_Perm_CV2'];
             end
         end
-        % Compute average matrix for multiclass scenarios
-        if nclass>1
-            matrixSize = size(VTBL.tbl(1).array);
-            allMatrices = zeros([matrixSize, nclass]);
-            % Fill the 3D array with matrices from the struct array
-            for i = 1:nclass
-                allMatrices(:,:,i) = VTBL.tbl(i).array;
-            end
-            VTBL.tbl(nclass+1) = VTBL.tbl(1);
-            VTBL.tbl(nclass+1).array = mean(allMatrices, 3);
-        end
+        
     case 'reorder'
         
         if numel(VTBL.tbl)>1

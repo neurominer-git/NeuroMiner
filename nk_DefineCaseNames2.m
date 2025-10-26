@@ -58,28 +58,7 @@ if casemanip
         mess = GenerateMessageEntry(mess,sprintf(['The number of unique case IDs (N=%g) is smaller than the number of files (N=%g)!\n' ...
                                                   'If case IDs reside in the filenames check whether you entered duplicate filenames.\n' ...
                                                   'If case IDs reside in the paths, but not in the filenames, make sure that this is really the case (filenames should be identical!):%s'],nx,nP,cases_notunique_str));
-        
-        % 1) Find unique “keys” and an index vector:
-        [~, ~, ic] = unique(x);  
-        
-        % 2) Count how many times each name occurs:
-        counts = accumarray(ic,1);  
-        %   counts = [2;3;1]
-        
-        % 3) Build disambiguated names:
-        cases = cell(size(x));
-        seen  = zeros(size(counts));  % counter per unique name
-        for k = 1:numel(x)
-            key = ic(k);
-            seen(key) = seen(key) + 1;
-            if counts(key) > 1
-                % append “_1”, “_2”, … for each occurrence
-                cases{k} = sprintf('%s_%d', x{k}, seen(key));
-            else
-                % leave singleton unchanged
-                cases{k} = x{k};
-            end
-        end
+        cases=[];
         return
     elseif nx == 1
         notfnd = true;
@@ -113,7 +92,7 @@ if exist('cases_comp','var') && ~isempty(cases_comp)
    
     for i=1:numel(cases)
         ii = strcmp(cases,cases_comp{i});
-        if ~any(ii)
+        if ~any(ii),
             mess = GenerateMessageEntry(mess, sprintf('Warning: Could not find case ''%s'' in the IDs of the new modality!',cases_comp{i}),'SystemCommands', 2); 
             cnt=cnt+1;
             continue

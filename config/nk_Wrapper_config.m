@@ -35,7 +35,7 @@ if ~isempty(act) || ~defaultsfl
     end
     Wrapper = param.Wrapper; 
     if ~isfield(param.Wrapper,'EnsembleStrategy')
-        param.Wrapper = nk_EnsembleStrategy_config(Wrapper, SVM, MODEFL, 1);
+        param.Wrapper = nk_EnsembleStrategy2_config(Wrapper, SVM, MODEFL, 1);
     end
     %if isfield(Wrapper,'optflag'), optflag = Wrapper.optflag; else, optflag = 1; end 
             
@@ -93,7 +93,7 @@ if ~isempty(act) || ~defaultsfl
             else
                 Wrapper.SubSpaceFlag = 0;
             end
-            Wrapper = nk_EnsembleStrategy_config(Wrapper, SVM, MODEFL, [], navistr);
+            Wrapper = nk_EnsembleStrategy2_config(Wrapper, SVM, MODEFL, [], navistr);
             if Wrapper.SubSpaceFlag
                 SubSpaceSteppingFlag = nk_input('Define feature subspace stepping',0,'yes|no',[1,0],0);
                 if SubSpaceSteppingFlag
@@ -114,7 +114,7 @@ if ~isempty(act) || ~defaultsfl
                     t_act = 1; while t_act>0, [ t_act , Wrapper ] = wrapperconffun{Wrapper.type}(Wrapper, 0, navistr); end
             end
         case 6
-            Wrapper.datamode = nk_input('Samples for optimization',0,'m','CV1 training data|CV1 test data|CV1 full partition|CV1 training + CV1 test data',1:4, Wrapper.datamode);
+            Wrapper.datamode = nk_input('Samples for optimization',0,'m','CV1 training data|CV1 test data|CV1 training & test data',[1,2,3], Wrapper.datamode);
         case 7
             sact = 1; while sact>0, [Wrapper.PFE, sact] = nk_ProbalisticFea_config(Wrapper.PFE, navistr); end
     end
@@ -128,12 +128,12 @@ else
     % Subspace strategy
     Wrapper.SubSpaceFlag        = 0;
     Wrapper.SubSpaceStepping    = 0;
-    [ ~, Wrapper ]              = nk_GreedySearch_config(Wrapper, SVM, MULTI, 1);
+    [ ~, Wrapper ]              = nk_GreedySearch_config(Wrapper,SVM, MULTI, 1);
     [ ~, Wrapper ]              = nk_SA_config(Wrapper,1); % Define SA defaults
     [ ~, Wrapper ]              = nk_GA_config(Wrapper,1); % Define GA defaults
     [ ~, Wrapper ]              = nk_PSO_config(Wrapper,1); % Define PSO defaults
     [ ~, Wrapper ]              = nk_PFA_config(Wrapper,1); % Define PFA defaults
-    Wrapper                     = nk_EnsembleStrategy_config(Wrapper, SVM, MODEFL, 1);
+    Wrapper                     = nk_EnsembleStrategy2_config(Wrapper, SVM, MODEFL, 1);
     % Probabilistic Feature Extraction (PFE) across CV1 partitions 
     Wrapper.PFE                 = nk_ProbalisticFea_config([],1);
 end

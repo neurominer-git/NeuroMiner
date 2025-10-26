@@ -6,28 +6,18 @@ weightmethod        = 1;
 label               = NM.label;
 labeldesc           = 'NM target label';
 algostr             = 'pearson';
-vartype             = NM.datadescriptor{varind}.type;
-ReplInfwithMax      = 1;
-TakeAbs             = 1;
-ReplZeroNaNwithRealMin = 1;
-WeightScale         = 1;
 act = 0;
-BINMOD              = NM.TrainParam.PREPROC{varind}.BINMOD;
+vartype             = NM.datadescriptor{varind}.type;
 
 if ~defaultsfl
 
-    if ~isfield(RANK,'ranktype'),               RANK.ranktype = ranktype; end
-    if ~isfield(RANK,'weightmethod'),           RANK.weightmethod = weightmethod; end
-    if ~isfield(RANK,'label');                  RANK.label = label; RANK.labeldesc = labeldesc;end
-    if ~isfield(RANK,'algostr'),                RANK.algostr = algostr; RANK.Pearson = 1; end
-    if ~isfield(RANK,'TakeAbs'),                RANK.TakeAbs = TakeAbs; end
-    if ~isfield(RANK,'Scale'),                  RANK.Scale = WeightScale; end
-    if ~isfield(RANK,'ReplZeroNaNwithRealMin'); RANK.ReplZeroNaNwithRealMin = ReplZeroNaNwithRealMin; end
-    if ~isfield(RANK,'ReplInfwithMax'),         RANK.ReplInfwithMax = ReplInfwithMax ; end
-    if ~exist('PX','var'),                      PX = []; end
-    if RANK.weightmethod == 1, weightstr = 'upweight features'; else, weightstr = 'downweight features'; end
-    yesno = {'yes','no'};
-
+    if ~isfield(RANK,'ranktype'),       RANK.ranktype = ranktype; end
+    if ~isfield(RANK,'weightmethod'),   RANK.weightmethod = weightmethod; end
+    if ~isfield(RANK,'label');          RANK.label = label; RANK.labeldesc = labeldesc;end
+    if ~isfield(RANK,'algostr'),        RANK.algostr = algostr; RANK.Pearson = 1; end
+    if ~exist('PX','var'),              PX = []; end
+    if RANK.weightmethod == 1,          weightstr = 'upweight features'; else, weightstr = 'downweight features'; end
+    
     if strcmp(RANK.algostr,'extern') 
         extfilstr = '';
         if isfield(RANK,'F')
@@ -51,7 +41,7 @@ if ~defaultsfl
         else
             extdat = ' undefined ';
         end
-        extstr = sprintf('External ranking (%s%s)', extfilstr, extdat);
+        extstr = sprintf('External ranking [%s%s]', extfilstr, extdat);
     else
         extstr = 'External Ranking'; 
     end
@@ -62,12 +52,7 @@ if ~defaultsfl
     if strcmp(RANK.algostr,'extern')
         act = nk_input(mestr,0,'mq', ...
             [sprintf('Choose algorithm and specify its parameters [ %s ]|', extstr) ...
-             sprintf('Up- or downweight predictive features [ %s ]|', weightstr) ...
-             sprintf('Postprocessing: Take absolute of ranking vector [ %s ]|', yesno{RANK.TakeAbs}) ...
-             sprintf('Postprocessing: Scale ranking vector to (0,1) [ %s ]|', yesno{RANK.Scale}) ...
-             sprintf('Postprocessing: Replace 0s and NaNs with realmin [ %s ]|', yesno{RANK.ReplZeroNaNwithRealMin}) ...
-             sprintf('Postprocessing: Replace Infs with max of rank vector [ %s ] ', yesno{RANK.ReplInfwithMax}) ...
-             ], [1 3 4 5 6 7]);
+             sprintf('Up- or downweight predictive features [ %s ]', weightstr) ], [1 3]);
     else
         switch RANK.algostr
             case 'pearson'
@@ -79,20 +64,12 @@ if ~defaultsfl
             case 'pls'
                 act = nk_input(mestr,0,'mq', ...
                     [sprintf('Choose algorithm and specify its parameters [ %s ]|', algostr), ...
-                     sprintf('Define PLS parameters ...|') ...
-                     sprintf('Postprocessing: Take absolute of ranking vector [ %s ]|', yesno{RANK.TakeAbs}) ...
-                     sprintf('Postprocessing: Scale ranking vector to (0,1) [ %s ]|', yesno{RANK.Scale}) ...
-                     sprintf('Postprocessing: Replace 0s and NaNs with realmin in ranking vector [ %s ]|', yesno{RANK.ReplZeroNaNwithRealMin}) ...
-                     sprintf('Postprocessing: Replace Infs with max of ranking vector [ %s ] ', yesno{RANK.ReplInfwithMax}) ],[1 2 4 5 6 7]);
+                     sprintf('Define PLS parameters ...')],[1 2]);
             otherwise
                 act = nk_input(mestr,0,'mq', ...
                     [sprintf('Choose algorithm and specify its parameters [ %s ]|', algostr)  ...
                      sprintf('Define targets for ranking/weighting [ %s ]|', RANK.labeldesc) ...
-                     sprintf('Up- or downweight predictive features [ %s ]|', weightstr) ...
-                     sprintf('Postprocessing: Take absolute of ranking vector [ %s ]|', yesno{RANK.TakeAbs}) ...
-                     sprintf('Postprocessing: Scale ranking vector to (0,1) [ %s ]|', yesno{RANK.Scale}) ...
-                     sprintf('Postprocessing: Replace 0s and NaNs with realmin in ranking vector [ %s ]|', yesno{RANK.ReplZeroNaNwithRealMin}) ...
-                     sprintf('Postprocessing: Replace Infs with max of ranking vector [ %s ] ', yesno{RANK.ReplInfwithMax}) ],1:7);
+                     sprintf('Up- or downweight predictive features [ %s ]', weightstr)],1:3);
         end
     end
 
@@ -130,12 +107,7 @@ if ~defaultsfl
     
             switch RANK.ranktype
                 case 1
-                    if  NM.TrainParam.LABEL.flag==1
-                        modeflag = NM.TrainParam.LABEL.newmode;
-                    else
-                        modeflag = NM.modeflag;
-                    end
-                    switch modeflag
+                    switch NM.modeflag
                         case 'classification'
                             menuact = rstr_cl; menusel = rsel_cl;
                         case 'regression'
@@ -148,7 +120,6 @@ if ~defaultsfl
             end
 
             algostr = char(nk_input('Select ranking algorithm',0,'mq', menuact, menusel));
-
             if ~strcmp(algostr,'BACK')
                 RANK.algostr = algostr;
                 switch algostr
@@ -169,9 +140,9 @@ if ~defaultsfl
                         if isfield(RANK,'simba') 
                             simba = RANK.simba; 
                         else
-                            simba = nk_Simba_config([], 1,[],ngroups, BINMOD);
+                            simba = nk_Simba_config([], 1,[],ngroups);
                         end
-                        simba = nk_Simba_config(simba, 0,[],ngroups, BINMOD); RANK.simba = simba;
+                        simba = nk_Simba_config(simba, 0,[],ngroups); RANK.simba = simba;
                         if isfield(simba.simba,'extra_param') && ...
                                 isnumeric(simba.simba.extra_param.beta),             PX = nk_AddParam(simba.simba.extra_param.beta, 'Beta',1, PX, 'replace');
                         end
@@ -212,12 +183,12 @@ if ~defaultsfl
                         RANK.SVM.kernel.kerndef = 1;
                         switch RANK.algostr
                             case 'libsvm'
-                                act =1; while act, [act, RANK.SVM] = nk_LIBSVM_config(RANK.SVM, RANK.SVM, [],[], navistr, RANK.SVM.modeflag); end
+                                RANK.SVM = nk_LIBSVM_config(RANK.SVM, RANK.SVM, [],[], navistr);
                                 RANK.SVM.kernel.kernstr = ' -t 0';
                             case 'liblin'
-                                act = 1; while act, [act, RANK.SVM] = nk_LIBLIN_config(RANK.SVM.modeflag, RANK.SVM, [], navistr); end
+                                RANK.SVM = nk_LIBLIN_config(RANK.SVM, RANK.SVM, [], navistr);
                                 RANK.SVM.kernel.kernstr = 'lin';
-                                if numel(RANK.SVM.LIBLIN.tolerance)>0
+                                if numel(RANK.SVM.LIBLIN.tolerance)>1
                                     PX = nk_AddParam(RANK.SVM.LIBLIN.tolerance, 'TolRank', 1, PX, 'replace');
                                 end
                         end
@@ -227,11 +198,11 @@ if ~defaultsfl
                         switch rtype
                             case 1
                                 if isfield(RANK.SVM,'EpsParam'), EpsParam = RANK.SVM.EpsParam; else, EpsParam = 0.1; end
-                                RANK.SVM.EpsParam = nk_input('Define Epsilon parameter(s)',0,'e',EpsParam);     PX = nk_AddParam(RANK.SVM.EpsParam, 'EpsilonRank', 1, PX);
+                                RANK.SVM.EpsParam = nk_input('Define Epsilon parameter(s)',0,'e',EpsParam);     PX = nk_AddParam(RANK.SVM.EpsParam, 'EpsilonRank', 1, PX, 'replace');
                                 
                             case 2
                                 if isfield(RANK.SVM,'NuParam'), NuParam = RANK.SVM.NuParam; else, NuParam = 0.5; end
-                                RANK.SVM.NuParam = nk_input('Define Nu parameter(s)',0,'e',NuParam);            PX = nk_AddParam(RANK.SVM.NuParam, 'NuRank', 1, PX);
+                                RANK.SVM.NuParam = nk_input('Define Nu parameter(s)',0,'e',NuParam);            PX = nk_AddParam(RANK.SVM.NuParam, 'NuRank', 1, PX, 'replace');
                                 
                         end
                         % This is the slack / nu-SVC parameter of the SVM
@@ -255,20 +226,6 @@ if ~defaultsfl
                         PX = nk_AddParam(RANK.FEAST.NumFeat, 'NumFeat', 1, PX); 
                     case 'relief'
                         RANK.Relief.k = nk_input('Define number(s) of nearest neigbours for RELIEF',0,'i',10,1); PX = nk_AddParam(RANK.Relief.k, 'K', 1, PX); 
-                    case 'fscore'
-                        FScoreDef = 1; if isfield(RANK,'FScoreType'), FScoreVals = {'mean','median'}; FScoreDef = find(contains(FScoreVals,RANK.FScoreType)); end
-                        RANK.FScoreType = char(nk_input('Define F-score computation method',0,'m','mean(std)|median(IQR)',{'mean','median'},FScoreDef)); 
-                        FScoreWeightDef = 1; if isfield(RANK,'WeightMode'), FScoreWeightVals = {'none','auto'}; FScoreWeightDef = find(contains(FScoreWeightVals,RANK.WeightMode)); end
-                        RANK.WeightMode = char(nk_input('Define F-score weighting mode in case of unbalanced classes',0,'m', ...
-                            'no weighting|automatic weighting',{'none','auto'},FScoreWeightDef));
-                        if strcmp(RANK.WeightMode,'manual')
-                            RANK.Weights = nk_input('Define sample weight vector',0,'e');
-                        else
-                            RANK.Weights = [];
-                        end
-                        FScoreBootDef = 0; if isfield(RANK,'B'), FScoreBootDef = RANK.B; end
-                        RANK.B = nk_input('Define number of bootstrap iteration for stablity-enhanced F-score computation (0=bootstrapping disabled)',0,'i',FScoreBootDef );
-                        RANK.Nuisance = [];
                     case 'pls'
                         if ~isfield(RANK,'PLS'), [~, RANK.PLS ] = nk_PLS_config(NM, [], [], true); end
                     case 'extern' 
@@ -288,24 +245,19 @@ if ~defaultsfl
                         end
                         switch readimg
                             case 0
-                                RANK.EXTERN = nk_input('Define external map/vector',0,'e',[],[size(NM.badcoords{varind},2)]);
+                                RANK.EXTERN = nk_input('Define external map/vector',0,'e',[],[1 size(NM.Y{varind},2)]);
                             case 1
                                 % Currently only NIFTI/Analyze supported
                                 imgtype = NM.datadescriptor{varind}.input_settings.datasource;
                                 RANK.V  = [];
-
-                                [RANK.F, RANK.V{1}] = nk_FileSelector(1,imgtype,'Select Ranking Map','.*');
+                                [RANK.F, RANK.V{1}] = nk_FileSelector(1,imgtype,'Select Ranking Map','.*\.nii$|.*\.img$');
                                 switch imgtype
                                     case {'spm','nifti'}
                                          Thresh = NM.datadescriptor{varind}.input_settings.Thresh;
                                          Vm = spm_vol(NM.brainmask{varind}); 
                                          [RANK.EXTERN, RANK.THRESH] = nk_ReturnSubSpaces(RANK.V, Vm, 1, 1, Thresh);
                                     case 'surf'
-                                         if isfield(RANK.V{1},'cdata')
-                                            RANK.EXTERN = RANK.V{1}.cdata;
-                                         else
-                                            RANK.EXTERN = MRIread(RANK.F);
-                                         end
+                                         RANK.EXTERN = MRIread(RANK.F);
                                 end
                             case 2
                                 nPw = size(NM.datadescriptor{varind}.input_settings.Pw,1);
@@ -356,25 +308,14 @@ if ~defaultsfl
                         if RANK.ranktype > 1
                             switch RANK.algostr
                                 case 'anova'
-                                    RANK.label = nk_input('Define design matrix or batch effects vector for ANOVA',0,'e',[],[size(NM.label,1),Inf]); lbstr = 'design matrix';
+                                    RANK.label = nk_input('Define design matrix for ANOVA',0,'e',[],[numel(NM.label),Inf]); lbstr = 'design matrix';
                                 otherwise
-                                    RANK.label = nk_input('Define target label vector',0,'e',[],[size(NM.label,1),1]); lbstr = 'label vector';
+                                    RANK.label = nk_input('Define target label vector',0,'e',[],[numel(NM.label),1]); lbstr = 'label vector';
                             end
                             RANK.labeldesc = nk_input(['Give a short description of the ' lbstr ],0,'s');
                         else
-                            switch NM.TrainParam.LABEL.flag
-                                case 1
-                                    RANK.label = NM.TrainParam.LABEL.newlabel;
-                                    RANK.labeldesc = sprintf('NM alternative label: %s', NM.TrainParam.LABEL.newlabelname);
-                                otherwise
-                                    if isfield(NM.TrainParam,'MULTILABEL')
-                                        RANK.label = NM.label(:, NM.TrainParam.MULTILABEL.sel );
-                                    else
-                                        RANK.label = NM.label;
-                                    end
-                                    RANK.labeldesc = 'NM target label';
-                            end
-                            
+                            RANK.label = NM.label;
+                            RANK.labeldesc = 'NM target label';
                         end
                     end
                     
@@ -392,32 +333,15 @@ if ~defaultsfl
             end
 
         case 3
-            if RANK.weightmethod==1, RANK.weightmethod=2; else, RANK.weightmethod=1; end
-        case 4
-            if RANK.TakeAbs==1, RANK.TakeAbs=2; else, RANK.TakeAbs=1; end
-        case 5
-            if RANK.Scale==1, RANK.Scale=2; else, RANK.Scale=1; end
-        case 6
-            if RANK.ReplZeroNaNwithRealMin==1, RANK.ReplZeroNaNwithRealMin=2; else, RANK.ReplZeroNaNwithRealMin=1; end
-        case 7
-            if RANK.ReplInfwithMax==1, RANK.ReplInfwithMax=2; else, RANK.ReplInfwithMax=1; end
+            RANK.weightmethod = nk_input('Select weighting method',0, 'm', ...
+                'Upweight relevant features|Downweight relevant features',[1,2], weightmethod);
     end
 else
     RANK.ranktype       = ranktype;
     RANK.weightmethod   = weightmethod;
-    switch NM.TrainParam.LABEL.flag
-        case 1
-            RANK.label = NM.TrainParam.LABEL.newlabel;
-            RANK.labeldesc = sprintf('NM alternative label: %s', NM.TrainParam.LABEL.newlabelname);
-        otherwise
-            RANK.label          = NM.label;
-            RANK.labeldesc      = 'NM target label';
-    end
-    RANK.rankmethod             = 8;
-    RANK.algostr                = 'pearson';
-    RANK.TakeAbs                = TakeAbs;
-    RANK.Scale                  = WeightScale;
-    RANK.ReplZeroNaNwithRealMin = ReplZeroNaNwithRealMin;
-    RANK.ReplInfwithMax         = ReplInfwithMax;
+    RANK.label          = NM.label;
+    RANK.labeldesc      = 'NM target label';
+    RANK.rankmethod     = 8;
+    RANK.algostr        = 'pearson';
 end
 if act, [RANK, PX] = nk_Rank_config(RANK, PX, NM, varind, [], parentstr); end

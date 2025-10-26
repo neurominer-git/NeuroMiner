@@ -15,17 +15,13 @@ end
 
 nA = numel(AnalVec);
 failed = []; succeeded = []; cntf=1;cnts=1;
-
 for j=1:nA
-
-    try
+     try
          analind = AnalVec(j);
-
          if exist(NewRootDir,'dir')
-            [~,analdir] = spm_fileparts(NM.analysis{analind}.rootdir);
+            [~,analdir] = fileparts(NM.analysis{analind}.rootdir);
             NewAnalDir = fullfile(NewRootDir,analdir);
-            
-            % Adjust root directories of current analysis
+            % Adjust root directories
             NM.analysis{analind}.parentdir = NewRootDir;
             NM.analysis{analind}.rootdir = NewAnalDir;
             NM.analysis{analind}.logfile = fullfile(NewAnalDir,['NM_Analysis' NM.analysis{analind}.id '.log']);
@@ -63,5 +59,7 @@ if ~isempty(failed)
     failedstr = sprintf('%s',strjoin(failed,'\n'));
     failedstr = sprintf('\n\nThe following analyses could not be adjusted to the new root directory:%s', failedstr);
 end
-msgbox(sprintf('%s%s',succeededstr,failedstr));
+if ~isdeployed
+    msgbox(sprintf('%s%s',succeededstr,failedstr));
+end
 

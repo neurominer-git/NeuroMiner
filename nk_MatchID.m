@@ -18,14 +18,14 @@
 % cases_m       : matched IDs
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, 10/2023
+% (c) Nikolaos Koutsouleris, 06/2012
 
-function [M, cases_m, nanDid, Sind, Dind] = nk_MatchID(Sid, S, Did, D, act, infind, verbose)
+function [M, cases_m, Sind, Dind] = nk_MatchID(Sid, S, Did, D, act, infind, verbose)
 
 if ~exist('infind','var') || isempty(infind), infind = false; end
 if infind, funcomp = 'strfind'; else funcomp = 'strcmp'; end
 if ~exist('verbose','var') || isempty(verbose), verbose = 2; end    
-mSid=[]; mDid=[]; 
+mSid=[]; mDid=[];
 if ~isempty(S)
    Sfl = true;
    if size(Sid,1) ~= size(S,1)

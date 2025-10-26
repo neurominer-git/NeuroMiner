@@ -91,7 +91,7 @@ else
             pardesc = 'Percentage of cases of the population at each examination in the sequence';
             P = grd.mean_SeqExamFreq(:,:,h,:,handles.curlabel);
             SEM = grd.se_SeqExamFreq(:,:,h,:,handles.curlabel);
-            ylb = 'Examination frequencies [%]';
+            ylb = ['Examination frequencies [%]'];
             lgstr = cellstr([repmat('Examination frequency: model #', nE ,1) num2str((1:nE)')]);
             
         case 'Case propagation thresholds'
@@ -99,7 +99,7 @@ else
             pardesc = 'Percentage of cases of the population at each examination in the sequence';
             P = [grd.mean_SeqPercUpper(:,:,h,:,handles.curlabel) -1*grd.mean_SeqPercLower(:,:,h,:,handles.curlabel)];
             SEM = [grd.se_SeqPercUpper(:,:,h,:,handles.curlabel) -1*grd.se_SeqPercLower(:,:,h,:,handles.curlabel)];
-            ylb = 'Case propagation thresholds';
+            ylb = ['Examination frequencies [%]'];
             lgstr = [repmat('+1 * Upper propagation threshold: model #', nE ,1) num2str((1:nE)')];
             lgstr = [lgstr; repmat('-1 * Lower propagation threshold: model #', nE ,1) num2str((1:nE)')];
             lgstr = cellstr(lgstr);
@@ -127,7 +127,7 @@ elseif isfield(handles,'Regr')
 end
 
 [lPi,nPi] = size(P);
-if nPi > 1
+if nPi > 1,
     cpt = handles.colptin;
 else
     cpt = rgb('Lawngreen');
@@ -172,8 +172,8 @@ switch meastype
         for i=1:nPi
             xi = (1:lPi)'; y2 = P(:,i);
             if exist('SEM','var') && ~isempty(SEM)
-                y1 = P(:,i)-SEM(:,i)/2; y3 = (P(:,i)+SEM(:,i)/2); 
-                mlxi = nm_nanmin(y1); muxi = nm_nanmax(y3);
+                y1 = P(:,i)-SEM(:,i)/2; y3 = (P(:,i)+SEM(:,i)/2);  y1(isnan(y1))=0; y3(isnan(y3))=0;
+                mlxi = min(y1); muxi = max(y3);
                 hi(i) = plotshaded(xi',[y1'; y2'; y3'], cpt(i,:), MrkSize, LinSize) ;
             else
                 hi(i) = plot(xi,y2,'ko-','MarkerFaceColor', cpt(i,:),'MarkerSize', MrkSize, 'MarkerEdgeColor', rgb('Black'), 'LineWidth', 1.0);
@@ -190,7 +190,7 @@ switch meastype
             for i=1:size(P,1)
                 psj=sprintf(' %s: %1.3f', ylb, P(i,k));
                 for j = 1:size(Ps_desc{h},2)
-                    if iscell(Ps{h}(i,j))
+                    if iscell(Ps{h}(i,j)),
                         ijPs = Ps{h}{i,j};
                     else
                         ijPs = Ps{h}(i,j);
@@ -209,7 +209,7 @@ switch meastype
         figdata.y = y;
         figdata.patterntext = repmat(pss', nPi,1);
         figdata.parentui    = handles.pnModelPerf;
-        figdata.hPanel      = uipanel('Units','norm', 'Position',hText.Extent+0.01, 'BorderType','line', 'BackgroundColor', [.6 .7 .6], 'Visible','off');
+        figdata.hPanel      = uipanel('Units','norm', 'Position',hText.Extent+0.01, 'BorderType','etchedout', 'BackgroundColor', [.6 .7 .6], 'Visible','off');
         figdata.textHdl     = annotation(figdata.hPanel, 'textbox', 'String','', ...
                                     'Interpreter','none', ... 
                                     'Color', 'black', ...
@@ -235,8 +235,8 @@ switch meastype
         % Mark maximum and minimum values
         for i = 1 : nPi
             yi = P(:,i);
-            [maxY, maxX] = nm_nanmax(yi);
-            [minY, minX] = nm_nanmin(yi);
+            [maxY, maxX] = max(yi);
+            [minY, minX] = min(yi);
             plot(maxX,maxY,'ro','MarkerSize',MrkSize+5, 'LineWidth', 3, 'Parent', handles.axes17)
             plot(minX,minY,'bo','MarkerSize',MrkSize+5, 'LineWidth', 3, 'Parent', handles.axes17)
         end
@@ -248,14 +248,14 @@ end
 
 % Scale axes
 if numel(unique(x)) > 1
-    xlim([nm_nanmin(x) nm_nanmax(x)])
+    xlim([min(x) max(x)])
 end
-if numel(unique(y)) > 1
+if numel(unique(y)) > 1,
     ylim([mlx mux])
 end
 handles.axes17.XTickMode = 'auto'; handles.axes17.XTickLabelMode = 'auto';
 
-switch handles.modeflag
+switch handles.NM.modeflag
     case 'classification'
         if multfl
             ct = handles.MultiClass;
@@ -289,16 +289,16 @@ switch meastype
         % Print CV2 partition data
         
         axes(handles.axes35); colormap(jet); hold on
-        mux = nm_nanmax(ct.best_TS(:)); mlx = nm_nanmin(ct.best_TS(:));
+        mux = max(ct.best_TS(:)); mlx = min(ct.best_TS(:));
         imagesc(ct.best_TR); 
-        ylim([0.5 size(ct.best_TR,1)+0.5]); xlim([0.5 size(ct.best_TR,2)+0.5]); if mlx~=mux, clim([mlx mux]); end
+        ylim([0.5 size(ct.best_TR,1)+0.5]); xlim([0.5 size(ct.best_TR,2)+0.5]); caxis([mlx mux]);
         handles.axes35.YTick = 0:size(ct.best_TR,1);
         title('Mean CV1 Performance at CV2 partition level')
         ylabel('Permutations'); xlabel('Folds')
         
         axes(handles.axes37); colormap(jet); hold on
         imagesc(ct.best_TS);
-        ylim([0.5 size(ct.best_TR,1)+0.5]); xlim([0.5 size(ct.best_TR,2)+0.5]);  if mlx~=mux, clim([mlx mux]); end
+        ylim([0.5 size(ct.best_TR,1)+0.5]); xlim([0.5 size(ct.best_TR,2)+0.5]); caxis([mlx mux]);
         handles.axes37.YTick = 0:size(ct.best_TR,1);
         hc = colorbar(handles.axes37,'location','SouthOutside');
         ylabel('Permutations'); xlabel('Folds')
@@ -316,9 +316,7 @@ switch meastype
         switch meastype
             case {'Model complexity','Multi-class model complexity'}
                 imagesc(ct.best_Complexity);
-                minC = nm_nanmin(ct.best_Complexity(:));
-                maxC = nm_nanmax(ct.best_Complexity(:));
-                if minC ~= maxC, clim([ minC maxC ]); end
+                caxis([min(ct.best_Complexity(:)) max(ct.best_Complexity(:))]);
                 if handles.params.TrainParam.GRD.OptRegul.flag 
                     title('Mean regularization function at CV2 partition level')
                 else
@@ -327,7 +325,7 @@ switch meastype
             case {'Generalization error', 'Multi-class generalization error'}
                 imagesc(ct.best_Error);
                 title('Mean generalization error at CV2 partition level')
-                clim([nm_nanmin(ct.best_Error(:)) nm_nanmax(ct.best_Error(:))]); 
+                caxis([min(ct.best_Error(:)) max(ct.best_Error(:))]);
         end
         ylim([0.5 size(ct.best_Complexity,1)+0.5]); xlim([0.5 size(ct.best_Complexity,2)+0.5]);
         handles.axes37.YTick = 0:size(ct.best_TR,1);
@@ -344,8 +342,8 @@ switch meastype
         handles.cmdExportModelPerfC1.Visible='off'; handles.cmdExportModelPerfC2.Visible='off';
         
 end
-handles.cmdExportModelPerfVec.Position(1) = handles.axes17.Position(1)+handles.axes17.Position(3)+0.01;
-if exist('lgstr','var') && ~isempty(lgstr)
+handles.cmdExportModelPerfVec.Position(1) = handles.axes17.Position(1)+handles.axes17.Position(3)+0.005;
+if exist('lgstr','var') && ~isempty(lgstr), 
     handles.legend_modelperf = legend(hi,lgstr,'Location','Best','FontSize',handles.LegendFontSize,'LineWidth',1); 
 else
     legend('hide')

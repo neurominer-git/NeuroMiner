@@ -1,42 +1,37 @@
+% =========================================================================
+% FORMAT [mED, ED] = nk_Lobag(E, L)
+% =========================================================================
+% This function performs the bias / variance decomposition of the error 
+% proposed by Valentini & Dietterich (2004, Journal of Machine Learning 
+% Research (5), 725-775) for a given ensemble of base learners' hypotheses 
+% (E) with respect to the supervision information of given test samples (L).
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% (c) Nikolaos Koutsouleris, 05/2011
 function [mED, ED] = nk_Lobag(E, L)
-% NK_LOBAG Bias/variance decomposition (Valentini & Dietterich, 2004) for binary ensembles.
-% E: N x n matrix of base predictions (scores or labels). L: N x 1 true labels.
-% Assumes binary labels; ties are counted as errors.
 
-% --- input checks ---
-[N,n] = size(E);
-if numel(L) ~= N, error('Size mismatch: size(E,1) must equal numel(L).'); end
-L = L(:);
-
-% ensure labels in {-1,+1}
-uL = unique(L);
-if ~all(ismember(uL, [-1 1]))
-    if numel(uL)==2
-        % map min->-1, max->+1
-        L = 2*(L==max(uL)) - 1;
-    else
-        error('L must be binary and convertible to {-1,+1}.');
-    end
-end
-
-% binarize predictions to {-1,+1}; map zeros to -1
+nE = size(E,1);
 E = sign(E);
-E(E==0) = -1;
+% Bias computation for matrix mode
+sum_x       = sum(E,2); 
+ind_x       = sum_x > 0;
+g_x         = zeros(nE,1);
+g_x(ind_x)  = 1; 
+g_x(~ind_x) = -1;
 
-% majority vote prediction; count ties as errors
-s   = sum(E,2);
-g   = sign(s);
-bias = (g ~= L) | (g == 0);    % logical N x 1
+% Biased results
+bias = g_x ~= L;
 
-% per-item variance across classifiers (population variance)
-v = var(E, 1, 2);              % N x 1, for values in {-1,+1} it's 1 - mean(E,2).^2
+% Biased variance 
+vb = var(E(bias,:),1,2); 
+if isempty(vb), vb = 0; end
 
-% split variance into unbiased (correct) and biased (incorrect) parts
-vu = v .* ~bias;               % only on correctly classified items
-vb = v .*  bias;               % only on misclassified items
+% Unbiased variance
+vu = var(E(~bias,:),1,2); 
+if isempty(vu), vu = 0; end
+    
+% Lobag computation
+ED = mean(bias) + mean(vu) - mean(vb);
 
-% per-item decomposition and its mean
-ED  = double(bias) + vu - vb;  % N x 1
 mED = mean(ED);
 
 end

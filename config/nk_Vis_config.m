@@ -3,112 +3,213 @@ global NM EXPERT
 
 if ~exist('defaultsfl','var') || isempty(defaultsfl), defaultsfl=0; end
 if ~exist('M','var') || isempty(M), M=1; end
-
-PERM = struct('flag', 0, 'nperms', 5000, 'sigflag',0, 'sigPthresh', 0.05, 'sigPfdr', 1, 'mode', 1);
-if isfield(VIS,'PERM') 
-    if isfield(VIS.PERM,'flag'), PERM.flag = VIS.PERM.flag; end
-    if isfield(VIS.PERM,'nperms'), PERM.nperms = VIS.PERM.nperms; end
-    if isfield(VIS.PERM,'sigflag'), PERM.sigflag = VIS.PERM.sigflag; end
-    if isfield(VIS.PERM,'sigPnperms'), PERM.sigPnperms = VIS.PERM.sigPnperms; end
-    if isfield(VIS.PERM,'sigPthresh'), PERM.sigPthresh = VIS.PERM.sigPthresh; end
-    if isfield(VIS.PERM,'sigPfdr'), PERM.sigPfdr = VIS.PERM.sigPfdr; end
-    if isfield(VIS.PERM,'mode'), PERM.mode = VIS.PERM.mode; end
-end
-
+thresh = 0; fwhm = []; flgProj = false; 
+PERM = struct('flag',0,'nperms',1000,'sigflag',0,'mode',1);
 normfl = false; if any(strcmp({'LIBSVM','LIBLIN'}, NM.TrainParam.SVM.prog)), normfl = true; end
-normdef = 2; if ~isfield(VIS,'norm'), VIS.norm = normdef; end 
-
+normdef = 1; if ~isfield(VIS,'norm'), VIS.norm = normdef; end   
 if ~defaultsfl
     
-    if ~exist('VIS','var') || isempty(VIS) , VIS = nk_Vis_config([], PREPROC, M, 1); end 
+    if ~exist('VIS','var') || isempty(VIS) , VIS = nk_Vis_config([], PREPROC, M, 1); end
+    D = NM.datadescriptor{M}; 
+    sourcestr = D.source; 
     menustr = []; menuact = [];
-    yesno_str = {'yes','no'};
+    
+    if ~strcmp(sourcestr,'matrix')
+        %% Gaussian smoothing setup
+        if ~isfield(PREPROC,'SPATIAL') || isempty(PREPROC.SPATIAL)
+            if isfield(VIS,'fwhm') && ~isempty(VIS.fwhm)
+                fwhmstr = sprintf('yes (FHWM = %g)', VIS.fwhm);
+                fwhmdef = VIS.fwhm; fwhmflagdef = 1;
+            else
+                fwhmstr = 'no';
+                fwhmdef = 8; fwhmflagdef = 2;
+            end
+            menustr = sprintf('%sApply gaussian smoothing to weight vectors [ %s ]|', menustr, fwhmstr);
+            menuact = [menuact 3];
+        end
+        
+        %% Thresholding setup
+        meanthreshstr = 'undefined'; sethreshstr = 'undefined'; threshstr = 'undefined'; threshdef = 0;
+        if isfield(VIS,'thresh')
+            if  VIS.thresh
+                threshdef = 1; threshstr = 'yes'; threshtype = {'Percentile','Absolute Value','None'};
+                if isfield(VIS,'mean'), meanthreshstr = sprintf('Type: %s; Value: %g; Logical operation: %s',threshtype{VIS.mean.type}, VIS.mean.val, VIS.mean.logop); end
+                if isfield(VIS,'se'), sethreshstr = sprintf('Type: %s; Value: %g; Logical operation: %s',threshtype{VIS.se.type}, VIS.se.val, VIS.se.logop); end
+            else
+                threshstr = 'no';
+            end
+        end
+        
+        menustr = sprintf('%sThreshold weight vectors [ %s ]|', menustr, threshstr); menuact = [ menuact 4 ];
+        if isfield(VIS,'thresh') && VIS.thresh
+            menustr = sprintf('%sApply thresholding to mean weight vector images [ %s ]|', menustr, meanthreshstr); menuact = [ menuact 5 ];
+            menustr = sprintf('%sApply thresholding to standard error images [ %s ]|', menustr, sethreshstr); menuact = [ menuact 6 ];
+        end
+    end
     
     %% Weight vector normalization setup
     if normfl
         if isfield(VIS,'norm'), normdef = VIS.norm; end
-        menustr = sprintf('%sNormalize weight vectors [ %s ]|', menustr, yesno_str{normdef}); menuact = [ menuact 2 ];
+        normstr = {'yes','no'};
+        menustr = sprintf('%sNormalize weight vectors [ %s ]|', menustr, normstr{normdef}); menuact = [ menuact 8 ];
     end
     
-    %% Permuation setup    
-    flgProj = nk_DetIfDimRefInPREPROC(PREPROC, M);
-    if ~flgProj && PERM.sigflag, PERM.sigflag = false; end
-
-    permstr = 'no'; if PERM.flag, permstr = sprintf('yes'); end
-    if ~PERM.sigflag
-        menustr = sprintf('%sPerform permutation test in input space [ %s ]|', menustr, permstr); menuact = [menuact 3];
-        if PERM.flag
-            menustr = sprintf('%sDefine no. of permutations [ %g ]|', menustr, VIS.PERM.nperms); menuact = [menuact 4];
-            permmodestropts = {'labels', 'features', 'labels and features', 'covariate(s)'};
-            if ~isfield(PERM,'mode'), PERM.mode = 1; end
-            permmodestr = permmodestropts{PERM.mode};
-            menustr = sprintf('%sDefine permutation mode [ %s ]|', menustr, permmodestr ); menuact = [menuact 5];
-            if PERM.mode == 4
-                if isfield(PERM,'covars_idx')
-                    covstr = sprintf('%s', strjoin(NM.covars(PERM.covars_idx)), ', ');
-                else
-                    covstr = 'undefined';
+    %% Permuation setup
+    permstr = 'Permutation mode disabled'; sigstr = ''; permmodestr='';
+    if isfield(VIS,'PERM')
+        if VIS.PERM.flag
+            permstr = sprintf('yes (%g permutations)', VIS.PERM.nperms);
+            if isfield(VIS.PERM,'mode')
+                switch VIS.PERM.mode
+                    case 1
+                        permmodestr = ': labels';
+                    case 2
+                        permmodestr = ': features';
+                    case 3
+                        permmodestr = ': labels && features';
+                    case 4
+                        permmodestr = ': covariate(s)';
                 end
-                menustr = sprintf('%sSelect covariates [ %s ]|', menustr, covstr); menuact = [menuact 6];
+            else
+                VIS.PERM.mode = 3;  permmodestr = ': labels && features';
             end
-        end
-    end
-
-    if flgProj
-        if isfield(PERM,'sigflag') && PERM.sigflag
-            sigstr = 'yes';
+       
+            if iscell(PREPROC)
+                zPREPROC = PREPROC{M};
+            else
+                zPREPROC = PREPROC;
+            end
+            for i=1:numel(zPREPROC.ACTPARAM)
+                if strcmp(zPREPROC.ACTPARAM{i}.cmd,'reducedim'), flgProj=true; end
+            end
+            if flgProj
+                if isfield(VIS.PERM,'sigflag') && VIS.PERM.sigflag
+                    sigstr = ', back-project significant features only';
+                else
+                    sigstr = ', back-project all features';
+                end
+            end
         else
-            sigstr = 'no';
-        end
-        menustr = sprintf('%sPerform model permutation test in model space and back-project only signif. components [ %s ]', ...
-            menustr, sigstr ); menuact = [menuact 7];
-
-        if PERM.sigflag     
-            menustr = sprintf('%s|Define no. of permutations [ %g ]', menustr, VIS.PERM.nperms); menuact = [menuact 4];
-            permmodestropts = {'labels', 'features', 'labels and features'};
-            if ~isfield(PERM,'mode'), PERM.mode = 1; end
-            permmodestr = permmodestropts{PERM.mode};
-            menustr = sprintf('%s|Define permutation mode [ %s ]', menustr, permmodestr ); menuact = [menuact 5];
-            menustr = sprintf('%s|Define back-projection significance threshold [ %g ]', ...
-                menustr, PERM.sigPthresh ); menuact = [menuact 9];
-            menustr = sprintf('%s|Correct component P values for multiple comparisons using FDR [ %s ]', ...
-                menustr, yesno_str{PERM.sigPfdr} ); menuact = [menuact 10];
-            menustr = sprintf('%s|Perform additional permutation test of feature significance in input-space [ %s ]', menustr, permstr); menuact = [menuact 3];
+            permstr = 'no';
         end
     end
     
+    menustr = sprintf('%sDerive Z scores and P values using permuatation analysis [ %s%s%s ]', menustr, permstr, permmodestr, sigstr); menuact = [ menuact 7 ];
+
     %% CONFIGURATION
     nk_PrintLogo
-    mestr = 'Visualization parameters'; navistr = [parentstr ' >>> ' mestr]; fprintf('\nYou are here: %s >>> ', parentstr); 
+    mestr = 'Visualization parameters'; navistr = [parentstr ' >>> ' mestr]; fprintf('\nYou are here: %s >>> ',parentstr); 
     act = nk_input(mestr,0,'mq', menustr, menuact);
 
     switch act
       
-        case 2
-            if VIS.norm == 1, VIS.norm = 2; else, VIS.norm = 1; end
         case 3
-            PERM.flag = ~VIS.PERM.flag;
-        case 4
-            PERM.nperms = nk_input('# of permutations',0,'i', PERM.nperms);
-        case 5
-            if isfield(NM,'covars') && ~isempty(NM.covars) && EXPERT 
-                PERM.mode = nk_input('Permutation mode',0,'m','Labels|Features (within-label)|Labels & Features|Covariate(s)',1:4, PERM.mode);
-            else 
-                PERM.mode = nk_input('Permutation mode',0,'m','Labels|Features (within-label)|Labels & Features',1:3, PERM.mode);
+            fwhmflag = nk_input('Do you want to apply Gaussian smoothing to the weight vectors ?',0,'yes|no',[1,2], fwhmflagdef);
+            if fwhmflag == 1
+                VIS.fwhm = nk_input('Specify FWHM width [in mm]',0,'e', fwhmdef);
+            else
+                VIS.fwhm = [];
             end
+        case 4
+            switch NM.modeflag
+                case 'classification'
+                    strmode = 'discriminative';
+                case 'regression'
+                    strmode = 'predictive';
+            end
+            VIS.thresh = nk_input(['Apply thresholding to ' strmode ' images?'],0,'yes|no',[1,0], threshdef);
+        case 5
+            typ = []; val = []; logop = [];
+            if isfield(VIS,'mean'); typ = VIS.mean.type; val = VIS.mean.val; logop = VIS.mean.logop; end
+            VIS.mean = config_threshold('mean image', typ, val ,logop);
         case 6
-             PERM.covars_idx = nk_SelectCovariateIndex(NM, PERM.covars_idx,1);
+            typ = []; val = []; logop = [];
+            if isfield(VIS,'se'); typ = VIS.se.type; val = VIS.se.val; logop = VIS.se.logop; end
+            VIS.se = config_threshold('standard error image', typ, val, logop);
         case 7
-            PERM.sigflag = ~VIS.PERM.sigflag;
+            VIS.PERM.flag = nk_input('Enable permutation mode',0,'yes|no',[1,0],1);
+            if VIS.PERM.flag 
+                VIS.PERM.nperms = nk_input('# of permutations',0,'i',100);
+                if flgProj
+                    VIS.PERM.sigflag = nk_input('Limit pattern generation to combinations of significant weights',0,'yes|no',[1,0],1); 
+                else
+                    VIS.PERM.sigflag = 0; 
+                end
+                if isfield(NM,'covars') && ~isempty(NM.covars) && EXPERT 
+                    VIS.PERM.mode = nk_input('Permutation mode',0,'m','Labels|Features (within-label)|Labels & Features|Covariate(s)',1:4,VIS.PERM.mode);
+                else 
+                    VIS.PERM.mode = nk_input('Permutation mode',0,'m','Labels|Features (within-label)|Labels & Features',1:3,VIS.PERM.mode);
+                end
+
+                if VIS.PERM.mode == 4
+                    if ~isfield(VIS.PERM, 'covars_idx') || isempty(VIS.PERM.covars_idx), VIS.PERM.covars_idx = 1; end;
+                    VIS.PERM.covars_idx = nk_SelectCovariateIndex(NM,VIS.PERM.covars_idx,1);
+                end
+            end
         case 8
-            PERM.sigPthresh = nk_input('Define alpha threshold for determining component significance',0,'e', PERM.sigPthresh);
-        case 9
-            PERM.sigPfdr = nk_input('Correcting components'' permutation-based significance using FDR',0,'e', [1,2], PERM.sigPfdr);
+            if VIS.norm == 1, VIS.norm = 2; else, VIS.norm = 1; end
+            
     end
-    VIS.PERM = PERM;
 else
-    VIS.norm = normdef;
+    VIS.flipfeats = [];
+    VIS.fwhm = fwhm;
+    VIS.thresh = thresh;
     VIS.PERM = PERM;
+    VIS.norm = normdef;
     act = 0;
 end
 
+
+function thresh = config_threshold(strimg, threshtype, threshval, threshlogop)
+
+def = [];
+if exist('threshtype','var') && ~isempty(threshtype)
+    def = threshtype;
+end
+
+thresh.type = nk_input(['Threshold type for ' strimg],0,'m', ...
+                            ['Percentile|' ...
+                            'Absolute Value|' ...
+                            'None'],1:3,def);
+
+def = [];
+if exist('thresval','var') && ~isempty(threshval)
+    def = threshval;
+end
+
+switch thresh.type
+    case 1
+        thresh.val = nk_input(['Define percentile(s) for threshold of ' strimg],0,'e',def);
+    case 2
+        thresh.val = nk_input(['Define absolute value(s) for threshold of ' strimg],0,'e',def);
+    case 3
+        thresh.val = [];
+end
+
+
+if thresh.type == 1 || thresh.type == 2
+    def = [];
+    if exist('threslogop','var') && ~isempty(threshlogop) && ~threshlogop
+        def = threshlogop;
+    end
+    switch length(thresh.val)
+        case 1
+            thresh.logop = nk_input('Define logical operation for thresholding', 0, 'm', ...
+                ['>|' ...
+                '>=|' ...
+                '<|' ...
+                '<='],1:4, def);
+        case 2
+            thresh.logop = nk_input('Define logical operation for thresholding', 0, 'm', ...
+                ['>|' ...
+                '>=|' ...
+                '<|' ...
+                '<=|' ...
+                '<>|' ...
+                '<=>|' ...
+                '><|' ...
+                '>=<'],1:8, def);
+    end
+else
+    thresh.logop = 0;
+end

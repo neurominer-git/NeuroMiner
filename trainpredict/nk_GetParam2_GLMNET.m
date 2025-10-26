@@ -13,7 +13,7 @@ global EVALFUNC SVM
 
 options = nk_GenMatLearnOptions(Params);
 options = glmnetSet(options);
-model = glmnet(Y, label, SVM.GLMNET.family, options);
+model = glmnet(Y,label, SVM.GLMNET.family, options);
 
 param = [];
 if ~ModelOnly

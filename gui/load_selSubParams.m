@@ -2,7 +2,7 @@ function load_selSubParams(handles)
 
 curclass = get(handles.popupmenu1,'Value');
 if curclass>numel(handles.ModelParamsDesc), curclass=1; end
-popupstr = FindIdentStringsEnum(handles.ModelParamsDesc{curclass}');
+popupstr = handles.ModelParamsDesc{curclass}';
 popupstrgr1{1} = 'All parameters'; cnt=2;
 for i=1:numel(popupstr)
     if iscell(handles.ModelParams{curclass})

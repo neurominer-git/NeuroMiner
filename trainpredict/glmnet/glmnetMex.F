@@ -1,27 +1,27 @@
 #include "fintrf.h"
 C     glmnetMex.F
-C
+C     
 C     Lasso and elastic-net regularized generalized linear models
-
+      
 C     [a0,ca,ia,nin,rsq,alm,nlp,jerr] = ...
 C     glmnetMex(parm,x,y,jd,vp,ne,nx,nlam,flmin,ulam,thr,isd,w,ka,cl,intr,maxit)
 C     [a0,ca,ia,nin,dev,alm,nlp,jerr] = ...
 C     glmnetMex(parm,x,y,jd,vp,ne,nx,nlam,flmin,ulam,thr,isd,nc,maxit,kopt)
-C
+C     
 C     Extremely efficient procedures for fitting the entire lasso or
-C     elastic-net regularization path for linear regression, logistic,
+C     elastic-net regularization path for linear regression, logistic,  
 C     multinomial, Poisson and Cox regression models. The algorithm uses cyclical
 C     coordinate descent in a pathwise as described in the paper on the maintainer's
 C     website.
-C
+C     
 C     NOTES: This is a MEX-file wrapper of GLMnet.f for MATLAB. Should be called
 C     only by glmnet.m. For details about input and output arguments, see
 C     GLMnet.f.
-C
+C     
 C     LICENSE: GPL-2
-C
+C     
 C     DATE: 13 Jul 2009
-C
+C     
 C     AUTHORS:
 C     Algorithm was designed by Jerome Friedman, Trevor Hastie and Rob Tibshirani
 C     Fortran code was written by Jerome Friedman
@@ -29,9 +29,9 @@ C     R wrapper (from which the MATLAB wrapper was adapted) was written by Trevo
 C     The original MATLAB wrapper was written by Hui Jiang (14 Jul 2009),
 C     and was updated and is maintained by Junyang Qian (30 Aug 2013) junyangq@stanford.edu,
 C     Department of Statistics, Stanford University, Stanford, California, USA.
-C
+C     
 C     REFERENCES:
-C     Jerome Friedman, Trevor Hastie and Rob Tibshirani. (2008).
+C     Jerome Friedman, Trevor Hastie and Rob Tibshirani. (2008). 
 C     Regularization Paths for Generalized Linear Models via Coordinate Descent
 C     Journal of Statistical Software, Vol. 33(1), 1-22 Feb 2010.
 
@@ -39,15 +39,15 @@ C     Noah Simon, Jerome Friedman, Trevor Hastie and Rob Tibshirani. (2011).
 C     Regularization Paths for Cox’s Proportional Hazards Model via Coordinate Descent
 C     Journal of Statistical Software, Vol. 39(5) 1-13.
 
-C     Robert Tibshirani, Jacob Bien, Jerome Friedman, Trevor Hastie, Noah Simon,
+C     Robert Tibshirani, Jacob Bien, Jerome Friedman, Trevor Hastie, Noah Simon, 
 C     Jonathan Taylor, Ryan J. Tibshirani. (2010).
 C     Strong Rules for Discarding Predictors in Lasso-type Problems
 C     Journal of the Royal Statistical Society: Series B (Statistical Methodology), 74(2), 245-266.
 
-C     Noah Simon, Jerome Friedman and Trevor Hastie (2013).
-C     A Blockwise Descent Algorithm for Group-penalized Multiresponse and Multinomial Regression
+C     Noah Simon, Jerome Friedman and Trevor Hastie (2013). 
+C     A Blockwise Descent Algorithm for Group-penalized Multiresponse and Multinomial Regression 
 C     (in arXiv, submitted)
-C
+C     
 C     EXAMPLE:
 C     task = 11;
 C     parm = 1.0;
@@ -69,11 +69,11 @@ C     intr = 1;
 C     maxit = 1E+5;
 C     [lmu,a0,ca,ia,nin,rsq,alm,nlp,jerr] = glmnetMex(task,parm,x,y,jd,vp,ne,nx,nlam,flmin,ulam,thr,
 C     isd,w,ka,cl,intr,maxit)
-C
+C     
 C     DEVELOPMENT:
 C       14 Jul 2009: Original version of glmnet.m written.
 C       30 Aug 2013: Updated glmnet.m with more options and more models
-C                    (multi-response Gaussian, cox and Poisson models) supported.
+C                    (multi-response Gaussian, cox and Poisson models) supported.  
 
 C     OLDER UPDATES:
 C       26 Jan 2010: Fixed a bug in the description of y, pointed out by
@@ -85,27 +85,29 @@ C                    out by Gerald Quon from University of Toronto
 C       25 Jul 2010: Check for input matrix format and size
 C       27 Sep 2010: Fixed a bug of undefined "df" in multinomial fitting,
 C                    pointed by Jeff Howbert from Insilicos.
-C
+C     
 C-----------------------------------------------------------------------
 
       subroutine mexFunction(nlhs, plhs, nrhs, prhs)
 C-----------------------------------------------------------------------
 
-      mwPointer plhs(*), prhs(*)
-      mwPointer mxCreateDoubleMatrix, mxGetPr, mxCreateNumericArray
+      mwpointer plhs(*), prhs(*)
+      mwpointer mxCreateDoubleMatrix, mxGetPr, mxCreateNumericArray
       integer nlhs, nrhs
-      mwSize mxGetM, mxGetN, mxGetNzmax
-
+      mwsize mxGetM, mxGetN, mxGetNzmax
+      integer mxIsNumeric
+      integer mxIsSparse
+      
 C-----------------------------------------------------------------------
 
 C     Input
       real parm,flmin,thr, intr
-      integer ka,no,ni,nr,nc,ne,nx,nlam,isd,maxit,kopt,isparse,nnz,jsd,nvec
+      integer ka,no,ni,nr,nc,ne,nx,nlam,isd,maxit,kopt,isparse,nnz,jsd
       real, dimension (:), allocatable :: x,y,w,vp,ulam,cl,sr,xs,o,d,
      $     flog,a
       integer, dimension (:), allocatable :: ix,jx,jd,irs,jcs
 
-      mwPointer pr
+      mwpointer pr
 
 C     Output
       integer lmu,nlp,jerr
@@ -113,18 +115,15 @@ C     Output
       real, dimension (:), allocatable :: a0,ca,alm,dev,rsq
       integer, dimension (:), allocatable :: ia,nin
 
-C     Temporary
-      mwPointer temp_pr
-      mwSize temp_m, temp_n, temp_nzmax, mxSz, mxSzs, dims(3)
-      integer task, i, isize
-
-      mwSize mxOne
-      INTEGER*4 fgZero
+C     Temporary      
+      mwpointer temp_pr
+      mwsize temp_m, temp_n, temp_nzmax, dims(3)
+      integer task,i
 
 C     For internal parameters
       real fdev, devmax, eps, big, pmin, prec, exmx
       integer mnlam, mxit
-
+      
 C     Check for proper number of arguments.
       if (nrhs .eq. 0) then
          task = -1;
@@ -133,54 +132,51 @@ C     Check for proper number of arguments.
          call getinteger(temp_pr,task,1)
       endif
 
-      mxOne = 1
-      fgZero = 0
-
 C     Get input
 
       if (task .eq. -1) then
          call get_int_parms(fdev,eps,big,mnlam,devmax,pmin,exmx)
          call get_bnorm(prec,mxit)
 
-         plhs(1) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(1) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(1))
          call putreal(fdev,temp_pr,1)
 
-         plhs(2) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(2) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(2))
          call putreal(devmax,temp_pr,1)
 
-         plhs(3) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(3) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(3))
          call putreal(eps,temp_pr,1)
 
-         plhs(4) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(4) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(4))
          call putreal(big,temp_pr,1)
 
-         plhs(5) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(5) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(5))
          call putinteger(mnlam,temp_pr,1)
 
-         plhs(6) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(6) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(6))
          call putreal(pmin,temp_pr,1)
 
-         plhs(7) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(7) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(7))
          call putreal(exmx,temp_pr,1)
 
-         plhs(8) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(8) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(8))
          call putreal(prec,temp_pr,1)
 
-         plhs(9) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(9) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(9))
          call putinteger(mxit,temp_pr,1)
 
-         return
-      endif
-
+         return   
+      endif 
+      
       if (task .eq. 0) then
          temp_pr = mxGetPr(prhs(2))
          call getreal(temp_pr,fdev,1)
@@ -221,9 +217,9 @@ C     Get input
          return
       endif
 
-c$$$  -----------------Gaussian--------------------
-c$$$  ---input---
-
+c$$$  -----------------Gaussian--------------------  
+c$$$  ---input---   
+      
       if (task .eq. 10 .or. task .eq. 11) then
          if (task .eq. 11) then
             temp_pr = mxGetPr(prhs(3))
@@ -233,7 +229,7 @@ c$$$  ---input---
             ni = temp_n
             allocate(x(1:no*ni))
             call getreal(temp_pr,x,no*ni)
-
+            
          else
             temp_m = mxGetM(prhs(4))
             no = temp_m
@@ -246,13 +242,13 @@ c$$$  ---input---
 
             temp_pr = mxGetPr(prhs(19))
             allocate(irs(1:nnz))
-            call getinteger(temp_pr,irs,nnz)
+            call getinteger(temp_pr,irs,nnz) 
 
             temp_pr = mxGetPr(prhs(20))
             temp_n = mxGetM(prhs(20))
             ni = temp_n - 1
             allocate(jcs(1:(ni+1)))
-            call getinteger(temp_pr,jcs,(ni+1))
+            call getinteger(temp_pr,jcs,(ni+1)) 
          endif
 
          temp_pr = mxGetPr(prhs(2))
@@ -261,14 +257,13 @@ c$$$  ---input---
          temp_pr = mxGetPr(prhs(4))
          allocate(y(1:no))
          call getreal(temp_pr,y,no)
-
+         
          temp_pr = mxGetPr(prhs(5))
          temp_m = mxGetM(prhs(5))
          temp_n = mxGetN(prhs(5))
-         isize = temp_m * temp_n
-         allocate(jd(isize))
-         call getinteger(temp_pr,jd,isize)
-
+         allocate(jd(temp_m*temp_n))
+         call getinteger(temp_pr,jd,temp_m*temp_n)     
+         
          temp_pr = mxGetPr(prhs(6))
          allocate(vp(1:ni))
          call getreal(temp_pr,vp,ni)
@@ -278,23 +273,22 @@ c$$$  ---input---
 
          temp_pr = mxGetPr(prhs(8))
          call getinteger(temp_pr,nx,1)
-
+         
          temp_pr = mxGetPr(prhs(9))
          call getinteger(temp_pr,nlam,1)
 
          temp_pr = mxGetPr(prhs(10))
-         call getreal(temp_pr,flmin,1)
-
+         call getreal(temp_pr,flmin,1)     
+         
          temp_pr = mxGetPr(prhs(11))
          temp_m = mxGetM(prhs(11))
          temp_n = mxGetN(prhs(11))
-         isize = temp_m * temp_n
-         allocate(ulam(1:isize))
-         call getreal(temp_pr,ulam,isize)
-
+         allocate(ulam(1:temp_m * temp_n))
+         call getreal(temp_pr,ulam,temp_m * temp_n)
+         
          temp_pr = mxGetPr(prhs(12))
          call getreal(temp_pr,thr,1)
-
+         
          temp_pr = mxGetPr(prhs(13))
          call getinteger(temp_pr,isd,1)
 
@@ -313,7 +307,7 @@ c$$$  ---input---
          call getinteger(temp_pr,intr,1)
 
          temp_pr = mxGetPr(prhs(18))
-         call getinteger(temp_pr,maxit,1)
+         call getinteger(temp_pr,maxit,1)       
 
 c$$$  ---prepare output---
 
@@ -324,7 +318,7 @@ c$$$  ---prepare output---
          allocate(alm(1:nlam))
          call zeroreal(alm,nlam)
          allocate(a0(1:nlam))
-         call zeroreal(a0,nlam)
+         call zeroreal(a0,nlam)         
          allocate(ca(1:nx*nlam))
          call zeroreal(ca,nx*nlam)
          allocate(rsq(1:nlam))
@@ -333,7 +327,7 @@ c$$$  ---prepare output---
 
 c$$$  ---computation----
 
-         if (task .eq. 11) then
+         if (task .eq. 11) then    
             call elnet(ka,parm,no,ni,x,y,w,jd,vp,cl,ne,nx,nlam,flmin,
      $           ulam,thr,isd,intr,maxit,lmu,a0,ca,ia,nin,rsq,alm,
      $           nlp,jerr)
@@ -345,44 +339,41 @@ c$$$  ---computation----
 
 c$$$  ----output-----
 
-         plhs(1) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(1) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(1))
          call putinteger(lmu,temp_pr,1)
 
-         mxSz = nx
-         plhs(4) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         plhs(4) = mxCreateDoubleMatrix(nx,1,0)
          temp_pr = mxGetPr(plhs(4))
          call putinteger(ia,temp_pr,nx)
-
-         mxSz = lmu
-         plhs(5) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(5) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(5))
          call putinteger(nin,temp_pr,lmu)
-
-         plhs(7) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(7) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(7))
          call putreal(alm,temp_pr,lmu)
-
-         plhs(8) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         
+         plhs(8) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(8))
          call putinteger(nlp,temp_pr,1)
-
-         plhs(9) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         
+         plhs(9) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(9))
          call putinteger(jerr,temp_pr,1)
 
-         plhs(2) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         plhs(2) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(2))
-         call putreal(a0,temp_pr,lmu)
-
-         mxSzs = nx
-         plhs(3) = mxCreateDoubleMatrix(mxSzs,mxSz,fgZero)
+         call putreal(a0,temp_pr,lmu)   
+         
+         plhs(3) = mxCreateDoubleMatrix(nx,lmu,0)
          temp_pr = mxGetPr(plhs(3))
-         call putreal(ca,temp_pr,nx*lmu)
-
-         plhs(6) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         call putreal(ca,temp_pr,nx*lmu)  
+         
+         plhs(6) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(6))
-         call putreal(rsq,temp_pr,lmu)
+         call putreal(rsq,temp_pr,lmu)  
 
          deallocate(y)
          deallocate(jd)
@@ -396,21 +387,21 @@ c$$$  ----output-----
          deallocate(w)
          deallocate(rsq)
          deallocate(cl)
-
+         
          if (task .eq. 11) then
             deallocate(x)
          else
             deallocate(xs)
             deallocate(irs)
-            deallocate(jcs)
+            deallocate(jcs)  
          endif
          return
-      endif
+      endif      
 c$$$  --------------end of Gaussian---------------------------
 
-c$$$  -----------------mGaussian--------------------
-c$$$  ---input---
-
+c$$$  -----------------mGaussian--------------------  
+c$$$  ---input---   
+      
       if (task .eq. 30 .or. task .eq. 31) then
          if (task .eq. 31) then
             temp_pr = mxGetPr(prhs(3))
@@ -423,7 +414,7 @@ c$$$  ---input---
 
             temp_pr = mxGetPr(prhs(18))
             call getinteger(temp_pr,jsd,1)
-
+            
          else
             temp_m = mxGetM(prhs(4))
             no = temp_m
@@ -436,13 +427,13 @@ c$$$  ---input---
 
             temp_pr = mxGetPr(prhs(18))
             allocate(irs(1:nnz))
-            call getinteger(temp_pr,irs,nnz)
+            call getinteger(temp_pr,irs,nnz) 
 
             temp_pr = mxGetPr(prhs(19))
             temp_n = mxGetM(prhs(19))
             ni = temp_n - 1
             allocate(jcs(1:(ni+1)))
-            call getinteger(temp_pr,jcs,(ni+1))
+            call getinteger(temp_pr,jcs,(ni+1)) 
 
             temp_pr = mxGetPr(prhs(20))
             call getinteger(temp_pr,jsd,1)
@@ -456,14 +447,13 @@ c$$$  ---input---
          temp_pr = mxGetPr(prhs(4))
          allocate(y(1:no*nr))
          call getreal(temp_pr,y,no*nr)
-
+         
          temp_pr = mxGetPr(prhs(5))
          temp_m = mxGetM(prhs(5))
          temp_n = mxGetN(prhs(5))
-         isize = temp_m*temp_n
-         allocate(jd(isize))
-         call getinteger(temp_pr,jd,isize)
-
+         allocate(jd(temp_m*temp_n))
+         call getinteger(temp_pr,jd,temp_m*temp_n)     
+         
          temp_pr = mxGetPr(prhs(6))
          allocate(vp(1:ni))
          call getreal(temp_pr,vp,ni)
@@ -473,23 +463,22 @@ c$$$  ---input---
 
          temp_pr = mxGetPr(prhs(8))
          call getinteger(temp_pr,nx,1)
-
+         
          temp_pr = mxGetPr(prhs(9))
          call getinteger(temp_pr,nlam,1)
 
          temp_pr = mxGetPr(prhs(10))
-         call getreal(temp_pr,flmin,1)
-
+         call getreal(temp_pr,flmin,1)     
+         
          temp_pr = mxGetPr(prhs(11))
          temp_m = mxGetM(prhs(11))
          temp_n = mxGetN(prhs(11))
-         isize = temp_m*temp_n
-         allocate(ulam(1:isize))
-         call getreal(temp_pr,ulam,isize)
-
+         allocate(ulam(1:temp_m * temp_n))
+         call getreal(temp_pr,ulam,temp_m * temp_n)
+         
          temp_pr = mxGetPr(prhs(12))
          call getreal(temp_pr,thr,1)
-
+         
          temp_pr = mxGetPr(prhs(13))
          call getinteger(temp_pr,isd,1)
 
@@ -505,8 +494,8 @@ c$$$  ---input---
          call getinteger(temp_pr,intr,1)
 
          temp_pr = mxGetPr(prhs(17))
-         call getinteger(temp_pr,maxit,1)
-
+         call getinteger(temp_pr,maxit,1) 
+      
 
 c$$$  ---prepare output---
 
@@ -517,15 +506,15 @@ c$$$  ---prepare output---
          allocate(alm(1:nlam))
          call zeroreal(alm,nlam)
          allocate(a0(1:nr*nlam))
-         call zeroreal(a0,nr*nlam)
+         call zeroreal(a0,nr*nlam)        
          allocate(ca(1:nx*nr*nlam))
-         call zeroreal(ca,nx*nr*nlam)
+         call zeroreal(ca,nx*nr*nlam)        
          allocate(rsq(1:nlam))
          call zeroreal(rsq,nlam)
 
 c$$$  ---computation----
 
-         if (task .eq. 31) then
+         if (task .eq. 31) then    
             call multelnet(parm,no,ni,nr,x,y,w,jd,vp,cl,ne,nx,nlam,
      $           flmin,ulam,thr,isd,jsd,intr,maxit,lmu,a0,ca,ia,nin,
      $           rsq,alm,nlp,jerr)
@@ -537,46 +526,41 @@ c$$$  ---computation----
 
 c$$$  ----output-----
 
-         plhs(1) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(1) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(1))
          call putinteger(lmu,temp_pr,1)
 
-         mxSz = nx
-         plhs(4) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         plhs(4) = mxCreateDoubleMatrix(nx,1,0)
          temp_pr = mxGetPr(plhs(4))
          call putinteger(ia,temp_pr,nx)
-
-         mxSz = lmu
-         plhs(5) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(5) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(5))
          call putinteger(nin,temp_pr,lmu)
-
-         plhs(7) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(7) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(7))
          call putreal(alm,temp_pr,lmu)
-
-         plhs(8) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         
+         plhs(8) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(8))
          call putinteger(nlp,temp_pr,1)
-
-         plhs(9) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         
+         plhs(9) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(9))
          call putinteger(jerr,temp_pr,1)
 
-         mxSz = nr
-         mxSzs = lmu
-         plhs(2) = mxCreateDoubleMatrix(mxSz,mxSzs,fgZero)
+         plhs(2) = mxCreateDoubleMatrix(nr,lmu,0)
          temp_pr = mxGetPr(plhs(2))
-         call putreal(a0,temp_pr,nr*lmu)
-
-         mxSz = nx*nr
-         plhs(3) = mxCreateDoubleMatrix(mxSz,mxSzs,fgZero)
+         call putreal(a0,temp_pr,nr*lmu)   
+         
+         plhs(3) = mxCreateDoubleMatrix(nx*nr,lmu,0)
          temp_pr = mxGetPr(plhs(3))
-         call putreal(ca,temp_pr,nx*nr*lmu)
-
-         plhs(6) = mxCreateDoubleMatrix(mxSzs,mxOne,fgZero)
+         call putreal(ca,temp_pr,nx*nr*lmu)  
+         
+         plhs(6) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(6))
-         call putreal(rsq,temp_pr,lmu)
+         call putreal(rsq,temp_pr,lmu)  
 
          deallocate(y)
          deallocate(jd)
@@ -590,21 +574,21 @@ c$$$  ----output-----
          deallocate(w)
          deallocate(rsq)
          deallocate(cl)
-
+         
          if (task .eq. 31) then
             deallocate(x)
          else
             deallocate(xs)
             deallocate(irs)
-            deallocate(jcs)
+            deallocate(jcs)  
          endif
          return
-      endif
+      endif      
 c$$$  --------------end of mGaussian---------------------------
 
 c$$$  ---------------Logistic--------------------------
-c$$$  ---input---
-
+c$$$  ---input---   
+      
       if (task .eq. 20 .or. task .eq. 21) then
          if (task .eq. 21) then
             temp_pr = mxGetPr(prhs(3))
@@ -614,7 +598,7 @@ c$$$  ---input---
             ni = temp_n
             allocate(x(1:no*ni))
             call getreal(temp_pr,x,no*ni)
-
+            
          else
             temp_m = mxGetM(prhs(4))
             no = temp_m
@@ -627,13 +611,13 @@ c$$$  ---input---
 
             temp_pr = mxGetPr(prhs(20))
             allocate(irs(1:nnz))
-            call getinteger(temp_pr,irs,nnz)
+            call getinteger(temp_pr,irs,nnz) 
 
             temp_pr = mxGetPr(prhs(21))
             temp_n = mxGetM(prhs(21))
             ni = temp_n - 1
             allocate(jcs(1:(ni+1)))
-            call getinteger(temp_pr,jcs,(ni+1))
+            call getinteger(temp_pr,jcs,(ni+1)) 
          endif
 
          temp_pr = mxGetPr(prhs(2))
@@ -645,14 +629,13 @@ c$$$  ---input---
          temp_pr = mxGetPr(prhs(4))
          allocate(y(1:no*(max(2,nc))))
          call getreal(temp_pr,y,no*(max(2,nc)))
-
+         
          temp_pr = mxGetPr(prhs(5))
          temp_m = mxGetM(prhs(5))
          temp_n = mxGetN(prhs(5))
-         isize = temp_m*temp_n
-         allocate(jd(isize))
-         call getinteger(temp_pr,jd,isize)
-
+         allocate(jd(temp_m*temp_n))
+         call getinteger(temp_pr,jd,temp_m*temp_n)     
+         
          temp_pr = mxGetPr(prhs(6))
          allocate(vp(1:ni))
          call getreal(temp_pr,vp,ni)
@@ -662,23 +645,22 @@ c$$$  ---input---
 
          temp_pr = mxGetPr(prhs(8))
          call getinteger(temp_pr,nx,1)
-
+         
          temp_pr = mxGetPr(prhs(9))
          call getinteger(temp_pr,nlam,1)
 
          temp_pr = mxGetPr(prhs(10))
-         call getreal(temp_pr,flmin,1)
-
+         call getreal(temp_pr,flmin,1)     
+         
          temp_pr = mxGetPr(prhs(11))
          temp_m = mxGetM(prhs(11))
          temp_n = mxGetN(prhs(11))
-         isize = temp_m*temp_n
-         allocate(ulam(1:isize))
-         call getreal(temp_pr,ulam,isize)
-
+         allocate(ulam(1:temp_m * temp_n))
+         call getreal(temp_pr,ulam,temp_m * temp_n)
+         
          temp_pr = mxGetPr(prhs(12))
          call getreal(temp_pr,thr,1)
-
+         
          temp_pr = mxGetPr(prhs(13))
          call getinteger(temp_pr,isd,1)
 
@@ -708,15 +690,15 @@ c$$$  ---prepare output---
          allocate(alm(1:nlam))
          call zeroreal(alm,nlam)
          allocate(a0(1:(nc*nlam)))
-         call zeroreal(a0,nc*nlam)
+         call zeroreal(a0,nc*nlam)         
          allocate(ca(1:(nx*nc*nlam)))
          call zeroreal(ca,nx*nc*nlam)
          allocate(dev(1:nlam))
          call zeroreal(dev,nlam)
 
-c$$$  ---computation----
+c$$$  ---computation---- 
 
-         if (task .eq. 21) then
+         if (task .eq. 21) then    
             call lognet(parm,no,ni,nc,x,y,o,jd,vp,cl,ne,nx,nlam,flmin,
      $           ulam,thr,isd,intr,maxit,kopt,lmu,a0,ca,ia,nin,dev0,dev,
      $           alm,nlp,jerr)
@@ -728,53 +710,47 @@ c$$$  ---computation----
 
 c$$$  ----output-----
 
-         plhs(1) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(1) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(1))
          call putinteger(lmu,temp_pr,1)
 
-         mxSz = nx
-         plhs(4) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         plhs(4) = mxCreateDoubleMatrix(nx,1,0)
          temp_pr = mxGetPr(plhs(4))
          call putinteger(ia,temp_pr,nx)
-
-         mxSz = lmu
-         plhs(5) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(5) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(5))
          call putinteger(nin,temp_pr,lmu)
-
-         plhs(7) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(7) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(7))
          call putreal(alm,temp_pr,lmu)
-
-         plhs(8) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         
+         plhs(8) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(8))
          call putinteger(nlp,temp_pr,1)
-
-         plhs(9) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         
+         plhs(9) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(9))
          call putinteger(jerr,temp_pr,1)
 
-         mxSzs = nc
-         plhs(2) = mxCreateDoubleMatrix(mxSzs,mxSz,fgZero)
+         plhs(2) = mxCreateDoubleMatrix(nc,lmu,0)
          temp_pr = mxGetPr(plhs(2))
          call putreal(a0,temp_pr,nc*lmu)
 
-         mxSzs = nx*nc
-         plhs(3) = mxCreateDoubleMatrix(mxSzs,mxSz,fgZero)
+         plhs(3) = mxCreateDoubleMatrix(nx*nc,lmu,0)
          temp_pr = mxGetPr(plhs(3))
          call putreal(ca,temp_pr,nx*nc*lmu)
-
-         plhs(6) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(6) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(6))
          call putreal(dev,temp_pr,lmu)
 
-         plhs(10) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(10) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(10))
          call putreal(dev0,temp_pr,1)
 
-         mxSz = no
-         mxSzs = nc
-         plhs(11) = mxCreateDoubleMatrix(mxSz,mxSz,fgZero)
+         plhs(11) = mxCreateDoubleMatrix(no,nc,0)
          temp_pr = mxGetPr(plhs(11))
          call putreal(o,temp_pr,no*nc)
 
@@ -790,13 +766,13 @@ c$$$  ----output-----
          deallocate(cl)
          deallocate(o)
          deallocate(dev)
-
+         
          if (task .eq. 21) then
             deallocate(x)
          else
             deallocate(xs)
             deallocate(irs)
-            deallocate(jcs)
+            deallocate(jcs)  
          endif
          return
       endif
@@ -813,7 +789,7 @@ c$$$  --------------------start of cox--------------------
          ni = temp_n
          allocate(x(1:no*ni))
          call getreal(temp_pr,x,no*ni)
-
+         
 
          temp_pr = mxGetPr(prhs(2))
          call getreal(temp_pr,parm,1)
@@ -821,14 +797,13 @@ c$$$  --------------------start of cox--------------------
          temp_pr = mxGetPr(prhs(4))
          allocate(y(1:no))
          call getreal(temp_pr,y,no)
-
+         
          temp_pr = mxGetPr(prhs(5))
          temp_m = mxGetM(prhs(5))
          temp_n = mxGetN(prhs(5))
-         isize = temp_m*temp_n
-         allocate(jd(isize))
-         call getinteger(temp_pr,jd,isize)
-
+         allocate(jd(temp_m*temp_n))
+         call getinteger(temp_pr,jd,temp_m*temp_n)     
+         
          temp_pr = mxGetPr(prhs(6))
          allocate(vp(1:ni))
          call getreal(temp_pr,vp,ni)
@@ -838,23 +813,22 @@ c$$$  --------------------start of cox--------------------
 
          temp_pr = mxGetPr(prhs(8))
          call getinteger(temp_pr,nx,1)
-
+         
          temp_pr = mxGetPr(prhs(9))
          call getinteger(temp_pr,nlam,1)
 
          temp_pr = mxGetPr(prhs(10))
-         call getreal(temp_pr,flmin,1)
-
+         call getreal(temp_pr,flmin,1)     
+         
          temp_pr = mxGetPr(prhs(11))
          temp_m = mxGetM(prhs(11))
          temp_n = mxGetN(prhs(11))
-         isize = temp_m * temp_n
-         allocate(ulam(1:isize))
-         call getreal(temp_pr,ulam,isize)
-
+         allocate(ulam(1:temp_m * temp_n))
+         call getreal(temp_pr,ulam,temp_m * temp_n)
+         
          temp_pr = mxGetPr(prhs(12))
          call getreal(temp_pr,thr,1)
-
+         
          temp_pr = mxGetPr(prhs(13))
          call getinteger(temp_pr,isd,1)
 
@@ -875,7 +849,7 @@ c$$$  --------------------start of cox--------------------
 
          temp_pr = mxGetPr(prhs(18))
          allocate(o(1:no))
-         call getreal(temp_pr,o,no)
+         call getreal(temp_pr,o,no)       
 
 c$$$  ---prepare output---
 
@@ -884,9 +858,9 @@ c$$$  ---prepare output---
          allocate(nin(1:nlam))
          call zerointeger(nin,nlam)
          allocate(alm(1:nlam))
-         call zeroreal(alm,nlam)
+         call zeroreal(alm,nlam)         
          allocate(ca(1:nx*nlam))
-         call zeroreal(ca,nx*nlam)
+         call zeroreal(ca,nx*nlam)       
          allocate(dev(1:nlam))
          call zeroreal(dev,nlam)
 
@@ -897,47 +871,43 @@ c$$$  ---computation----
 
 c$$$  ----output-----
 c$$$
-         plhs(1) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(1) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(1))
          call putinteger(lmu,temp_pr,1)
 
-         mxSz = nx
-         plhs(3) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         plhs(3) = mxCreateDoubleMatrix(nx,1,0)
          temp_pr = mxGetPr(plhs(3))
          call putinteger(ia,temp_pr,nx)
-
-         mxSz = lmu
-         plhs(4) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(4) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(4))
          call putinteger(nin,temp_pr,lmu)
-
-         plhs(6) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(6) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(6))
          call putreal(alm,temp_pr,lmu)
-
-         plhs(7) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         
+         plhs(7) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(7))
          call putinteger(nlp,temp_pr,1)
-
-         plhs(8) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         
+         plhs(8) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(8))
-         call putinteger(jerr,temp_pr,1)
-
-         mxSzs = nx
-         plhs(2) = mxCreateDoubleMatrix(mxSzs,mxSz,fgZero)
+         call putinteger(jerr,temp_pr,1) 
+         
+         plhs(2) = mxCreateDoubleMatrix(nx,lmu,0)
          temp_pr = mxGetPr(plhs(2))
-         call putreal(ca,temp_pr,nx*lmu)
-
-         plhs(5) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         call putreal(ca,temp_pr,nx*lmu)  
+         
+         plhs(5) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(5))
-         call putreal(dev,temp_pr,lmu)
+         call putreal(dev,temp_pr,lmu)  
 
-         plhs(9) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(9) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(9))
          call putreal(dev0,temp_pr,1)
 
-         mxSzs = no
-         plhs(10) = mxCreateDoubleMatrix(mxSzs,mxOne,fgZero)
+         plhs(10) = mxCreateDoubleMatrix(no,1,0)
          temp_pr = mxGetPr(plhs(10))
          call putreal(o,temp_pr,no)
 
@@ -957,13 +927,13 @@ c$$$
          deallocate(x)
 
          return
-      endif
+      endif      
 
 c$$$  -------------------end of cox -----------------------
 
 c$$$  --------------start of log-likelihood----------------
       if (task .eq. 42) then
-c$$$  prepare input
+c$$$  prepare input 
          temp_pr = mxGetPr(prhs(2))
          temp_m = mxGetM(prhs(2))
          no = temp_m
@@ -1004,20 +974,19 @@ c$$$  compututation
          call loglike(no,ni,x,y,d,o,w,nvec,a,flog,jerr)
 
 c$$$  output
-         mxSz = nvec
-         plhs(1) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         plhs(1) = mxCreateDoubleMatrix(nvec,1,0)
          temp_pr = mxGetPr(plhs(1))
          call putreal(flog,temp_pr,nvec)
 
-         plhs(2) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(2) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(2))
-         call putinteger(jerr,temp_pr,1)
+         call putinteger(jerr,temp_pr,1) 
       endif
 
 
 c$$$  ---------------Poisson--------------------------
-c$$$  ---input---
-
+c$$$  ---input---   
+      
       if (task .eq. 50 .or. task .eq. 51) then
          if (task .eq. 51) then
             temp_pr = mxGetPr(prhs(3))
@@ -1027,7 +996,7 @@ c$$$  ---input---
             ni = temp_n
             allocate(x(1:no*ni))
             call getreal(temp_pr,x,no*ni)
-
+            
          else
             temp_m = mxGetM(prhs(4))
             no = temp_m
@@ -1040,13 +1009,13 @@ c$$$  ---input---
 
             temp_pr = mxGetPr(prhs(19))
             allocate(irs(1:nnz))
-            call getinteger(temp_pr,irs,nnz)
+            call getinteger(temp_pr,irs,nnz) 
 
             temp_pr = mxGetPr(prhs(20))
             temp_n = mxGetM(prhs(20))
             ni = temp_n - 1
             allocate(jcs(1:(ni+1)))
-            call getinteger(temp_pr,jcs,(ni+1))
+            call getinteger(temp_pr,jcs,(ni+1)) 
          endif
 
          temp_pr = mxGetPr(prhs(2))
@@ -1055,14 +1024,13 @@ c$$$  ---input---
          temp_pr = mxGetPr(prhs(4))
          allocate(y(1:no))
          call getreal(temp_pr,y,no)
-
+         
          temp_pr = mxGetPr(prhs(5))
          temp_m = mxGetM(prhs(5))
          temp_n = mxGetN(prhs(5))
-         isize = temp_m*temp_n
-         allocate(jd(isize))
-         call getinteger(temp_pr,jd,isize)
-
+         allocate(jd(temp_m*temp_n))
+         call getinteger(temp_pr,jd,temp_m*temp_n)     
+         
          temp_pr = mxGetPr(prhs(6))
          allocate(vp(1:ni))
          call getreal(temp_pr,vp,ni)
@@ -1072,23 +1040,22 @@ c$$$  ---input---
 
          temp_pr = mxGetPr(prhs(8))
          call getinteger(temp_pr,nx,1)
-
+         
          temp_pr = mxGetPr(prhs(9))
          call getinteger(temp_pr,nlam,1)
 
          temp_pr = mxGetPr(prhs(10))
-         call getreal(temp_pr,flmin,1)
-
+         call getreal(temp_pr,flmin,1)     
+         
          temp_pr = mxGetPr(prhs(11))
          temp_m = mxGetM(prhs(11))
          temp_n = mxGetN(prhs(11))
-         isize = temp_m * temp_n
-         allocate(ulam(1:isize))
-         call getreal(temp_pr,ulam,isize)
-
+         allocate(ulam(1:temp_m * temp_n))
+         call getreal(temp_pr,ulam,temp_m * temp_n)
+         
          temp_pr = mxGetPr(prhs(12))
          call getreal(temp_pr,thr,1)
-
+         
          temp_pr = mxGetPr(prhs(13))
          call getinteger(temp_pr,isd,1)
 
@@ -1127,7 +1094,7 @@ c$$$  ---prepare output---
 
 c$$$  ---computation----
 
-         if (task .eq. 51) then
+         if (task .eq. 51) then    
             call fishnet(parm,no,ni,x,y,o,w,jd,vp,cl,ne,nx,nlam,flmin,
      $           ulam,thr,isd,intr,maxit,lmu,a0,ca,ia,nin,dev0,dev,alm,
      $           nlp,jerr)
@@ -1139,51 +1106,47 @@ c$$$  ---computation----
 
 c$$$  ----output-----
 
-         plhs(1) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(1) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(1))
          call putinteger(lmu,temp_pr,1)
 
-         mxSz = nx
-         plhs(4) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         plhs(4) = mxCreateDoubleMatrix(nx,1,0)
          temp_pr = mxGetPr(plhs(4))
          call putinteger(ia,temp_pr,nx)
-
-         mxSz = lmu
-         plhs(5) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(5) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(5))
          call putinteger(nin,temp_pr,lmu)
-
-         plhs(7) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(7) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(7))
          call putreal(alm,temp_pr,lmu)
-
-         plhs(8) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         
+         plhs(8) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(8))
          call putinteger(nlp,temp_pr,1)
-
-         plhs(9) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         
+         plhs(9) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(9))
          call putinteger(jerr,temp_pr,1)
 
-         plhs(2) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         plhs(2) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(2))
          call putreal(a0,temp_pr,lmu)
 
-         mxSzs = nx
-         plhs(3) = mxCreateDoubleMatrix(mxSzs,mxSz,fgZero)
+         plhs(3) = mxCreateDoubleMatrix(nx,lmu,0)
          temp_pr = mxGetPr(plhs(3))
          call putreal(ca,temp_pr,nx*lmu)
-
-         plhs(6) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         
+         plhs(6) = mxCreateDoubleMatrix(lmu,1,0)
          temp_pr = mxGetPr(plhs(6))
          call putreal(dev,temp_pr,lmu)
 
-         plhs(10) = mxCreateDoubleMatrix(mxOne,mxOne,fgZero)
+         plhs(10) = mxCreateDoubleMatrix(1,1,0)
          temp_pr = mxGetPr(plhs(10))
          call putreal(dev0,temp_pr,1)
 
-         mxSz = no
-         plhs(11) = mxCreateDoubleMatrix(mxSz,mxOne,fgZero)
+         plhs(11) = mxCreateDoubleMatrix(no,1,0)
          temp_pr = mxGetPr(plhs(11))
          call putreal(o,temp_pr,no)
 
@@ -1199,13 +1162,13 @@ c$$$  ----output-----
          deallocate(cl)
          deallocate(o)
          deallocate(dev)
-
+         
          if (task .eq. 51) then
             deallocate(x)
          else
             deallocate(xs)
             deallocate(irs)
-            deallocate(jcs)
+            deallocate(jcs)  
          endif
          return
       endif
@@ -1216,7 +1179,7 @@ c$$$  --------------------end of Poisson------------------
       end
 
 C     End of subroutine mexFunction
-
+      
       subroutine real8toreal(x, y, size)
       integer size
       real*8 x(size)
@@ -1236,7 +1199,7 @@ C     End of subroutine mexFunction
  20   continue
       return
       end
-
+      
       subroutine real8tointeger(x, y, size)
       integer size
       real*8 x(size)
@@ -1246,7 +1209,7 @@ C     End of subroutine mexFunction
  30   continue
       return
       end
-
+      
       subroutine integertoreal8(x, y, size)
       integer size
       integer x(size)
@@ -1256,79 +1219,67 @@ C     End of subroutine mexFunction
  40   continue
       return
       end
-
-      subroutine getreal(pr,x,size_int)
-      integer size_int
-      mwPointer pr
-      mwSize size
-      real x(size_int)
+      
+      subroutine getreal(pr,x,size)
+      mwpointer pr
+      integer size
+      real x(size)
       real*8, dimension (:), allocatable :: temp
-      allocate(temp(1:size_int))
-      size = size_int
+      allocate(temp(1:size))
       call mxCopyPtrToReal8(pr,temp,size)
-      call real8toreal(temp,x,size_int)
-      deallocate(temp)
+      call real8toreal(temp,x,size)
+      deallocate(temp)      
       return
       end
-
-      subroutine getinteger(pr,x,size_int)
-      integer size_int
-      mwPointer pr
-      mwSize size
-      integer x(size_int)
+      
+      subroutine getinteger(pr,x,size)
+      mwpointer pr
+      integer size
+      integer x(size)
       real*8, dimension (:), allocatable :: temp
-      allocate(temp(1:size_int))
-      size = size_int
+      allocate(temp(1:size))
       call mxCopyPtrToReal8(pr,temp,size)
-      call real8tointeger(temp,x,size_int)
-      deallocate(temp)
+      call real8tointeger(temp,x,size)
+      deallocate(temp)      
       return
-      end
-
-      subroutine putreal(x,pr,size_int)
-      integer size_int
-      mwPointer pr
-      mwSize size
-      real x(size_int)
+      end      
+      
+      subroutine putreal(x,pr,size)
+      mwpointer pr
+      integer size
+      real x(size)
       real*8, dimension (:), allocatable :: temp
-      allocate(temp(1:size_int))
-      size = size_int
-      call realtoreal8(x,temp,size_int)
+      allocate(temp(1:size))
+      call realtoreal8(x,temp,size)
       call mxCopyReal8ToPtr(temp,pr,size)
-      deallocate(temp)
+      deallocate(temp)      
       return
       end
-
-      subroutine putinteger(x,pr,size_int)
-      integer size_int
-      mwPointer pr
-      mwSize size
-      integer x(size_int)
+      
+      subroutine putinteger(x,pr,size)
+      mwpointer pr
+      integer size
+      integer x(size)
       real*8, dimension (:), allocatable :: temp
-      allocate(temp(1:size_int))
-      size = size_int
-      call integertoreal8(x,temp,size_int)
+      allocate(temp(1:size))
+      call integertoreal8(x,temp,size)
       call mxCopyReal8ToPtr(temp,pr,size)
-      deallocate(temp)
+      deallocate(temp)      
       return
-      end
-
-      subroutine zeroreal(x,size_int)
-      integer size_int
-      mwSize size
-      real x(size_int)
-      size = size_int
+      end            
+      
+      subroutine zeroreal(x,size)
+      integer size
+      real x(size)
       do 90 i=1,size
          x(i) = 0
- 90   continue
-      return
+ 90   continue     
+      return 
       end
-
-      subroutine zerointeger(x,size_int)
-      integer size_int
-      mwSize size
-      integer x(size_int)
-      size = size_int
+      
+      subroutine zerointeger(x,size)
+      integer size
+      integer x(size)
       do 100 i=1,size
          x(i) = 0
  100  continue

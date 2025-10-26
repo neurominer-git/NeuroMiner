@@ -1,5 +1,6 @@
+function [ GD, MD ] = nk_MLOptimizer_ParamCycler(GD, MD, DISP, Ps, Params_desc, mapY, algostr, f, d, npreml, nclass, ngroups, batchflag, PsSel, combcell)
 % =========================================================================
-% [ GD, MD ] = nk_MLOptimizer_ParamCycler(GD, MD, DISP, Ps, ...
+% FORMAT [ GD, MD ] = nk_MLOptimizer_ParamCycler(GD, MD, DISP, Ps, ...
 %                           Params_desc, mapY, algostr, f, d, npreml, ...
 %                           nclass, batchflag, PsSel, combcell)
 % =========================================================================
@@ -10,16 +11,16 @@
 % -------
 % GD            : Results container
 % MD            : Model container
-% DISP          : Display structure with data for the NM Optimization Viewer
-% Ps            : Parameter combinations to be visited
+% DISP          : Display structure with data for NM Optimization Viewer
+% Ps            : Parameter combinations
 % Params_desc   : Descriptions of parameters
-% mapY          : Structure containing CV1 training, CV1 test and CV2
+% mapY          : The data containing CV1 training and CV1 test and CV2
 %                 validation data
-% algostr       : ML algorithm descriptor
-% [ f, d ]      : Current outer (CV2) cross-validation partition
-% npreml        : Number of preprocessing hyperparameters 
-% nclass        : Number of binary classifiers | predictors
-% batchflag     : batchmode (for HPC)
+% algostr       :
+% [ f, d ]      : Position in the CV2 grid
+% npreml        : Number of free preprocessing parameters in the space
+% nclass        : Number of binary classifier | predictors
+% batchflag     : batchmode (for HPC) ?
 % PsSel         : Previously selected parameters nodes and data at that
 %                 nodes
 % combcell      : Flag indicating that Ps is a cell array rather than a
@@ -30,22 +31,15 @@
 % GD (see above)
 % MD (see above)
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, 05/2024
+% (c) Nikolaos Koutsouleris, 03/2021
 
-function [ GD, MD, DISP ] = nk_MLOptimizer_ParamCycler(GD, MD, DISP, Ps, ...
-                            Params_desc, mapY, algostr, f, d, npreml, ...
-                            nclass, ngroups, batchflag, PsSel, combcell)
+global CV MULTILABEL CVPOS
 
-global CV MULTILABEL CVPOS VERBOSE
-
-nPs = size(Ps{1},1);
-% push current CV2 partition to global 
+nPs = size(Ps{1},1); 
 CVPOS.CV2p = f;
 CVPOS.CV2f = d;
 
-% Any free preprocessing parameters that we need to be aware of?
-% => Retrieve the preprocessing-related hyperparameters and store them
-% in pp
+% Any free preprocessing parameters ?
 if npreml>-1
     if combcell
         pp = unique(cell2mat(Ps{1}(:,end-npreml:end)),'rows','stable');
@@ -54,20 +48,22 @@ if npreml>-1
     end
 end
 
-% Do we have to deal with a multi-label situation?
+% Do we have a multi-label situation?
 nl = nk_GetLabelDim(MULTILABEL);
 
-tElapsedSum = 0; 
-tic; if nPs>1, fprintf('\n === Performing hyperparameter optimization === \n'); else, fprintf('\n'); end
+tElapsedSum = 0; ii = [];
+tic
+labelstr = ''; 
+if nPs>1, fprintf('\n === Performing hyperparameter optimization === \n'); else, fprintf('\n'); end
      
 % Loop through all available labels
 for curlabel=1:nl
-    visited_idx = []; labelstr = ''; 
+    cl = MULTILABEL.sel(curlabel);
     if MULTILABEL.flag
         if nl>1
-            labelstr = sprintf('Label #%g: %s | ', MULTILABEL.sel(curlabel), MULTILABEL.desc{MULTILABEL.sel(curlabel)});
+            labelstr = sprintf('Label #%g: %s | ', cl, MULTILABEL.desc{cl});
         else
-            labelstr = sprintf('Label %s | ', MULTILABEL.desc{MULTILABEL.sel(curlabel)});
+            labelstr = sprintf('Label %s | ', MULTILABEL.desc{cl});
         end
     end
     MULTILABEL.curdim = curlabel;
@@ -89,21 +85,17 @@ for curlabel=1:nl
     pltcnt =0 ; 
     
     % Loop through all parameter combinations
-    for current_idx = 1:nPs
+    for i = 1:nPs
 
-        if ~sum(any(PiSel(current_idx,:)))
-            if VERBOSE
-                sskip = sprintf('\n%sSkipping hyperparameter combination %g!',labelstr,current_idx);
-                fprintf('%s',sskip); 
-            end
+        if ~sum(any(PiSel(i,:)))
+            sskip = sprintf('\n%sSkipping hyperparameter combination %g!',labelstr,i);
+            fprintf('%s',sskip); %fprintf(repmat('\b',1,numel(sskip))); 
             continue; 
         end
-        visited_idx = [visited_idx current_idx];
+        ii = [ii i];
         pltcnt = pltcnt+1; pltperc = pltcnt*100/pltmax;
         tElapsed = toc; tElapsedSum = tElapsedSum+tElapsed; 
         elaps = sprintf('\t%1.2f sec.',tElapsed);
-        
-        %% Prepare NM Optimization viewer info
         if nPs > 1 
             DISP.s = sprintf('%s | %s%s\nCV2 [ %g, %g ] => %4g/%4g parameter combinations => %1.1f%% ', ...
                 elaps, labelstr, algostr, f, d , pltcnt, pltmax, pltperc);
@@ -114,54 +106,40 @@ for curlabel=1:nl
         fprintf('%s',DISP.s); 
         DISP.pltperc = pltperc; 
 
-        %% Loop through binary learners and prepare learning params according to the algorithm chosen by the user
+        %% Loop through binary learners and prepare learning params
         tic;
         cPs = cell(nclass,1);
         for curclass = 1:nclass
-            DISP.P{curclass} = Ps{curclass}(current_idx,:);
-            cPs{curclass} = nk_PrepMLParams(Ps{curclass}, Params_desc{curclass}, current_idx);
+            DISP.P{curclass} = Ps{curclass}(i,:);
+            cPs{curclass} = nk_PrepMLParams(Ps{curclass}, Params_desc{curclass}, i);
         end
 
         %% Check whether new mapY container has to be retrieved
-        % Retrieve preprocessing parameter combinations and check whether
+        % Now retrieve preprocessing parameter combinations and check whether
         % there has been a parameter change from the previous to current
-        % parameter combination. The Ps array contains all hyperparameters
-        % for the optimization process. Some of the parameters may be
-        % related to the preprocessing stage, some to the proper ML
-        % optimization phase. "npreml" indicates how many preprocessing
-        % parameters belong to the preprocessing phase.
+        % parameter combination
         dimchng = false; i_dl = 1; m_dl = 1;
         if npreml >-1
-            if numel(visited_idx) > 1
-                % Find the hyperparameters that belong to the preprocessing
-                % phase
+            if numel(ii) > 1
                 if combcell
-                    % Current position in the hyperparameter space
-                    ipp     = cell2mat(Ps{1}(visited_idx(end),end-npreml:end));
-                    % Previous position in the hyperparameter space
-                    impp    = cell2mat(Ps{1}(visited_idx(end-1),end-npreml:end));
+                    ipp     = cell2mat(Ps{1}(ii(end),end-npreml:end));
+                    impp    = cell2mat(Ps{1}(ii(end-1),end-npreml:end));
                 else
-                    ipp     = Ps{1}(visited_idx(end),end-npreml:end);
-                    impp    = Ps{1}(visited_idx(end-1),end-npreml:end);
+                    ipp     = Ps{1}(ii(end),end-npreml:end);
+                    impp    = Ps{1}(ii(end-1),end-npreml:end);
                 end
-                % Do we have a change between the previous and current
-                % preprocessing hyperparameter position in the
-                % preprocessing-related hyperparameter subspace? ...
                 [~,i_dl] = ismember(ipp,pp,'rows');
                 [~,m_dl] = ismember(impp,pp,'rows');
             else
                 if combcell
-                    ipp     = cell2mat(Ps{1}(visited_idx,end-npreml:end));
+                    ipp     = cell2mat(Ps{1}(ii,end-npreml:end));
                 else
-                    ipp     = Ps{1}(visited_idx,end-npreml:end);
+                    ipp     = Ps{1}(ii,end-npreml:end);
                 end
                 [~,i_dl] = ismember(ipp,pp,'rows');
                 m_dl = i_dl;
             end
         end
-        % ... if so, dimchng is set to true and thus we know that we have to
-        % retrieve new preprocessed data (mapYi) at the given hyperparameter 
-        % position from our preprocessed data container.
         if i_dl ~= m_dl || (~exist('mapYi','var') || isempty(mapYi))
             dimchng = true;
         end
@@ -173,21 +151,41 @@ for curlabel=1:nl
             % needed)
             FilterSubSets = nk_CreateSubSets(mapYi); 
         end   
-        % Compute current model(s) for variable parameter combination P(current_idx) = [ P1 P2 P3
+        % Compute current model(s) for variable parameter combination P(i) = [ P1 P2 P3
         % ... Pn] using the CV1 data partitions. Apply single or ensemble model
         % to CV2 test sample in order to estimate the generalization 
         % capacity of the classification / prediction rule    
         [CV1perf, CV2perf, models] = nk_CVPermFold(mapYi, nclass, ngroups, cPs, FilterSubSets, batchflag);      
 
         % Transfer results from CV1perf and CV2perf to GD
-        % structure using nk_GridSearchHelper 
-        [GD, MD, DISP] = nk_GridSearchHelper(GD, MD, DISP, current_idx, nclass, ngroups, CV1perf, CV2perf, models);
+        % structure using nk_GridSearchHelper2 function
+        [GD, MD, DISP] = nk_GridSearchHelper(GD, MD, DISP, i, nclass, ngroups, CV1perf, CV2perf, models);
        
-        if isfield(CV1perf,'detrend'), GD.Detrend{current_idx} = CV1perf.detrend; end
+        if isfield(CV1perf,'detrend'), GD.Detrend{i} = CV1perf.detrend; end
 
         % Create variate mask according to selected features
-        GD = nk_GenVI(mapYi, GD, CV, f, d, nclass, current_idx, curlabel);
+        if isfield(mapYi,'VI')
 
+            [iy,jy] = size(CV(1).cvin{f,d}.TrainInd);
+            
+            GD.VI{i,curlabel} = cell(iy,jy,nclass);
+            for k=1:iy
+                for l=1:jy
+                    if iscell(mapYi.VI{k,l})
+                         for curclass = 1:nclass
+                            VI = repmat(mapYi.VI{k,l}{curclass},1,size(GD.FEAT{i,curlabel}{k,l,curclass},2));
+                            GD.VI{i,curlabel}{k,l,curclass} = VI;
+                         end
+                    else
+                        for curclass = 1:nclass
+                            VI = repmat(mapYi.VI{k,l},1,size(GD.FEAT{i,curlabel}{k,l,curclass},2));
+                            GD.VI{i,curlabel}{k,l,curclass} = VI;
+                        end
+                    end                            
+                end
+            end
+            
+        end
         fprintf(repmat('\b',1,numel(DISP.s))); 
     end
 end

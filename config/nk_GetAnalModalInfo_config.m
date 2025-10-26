@@ -12,7 +12,7 @@ else
 end
 
 %% Define modality-independent parameters of current analysis as global variables
-nk_SetupGlobalVariables(analysis.params, 'setup_main', 0); 
+nk_SetupGlobVars2(analysis.params, 'setup_main', 0); 
 
 if isfield(analysis,'rootdir')
     inp.rootdir = analysis.rootdir;
@@ -50,9 +50,5 @@ else
         case 3
             inp.concatfl = 0; inp.varstr = [];
     end
-end
-
-if isfield(analysis, 'C')
-    inp.C = analysis.C;
 end
 

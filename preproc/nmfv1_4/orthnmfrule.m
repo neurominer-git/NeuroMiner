@@ -56,64 +56,23 @@ optionDefault.iter=200;
 optionDefault.dis=1;
 optionDefault.residual=1e-4;
 optionDefault.tof=1e-4;
-optionDefault.init = 'kmeans';  % default initialization method
 if nargin<3
    option=optionDefault;
 else
     option=mergeOption(option,optionDefault);
 end
-rng(1234);
+
 [r,c]=size(X); % c is # of samples, r is # of features
-%% Initialization
-if strncmpi(option.init, 'nndsvd', 6)
-    % Use NNDSVD initialization.
-    % Allow an optional flag override.
-    if isfield(option, 'initflag')
-        flag = option.initflag;
-    else
-        % Determine the flag from the option string.
-        % 'nndsvd'   -> flag = 0, 'nndsvda' -> flag = 1, 'nndsvdar' -> flag = 2.
-        if strcmpi(option.init, 'nndsvd')
-            flag = 0;
-        elseif strcmpi(option.init, 'nndsvda')
-            flag = 1;
-        elseif strcmpi(option.init, 'nndsvdar')
-            flag = 2;
-        else
-            flag = 0; % default to NNDSVD if unrecognized
-        end
-    end
-    % Call the NNDSVD function (provided by the user).
-    [W, H] = NNDSVD(X, k, flag);
-    % Replace any near-zero entries with eps.
-    W(W < eps) = eps;
-    H(H < eps) = eps;
-    % In our formulation, we set:
-    %   A: basis matrix, size r x k.
-    %   Y: coefficient matrix, size k x c.
-    A = W;
-    Y = H;
-    if sum(option.orthogonal) == 2
-        S = A' * X * Y';
-    else
-        S = eye(k);
-    end
+[inx,C]=kmeans(X',k); % k-mean clustering, get idx=[1,1,2,2,1,3,3,1,2,3]
+Y=(inx*ones(1,k)-ones(c,1)*cumsum(ones(1,k)))==0; % obtain logical matrix [1,0,0;1,0,0;0,1,0;0,1,0;1,0,0;0,0,1;...]
+Y=Y'+0.2;
+A=C';
+if sum(option.orthogonal)==2
+    S=A'*X*Y';
 else
-    % Default initialization: use k-means.
-    % Transpose X so that each sample is a row.
-    [inx, C] = kmeans(X', k, 'Replicates', 50, 'Start', 'plus');
-    % Create a binary membership matrix: each row corresponds to a sample.
-    Y_bin = (inx * ones(1, k) - ones(c, 1) * cumsum(ones(1, k))) == 0;
-    % Transpose and add a small constant to avoid zeros.
-    Y = Y_bin' + 0.2;
-    % Use k-means centroids (transposed) as the initial A.
-    A = C';
-    if sum(option.orthogonal) == 2
-        S = A' * X * Y';
-    else
-        S = eye(k);
-    end
+    S=eye(k,k);
 end
+
 XfitPrevious=Inf;
 for i=1:option.iter
     if option.orthogonal(1)==1

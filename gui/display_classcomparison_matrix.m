@@ -33,7 +33,7 @@ if istable(pvals)
 else
     pval_mat_all = pvals;
 end
-if ~exist('perftitle','var') || isempty(perftitle)
+if ~exist('perftitle','var') || isempty(perftitle),
     perftitle = 'Performance';
 end
 nT = numel(T);    
@@ -92,7 +92,7 @@ for i=1:nM
     end
     
     hold(ax(li),'on'); Gfl = false;
-    if exist('G','var') && ~isempty(G)
+    if exist('G','var') && ~isempty(G), 
         Gfl = true;
         axes(ax(li)); 
         nG = size(G,3);
@@ -113,10 +113,10 @@ for i=1:nM
     else
         plot(ax(li), mw, 'ko-', 'LineWidth', 2, 'MarkerFaceColor', 'k', 'MarkerSize', 10, 'MarkerEdgeColor', 'w');
         if size(sw,1) == 2
-            errorbar(ax(li), 1:numel(mw), mw, sw(1,:), sw(2,:), 'LineStyle', 'none', 'Color', 'k'); 
+            er = errorbar(ax(li), 1:numel(mw), mw, sw(1,:), sw(2,:), 'LineStyle', 'none', 'Color', 'k'); 
             lgstr = {'Median','IQR'};
         else
-            errorbar(ax(li), 1:numel(mw), mw, sw, 'LineStyle', 'none', 'Color', 'k'); 
+            er = errorbar(ax(li), 1:numel(mw), mw, sw, 'LineStyle', 'none', 'Color', 'k'); 
             lgstr = {'Median','Stdev'};
         end
         xlims = size(mw,2);
@@ -128,13 +128,13 @@ for i=1:nM
     ax(li).YGrid = 'on';
     ax(li).FontWeight = 'bold';
     ax(li).FontSize = 11;
-    if i==1
+    if i==1, 
         ylabel(ax(li),perftitle);
         ax(li).YTickLabelMode='auto';
         if ~Gfl, legend(ax(li),lgstr); end
     end
     
-    if exist('hlinepos','var') && ~isempty(hlinepos)
+    if exist('hlinepos','var') && ~isempty(hlinepos), 
         yline(ax(li),hlinepos,'--');
         if ~isempty((ax(li).Legend))
             ax(li).Legend.String(end)=[];

@@ -1,7 +1,7 @@
 function [sz_str, mess, IO] = CheckTabFile(IO, act, na_str, mess)
 
 if ~exist('mess','var'), mess=[]; end
-sz_str = na_str; s_featnames=[];
+sz_str = na_str;
 
 warning('off')
 try
@@ -93,13 +93,13 @@ if ~isfield(IO,'t_Y') || isempty(IO.t_Y) || IO.reread_mat
         IO.reread_mat = true;
         return
     end
-    if IO.oocvflag && ~isempty(s_featnames) && strcmp(IO.case_edit, na_str)
+    if IO.oocvflag 
         if IO.labels_known, Li = find(strcmp(s_featnames, IO.label_edit)); else, Li=[]; end
         IDi = find(strcmp(s_featnames, IO.case_edit));
         ind_feat=nan(1,numel(IO.featnames_cv)); notfnd = false;
         for f=1:numel(IO.featnames_cv)
             fI = find(strcmp(s_featnames,IO.featnames_cv{f}));
-            if ~isempty(fI)
+            if ~isempty(fI), 
                 ind_feat(f) = fI;
             else
                 mess = GenerateMessageEntry(mess, sprintf('Could not find feature ''%s'' of the discovery data in new data matrix.',IO.featnames_cv{f})); 

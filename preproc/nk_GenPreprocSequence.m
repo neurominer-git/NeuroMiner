@@ -1,16 +1,12 @@
-function [InputParam, TrainedParam, SrcParam] = nk_GenPreprocSequence(InputParam, TemplParam, SrcParam, TrainedParam, maindir)
+function [InputParam, TrainedParam, SrcParam] = nk_GenPreprocSequence(InputParam, TemplParam, SrcParam, TrainedParam)
 % =========================================================================
 % FORMAT [InputParam, TrainedParam, SrcParam] = nk_GenPreprocSequence( ...
 %                           InputParam, TemplParam, SrcParam, TrainedParam)
 % =========================================================================
 % 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, 01/2024
-global MODEFL NM VERBOSE MULTILABEL 
-
-% This is needed for Combat to properly work when a multi-label analysis is
-% performed
-[nL,sL] = nk_GetLabelDim(MULTILABEL);
+% (c) Nikolaos Koutsouleris, 05/2022
+global MODEFL NM VERBOSE
 
 if isfield(TemplParam,'ACTPARAM')
     
@@ -39,6 +35,7 @@ if isfield(TemplParam,'ACTPARAM')
                 InputParam.P{ac}.LABELIMPUTE = TemplParam.ACTPARAM{ac}.LABELIMPUTE;
                 SrcParam.NaNflag = true;
                 InputParam.P{ac}.BINMOD = TemplParam.BINMOD;
+
                     
             case 'impute'
                 
@@ -127,59 +124,33 @@ if isfield(TemplParam,'ACTPARAM')
                     end
                     if isfield(TemplParam.ACTPARAM{ac},'METHOD') && TemplParam.ACTPARAM{ac}.METHOD==2
                             if VERBOSE, fprintf('\n\t- Method: Combat'); end
-                            InputParam.P{ac}.METHOD = 2; InputParam.P{ac}.TsMod = []; InputParam.P{ac}.TrMod = []; covars = []; covars_oocv = [];
-                            if isfield(TemplParam.ACTPARAM{ac},'REFERENCE_LEVEL'), InputParam.P{ac}.REFERENCE_LEVEL = TemplParam.ACTPARAM{ac}.REFERENCE_LEVEL; end
-                            if isfield(TemplParam.ACTPARAM{ac},'COVBAT_MODE')
-                                InputParam.P{ac}.COVBAT_MODE = TemplParam.ACTPARAM{ac}.COVBAT_MODE;
-                                InputParam.P{ac}.COVBAT_K = TemplParam.ACTPARAM{ac}.COVBAT_K;
-                                InputParam.P{ac}.COVBAT_VAR = TemplParam.ACTPARAM{ac}.COVBAT_VAR;
-                            end
-                            % Bug correction 12/01/2024: Assignment of
-                            % label and covariates did not reflect the
-                            % user's choice in each possible scenario. Now
-                            % covariate retainment can be defined independently of or
-                            % together with label variance retainment. Or
-                            % no variance retainment is also properly
-                            % handled.
-                            if TemplParam.ACTPARAM{ac}.MCOVARUSE==1
-                                if ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR), covars = SrcParam.covars(:, TemplParam.ACTPARAM{ac}.MCOVAR); end
-                                if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
-                                    % We need to whether we have to remove
-                                    % the label estimators during the
-                                    % combat application stage. This index 
-                                    % to the label estimator is
-                                    % stored in "covars_idx".
-                                    InputParam.P{ac}.covars_idx = [ true(width(covars_oocv),1) false(1, numel(sL))];
-                                    covars = [ covars NM.label(:,sL) ]; 
-                                end
+                            InputParam.P{ac}.METHOD = 2; InputParam.P{ac}.TsMod = [];
+                            if TemplParam.ACTPARAM{ac}.MCOVARLABEL
+                                covars = [ SrcParam.covars(:, TemplParam.ACTPARAM{ac}.MCOVAR) NM.label ];
                                 if ~isempty(SrcParam.covars_oocv) 
                                     if iscell(SrcParam.covars_oocv)
                                         for n=1:numel(SrcParam.covars_oocv)
-                                            if ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR), covars_oocv{n} = [ SrcParam.covars_oocv{n}(:,TemplParam.ACTPARAM{ac}.MCOVAR) ]; end
-                                            if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
-                                                if ~isfield(SrcParam,'OOCVLabel') || isempty(SrcParam.OOCVLabel)
-                                                    covars_oocv{n} = [ covars_oocv{n} zeros(size(SrcParam.covars_oocv{n},1), numel(sL)) ];                                                     
-                                                else
-                                                    covars_oocv{n} = [ covars_oocv{n} SrcParam.OOCVLabel ];
-                                                end
-                                            end
+                                            covars_oocv{n} = [ SrcParam.covars_oocv{n}(:,TemplParam.ACTPARAM{ac}.MCOVAR) ...
+                                                zeros(size(SrcParam.covars_oocv{n},1), size(dummy_labels,2)) ];
                                         end
-                                        InputParam.P{ac}.covars_idx = [ true(width(covars_oocv{1}),1) false(1,nL)];
                                     else
-                                        if ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR), covars_oocv = [ SrcParam.covars_oocv(:,TemplParam.ACTPARAM{ac}.MCOVAR) ]; end
-                                        if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
-                                            if ~isfield(SrcParam,'OOCVLabel') || isempty(SrcParam.OOCVLabel)
-                                                covars_oocv = [ covars_oocv zeros(size(SrcParam.covars_oocv,1), numel(sL)) ]; 
-                                            else
-                                                covars_oocv = [ covars_oocv SrcParam.OOCVLabel ]; 
-                                            end
-                                        end
+                                        covars_oocv = [ SrcParam.covars_oocv(:,TemplParam.ACTPARAM{ac}.MCOVAR) ...
+                                            zeros(size(SrcParam.covars_oocv,1), size(dummy_labels,2)) ];
                                     end
                                 end
-
-                            %Bug correction 22/01/2024: now only running if
-                            %MCOVARUSE==1 since covars will be empty
-                            %otherwise.
+                            else
+                                covars = SrcParam.covars( : , TemplParam.ACTPARAM{ac}.MCOVAR ); 
+                                if ~isempty(SrcParam.covars_oocv)
+                                    if iscell(SrcParam.covars_oocv)
+                                        for n=1:numel(SrcParam.covars_oocv)
+                                            covars_oocv{n} = SrcParam.covars_oocv{n}( : , TemplParam.ACTPARAM{ac}.MCOVAR );
+                                        end
+                                    else
+                                        covars_oocv = SrcParam.covars_oocv ( : , TemplParam.ACTPARAM{ac}.MCOVAR ); 
+                                    end
+                                end
+                               
+                            end
                             InputParam.P{ac}.TrMod        = covars( SrcParam.TrX, :);
                             InputParam.P{ac}.TrMod(SrcParam.iTrX,:)   = []; 
                             
@@ -195,7 +166,6 @@ if isfield(TemplParam,'ACTPARAM')
                                 InputParam.P{ac}.TsMod{3} = covars( SrcParam.TsI, :); 
                                 InputParam.P{ac}.TsMod{3}(SrcParam.iTs,:)=[];   
                             end
-
                             if ~isempty(SrcParam.covars_oocv) 
                                 if iscell(covars_oocv)
                                     for n=1:numel(SrcParam.covars_oocv)
@@ -207,21 +177,9 @@ if isfield(TemplParam,'ACTPARAM')
                                     InputParam.P{ac}.TsMod{tscnt+1}(SrcParam.iOCV,:)=[]; 
                                 end
                             end
-
-                            end
-
-                    elseif isfield(TemplParam.ACTPARAM{ac},'METHOD') && TemplParam.ACTPARAM{ac}.METHOD==3
-                        if VERBOSE, fprintf('\n\t- Method: Disparate impact remover'); end
-                        InputParam.P{ac}.METHOD = 3;
-                        if isfield(TemplParam.ACTPARAM{ac},'PX') && ~isempty(TemplParam.ACTPARAM{ac}.PX)
-                            InputParam.P{ac}.opt = TemplParam.ACTPARAM{ac}.PX.opt;
-                            PX = nk_ReturnParamChain(TemplParam.ACTPARAM{ac});
-                            InputParam.P{ac}.Params = PX.Params;
-                            InputParam.P{ac}.Params_desc = PX.Params_desc;
-                        end
-                    else
-                        if VERBOSE, fprintf('\n\t- Method: Partial correlations analysis'); end
-                        InputParam.P{ac}.METHOD = 1;
+                        else
+                            if VERBOSE, fprintf('\n\t- Method: Partial correlations analysis'); end
+                            InputParam.P{ac}.METHOD = 1;
                     end
                     
                 end
@@ -252,38 +210,18 @@ if isfield(TemplParam,'ACTPARAM')
                         InputParam.P{ac}.BETAEXT = TemplParam.ACTPARAM{ac}.BETAEXT;
                         if VERBOSE,fprintf('\n\t Beta parameter(s) computed in an OOT-sample will be used.'); end
                     else
-                        
-                        if isfield(TemplParam.ACTPARAM{ac},'SUBGROUP') && ~isempty(TemplParam.ACTPARAM{ac}.SUBGROUP) && ~any(isnan(TemplParam.ACTPARAM{ac}.SUBGROUP))
+                        if isfield(TemplParam.ACTPARAM{ac},'SUBGROUP') && ~isempty(TemplParam.ACTPARAM{ac}.SUBGROUP)
                             InputParam.P{ac}.SUBGROUP = TemplParam.ACTPARAM{ac}.SUBGROUP(SrcParam.TrX,:);
-                            InputParam.P{ac}.SUBGROUP(SrcParam.iTrX) = []; 
                             if VERBOSE,fprintf('\n\t-> Beta parameter(s) will be computed from a specific subgroup.'); end
                         end
                     end
-                elseif InputParam.P{ac}.METHOD == 2
+                else
                     if isfield(TemplParam.ACTPARAM{ac},'SUBGROUP') && ~isempty(TemplParam.ACTPARAM{ac}.SUBGROUP)
                         InputParam.P{ac}.SUBGROUP = TemplParam.ACTPARAM{ac}.SUBGROUP(SrcParam.TrX,:);
-                        InputParam.P{ac}.SUBGROUP(SrcParam.iTrX) = [];
                         if VERBOSE,fprintf('\n\t-> Combat parameter(s) will be computed from a specific subgroup.'); end
                     end
                      InputParam.P{ac}.COVDIR=0;
                      InputParam.P{ac}.INTERCEPT=0;
-                     InputParam.P{ac}.MCOVARUSE = TemplParam.ACTPARAM{ac}.MCOVARUSE;
-                     InputParam.P{ac}.MCOVARLABEL = TemplParam.ACTPARAM{ac}.MCOVARLABEL;
-                
-                elseif InputParam.P{ac}.METHOD == 3
-                    if isfield(TemplParam.ACTPARAM{ac},'SUBGROUP') && ~isempty(TemplParam.ACTPARAM{ac}.SUBGROUP)
-                        InputParam.P{ac}.SUBGROUP = TemplParam.ACTPARAM{ac}.SUBGROUP(SrcParam.TrX,:);
-                        InputParam.P{ac}.SUBGROUP(SrcParam.iTrX) = [];
-                        if VERBOSE,fprintf('\n\t-> DIR distribution will be computed from a specific subgroup.'); end
-                    end
-                     InputParam.P{ac}.COVDIR=0;
-                     InputParam.P{ac}.INTERCEPT=0;
-                     InputParam.P{ac}.DISTYPE = TemplParam.ACTPARAM{ac}.DISTYPE;
-                     InputParam.P{ac}.LAMBDA = TemplParam.ACTPARAM{ac}.LAMBDA;
-                end
-                if isfield(TemplParam.ACTPARAM{ac},'featind')
-                     if VERBOSE, fprintf('\n\t- Feature subspace for covariate correction identified.'); end
-                     InputParam.P{ac}.featind = TemplParam.ACTPARAM{ac}.featind;
                 end
                 
             case 'remmeandiff'
@@ -335,6 +273,7 @@ if isfield(TemplParam,'ACTPARAM')
                             InputParam.P{ac}.dTsInd{tscnt+1}(SrcParam.iOCV,:) = [];
                         end
                     end
+                    
                 end
                 
             case 'standardize' 
@@ -453,13 +392,7 @@ if isfield(TemplParam,'ACTPARAM')
                     end
                     if strcmp(TemplParam.ACTPARAM{ac}.DR.RedMode,'PLS')
                         InputParam.P{ac}.DR.PLS.V = TemplParam.ACTPARAM{ac}.DR.PLS.V(SrcParam.TrX,:);
-                        InputParam.P{ac}.DR.PLS.VT{1} = TemplParam.ACTPARAM{ac}.DR.PLS.V(SrcParam.TrI,:);
-                        InputParam.P{ac}.DR.PLS.VT{2} = TemplParam.ACTPARAM{ac}.DR.PLS.V(SrcParam.CVI,:);
-                        InputParam.P{ac}.DR.PLS.VT{3} = TemplParam.ACTPARAM{ac}.DR.PLS.V(SrcParam.TsI,:);
-                        if sum(SrcParam.iTrX), InputParam.P{ac}.DR.PLS.V(SrcParam.iTrX,:)=[]; end
-                        if sum(SrcParam.iTr), InputParam.P{ac}.DR.PLS.VT{1}(SrcParam.iTr,:)=[]; end
-                        if sum(SrcParam.iCV), InputParam.P{ac}.DR.PLS.VT{2}(SrcParam.iCV,:)=[]; end
-                        if sum(SrcParam.iTs), InputParam.P{ac}.DR.PLS.VT{3}(SrcParam.iTs,:)=[]; end
+                        if sum(SrcParam.iTr), InputParam.P{ac}.DR.PLS.V(SrcParam.iTr,:)=[]; end
                     end
                     if strcmp(TemplParam.ACTPARAM{ac}.DR.RedMode,{'PLS','LDA','KLDA', 'KFDA', 'KernelLDA', 'KernelFDA', 'GDA', 'NCA', 'LMNN'})
                         InputParam.P{ac}.LabelInteraction = true;
@@ -500,7 +433,7 @@ if isfield(TemplParam,'ACTPARAM')
                 InputParam.P{ac}.RANK.curlabel(SrcParam.iTrX,:)=[]; 
                 if isfield( TemplParam.ACTPARAM{ac}.RANK,'glabel' )
                     % glabel is a logical vector
-                    InputParam.P{ac}.RANK.curglabel = TemplParam.ACTPARAM{ac}.RANK.glabel(SrcParam.TrX, :);
+                    InputParam.P{ac}.RANK.curglabel = TemplParam.ACTPARAM{ac}.RANK.glabel(SrcParam.TrX);
                     InputParam.P{ac}.RANK.curglabel(SrcParam.iTrX,:)=[]; 
                 end
                 if isfield(TemplParam.ACTPARAM{ac},'PX') && ~isempty(TemplParam.ACTPARAM{ac}.PX)
@@ -560,7 +493,7 @@ if isfield(TemplParam,'ACTPARAM')
                         case 2
                             InputParam.P{ac}.REMVARCOMP.indX = TemplParam.ACTPARAM{ac}.REMVARCOMP.SUBGROUP.ind(SrcParam.TrX);
                         case 3
-                            n = round(numel(find(SrcParam.TrX))/100*TemplParam.ACTPARAM{ac}.REMVARCOMP.SUBGROUP.indperc);
+                            n = numel(find(SrcParam.TrX))/100*TemplParam.ACTPARAM{ac}.REMVARCOMP.SUBGROUP.indperc;
                             ind = true(numel(find(SrcParam.TrX)),1); randind = randperm(numel(ind),n);
                             InputParam.P{ac}.REMVARCOMP.indX = ind(randind);
                         case 4
@@ -613,7 +546,6 @@ if isfield(TemplParam,'ACTPARAM')
                     InputParam.P{ac}.DEVMAP.Params = PX.Params;
                     InputParam.P{ac}.DEVMAP.Params_desc = PX.Params_desc;
                 end
-                
             case 'graphSparsity'
                 if VERBOSE, fprintf('\n* APPLY SPARSITY THRESHOLD TO CONNECTIVITY MATRICES'); end
                 InputParam.P{ac} =  TemplParam.ACTPARAM{ac};
@@ -639,13 +571,9 @@ if isfield(TemplParam,'ACTPARAM')
                     InputParam.P{ac}.opt = TemplParam.ACTPARAM{ac}.PX.opt;
                 end
             case 'JuSpace'
-                if VERBOSE, fprintf('\n* COMPUTE NEUROTRANSMITTER CORRELATIONS'); end
+                if VERBOSE, fprintf('\n* JUSPACE COMPUTATION'); end
                 InputParam.P{ac} =  TemplParam.ACTPARAM{ac};
-                if exist('maindir','var')
-                    InputParam.P{ac}.JUSPACE.analdir = maindir;
-                else
-                    InputParam.P{ac}.JUSPACE.analdir = NM.runtime.curanal;
-                end
+                InputParam.P{ac}.JUSPACE.analdir = NM.analysis{1,NM.runtime.curanal}.parentdir;
                 if isfield(TemplParam.ACTPARAM{ac},'PX') && ~isempty(TemplParam.ACTPARAM{ac}.PX.opt)
                     InputParam.P{ac}.opt = TemplParam.ACTPARAM{ac}.PX.opt;
                 end
@@ -654,23 +582,6 @@ if isfield(TemplParam,'ACTPARAM')
                 InputParam.P{ac} =  TemplParam.ACTPARAM{ac};
                 if isfield(TemplParam.ACTPARAM{ac},'PX') && ~isempty(TemplParam.ACTPARAM{ac}.PX.opt)
                     InputParam.P{ac}.opt = TemplParam.ACTPARAM{ac}.PX.opt;
-                end
-            case 'skewcorr'
-                if VERBOSE, fprintf('\n* SKEWNESS CORRECTION'); end
-                % Store the SKEWCORR struct so that nk_PerfPreprocessObj_core can use it
-                InputParam.P{ac}.SKEWCORR = TemplParam.ACTPARAM{ac}.SKEWCORR;
-                
-                % If there is a PX with hyperparams, copy them into InputParam.P{ac}.opt
-                % if isfield(TemplParam.ACTPARAM{ac}, 'PX') && ~isempty(TemplParam.ACTPARAM{ac}.PX.opt)
-                %     InputParam.P{ac}.opt = TemplParam.ACTPARAM{ac}.PX.opt;
-                %     InputParam.P{ac}.Params_desc = TemplParam.ACTPARAM{ac}.PX.Px.Params_desc;
-                % end
-
-                if isfield(TemplParam.ACTPARAM{ac},'PX') && ~isempty(TemplParam.ACTPARAM{ac}.PX)
-                    InputParam.P{ac}.opt = TemplParam.ACTPARAM{ac}.PX.opt;
-                    PX = nk_ReturnParamChain(TemplParam.ACTPARAM{ac});
-                    InputParam.P{ac}.Params = PX.Params;
-                    InputParam.P{ac}.Params_desc = PX.Params_desc;
                 end
        end
     end

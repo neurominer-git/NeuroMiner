@@ -43,15 +43,9 @@ if ~exist('inp','var') || isempty(inp)
                     ...                         % 2 = operate at CV2 level
                     'loadparam', 2, ...         % 1 = load existing optpreproc and/or optmodel parameters from disk
                     ...                         % 2 = recompute parameters
-                    'selectsamples', 1, ...     % 1 = All
-                    ...                         % 2 = User-defined
-                    'sampleID', {{}}, ...       % cell array of strings defining IDs for which to run MLI if user-defined 
                     'HideGridAct', false, ...
                     'batchflag', 0);            % 1 = Run in batchmode (without graphics outputs)
                                                 % 0 = run in interactive mode
-                    % 'sampleID', {}, ...         % cell array of strings defining IDs for which to run MLI if user-defined 
-
-
 end
 % Prepare variables for menu creation
 na_str = '?'; inp.datatype = 'MLIdatamat';
@@ -71,8 +65,9 @@ else
 end
 analysis      = NM.analysis{inp.analind(1)}; 
 
-if isfield(NM.defs,'analyses_locked') && NM.defs.analyses_locked && inp.oocvflag == true
+if isfield(NM.defs,'analyses_locked') && NM.defs.analyses_locked
     % Select independent test data container
+    inp.oocvflag = true;
     if isfield(inp,'oocvind') 
         OOCVSelStr = sprintf('New data #%g: %s', inp.oocvind, inp.OO.desc); 
     else 
@@ -90,7 +85,7 @@ end
 if ~isempty(analysis)
     
     % Initialize global parameters for the selected analysis
-    nk_SetupGlobalVariables(analysis.params, 'setup_main', 0); 
+    nk_SetupGlobVars2(analysis.params, 'setup_main', 0); 
     
     % Compute from scratch or use pre-computed datamats ?
     LFL_opts        = {'Compute from scratch',sprintf('Use precomputed %s',inp.datatype)};                                      
@@ -154,26 +149,6 @@ if ~isempty(analysis)
         SAVE_opts       = {'yes', 'no'};   
         SaveStr = sprintf('Save pre-processing params and models to disk [ %s ]|', SAVE_opts{inp.saveparam});             SaveAct = 9;
     end
-
-    % Select sample to run MLI for
-    SAMPLE_opts        = {'All', 'User-defined'}; 
-    SelectSamplesStr   = sprintf('Define for which sample(s) to interpret the model [ %s ]|', SAMPLE_opts{inp.selectsamples}) ;   
-    SelectSampleAct    = 14; 
-
-    % Select sample(s) to run MLI for
-    if isequal(SAMPLE_opts{inp.selectsamples}, 'User-defined')
-        if isempty(inp.sampleID)
-            sampleIDstr = '';
-        elseif numel(inp.sampleID) > 4
-            sampleIDstr = [num2str(numel(inp.sampleID)) ' IDs'];
-        else
-            sampleIDstr = strjoin(inp.sampleID);
-        end
-        SampleIDStr         = sprintf('Specify sample ID(s) for which to interpret the model [ %s ]|', sampleIDstr) ;   
-    else
-        SampleIDStr         = sprintf('');
-    end
-    SelectedSampleAct   = 15; 
 end
  
  %% Build interactive menu
@@ -188,9 +163,7 @@ menustr = [ AnalSelectStr ...
             SaveCV1Str ...
             LoadStr ...
             LoadParamsStr ... 
-            LoadModelsStr ...
-            SelectSamplesStr ...
-            SampleIDStr];
+            LoadModelsStr ];
 
 menuact = [ AnalSelectAct ...
             OOCVSelectAct ...
@@ -203,12 +176,7 @@ menuact = [ AnalSelectAct ...
             SaveCV1Act ...
             LoadAct ...
             LoadParamsAct ...
-            LoadModelsAct ...
-            SelectSampleAct];  
-
-if ~isempty(SampleIDStr)
-    menuact = [menuact SelectedSampleAct];
-end
+            LoadModelsAct ];       
 
 disallow = false;
 
@@ -225,7 +193,7 @@ if ~disallow, menustr = [menustr '|PROCEED >>>']; menuact = [menuact 12]; end
 %% Display menu and act on user selections
 nk_PrintLogo
 mestr = 'Model interpreter module run-time configuration'; navistr = [parentstr ' >>> ' mestr]; fprintf('\nYou are here: %s >>>',parentstr);
-if ~inp.batchflag && act<16, act = nk_input(mestr, 0, 'mq', menustr, menuact); end
+if ~inp.batchflag && act<13, act = nk_input(mestr, 0, 'mq', menustr, menuact); end
 
 switch act
     
@@ -236,12 +204,9 @@ switch act
         showmodalvec = []; analind = inp.analind; 
         if length(NM.analysis)>1, t_act = 1; brief = 1;
             while t_act>0
-                [t_act, analind, ~, showmodalvec , brief] = nk_SelectAnalysis(NM, 0, navistr, analind, [], 1, showmodalvec, brief, 7); 
+                [t_act, analind, ~, showmodalvec , brief, indanal] = nk_SelectAnalysis(NM, 0, navistr, analind, [], 1, showmodalvec, brief, 7); 
             end
-            if ~isempty(analind)
-                %inp.analind = indanal(analind) ; 
-                inp.analind = analind; 
-            end
+            if ~isempty(analind), inp.analind = indanal(analind) ; end
             nA = numel(inp.analind);
             if nA>1
                 AS = nk_GetAnalysisStatus(NM, inp.analind);
@@ -312,22 +277,9 @@ switch act
             else
                 NM.analysis{inp.analind(i)}.MLI = MLInterpreterPrep(NM, inp, NM.analysis{inp.analind(i)});
             end
-            nk_SetupGlobalVariables(NM.analysis{inp.analind(i)}.params, 'clear', 0); 
+            nk_SetupGlobVars2(NM.analysis{inp.analind(i)}.params, 'clear', 0); 
         end
         NM = rmfield(NM,'runtime'); 
-    case 14
-        if inp.selectsamples == 1, inp.selectsamples = 2; elseif inp.selectsamples == 2,  inp.selectsamples = 1; end
-    case 15
-        try
-            inp.sampleID = strjoin(inp.sampleID);
-        catch
-            inp.sampleID = inp.sampleID;
-        end
-        while ~iscellstr(inp.sampleID)
-        inp.sampleID = nk_input('Enter sample IDs as a cell array of strings (e.g. {''ID1'',''ID2''})', 0, 'e', inp.sampleID);
-        end
-        %make sure the cell array of strings is in one column
-        inp.sampleID = reshape(inp.sampleID,size(inp.sampleID,1)*size(inp.sampleID,2),1);
 end
 
 function tdir = create_defpath(analysis, oocvind)
@@ -349,7 +301,6 @@ if exist("oocvind","var")
 else
      tdir = fullfile(rootdir, 'MLI');
 end
-
 %
 % =========================================================================
 function MLIres = MLInterpreterPrep(dat, inp1, analysis)
@@ -373,7 +324,7 @@ else
 end
 
 if inp1.oocvflag
-    if isfield(inp1.OO,'label') && ~isempty(inp1.OO.label)
+    if isfield(inp1.OO,'label') && ~isempty(inp1.OO.label), 
         inp1.LabelCV     = dat.label; 
         inp1.labelOOCV   = inp1.OO.label; 
     end
@@ -403,17 +354,15 @@ if inp1.oocvflag
 else
     inp1.rootdir = fullfile(analysis.rootdir,analysis.params.TrainParam.SVM.prog,'MLI');
 end
-inp1.maindir = analysis.rootdir;
+
 if ~exist(inp1.rootdir,'dir'), mkdir(inp1.rootdir); end
 nl = nk_GetLabelDim(MULTILABEL);
 inp1.MLI = MLI;
-
 % Loop through modalities
 for i = 1:inp1.nF
     
     % **************************** ANALYSIS SETUP *****************************
-    inp2 = nk_DefineFusionModeParams(dat, analysis, F, nF, i, inp1.oocvind);
-    inp2.labels = analysis.params.label.label;
+    inp2 = nk_SetFusionMode2(dat, analysis, F, nF, i, inp1.oocvind);
     inp = catstruct(inp1,inp2);
     inp.MLI.Modality = MLI.Modality(inp.tF);
     inp.loadGD = true;

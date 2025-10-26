@@ -20,7 +20,6 @@ switch SVM.prog
         
     case 'LIBLIN'
         w = model.w;
-        if model.bias==1, w(end)=[]; end
         
     case 'MSTOOL'
         w = model.w(2:end)';

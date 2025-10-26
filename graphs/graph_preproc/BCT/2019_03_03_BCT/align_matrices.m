@@ -58,7 +58,7 @@ case 'sqrdff'
     maxcost = sum((sort(M1(:))-(sort(M2(:),'descend'))).^2);
 case 'cosang'
     maxcost = pi/2;
-end
+end;
 
 % initialize lowcost
 switch dfun

@@ -20,21 +20,14 @@ if iscell(Y)
    
 else % Univariate case
     
-    sY = sparse(Y);
-    if isfield(SVM.LIBLIN,'AutoC') && SVM.LIBLIN.AutoC
-        cmdopt = [' -C ' cmd ];
-        OptC = train_liblin247(label, sY, cmdopt);
-        c_old = extractBetween(cmd,"-c "," -");
-        cmd = regexprep(cmd,c_old,sprintf("%g", OptC(1)));
-    end
-    model = train_liblin247(label, sY, cmd);
+    model = train_liblin244(label, sparse(Y), cmd);
 	model = nk_BuildCalibrationModel(SVM, MODEFL, model, Y, label);
 	
     %fprintf('\n%s',cmdstr)
     if ~ModelOnly
         [param.target, ...
             param.val, ...
-            param.dec_values] = predict_liblin247(label, sparse(Y), model, SVM.LIBLIN.b);
+            param.dec_values] = predict_liblin244(label, sparse(Y), model, SVM.LIBLIN.b);
         if SVM.RVMflag, param.dec_values = nk_CalibrateProbabilities(param.dec_values); end
         param.val = EVALFUNC(label, param.dec_values);
     end

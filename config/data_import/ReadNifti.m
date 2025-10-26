@@ -41,7 +41,7 @@ filereport = fullfile(pwd,'ReadNifti_Report.txt');
 fid=fopen(filereport,'a');
 fprintf(fid,'NeuroMiner Report: Import NiFTI/Analyze files ');
 
-if IO.oocvflag
+if IO.oocvflag,
     fprintf(fid,'\nCaller: Independent test data import');
 else
     fprintf(fid,'\nCaller: Discovery data import');

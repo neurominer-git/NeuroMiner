@@ -19,8 +19,8 @@ function [Y,mindat,maxdat] = scaledata(Y,cv,minval,maxval,mindat,maxdat)
 % Modified by Nikos Koutsouleris, May 23, 2008
 
 if isstruct(Y)
-    if nargin < 6,maxdat = max(Y.mapY(:));end
-    if nargin < 5,mindat = min(Y.mapY(:));end
+    if nargin < 6,maxdat = max(Y.mapY(:));end;
+    if nargin < 5,mindat = min(Y.mapY(:));end;
     [Y.mapY,mindat,maxdat] = scaleY(Y.mapY,minval,maxval,mindat,maxdat);
     nperms=size(Y.Y,1);
     fold=size(Y.Y,2);
@@ -31,8 +31,8 @@ if isstruct(Y)
         end
     end
 else
-    if nargin < 6,maxdat = max(Y(:));end
-    if nargin < 5,mindat = min(Y(:));end
+    if nargin < 6,maxdat = max(Y(:));end;
+    if nargin < 5,mindat = min(Y(:));end;
     [Y,mindat,maxdat] = scaleY(Y,minval,maxval,mindat,maxdat);
 end
 

@@ -7,7 +7,7 @@ if ~exist('defaultfl','var') || isempty(defaultfl) || defaultfl
     MLI.method  = 'medianflip';
     MLI.upper_thresh = 95;
     MLI.lower_thresh = 5;
-    MLI.nperms  = 1024;
+    MLI.nperms  = 1000;
     MLI.max_iter = 1000;
     MLI.n_visited = 100;
     MLI.frac    = .1;
@@ -17,8 +17,6 @@ if ~exist('defaultfl','var') || isempty(defaultfl) || defaultfl
     MLI.cutoffmode = 'absolute';
     MLI.cutoffoperator = 1;
     MLI.znormdata = 1;
-    MLI.samples = 'All';
-    MLI.sampleID = {};
     if exist('NM', 'var') && exist(nAnalysis', 'var')
         NM.analysis{nAnalysis}.params.TrainParam.MLI = MLI; 
     end

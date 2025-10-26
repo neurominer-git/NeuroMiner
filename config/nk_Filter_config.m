@@ -19,19 +19,19 @@ Filter                  = nk_CostFun_config(Filter, SVM, MODEFL, 1); % Default c
 Filter.SubSpaceFlag     = 1;
 Filter.RankThresh       = 95;
 Filter                  = nk_SubSpaceStrategy_config(Filter, SVM, MODEFL, 1);
-Filter                  = nk_EnsembleStrategy_config(Filter, SVM, MODEFL, 1);
+Filter                  = nk_EnsembleStrategy2_config(Filter, SVM, MODEFL, 1);
 limfeat                 = 2;
 Filter.SubSpaceStepping = 0;
 Filter.PFE              = nk_ProbalisticFea_config([],1);
 
-if ~exist('defaultsfl','var') || isempty(defaultsfl),  defaultsfl = 0; end
+if ~exist('defaultsfl','var') || isempty(defaultsfl),  defaultsfl = 0; end;
 
 % -------------------------------------------------------------------------
 if ~isempty(act) || ~defaultsfl
     
     % -------------------------------------------------------------------------
     % Retrieve current values from param
-    if isfield(param,'Filter')
+    if isfield(param,'Filter'), 
         Filter = param.Filter; 
     end
          
@@ -39,10 +39,10 @@ if ~isempty(act) || ~defaultsfl
     d = nk_GetParamDescription2([],param,'FeatFlt');
     
     % Defaults at the prompt
-    if ~Filter.flag,                 flagdef = 0; else,              flagdef = Filter.flag;                  end
-    if ~Filter.SubSpaceFlag,         subspaceflagdef = 2; else,      subspaceflagdef = Filter.SubSpaceFlag;  end
-    if ~Filter.binmode,              binmodedef = 2; else,           binmodedef = Filter.binmode;            end
-    if ~Filter.SubSpaceStepping,     steppingdef = 2; else,          steppingdef = 1;                        end
+    if ~Filter.flag,                 flagdef = 0; else              flagdef = Filter.flag;                  end
+    if ~Filter.SubSpaceFlag,         subspaceflagdef = 2; else      subspaceflagdef = Filter.SubSpaceFlag;  end
+    if ~Filter.binmode,              binmodedef = 2; else           binmodedef = Filter.binmode;            end
+    if ~Filter.SubSpaceStepping,     steppingdef = 2; else          steppingdef = 1;                        end
          
     menustr = sprintf('Train filter methods on CV1 partitions [ %s ]', d.FeatFltFlag); menuact = 1;
     
@@ -91,7 +91,7 @@ if ~isempty(act) || ~defaultsfl
                                                          'Algorithm scores (Soft decision ensemble)'], 1:2, Filter.EnsembleStrategy.Metric);
         case 3
             Filter.SubSpaceFlag = nk_input('Filter evaluation mode', 0,'Subspace|Ranking',[1,0], subspaceflagdef);
-            if Filter.SubSpaceFlag
+            if Filter.SubSpaceFlag, 
                 Filter = nk_SubSpaceStrategy_config(Filter, SVM, MODEFL, [], navistr); 
             end
         case 4
@@ -155,7 +155,7 @@ if ~isempty(act) || ~defaultsfl
         case 6
             Filter.MinNum = nk_input('Minimum # of features to use',0,'e',Filter.MinNum);
         case 7
-            Filter = nk_EnsembleStrategy_config(Filter, SVM, MODEFL, [], navistr);
+            Filter = nk_EnsembleStrategy2_config(Filter, SVM, MODEFL, [], navistr);
         case 8
             Filter = nk_CostFun_config(Filter, SVM, MODEFL);
         case 9

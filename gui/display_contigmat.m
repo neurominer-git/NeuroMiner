@@ -1,151 +1,93 @@
 % =========================================================================
-% =                   CONTINGENCY MATRIX INFO                             =
+% =                   CONTINGENCY MATRIX INFO                             = 
 % =========================================================================
 function handles = display_contigmat(handles, contigmat)
 
-    %% 1) Build labels & values (always in parallel)
-    labels = {};
-    values = {};
-    cla(handles.axes5);
-    GraphType = get(handles.selYaxis,'Value');
+contig=[];
+GraphType = get(handles.selYaxis,'Value');
+
+if ~exist('contigmat','var') || isempty(contigmat)
     
-    if ~exist('contigmat','var') || isempty(contigmat)
-        
-        switch handles.modeflag
-    
-            case 'regression'
-    
-                labels{end+1} = 'R^2 [%]:';         values{end+1} = sprintf('%.1f', handles.curRegr.R2(handles.curlabel));
-                labels{end+1} = 'r (95%-CI):';      values{end+1} = sprintf('%.2f (%.2f-%.2f)', handles.curRegr.r(handles.curlabel), ...
-                                                            handles.curRegr.r_95CI_low(handles.curlabel), handles.curRegr.r_95CI_up(handles.curlabel));
-                labels{end+1} = 'P(T) value:';      values{end+1} = sprintf('%.3f (%.2f)', handles.curRegr.p(handles.curlabel), handles.curRegr.t(handles.curlabel));
-                labels{end+1} = 'MAE:';             values{end+1} = sprintf('%.1f', handles.curRegr.MAE(handles.curlabel));
-                labels{end+1} = 'MSE:';             values{end+1} = sprintf('%.1f', handles.curRegr.MSE(handles.curlabel));
-                labels{end+1} = 'NRMSD [%]:';       values{end+1} = sprintf('%.1f', handles.curRegr.NRSMD(handles.curlabel));
-                contigmat = handles.curRegr.contigmat;
-    
-            case 'classification'
-                
-                h_class  = get(handles.popupmenu1,'Value');
-                h_onevsall_val  = get(handles.selOneVsAll_Info,'Value');
-                h_classlist     = get(handles.popupmenu1,'String');
-                if strcmpi(h_classlist{h_class},'Multi-group classifier') && h_onevsall_val > 1
-                    contigmat = handles.MultiClass.class{h_onevsall_val-1};
-                else
-                    switch GraphType
-                        case {4,5,6}
-                             contigmat = handles.BinClass{h_class}.prob_contingency;
-                        otherwise
-                            contigmat = handles.BinClass{h_class}.contingency;
-                    end
+    switch handles.modeflag
+
+        case 'regression'
+
+            contig{end+1} = ['\bf Coefficient of determination [%]: \rm ' num2str(handles.curRegr.R2(handles.curlabel),'%1.1f')];
+            contig{end+1} = ['\bf Pearson r (CI-95%): \rm' num2str(handles.curRegr.r(handles.curlabel),'%1.2f') ...
+                                ' (' num2str(handles.curRegr.r_95CI_low(handles.curlabel),'%1.2f') '-' num2str(handles.curRegr.r_95CI_up(handles.curlabel),'%1.2f')  ')'];
+            contig{end+1} = ['\bf P(T) value: \rm' num2str(handles.curRegr.p(handles.curlabel),'%g') ' (' num2str(handles.curRegr.t(handles.curlabel),'%1.2f') ')' ];
+            contig{end+1} = ['\bf Mean Absolute Error: \rm' num2str(handles.curRegr.MAE(handles.curlabel),'%1.1f')];
+            contig{end+1} = ['\bf Mean Squared Error: \rm' num2str(handles.curRegr.MSE(handles.curlabel),'%1.1f')];
+            contig{end+1} = ['\bf NRMSD: \rm' num2str(handles.curRegr.NRSMD(handles.curlabel),'%1.1f')];
+            contigmat = handles.curRegr.contigmat;
+
+        case 'classification'
+            
+            h_class  = get(handles.popupmenu1,'Value');
+            h_onevsall_val  = get(handles.selOneVsAll_Info,'Value');
+            h_classlist     = get(handles.popupmenu1,'String');
+            if strcmpi(h_classlist{h_class},'Multi-group classifier') && h_onevsall_val > 1
+                contigmat = handles.MultiClass.class{h_onevsall_val-1};
+            else
+                switch GraphType
+                    case {4,5,6}
+                         contigmat = handles.BinClass{h_class}.prob_contingency;
+                    otherwise
+                        contigmat = handles.BinClass{h_class}.contingency;
                 end
-        end
+            end
     end
-
-    % Mandatory binary‐classification fields
-    labels{end+1} = 'TP / TN:';         values{end+1} = sprintf('%d / %d', contigmat.TP,  contigmat.TN);
-    labels{end+1} = 'FP / FN:';         values{end+1} = sprintf('%d / %d', contigmat.FP,  contigmat.FN);
-    labels{end+1} = 'Accuracy [%]:';    values{end+1} = sprintf('%.1f',   contigmat.acc);
-    labels{end+1} = 'Sensitivity [%]:'; values{end+1} = sprintf('%.1f', contigmat.sens);
-    labels{end+1} = 'Specificity [%]:'; values{end+1} = sprintf('%.1f', contigmat.spec);
-    labels{end+1} = 'BAC [%]:';         values{end+1} = sprintf('%.1f', contigmat.BAC);
-
-    % Optional AUC
-    if isfield(contigmat,'AUC')
-        if isfield(contigmat,'AUC_lower')
-            labels{end+1} = 'AUC (95%-CI):';
-            values{end+1} = sprintf('%.2f (%.2f-%.2f)', ...
-                contigmat.AUC, contigmat.AUC_lower, contigmat.AUC_upper);
-        else
-            labels{end+1} = 'AUC:';
-            values{end+1} = sprintf('%.2f', contigmat.AUC);
-        end
-    end
-
-    % Other metrics
-    labels{end+1} = 'MCC:';         values{end+1} = sprintf('%.2f', contigmat.MCC);
-    labels{end+1} = 'PPV [%]:';     values{end+1} = sprintf('%.1f', contigmat.PPV);
-    labels{end+1} = 'NPV [%]:';     values{end+1} = sprintf('%.1f', contigmat.NPV);
-    labels{end+1} = 'FPR:';         values{end+1} = sprintf('%.1f', contigmat.FPR);
-    labels{end+1} = '+LR:';         values{end+1} = sprintf('%.2f', contigmat.pLR);
-    labels{end+1} = '-LR:';         values{end+1} = sprintf('%.2f', contigmat.nLR);
-    labels{end+1} = 'PSI:';         values{end+1} = sprintf('%.1f', contigmat.PSI);
-    labels{end+1} = 'Youden''s J:'; values{end+1} = sprintf('%.2f', contigmat.Youden);
-    labels{end+1} = 'NNP / NND:';   values{end+1} = sprintf('%.1f / %.1f', contigmat.NNP, contigmat.NND);
-    labels{end+1} = 'DOR:';         values{end+1} = sprintf('%.2f', contigmat.DOR);
-
-    % Optional ECE
-    if isfield(contigmat,'ECE') && handles.calibflag
-        labels{end+1} = 'ECE:';      values{end+1} = sprintf('%.2f', contigmat.ECE);
-    end
-
-    % Optional permutation P‐value
-    if isfield(handles,'PermAnal')
-        if handles.PermAnal < 0.001
-            pvStr = '<0.001';
-        else
-            pvStr = sprintf('%.3f', handles.PermAnal);
-        end
-        labels{end+1} = 'Model P value:'; values{end+1} = pvStr;
-    end
-
-    %% Build and place a uitable
-    tblData = values(:);
-    fullData = [labels' tblData];
-
-    % Decide whether to use legacy HTML (pre-R2025a) or not
-    useLegacyHTML = isBeforeRelease('2025a');
-    
-    if useLegacyHTML
-        % Old behavior: HTML bold in column 1
-        for i = 1:size(fullData,1)
-            fullData{i,1} = ['<html><b>' fullData{i,1} '</b></html>'];
-        end
-    else
-        % R2025a+: leave plain text (HTML shows verbatim)
-        % (Optionally keep labels unchanged)
-    end
-
-    % Check if the table already exists & is valid
-    if isfield(handles, 'tblPerf') && isvalid(handles.tblPerf)
-        % Just update its contents
-        set(handles.tblPerf, 'Data', fullData,'Visible','on');
-    else
-        % Create it for the first time
-        handles.tblPerf = uitable( ...
-            'Parent',       handles.pnContigCmds, ...
-            'Data',         fullData, ...
-            'RowName',      [], ...
-            'ColumnName',   {'Metric', 'Value'}, ...
-            'ColumnWidth',  {120,150}, ...
-            'Units',        'normalized', ...
-            'Position',     [0.04, 0.50, 0.84, 0.485], ...
-            'FontName',     'Consolas', ...
-            'FontSize',     8, ...
-            'Tag',          'PerfMetricsTable' ...
-        );
-    end
-
-    % Return updated handles struct
-    guidata(handles.pnContigCmds, handles);
-
 end
-
-function tf = isBeforeRelease(targetRelease)
-% Return true if current MATLAB is before targetRelease, e.g. '2025a'
-cur = version('-release');     % e.g., '2024b'
-tf  = compareReleases(cur, targetRelease) < 0;
+contig{end+1} = ['\bf TP / TN:\rm ' num2str(contigmat.TP,'%1.0f') ' / ' num2str(contigmat.TN,'%1.0f')];
+contig{end+1} = ['\bf FP / FN:\rm ' num2str(contigmat.FP,'%1.0f') ' / ' num2str(contigmat.FN,'%1.0f')];
+contig{end+1} = ['\bf Accuracy [%]:\rm ' num2str(contigmat.acc,'%1.1f')];
+contig{end+1} = ['\bf Sensitivity [%]:\rm ' num2str(contigmat.sens,'%1.1f')];
+contig{end+1} = ['\bf Specificity [%]:\rm ' num2str(contigmat.spec,'%1.1f')];
+contig{end+1} = ['\bf Balanced Accuracy [%]:\rm ' num2str(contigmat.BAC,'%1.1f')];
+if isfield(contigmat,'AUC')
+    contig{end+1} = ['\bf Area-Under-the-Curve [95%-CI]:\rm ' num2str(contigmat.AUC,'%1.2f') ' (' num2str(contigmat.AUC_lower,'%1.2f') '-' num2str(contigmat.AUC_upper,'%1.2f') ')'];
 end
-
-function c = compareReleases(a, b)
-% Compare 'YYYYa'/'YYYYb' strings: returns -1 if a<b, 0 if equal, 1 if a>b
-ay = str2double(a(1:4)); ax = lower(a(5));
-by = str2double(b(1:4)); bx = lower(b(5));
-if ay ~= by
-    c = sign(ay - by);
+contig{end+1} = ['\bf Matthews Coorelation Coefficient:\rm ' num2str(contigmat.MCC,'%1.1f')];
+contig{end+1} = ['\bf Positive Predictive Value [%]:\rm ' num2str(contigmat.PPV,'%1.1f')];
+contig{end+1} = ['\bf Negative Predictive Value [%]:\rm ' num2str(contigmat.NPV,'%1.1f')];
+contig{end+1} = ['\bf False Positive Rate:\rm ' num2str(contigmat.FPR,'%1.1f')];
+contig{end+1} = ['\bf Positive Likelihood Ratio:\rm ' num2str(contigmat.pLR,'%1.1f')];
+contig{end+1} = ['\bf Negative Likelihood Ratio:\rm ' num2str(contigmat.nLR,'%1.1f')];
+contig{end+1} = ['\bf Prognostic Summary Index:\rm ' num2str(contigmat.PSI,'%1.1f')];
+contig{end+1} = ['\bf Youden''s J statistic:\rm ' num2str(contigmat.Youden,'%1.1f')];
+contig{end+1} = ['\bf # Needed to Predict/Diagnose:\rm ' num2str(contigmat.NNP,'%1.1f') '/' num2str(contigmat.NND,'%1.1f')];
+contig{end+1} = ['\bf Diagnostic Odds Ratio:\rm ' num2str(contigmat.DOR,'%1.1f')];
+if isfield(contigmat,'ECE') && handles.calibflag
+    contig{end+1} = ['\bf Expected calibration error:\rm ' num2str(contigmat.ECE,'%1.2f')];
+    sta = 0.49;
+    stp = 0.48;
 else
-    % 'a' < 'b'
-    order = @(ch) (ch == 'a') * 1 + (ch == 'b') * 2;
-    c = sign(order(ax) - order(bx));
+    sta = 0.49;
+    stp = 0.45;
 end
+
+switch handles.NM.modeflag
+    case 'classification'
+        y_start = sta;
+        y_height = stp;
+    case 'regression'
+        y_start = 0.39;
+        y_height = 0.58;
+end
+
+cla(handles.axes5);
+delete(findall(handles.figure1,'Tag','AnnotPerfMeas'))
+
+handles.txtPerf = annotation(handles.pnContigCmds, ...
+                        'textbox',[handles.axes20.Position(1)-0.15 y_start handles.axes20.Position(3)+0.15 y_height] , ...
+                        'String',contig, ...
+                        'FitBoxToText','off', ...
+                        'FontUnits', 'normalized', ...
+                        'FontSize', 0.018, ...
+                        'Margin', 5, ...
+                        'Units', 'normalized', ...
+                        'LineWidth', 1.5, ...
+                        'Tag','AnnotPerfMeas', ...
+                        'Interpreter','tex');
+
 end

@@ -8,9 +8,6 @@ if ~isempty(label)
     errs(ind) = label(ind)~= pred(ind);
     confmatrix = nk_ComputeConfMatrix(label, pred, ngroups);
     % Compute performance measures and assign data to output
-    try
-        GDanalysis.(fld) = nk_MultiClassAssessConfMatrix(confmatrix, label, pred, errs);
-    catch
-        fprintf('problem');
-    end
+    GDanalysis.(fld) = nk_MultiClassAssessConfMatrix(confmatrix, label, pred, errs);
 end
+

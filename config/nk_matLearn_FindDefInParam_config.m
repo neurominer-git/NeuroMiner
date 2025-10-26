@@ -3,7 +3,7 @@ function opt_def = nk_matLearn_FindDefInParam_config(opt_format, opt_name, opt_d
     switch opt_format
         case 'yes|no'
             if strcmp(param.name, opt_name) && ~param.range, opt_def = 2; else, opt_def = 1; end 
-        case {'e','s','i','mlp_struct_def', 'tf_struct_file_def'}
+        case {'e','s','i'}
             if strcmp(param.name, opt_name), opt_def = param.range; end
         case 'model_selector'
         case 'options_selector'

@@ -87,14 +87,10 @@ switch SVM.prog
         
     case 'LIBLIN'
         
-        if ~isfield(SVM.LIBLIN,'bias'), SVM.LIBLIN.bias = -1; end
-        vargout.simplemodel = sprintf(' -s %g -e %g -B %g', SVM.LIBLIN.classifier, SVM.LIBLIN.tolerance, SVM.LIBLIN.bias);
-        vargout.notolmodel = sprintf(' -s %g -B %g', SVM.LIBLIN.classifier, SVM.LIBLIN.bias );
-        if isfield(SVM.LIBLIN,'NonRegBias') && SVM.LIBLIN.NonRegBias
-            vargout.simplemodel = [ vargout.simplemodel ' -R' ];
-            vargout.notolmodel = [ vargout.notolmodel ' -R'];
-        end
-
+        vargout.simplemodel = [ ' -s ' num2str(SVM.LIBLIN.classifier) ...
+                                        ' -e ' num2str(SVM.LIBLIN.tolerance) ];
+        vargout.notolmodel = [ ' -s ' num2str(SVM.LIBLIN.classifier) ];
+                
         switch MODEFL
             case 'classification'
                 vargout.ParamStr = {'c'}; 

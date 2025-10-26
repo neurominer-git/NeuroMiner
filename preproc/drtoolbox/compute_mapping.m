@@ -199,8 +199,8 @@ function [mappedA, mapping] = compute_mapping(A, type, no_dims, varargin)
             
         case 'LLE'
             % Compute LLE mapping
-			if isempty(varargin), [mappedA, mapping] = lle_allcomp(A, no_dims, 12, eig_impl);
-            else [mappedA, mapping] = lle_allcomp(A, no_dims, varargin{1}, eig_impl); end
+			if isempty(varargin), [mappedA, mapping] = lle(A, no_dims, 12, eig_impl);
+            else [mappedA, mapping] = lle(A, no_dims, varargin{1}, eig_impl); end
             mapping.name = 'LLE';
             
         case 'GPLVM'

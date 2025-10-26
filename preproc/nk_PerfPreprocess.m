@@ -1,8 +1,8 @@
 function [tY, Pnt, paramfl, tYocv] = nk_PerfPreprocess(Y, inp, labels, ...
-                                                 paramfl, Yocv, Cocv, AltY)
+                                                       paramfl, Yocv, Cocv)
 % =========================================================================
 % [tY, Pnt, paramfl, tYocv] = nk_PerfPreprocess(Y, inp, labels, ...
-%                                                paramfl, Yocv, Cocv, altY)
+%                                                      paramfl, Yocv, Cocv)
 % =========================================================================
 % Core function of NM's preprocessing module that can be run in training
 % mode as well as in OOCV mode and executes the sequence of preprocessing
@@ -12,7 +12,7 @@ function [tY, Pnt, paramfl, tYocv] = nk_PerfPreprocess(Y, inp, labels, ...
 % -------
 % Y         = data matrix as [m x n] double, m = samples, n = dimensions
 % inp 		= Parameter structure for the computational part
-% labels    = n x m label vector matrix 
+% labels    = n x m label vector matrix
 % paramfl   = Parameter structure for the script execution part
 % Yocv      = Independent test data
 % Cocv      = Calibration data [currently not used]
@@ -24,9 +24,9 @@ function [tY, Pnt, paramfl, tYocv] = nk_PerfPreprocess(Y, inp, labels, ...
 % paramfl   = modified script execution parameters
 % tYocv     = the preprocessed independent test data
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, 08/2024
+% (c) Nikolaos Koutsouleris, 07/2022
 
-global PREPROC MODEFL MULTI CV xCV RAND VERBOSE TEMPL MULTILABEL CALIB SYNTH SAV CVPOS
+global PREPROC MODEFL MULTI CV xCV RAND VERBOSE TEMPL SVM MULTILABEL
 
 % Initialize runtime variables
 i       = inp.f; % Curration permutation
@@ -35,14 +35,10 @@ kbin    = inp.nclass;
 
 % Check whether the function is used by the simulation module or not and
 % transfer the right CV structure to tCV
-if isfield(inp,'CV')
-    tCV = inp.CV;
+if isfield(inp,'simFlag') && inp.simFlag
+    tCV = xCV;
 else
-    if isfield(inp,'simFlag') && inp.simFlag
-        tCV = xCV;
-    else
-        tCV = CV;
-    end
+    tCV = CV;
 end
 
 [iy,jy] = size(tCV(1).cvin{i,j}.TrainInd); 
@@ -50,35 +46,10 @@ TrInd   = tCV(1).TrainInd{i,j};
 TsInd   = tCV(1).TestInd{i,j}; 
 TsI     = cell(kbin,1);
 
-% Check for OOCV label
-if isfield(inp,'labelOOCV')
-    OOCVL = inp.labelOOCV;
-else
-    OOCVL = [];
-end
-
 if ~exist('paramfl','var'), paramfl.use_exist = false; end
 cv2flag = false; if isfield(PREPROC,'CV2flag') && (PREPROC.CV2flag - 1) == 1; cv2flag = true; end
 tYocv   = []; if exist('Yocv','var') && ~isempty(Yocv), tYocv.Ts = cell(iy,jy); else, Yocv = []; end
-
-% Handling of calibration data
 if ~exist('Cocv','var'), Cocv = []; end
-if isfield(inp, 'C') && inp.C{1,1}.calibflag
-%    load(inp.C{1,1}.Y);
-%    inp.C{1,1}.Y = Cfile{1,1}; % this had to be implemented to overcome memory issues when saving the NM struct with calib loaded (needed for compiling)
-    Cocv = inp.C{1,1}.Y;
-    CALIB = inp.C{1,1};
-else
-    CALIB.calibflag = false;
-end
-
-% Handling of alternative training/CV data
-if (~exist('AltY','var') || isempty(AltY)) && (isfield(inp,'AltY') && ~isempty(inp.AltY))
-    fprintf('\nUsing alternative modality data as CV2 test data.')
-    AltY = inp.AltY;
-else
-    AltY = [];
-end
 
 % Set binary/regression or multi-group processing mode
 if iscell(PREPROC)
@@ -86,18 +57,16 @@ if iscell(PREPROC)
 else
     BINMOD = PREPROC.BINMOD;
 end
-if isfield(RAND,'Decompose') && RAND.Decompose == 2
-    BINMOD = 0;
-end
-if BINMOD || strcmp(MODEFL,'regression')    
-    if VERBOSE; fprintf('\nProcessing Mode: binary / regression preprocessing'); end
+if BINMOD || strcmp(MODEFL,'regression')
+    ukbin = kbin;   if VERBOSE; fprintf('\nProcessing Mode: binary / regression preprocessing'); end
 else
+    ukbin = 1;      
     if VERBOSE; fprintf('\nProcessing Mode: multi-group preprocessing'); end
 end
 
 if VERBOSE
     if iscell(Y)
-        fprintf('\nMultiple shelves of input data detected')
+        fprintf('\nMultiple shelfs of input data detected')
         for ii=1:size(Y,1)
             fprintf('\nShelf [ %2g ]: Original dimensionality: %g', ii, size(Y{ii},2)); 
         end
@@ -116,52 +85,23 @@ tY.TrL = cell(iy,jy);
 tY.CVL = cell(iy,jy);
 tY.TrInd = cell(iy,jy);
 tY.CVInd = cell(iy,jy);
-multoocv = false; 
-if isfield(inp,'covars'), covars = inp.covars; end
+multoocv = false; if iscell(Yocv) && numel(Yocv)>1, multoocv = true; end
 
-% Eventually, apply spatial operations to imaging data
+% Eventually, apply spatial operations to image data
 % (This function will be extended beyond smoothing ops on nifti data)
-% sY => smoothed, pre-smoothed, or non-smoothed training & CV data
-% sYocv => smoothed or pre-smoothed, or non-smoothed external data
-% sCocv => smoothed or pre-smoothed, or non-smoothed calibration data
-% sYw => smoothed or pre-smoothed, or non-smoothed ranking map
-[sY, sYocv, sCocv, sAltY, sYw, inp, optfl] = nk_PerfPreprocessSpatial( Y, Yocv, Cocv, AltY, inp, paramfl, kbin );
+[sY, sYocv, sCocv, inp, optfl, ukbin, uBINMOD, BINMOD] = ...
+    nk_PerfPreprocessSpatial( Y, Yocv, Cocv, inp, paramfl, BINMOD, kbin, ukbin);
 
 if ~BINMOD && isfield(paramfl,'PXopt') && numel(paramfl.PXopt)>1
     % Here, we force a multi-group processing mode but map the multi-group processed data into binary containers
     uBINMOD = 0; 
     ukbin = 1; 
     if VERBOSE; fprintf('\nProcessing Mode: multi-group preprocessing, but no multi-group classifier requested'); end
-else
-    uBINMOD = BINMOD;
-    if ~uBINMOD
-        ukbin = 1;
-    else
-        ukbin = kbin;
-    end
-end
-if iscell(Yocv)
-    if inp.issmoothed
-        if iscell(Yocv{1}{1})
-            nYocv = size(Yocv{1}{1},2);
-        else
-            nYocv = size(Yocv{1},2);
-        end
-    else
-        nYocv = numel(Yocv);
-    end
-    if nYocv > 1, multoocv = true; end
 end
 
 % Generate template parameters (e.g. for Procrustes rotation)
 if isfield(paramfl,'templateflag') && paramfl.templateflag 
-    if isfield(PREPROC,'USEALL') && ~isempty(PREPROC.USEALL)
-        inp.template_useall = PREPROC.USEALL; 
-    end
-    TEMPL.execute_template_creation = true;
-    if ~isempty(sYw), inp.Yw = sYw; end
-    TEMPL = nk_GenTemplParam(PREPROC, tCV, MODEFL, RAND, sY, inp, kbin, paramfl);
-    TEMPL.execute_template_creation = false;
+    TEMPL = nk_GenTemplParam(PREPROC, tCV, MODEFL, RAND, sY, inp, kbin);
 else
     clear TEMPL
 end
@@ -171,9 +111,6 @@ end
 if ~isempty(MULTI) && MULTI.flag, tY.mTsL = labels(TsInd,:); end
 for u=1:ukbin, TsI{u} = TsInd; end
 
-% if labels is not a vector then you do the label selection here, otherwise
-% it is done before by the parent functions (e.g. in nk_VisModels or
-% nk_OOCV)
 if MULTILABEL.flag && size(labels,2)>1
     lb = MULTILABEL.sel;
 else
@@ -226,9 +163,8 @@ for k=sta_iy:stp_iy % Inner permutation loop
     for l=sta_jy:stp_jy % Inner CV fold loop
         
         tElapsed = tic;
-        CVPOS.CV1p=k;CVPOS.CV1f=l;
-        fprintf('\nWorking on CV2 [%2g, %2g ], CV1 [%2g, %2g ]: Prepare data', CVPOS.CV2p, CVPOS.CV2f, k, l);
-
+        fprintf('\nWorking on CV1 [%2g, %2g ]: Prepare data', k, l);
+        
         for u=1:ukbin % Binary comparison loop depending on PREPROC.BINMOD & FBINMOD
             
             if ischar(Pnt(k,l,u).TrainedParam) && exist(Pnt(k,l,u).TrainedParam,'file')
@@ -241,15 +177,12 @@ for k=sta_iy:stp_iy % Inner permutation loop
             PREPROC = nk_SetParamChain(paramfl, u, PREPROC);
 
             if optfl
-                usY = sY{u};
-                if ~isempty(AltY)
-                    usAltY = sAltY{u};
-                end
+                usY = sY{u}; 
                 if ~isempty(Yocv)
                     if multoocv
-                        usYocv = cell(1,numel(sYocv{u}{1}));
-                        for n=1:numel(sYocv{u}{1})
-                            usYocv{u,n} = sYocv{1}{u}{n};
+                        usYocv = cell(1,numel(sYocv));
+                        for n=1:numel(sYocv)
+                            usYocv{n} = sYocv{n}{u};
                         end
                     else
                         usYocv = sYocv{u}; 
@@ -258,13 +191,12 @@ for k=sta_iy:stp_iy % Inner permutation loop
                 if ~isempty(Cocv) 
                     usCocv = sCocv{u}; 
                 end
-                if ~isempty(sYw), InputParam.Yw = sYw{u}; end
+                if isfield(inp,'Yw'), InputParam.Yw = inp.Yw{u}; end
             else
                 usY = sY;
-                if ~isempty(AltY), usAltY = sAltY; end
                 if ~isempty(Yocv), usYocv = sYocv; end
                 if ~isempty(Cocv), usCocv = sCocv; end
-                if ~isempty(sYw), InputParam.Yw = sYw; end
+                if isfield(inp,'Yw'), InputParam.Yw = inp.Yw; end
             end
             paramfl.P{u} = nk_ReturnParamChain(PREPROC, 1); 
             
@@ -273,19 +205,16 @@ for k=sta_iy:stp_iy % Inner permutation loop
             if ~uBINMOD || strcmp(MODEFL,'regression')
                 % Multi-group label: 1, 2 ,3, ...
                 TrX = TrInd(tCV.cvin{i,j}.TrainInd{k,l});
-                TrLX = labels(TrX,lb);
             else
                 % Binary label
-                [indtr, TrLX] = create_binary_labels(labels(TrInd(tCV.cvin{i,j}.TrainInd{k,l})), tCV.class{i,j}{u});
-                TrX = TrInd(tCV.cvin{i,j}.TrainInd{k,l}); TrX(~indtr) = [];
+                TrX = TrInd(tCV.class{i,j}{u}.TrainInd{k,l});
             end
-            TrI = TrInd(tCV.cvin{i,j}.TrainInd{k,l});       
-            TrL = labels(TrI,lb);
-
+            TrLX = labels(TrX,lb);
             % Assign data to containers
             mult_contain = false; iOCV=[]; 
-
             if oocvonly
+                TrI = TrInd(tCV.cvin{i,j}.TrainInd{k,l});
+                TrL = labels(TrI,lb);
                 if size(TrI,2)>2, TrI = TrI'; end
                 if iscell(usY)
                     n_usY = numel(usY); mult_contain = true; 
@@ -298,7 +227,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
                             [vTr{pu}, TrLX, SrcParam.iTrX] = nk_ManageNanCases(vTr{pu}, TrLX);
                             if multoocv
                                 for n=1:numel(usYocv)
-                                    [vTs{pu,n}, ~, SrcParam.iOCV{n}] = nk_ManageNanCases(usYocv{pu}{n});
+                                    [vTs{pu,n}, ~, SrcParam.iOCV{n}] = nk_ManageNanCases(usYocv{n}{pu});
                                 end
                             else
                                 [vTs{pu}, ~, SrcParam.iOCV] = nk_ManageNanCases(usYocv{pu});
@@ -307,7 +236,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
                             vTr{pu} = nk_ManageNanCases(vTr{pu});
                             if multoocv
                                 for n=1:numel(usYocv)
-                                    vTs{pu,n} = nk_ManageNanCases(usYocv{pu}{n});
+                                    vTs{pu,n} = nk_ManageNanCases(usYocv{n}{pu});
                                 end
                             else
                                 vTs{pu} = nk_ManageNanCases(usYocv{pu});
@@ -317,16 +246,13 @@ for k=sta_iy:stp_iy % Inner permutation loop
                         if ~isempty(Cocv) 
                             InputParam.C{pu} = nk_ManageNanCases(usCocv{pu}); 
                         end
-                        if ~isempty(AltY) 
-                            InputParam.AltY{pu} = nk_ManageNanCases(usAltY{pu}); 
-                        end
                     end
                 else
                     vTr = usY(TrX,:); 
                     % Remove cases which are completely NaN
                     [vTr, TrLX, SrcParam.iTrX] = nk_ManageNanCases(vTr, TrLX);
                     if multoocv
-                        for n=1:nYocv
+                        for n=1:numel(usYocv)
                             [vTs{n}, ~, SrcParam.iOCV{n}] = nk_ManageNanCases(usYocv{n});
                         end
                     else
@@ -334,10 +260,12 @@ for k=sta_iy:stp_iy % Inner permutation loop
                     end
                     % Calibration data
                     if ~isempty(Cocv), InputParam.C = nk_ManageNanCases(usCocv); end
-                    if ~isempty(AltY), InputParam.AltY = nk_ManageNanCases(usAltY); end
                 end
             else
+                TrI = TrInd(tCV.cvin{i,j}.TrainInd{k,l});
                 CVI = TrInd(tCV.cvin{i,j}.TestInd{k,l});
+                
+                TrL = labels(TrI,lb);
                 CVL = labels(CVI,lb);
                 if size(TrI,2)>2
                     TrI = TrI';
@@ -350,16 +278,8 @@ for k=sta_iy:stp_iy % Inner permutation loop
                     for pu = 1:n_usY
                         
                         % Training & CV data
-                        vTr{pu} = usY{pu}(TrX,:); vTs{pu,1} = usY{pu}(TrI,:); vTs{pu,2} = usY{pu}(CVI,:); 
-                        % Check whether there is an alternative training/CV
-                        % data container available and use these data at
-                        % the CV2 test level
-                        if ~isempty(AltY)
-                            vTs{pu,3} = usAltY{pu}(TsI{u},:); 
-                        else
-                            vTs{pu,3} = usY{pu}(TsI{u},:); 
-                        end
-
+                        vTr{pu} = usY{pu}(TrX,:); vTs{pu,1} = usY{pu}(TrI,:); vTs{pu,2} = usY{pu}(CVI,:); vTs{pu,3} = usY{pu}(TsI{u},:); 
+                        
                         if pu == 1
                             % Remove cases which are completely NaN
                             [vTr{pu}, TrLX, SrcParam.iTrX] = nk_ManageNanCases(vTr{pu}, TrLX);
@@ -376,9 +296,9 @@ for k=sta_iy:stp_iy % Inner permutation loop
                         % containers)
                         if ~isempty(Yocv)
                              if multoocv
-                                 iOCV = cell(1,nYocv);
-                                 for n=1:nYocv
-                                     [vTs{pu,3+n}, ~, iOCV{n}] = nk_ManageNanCases(usYocv{pu,n});
+                                 iOCV = cell(1,numel(usYocv));
+                                 for n=1:numel(usYocv)
+                                     [vTs{pu,3+n}, ~, iOCV{n}] = nk_ManageNanCases(usYocv{pu,2});
                                  end
                              else
                                 [vTs{pu,4}, ~, iOCV] = nk_ManageNanCases(usYocv{pu});
@@ -391,16 +311,8 @@ for k=sta_iy:stp_iy % Inner permutation loop
                     end
                 else
                     % Training & CV data
-                    vTr = usY(TrX,:); vTs{1} = usY(TrI,:); vTs{2} = usY(CVI,:); 
-                    % Check whether there is an alternative training/CV
-                    % data container available and use these data at
-                    % the CV2 test level
-                    if ~isempty(AltY)
-                        vTs{3} = usAltY(TsI{u},:);
-                    else
-                        vTs{3} = usY(TsI{u},:);
-                    end
-
+                    vTr = usY(TrX,:); vTs{1} = usY(TrI,:); vTs{2} = usY(CVI,:); vTs{3} = usY(TsI{u},:);
+                    
                     % Remove cases which are completely NaN
                     [vTr, TrLX, SrcParam.iTrX] = nk_ManageNanCases(vTr, TrLX);
                     [vTs{1}, TrL, SrcParam.iTr] = nk_ManageNanCases(vTs{1}, TrL);
@@ -410,12 +322,12 @@ for k=sta_iy:stp_iy % Inner permutation loop
                     % Independent test data
                     if ~isempty(Yocv)
                         if multoocv
-                             iOCV = cell(1,nYocv);
-                             for n=1:nYocv
+                             iOCV = cell(1,numel(usYocv));
+                             for n=1:numel(usYocv)
                                  [vTs{3+n}, ~, iOCV{n}] = nk_ManageNanCases(usYocv{n});
                              end
                         else
-                            [vTs{4}, ~, iOCV] = nk_ManageNanCases(usYocv); 
+                            [vTs{4},~, iOCV] = nk_ManageNanCases(usYocv); 
                         end
                     end
                     % Calibration data
@@ -445,37 +357,28 @@ for k=sta_iy:stp_iy % Inner permutation loop
             SrcParam.oocvonly           = oocvonly;
             SrcParam.TrX                = TrX;
             if ~oocvonly
-                SrcParam.TrI            = TrI;
-                SrcParam.CVI            = CVI;
-                SrcParam.TsI            = TsI{u};
+                SrcParam.TrI                = TrI;
+                SrcParam.CVI                = CVI;
+                SrcParam.TsI                = TsI{u};
             end
             SrcParam.u                  = u;
             SrcParam.binmult            = BINMOD;
             SrcParam.CV1perm            = k;
             SrcParam.CV1fold            = l;
-            SrcParam.covars             = covars;
+            SrcParam.covars             = inp.covars;
             if isfield(inp,'covars_rep')
-                SrcParam.covars_oocv    = inp.covars_rep;
+                SrcParam.covars_oocv        = inp.covars_rep;
             elseif isfield(inp,'covars_oocv')
-                SrcParam.covars_oocv    = inp.covars_oocv;
+                SrcParam.covars_oocv        = inp.covars_oocv;
             else 
                 inp.covars_oocv = [];
             end
-            if isfield(inp,'C') && isfield(inp.C{1,1}, 'covars')
-                SrcParam.covars_cocv    = inp.C{1,1}.covars;
-            else 
-                inp.covars_cocv         = [];
-            end
             SrcParam.iOCV               = iOCV; % To resolve bug in nk_GenPreprocSequence.m reported by Mark Dong (29/09/2021)
-            
-            % NEW (13/09/2025): also store OOCV label if available
-            if ~isempty(OOCVL), SrcParam.OOCVLabel = OOCVL; end
 
-            % Do we need to generate synthetic data?
-            if SYNTH.flag == 1 
+            % Run ADASYN if needed
+            if isfield(SVM,'ADASYN') && SVM.ADASYN.flag == 1
+                if VERBOSE, fprintf('\nUsing ADASYN to generate synthetic training data for partition CV2 [%g, %g], CV [%g, %g]', i, j, k, l); else; fprintf('\t...ADASYN'); end
                 Covs = [];
-                if VERBOSE, fprintf('\nGenerating synthetic training data for partition CV2 [%g, %g], CV [%g, %g]', i, j, k, l); else; fprintf('\t...Synth'); end
-               
                 % Do we have covars? if so, they have to be integrated
                 % into the creation of synthetic data.
                 if ~isempty(SrcParam.covars)
@@ -487,64 +390,19 @@ for k=sta_iy:stp_iy % Inner permutation loop
                         Covs = nk_PerfImputeObj(Covs, IN);
                     end
                 end
-
-                % generate or load data
-                file_fnd = false;
-                if SYNTH.write2disk == 1
-                    synthdir = fullfile(inp.maindir,filesep,'synth');
-                    if ~exist("synthdir","dir"), mkdir(synthdir); end
-                    synthfile = nk_GenerateNMFilePath(synthdir, SAV.matname, 'SynthData','', inp.varstr, inp.id, i, j, k, l );
-                    if exist(synthfile,"file")
-                        file_fnd = true;
+                if mult_contain
+                    vTrSyn = cell(n_usY,1); LabelSyn = cell(n_usY,1); CovarsSyn = cell(n_usY,1); 
+                    for pu=1:n_usY
+                        [ vTrSyn{pu}, LabelSyn{pu}, CovarsSyn{pu}, SrcParam.adasynused(pu) ] = nk_PerfADASYN( vTr{pu}, TrLX, SVM.ADASYN, Covs, true );
                     end
-                end
-                if file_fnd
-                    fprintf('\nLoading synthetic data from file:\n%s', synthfile)
-                    load(synthfile)
-                else                    
-                    if mult_contain
-                        vTrSyn = cell(n_usY,1); LabelSyn = cell(n_usY,1); CovarsSyn = cell(n_usY,1); Synth_activated = false(1,n_usY);
-                        for pu=1:n_usY
-                            switch SYNTH.method
-                                case 1
-                                    [ vTrSyn{pu}, LabelSyn{pu}, CovarsSyn{pu} ] = nk_SynthDistkNN( vTr{pu}, TrLX, Covs, SYNTH);
-                                    Synth_activated(pu) = true;  
-                                case 2
-                                    [ vTrSyn{pu}, LabelSyn{pu}, CovarsSyn{pu}, Synth_activated(pu) ] = nk_PerfADASYN( vTr{pu}, TrLX, Covs, SYNTH, true );
-                                case 3
-                                    [ vTrSyn{pu}, LabelSyn{pu}, CovarsSyn{pu} ] = nk_SynthPCAGaussGMM( vTr{pu}, TrLX, Covs, SYNTH, 'pcagauss' );
-                                    Synth_activated(pu) = true;  
-                                case 4
-                                    [ vTrSyn{pu}, LabelSyn{pu}, CovarsSyn{pu} ] = nk_SynthPCAGaussGMM( vTr{pu}, TrLX, Covs, SYNTH, 'gmm' );
-                                    Synth_activated(pu) = true;  
-                            end
-                        end
-                    else
-                        switch SYNTH.method
-                            case 1
-                                [ vTrSyn, LabelSyn, CovarsSyn ] = nk_SynthDistkNN(vTr, TrLX, Covs, SYNTH);
-                                Synth_activated = true;
-                            case 2
-                                [ vTrSyn, LabelSyn, CovarsSyn, Synth_activated ] = nk_PerfADASYN( vTr, TrLX, Covs, SYNTH, true);
-                            case 3
-                                [ vTrSyn, LabelSyn, CovarsSyn ] = nk_SynthPCAGaussGMM(vTr, TrLX, Covs, SYNTH, 'pcagauss');
-                                Synth_activated = true;
-                            case 4
-                                [ vTrSyn, LabelSyn, CovarsSyn ] = nk_SynthPCAGaussGMM(vTr, TrLX, Covs, SYNTH, 'gmm');
-                                Synth_activated = true;
-                        end
-                    end 
-                    if SYNTH.write2disk == 1
-                        fprintf('\nSaving synthetic data to file:\n%s', synthfile)
-                        save(synthfile, "vTrSyn", "LabelSyn", "CovarsSyn", "Synth_activated");
-                    end
-                end
+                else
+                   [ vTrSyn, LabelSyn, CovarsSyn, SrcParam.adasynused ] = nk_PerfADASYN( vTr, TrLX, SVM.ADASYN, Covs, true);
+                end 
                 InputParam.TrSyn = vTrSyn;
                 SrcParam.TrainLabelSyn = LabelSyn;
                 if ~isempty(SrcParam.covars), SrcParam.covarsSyn = CovarsSyn; end
-                SrcParam.synth_activated = Synth_activated;
             end
-
+            
             switch MODEFL
                 case 'classification'
                     switch RAND.Decompose 
@@ -563,7 +421,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
             end
 
             %% Generate and execute for given CV1 partition preprocessing sequence
-            [InputParam, oTrainedParam, SrcParam] = nk_GenPreprocSequence(InputParam, PREPROC, SrcParam, oTrainedParam, inp.maindir);
+            [InputParam, oTrainedParam, SrcParam] = nk_GenPreprocSequence(InputParam, PREPROC, SrcParam, oTrainedParam);
             
             %% Write preprocessed data to mapY structure
             if isfield(paramfl,'PREPROC') && isfield(paramfl,'PXfull') && ~isempty(paramfl.PXopt{u})
@@ -575,13 +433,12 @@ for k=sta_iy:stp_iy % Inner permutation loop
                 [ Pnt(k,l,u).data_ind, ...
                   Pnt(k,l,u).train_ind, ...
                   Pnt(k,l,u).nP, ...
-                  Pnt(k,l,u).nA] = nk_ParamReplicator(paramfl.P{u}, paramfl.PXopt{u}, numel(oTrainedParam));
+                  Pnt(k,l,u).nA] = nk_ParamReplicator(paramfl.P{u}, paramfl.PXopt{u}, paramfl.PREPROC, numel(oTrainedParam));
             end
-
             if oocvonly
                 if multoocv
                     ocv = [];
-                    for n=1:nYocv
+                    for n=1:numel(Yocv)
                         ocv = [ocv squeeze(InputParam.Ts(:,n,:))];
                     end
                 else
@@ -597,7 +454,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
                 if ~isempty(Yocv) 
                     if multoocv
                         ocv = [];
-                        for n=1:nYocv
+                        for n=1:numel(Yocv)
                             ocv = [ocv squeeze(InputParam.Ts(:,3+n,:))]; 
                         end
                     else
@@ -617,7 +474,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
                 TrL(~isnan(tTrL)) = tTrL(~isnan(tTrL));
             else
                 % Overwrite labels adjusted to NaN cases
-                TrL = labels(TrI(~SrcParam.iTr),lb);
+                TrL = labels(TrI(~SrcParam.iTr),lb); 
                 if ~oocvonly
                     CVL = labels(CVI(~SrcParam.iCV),lb);
                 end
@@ -650,7 +507,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
                         end
                         if ~isempty(Yocv)
                             if multoocv
-                                for n=1:nYocv
+                                for n=1:numel(Yocv)
                                     tYocv.Ts{k,l}{n} = nk_ManageNanCases(ocv{n},[],SrcParam.iOCV{n}); 
                                 end
                             else
@@ -674,7 +531,9 @@ for k=sta_iy:stp_iy % Inner permutation loop
                         else
                             % One-vs-All
                             indtr = oTrL~=0;
-                            if ~oocvonly, indcv = oCVL~=0; end
+                            if ~oocvonly
+                                indcv = oCVL~=0;
+                            end
                         end
                         % Write indices
                         tY.TrInd{k,l}{zu} = indtr;
@@ -701,7 +560,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
                     end
                     if ~isempty(Yocv)
                         if multoocv 
-                            for n=1:nYocv
+                            for n=1:numel(Yocv)
                                 tYocv.Ts{k,l}{u}{n} = nk_ManageNanCases(ocv{n}, [], SrcParam.iOCV{n}); 
                             end
                         else
@@ -713,10 +572,8 @@ for k=sta_iy:stp_iy % Inner permutation loop
                     oCVL = labels(TrInd(tCV.cvin{i,j}.TestInd{k,l}),lb);
 
                     if ~strcmp(MODEFL,'regression') && length(tCV.class{i,j}{u}.groups) == 2
-                        [indtr, binlabels_tr] = create_binary_labels(oTrL, tCV.class{i,j}{u});
-                        if ~oocvonly
-                            [indcv, binlabels_cv] = create_binary_labels(oCVL, tCV.class{i,j}{u});        
-                        end
+                        indtr = ( oTrL == tCV.class{i,j}{u}.groups(1) | oTrL == tCV.class{i,j}{u}.groups(2) );
+                        if ~oocvonly, indcv = ( oCVL == tCV.class{i,j}{u}.groups(1) | oCVL == tCV.class{i,j}{u}.groups(2) ) ; end
                     else
                         indtr = true(size(TrI,1),1);
                         if ~oocvonly, indcv = true(size(CVI,1),1); end
@@ -732,12 +589,8 @@ for k=sta_iy:stp_iy % Inner permutation loop
                         case 'classification'
                             if RAND.Decompose ~=9
                                 % Write labels to CV1 partition
-                                tY.TrL{k,l}{u} = binlabels_tr;
-                                %tY.TrL{k,l}{u} = tCV.class{i,j}{u}.TrainLabel{k,l}(:,lb);	
-                                if ~oocvonly
-                                    tY.CVL{k,l}{u} = binlabels_cv;
-                                    %tY.CVL{k,l}{u} = tCV.class{i,j}{u}.TestLabel{k,l}(:,lb); 
-                                end
+                                tY.TrL{k,l}{u} = tCV.class{i,j}{u}.TrainLabel{k,l}(:,lb);	
+                                if ~oocvonly, tY.CVL{k,l}{u} = tCV.class{i,j}{u}.TestLabel{k,l}(:,lb); end
                             else
                                 tY.TrL{k,l}{u} = TrL;
                                 if ~oocvonly, tY.CVL{k,l}{u} = labels(tCV.TrainInd{i,j}(tCV.cvin{i,j}.TestInd{k,l}),lb); end
@@ -748,16 +601,10 @@ for k=sta_iy:stp_iy % Inner permutation loop
             if ~isempty(MULTI) && MULTI.flag, tY.mTrL{k,l} = TrL; tY.mCVL{k,l} = CVL; end
             
             % save parameters
-            if paramfl.write || cv2flag
-                Pnt(k,l,u).TrainedParam = oTrainedParam; 
-            end
-%             if isfield(paramfl,'writeCV1') && paramfl.writeCV1
-%                 filepath = fullfile(pwd, sprintf('PreprocDataMat_CV2-%g-%g_CV1-%g-%g_Class%g.mat', inp.f, inp.d, k, l,u));
-%                 fprintf('\nSaving preprocessing data:\n%s', filepath);
-%                 save(filepath, "oTrainedParam", "tY", "-v7.3")
-%             end
+            if paramfl.write || cv2flag, Pnt(k,l,u).TrainedParam = oTrainedParam; end
             clear TrainedParam SrcParam
         end
         fprintf('\tCompleted in %1.2fs. ',toc(tElapsed)); 
     end
 end
+

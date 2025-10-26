@@ -1,46 +1,48 @@
-function [ Lperm, Yperm ] = nk_VisXPermY(Y, L, IND, permmode, indpermrows, indpermcols, ...
-    permind, analysis, inp, paramfl, BINMOD, h, k, l, pnt, FullPartFlag, F, u, rngStream)
-global MODEFL CV
+function [ Lperm, Yperm ] = nk_VisXPermY(Y, L, IND, permmode, indpermrows, indpermcols, permind, analysis, inp, paramfl, BINMOD, n, h, k, l, pnt, FullPartFlag, F, u)
+global MODEFL
 
 switch permmode
 
     case 1
-        % Permute labels ...
-        Lperm = L(indpermrows);
-        % ... but not the data
+        Lperm = L(indpermrows(:,permind));
+        indN = isnan(Lperm);
+        uL = unique(Lperm(~indN)); nuL = numel(uL);
         Yperm = Y;
-        % find nan labels
-        indN = isnan(L);
-        % Create binary labels
-        Lperm = create_binary_permlabel(MODEFL, CV, Lperm, h);
-        if sum(indN), Lperm(indN)=[]; Yperm(indN,:)=[]; end
-
     case {2,3}
-
         if permmode == 3
-            % Permute labels
-            Lperm = L(indpermrows);
+            Lperm = L(indpermrows(:,permind));
         else
             Lperm = L(IND);
         end
         L = L(IND);
         indN = isnan(L);
-        Lperm = create_binary_permlabel(MODEFL, CV, Lperm, h);
-        uL = unique(Lperm(~indN)); nuL = numel(uL);
+        uL = unique(L(~indN)); nuL = numel(uL);
         Yperm = zeros(size(Y));
         for i=1:nuL
             indi = L == uL(i);
             Yperm(indi,:) = Y(indi,indpermcols(i,:,permind));
         end
+
+
+        if strcmp(MODEFL,'classification')
+            tL = Lperm;
+            for i=1:nuL
+                if i==1
+                    tL( Lperm == uL(1) ) = 1;
+                else
+                    tL( Lperm == uL(i) ) = -1;
+                end
+            end
+            Lperm = tL;
+        end
         if sum(indN)
             Lperm(indN)=[]; Yperm(indN,:)=[];
         end
-
     case 4
         % MD: hard coded covar indices
         chosen_covInd = inp.VIS.PERM.covars_idx;
         % MD: permute the site labels
-        covars_p = md_CovarsPerm_covInd(analysis.datadescriptor.input_settings.covars,chosen_covInd, rngStream);
+        covars_p = md_CovarsPerm_covInd(analysis.datadescriptor.input_settings.covars,chosen_covInd);
         analysis_p = analysis;
         analysis_p.datadescriptor.input_settings.covars =covars_p;
         inp_p = inp;
@@ -81,27 +83,16 @@ switch permmode
         Yperm = Ymodel;
         Lperm = L(IND);
 end
+end
 
-function covars = md_CovarsPerm_covInd(covars,chosen_covInd, rngStream)
+
+function covars = md_CovarsPerm_covInd(covars,chosen_covInd)
 % create permutation indices
 cn = size(covars,1);
-p = randperm(rngStream, cn);
+p = randperm(cn);
 % Permute each covar column according to the
 % permutation indices
 for ck = 1:size(chosen_covInd,2)
     covars(:,chosen_covInd(ck)) = covars(p,chosen_covInd(ck));
 end
-
-function Lperm = create_binary_permlabel(MODEFL, CV, Lperm, h)
-
-if strcmp(MODEFL,'classification')
-    tL = Lperm;
-    if isscalar(CV.class{1,1}{h}.groups)
-        tL(Lperm == CV.class{1,1}{h}.groups(1)) = 1;
-        tL(Lperm ~= CV.class{1,1}{h}.groups(1)) = -1;
-    else
-        tL(Lperm == CV.class{1,1}{h}.groups(1)) = 1;
-        tL(Lperm == CV.class{1,1}{h}.groups(2)) = -1;
-    end
-    Lperm = tL;
 end

@@ -1,6 +1,6 @@
-% =======================================================================================================
-% results = nk_ComputeEnsembleProbability(predictions, label, noscale, optcutoff, optcutoffperc, meanfun)
-% =======================================================================================================
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% FORMAT: results = nk_ComputeEnsembleProbability(predictions, label)
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % (c) Nikolaos Koutsouleris, 4/2012
 function results = nk_ComputeEnsembleProbability(predictions, label, noscale, optcutoff, optcutoffperc, meanfun)
 
@@ -108,9 +108,9 @@ for curlabel=1:nl
             if ~isempty(logar)
                 predi       = exp(predi);
             end
-            if ~isempty(polyfact)
+            if ~isempty(polyfact), 
                 predi       = predi.^(1/polyfact); end
-            if targscale
+            if targscale, 
                 IN.minY = minX(curlabel); IN.maxY = maxX(curlabel);
                 
                 predi       = nk_PerfScaleObj(predi, IN); 
@@ -127,7 +127,7 @@ for curlabel=1:nl
             end
             ci1(i)          = ci(1); 
             ci2(i)          = ci(2);
-            if ~isempty(optcutoff)
+            if ~isempty(optcutoff), 
                 mean_optcutoffs(i) = meanfun(optcutoffi); 
                 std_optcutoffs(i) = nm_nanstd(optcutoffi); 
                 mean_optcutoffpercs(i) = meanfun(optcutoffperci); 

@@ -1,5 +1,4 @@
 function [ STANDARD, act ] = nk_Standardize_config(STANDARD, parentstr, defaultsfl)
-global NM
 
 methodarr = {'standardization using median','standardization using mean','mean-centering','l1-median centering','qn-standardization','sn-standardization'};
 sIND = []; dIND = []; WINSOPT = []; IQRFUN = 1; ZeroOut = 1; CALIBUSE = 2; METHOD = methodarr{1};
@@ -24,19 +23,19 @@ if ~defaultsfl
         if CALIBUSE == 1
             sINDSTR = 'yes, using calibration data'; 
         else
-            sINDSTR = sprintf('yes, using training data [ %s ] ', strjoin(NM.covnames(STANDARD.sIND)));
+            sINDSTR = sprintf('yes, using training data [ %g-by-%g matrix ] ',size(STANDARD.sIND,1), size(STANDARD.sIND,2));
         end
         sINDDEF = 1;
     else
         sINDSTR = 'no'; sINDDEF = 2;
     end
     if isfield(STANDARD,'dIND') && ~isempty(STANDARD.dIND)
-        dINDSTR = sprintf('yes, [ %s ]', strjoin(NM.covnames(STANDARD.dIND))); dINDDEF = 1;
+        dINDSTR = sprintf('yes, [ %g-by-%g matrix ]',size(STANDARD.dIND,1), size(STANDARD.dIND,2)); dINDDEF = 1;
     else
         dINDSTR = 'no'; dINDDEF = 2;
     end
     if ~isempty(WINSOPT) 
-        WINSOPTSTR = sprintf('yes, threshold: +/- %s SD', nk_ConcatParamstr(WINSOPT, true)); WINSOPTDEF = 1;
+        WINSOPTSTR = sprintf('yes, threshold: +/- %s SD',nk_ConcatParamstr(WINSOPT, true)); WINSOPTDEF = 1;
     else
         WINSOPTSTR = 'no'; WINSOPTDEF = 2;
     end
@@ -90,7 +89,6 @@ if ~defaultsfl
             % Define from which data set you compute the mean and std values
             srcfl = nk_input('Compute standardization model using a subgroup of cases?',0,'yes|no',[1,0],sINDDEF);
             if srcfl
-                nk_SelectCovariateIndex(NM, NM.TrainParam.FUSION.M, 0);
                 sIND = nk_input('Define column indices in the covariate matrix that identify the subgroup(s) for model computation',0,'e',[], Inf );
             else
                 sIND = []; CALIBUSE = 2;
@@ -100,7 +98,6 @@ if ~defaultsfl
             dstfl = nk_input('Apply standardization model to a subgroup of cases?',0,'yes|no',[1,0],dINDDEF);
             if dstfl
                 if isempty(sIND), n=1; else, n = size(sIND,1); end
-                nk_SelectCovariateIndex(NM, NM.TrainParam.FUSION.M, 0);
                 if n == 1
                     dIND = nk_input('Define column index in the covariates indicating subgroups to be standardized',0,'e',[], 1);
                 else
@@ -116,7 +113,7 @@ if ~defaultsfl
                 WINSOPT = nk_input('Winsorization +/- threshold (z value)',0,'e',WINSOPT);
                 PX = nk_AddParam(WINSOPT, 'winsopt', 1, []);
             else
-                WINSOPT = []; PX = nk_AddParam(WINSOPT, 'winsopt', 1, [],'reset');
+                WINSOPT = [];PX = nk_AddParam(WINSOPT, 'winsopt', 1, [],'reset');
             end
         case 5
             if IQRFUN == 1, IQRFUN = 2; elseif IQRFUN == 2, IQRFUN = 1; end

@@ -7,10 +7,10 @@ inane = isnan(expected);
 nG = numel(ngroups);
 
 switch modus
-    case 0 % Multi-class accuracy
+    case 0
         errs = predicted ~= expected;
         Perf= ( 1 - sum(errs)/ nsubj) * 100;
-    case 1 % Mean One-vs-Rest BAC
+    case 1
         Perfi = zeros(nG,1); 
         for i = 1:nG
             expi=-1*ones(size(expected)); predi=-1*ones(size(expected));
@@ -20,7 +20,6 @@ switch modus
             Perfi(i) = BAC(expi,predi);
         end
         Perf = mean(Perfi);
-    case 2 % TMR
-        confmatrix = nk_ComputeConfMatrix(expected, predicted, nG);
-        Perf = nk_MultiClassRatio2Random(confmatrix);
+end
+
 end

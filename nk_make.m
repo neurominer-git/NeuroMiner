@@ -25,10 +25,7 @@ cd(srcdir)
     make('symbolize.cpp')
     make('enumelem.cpp')
     mex ('fastAUC.cpp')
-    mex ('mexWnanMoments.cpp')
-    mex ('mexWnanMedianIQR.cpp')
-    % Linux: mex -largeArrayDims mexWnanMoments.cpp CXXFLAGS='$CXXFLAGS -fopenmp' LDFLAGS='$LDFLAGS -fopenmp'
-    % Windows: mex -largeArrayDims mexWnanMoments.cpp COMPFLAGS="$COMPFLAGS /openmp" LINKFLAGS="$LINKFLAGS /openmp"
+
 end
 
 function make(funcname)

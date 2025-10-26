@@ -2,28 +2,28 @@ function nk_Initialize(action)
 % =========================================================================
 % nk_Initialize(action)
 % =========================================================================
-% startup script for NeuroMiner
+% startup script for NeuroMiner 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, 05/2025
+% (c) Nikolaos Koutsouleris, 09/2022
 
 global NMinfo NM CALIBAVAIL OOCVAVAIL SPMAVAIL FSAVAIL JUAVAIL OCTAVE
 
 NMinfo.info.name    = 'NeuroMiner';
 if OCTAVE
-    NMinfo.info.ver     = sprintf('v1.4 (beta) | FINGOLFIN [OCTAVE %s]', OCTAVE_VERSION);
+    NMinfo.info.ver     = sprintf('Version 1.1.0 | BEORN [OCTAVE %s]', OCTAVE_VERSION);
 else
     matver = ver('matlab');
-    NMinfo.info.ver     = sprintf('v1.4 (beta) | FINGOLFIN [%s %s]', matver.Name, matver.Release);
+    NMinfo.info.ver     = sprintf('Version 1.1.0 | BEORN [%s %s]', matver.Name, matver.Release);
 end
-NMinfo.info.author  = 'N. Koutsouleris, C. Vetter, A. Wiegand, L. Hahn, S. Mena';
-NMinfo.info.affil   = 'Section for Precision Psychiatry / Artificial Intelligence in Mental Health (AIM)';
-NMinfo.info.dep     = 'Dept. of Psychiatry and Psychotherapy / IoPPN, Department of Psychosis Studies';
-NMinfo.info.inst    = 'Ludwig-Maximilians-University / King''s College London';
-NMinfo.info.datever = '10/2025';
-NMinfo.info.timestamp = datetime("today");
+NMinfo.info.author  = 'Nikolaos Koutsouleris, Clara Vetter, Ariane Wiegand';
+NMinfo.info.affil   = 'Section for Precision Psychiatry';
+NMinfo.info.dep     = 'Department of Psychiatry and Psychotherapy';
+NMinfo.info.inst    = 'Ludwig-Maximilian-University';
+NMinfo.info.datever = '10/2022';
+NMinfo.info.timestamp = date;
 NMinfo.info.email   = 'nm@pronia.eu';
 try
-    NM = evalin('base','NM');
+    NM = evalin('base','NM'); 
 catch
     NM = [];
 end
@@ -34,8 +34,8 @@ clc
 fprintf('>>> Initializing NeuroMiner\n')
 matpaths = path;
 
-%if ~isdeployed
-    if isunix, sep = ':'; else, sep = ';'; end
+if ~isdeployed
+    if isunix, sep = ':'; else sep = ';'; end
     try
       matpaths = nk_strsplit(sep,matpaths);
     catch
@@ -46,9 +46,9 @@ matpaths = path;
     else
         neurominerpath = fileparts(which('nm.p'));
     end
-%else
-    %neurominerpath = ctfroot;
-%end
+else
+    neurominerpath = ctfroot;
+end
 
 if nargin < 2
 	action.all=1;
@@ -57,51 +57,56 @@ end
 % Add root path
 fprintf('\nRoot path is %s.\n',neurominerpath)
 defs.path = neurominerpath;
-if action.addrootpath || action.all, addpath(defs.path); end
+if ~isdeployed % for CORE compilation
+     
+    if action.addrootpath || action.all, addpath(defs.path); end
+end
 
 % Initialise SPM directory
 SPMAVAIL = false; FSAVAIL=false;
 imaging_init_path = fullfile(neurominerpath,'imaging_init.mat');
 if ~isdeployed
     [spmrootdir, fsrootdir, judir] = nk_ImagingInit(neurominerpath, imaging_init_path);
-    if ischar(spmrootdir) && exist(spmrootdir,'dir')
+    if ischar(spmrootdir) && exist(spmrootdir,'dir') 
         SPMAVAIL = true;
-        if ~checkpaths(matpaths,spmrootdir)
-            addpath(spmrootdir);
+        if ~checkpaths(matpaths,spmrootdir) 
+            addpath(spmrootdir); 
             spm('Defaults','pet')
             fprintf('.');
-        end
+        end  
     end
     if ischar(fsrootdir) && exist(fsrootdir,'dir')
         FSAVAIL = true;
         if ~checkpaths(matpaths,fsrootdir)
-            addpath(fsrootdir);
+            addpath(fsrootdir); 
             fprintf('.');
-        end
+        end  
 
     end
     if ischar(judir) && exist(judir,'dir')
         JUAVAIL = true;
         if ~checkpaths(matpaths,judir)
-            addpath(judir);
+            addpath(judir); 
             fprintf('.');
-        end
+        end  
 
     end
 else
     if which('spm'), SPMAVAIL=true; spm('Defaults','pet'); FSAVAIL = true; JUAVAIL=true; end
 end
 
-% Initialize MEX file repository
-if ~checkpaths(matpaths,fullfile(defs.path,'cfiles'))
-    addpath(fullfile(defs.path,'cfiles'));
-    fprintf('.');
+if ~isdeployed % for CORE compilation 
+    % Initialize MEX file repository
+    if ~checkpaths(matpaths,fullfile(defs.path,'cfiles'))
+        addpath(fullfile(defs.path,'cfiles'));
+        fprintf('.');
+    end
 end
 
 if action.all
-
-    %if ~isdeployed
-
+    
+    if ~isdeployed
+        
         % Configuration subdirectory
         if ~checkpaths(matpaths,fullfile(defs.path,'config'))
             addpath(fullfile(defs.path,'config'));
@@ -125,30 +130,28 @@ if action.all
             addpath(fullfile(defs.path,'FeatGen/SVM')); fprintf('.');
             addpath(fullfile(defs.path,'FeatGen/SA')); fprintf('.');
         end
-
+        
         % Preprocessing subdirectory
         if ~checkpaths(matpaths,fullfile(defs.path,'preproc'))
             addpath(fullfile(defs.path,'preproc')); %fprintf('.');
             addpath(fullfile(defs.path,'preproc/mi')); fprintf('.');
             addpath(fullfile(defs.path,'preproc/combat')); fprintf('.');
-            addpath(fullfile(defs.path,'preproc/drtoolbox'));
+            addpath(fullfile(defs.path,'preproc/drtoolbox')); 
             addpath(fullfile(defs.path,['preproc/drtoolbox' filesep 'techniques'])); fprintf('.');
             addpath(fullfile(defs.path,'preproc/drtools'));fprintf('.');
             addpath(fullfile(defs.path,'preproc/drrobust'));fprintf('.');
             addpath(fullfile(defs.path,'preproc/nmfv1_4')); fprintf('.');
             addpath(fullfile(defs.path,'preproc/NeNMF')); fprintf('.');
-            addpath(fullfile(defs.path,'preproc/NMF_Library_v2')); fprintf('.');
             addpath(fullfile(defs.path,'preproc/NMF_Soteiras')); fprintf('.');
             addpath(fullfile(defs.path,'preproc/SparsePLS')); fprintf('.');
         end
-
+        
         % Train & Predict functions subdirectory
         if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict'))
             addpath(fullfile(defs.path,'trainpredict')); fprintf('.');
             addpath(fullfile(defs.path,'trainpredict/libsvm-weights-3.12/matlab')); fprintf('.');
             addpath(fullfile(defs.path,'trainpredict/libsvm-mat-2.9-1')); fprintf('.');
             addpath(fullfile(defs.path,'trainpredict/liblinear-2.44/')); fprintf('.');
-            addpath(fullfile(defs.path,'trainpredict/liblinear-2.47/')); fprintf('.');
             addpath(fullfile(defs.path,'trainpredict/LIBSVM-Plus-2.89')); fprintf('.');
             addpath(fullfile(defs.path,'trainpredict/mRVMs')); fprintf('.');
             addpath(fullfile(defs.path,'trainpredict/MRVR'));fprintf('.');
@@ -162,11 +165,11 @@ if action.all
             addpath(fullfile(defs.path,'trainpredict/BBQ')); fprintf('.');
             addpath(fullfile(defs.path,'trainpredict/popfeatsel')); fprintf('.');
         end
-
+        
         if ~checkpaths(matpaths,fullfile(defs.path,'gridsearch'))
             addpath(fullfile(defs.path,'gridsearch')); fprintf('.');
         end
-
+        
         % Visualization subdirectory
         if ~checkpaths(matpaths,fullfile(defs.path,'visual'))
             addpath(fullfile(defs.path,'visual')); fprintf('.');
@@ -176,7 +179,7 @@ if action.all
         if ~checkpaths(matpaths,fullfile(defs.path,'interpretable'))
             addpath(fullfile(defs.path,'interpretable')); fprintf('.');
         end
-
+        
         % GUI subdirectory
         if ~checkpaths(matpaths,fullfile(defs.path,'gui'))
             addpath(fullfile(defs.path,'gui')); fprintf('.');
@@ -193,22 +196,18 @@ if action.all
             addpath(fullfile(defs.path,'util')); fprintf('.');
             addpath(fullfile(defs.path,'util/freesurfer')); fprintf('.');
         end
-        % Atlas subdirectory
-        if ~checkpaths(matpaths,fullfile(defs.path,'atlas'))
-            addpath(fullfile(defs.path,'atlas'));
-            fprintf('.');
-        end
+    end
 end
 
 if action.addDRpath || action.all
-
-    %if ~isdeployed
+    
+    if ~isdeployed
         % Preprocessing subdirectory
-
+        
         % Path of dimensionality reduction toolbox
         if ~checkpaths(matpaths,fullfile(defs.path,'preproc/drtoolbox'))
-            addpath(fullfile(defs.path,'preproc/drtoolbox'));
-            addpath(fullfile(defs.path,['preproc/drtoolbox' filesep 'techniques'])); fprintf('.');
+            addpath(fullfile(defs.path,'preproc/drtoolbox')); 
+            addpath(fullfile(defs.path,['preproc/drtoolbox' filesep 'techniques'])); fprintf('.');     
         end
 
         if ~checkpaths(matpaths,fullfile(defs.path,'preproc/drtools'))
@@ -218,66 +217,65 @@ if action.addDRpath || action.all
         if ~checkpaths(matpaths,fullfile(defs.path,'preproc/drrobust'))
             addpath(fullfile(defs.path,'preproc/drrobust')); fprintf('.');
         end
-
+        
         % Path of dimensionality reduction toolbox
         if ~checkpaths(matpaths,fullfile(defs.path,'preproc/nmfv1_4'))
             addpath(fullfile(defs.path,'preproc/nmfv1_4')); fprintf('.');
         end
-
-    %end
-
+    
+    end
+	
 end
-
+        
 if action.addMIpath
-    %if ~isdeployed
+    if ~isdeployed
         if ~checkpaths(matpaths,fullfile(defs.path,'preproc/mi'))
             addpath(fullfile(defs.path,'preproc/mi')); fprintf('.');
         end
-    %end
+    end
 end
 
 if action.addLIBSVMpath
-
-    %if ~isdeployed
+    
+    if ~isdeployed
         if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/libsvm-weights-3.12/matlab'))
             addpath(fullfile(defs.path,'trainpredict/libsvm-weights-3.12/matlab')); fprintf('.');
         end
-    %end
-
-    %if ~isdeployed
+    end
+    
+    if ~isdeployed
         if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/libsvm-mat-2.9-1'))
             addpath(fullfile(defs.path,'trainpredict/libsvm-mat-2.9-1'));fprintf('.');
         end
-    %end
+    end
 
-    %if ~isdeployed
+    if ~isdeployed
         if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/LIBSVM-Plus-2.89'))
             addpath(fullfile(defs.path,'trainpredict/LIBSVM-Plus-2.89'));fprintf('.');
         end
-    %end
+    end
 
 end
-if action.addLIBLINpath
-    %if ~isdeployed
+if action.addLIBLINpath 
+    if ~isdeployed 
         if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/liblinear-2.1/matlab'))
            addpath(fullfile(defs.path,'trainpredict/liblinear-2.1/matlab')); fprintf('.');
         end
-    %end
+    end
 end
 
-if action.addMikeRVMpath
-    %if ~isdeployed
+if action.addMikeRVMpath 
+    if ~isdeployed 
         if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/SB2_Release_200'))
             addpath(fullfile(defs.path,'trainpredict/SB2_Release_200'));fprintf('.');
         end
-    %end
+    end
 end
 
-if ~isempty(NM) && ~isstruct(NM)
+if ~isempty(NM) && ~isstruct(NM) 
     error('The NM workspace variable does not have the correct format and thus cannot be not recognized. Clear the variable and start again!')
 end
 NM.defs.paths = defs.path;
-NM.defs.atlas_path = fullfile(defs.path,'atlas');
 NM.defs.NM_ver = NMinfo.info.ver;
 if ~isfield(NM.defs,'ver'), NM.defs.ver = ver; end
 if ~isfield(NM.defs,'computer'), NM.defs.computer = computer; end
@@ -305,3 +303,5 @@ for i=1:length(matpaths)
             end
     end
 end
+
+return

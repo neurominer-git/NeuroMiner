@@ -1,58 +1,33 @@
 function [sY, IN, dT] = nk_PerfAdjForCovarsUsingPCAObj(Y, IN, S)
 % =========================================================================
-% [sY, IN, dT] = nk_PerfAdjForCovarsUsingPCAObj(Y, IN, S)
+% function [adjT, IN] = nk_PerfAdjForCovarsUsingPCAObj(T, IN, S)
 % =========================================================================
-% Adjusts a target data matrix for covariate effects by projecting it into
-% a dimensionality-reduced space (PCA or ICA) derived from a source matrix,
-% identifying components correlated with covariates, and reconstructing the
-% target matrix with the components retained (or returns the pruned target 
-% matrix as is for downstream analyses).
+% ----- INPUTS -----
+% Y :               Target matrix (row = patterns, cols = features), from 
+%                   which the covariate effects will be removed 
+% S :               Source Matrix (row = patterns, cols = features)
+%                   Used to (1) determine which eigenvectors are correlated
+%                   with IN.G, and (2) to reduce and reconstruct T
+% IN.G :            Covariate matrix 
 %
-% ----------------------------- INPUTS ------------------------------------
-% Y :    Target matrix (rows = patterns, cols = features).
-%        If cell array, adjustment is performed per cell element.
+% Additional fields in IN include:
+% IN.recon :        back-project adjusted target matrix to input space 
+%                   (def: true)
+% IN.varop :        operator for identification of correlated factors 
+%                   (def: gt)
+% IN.corrmeth :     identification method (1 = pearson (def), 
+%                   2 = spearman, 3 = anova)
+% IN.corrthresh :   cutoff for identification (def: 0.3)
+% IN.DR :           Dimensionality reduction parameter structure (see
+%                   nk_DimRed_config)
+% IN.indX :         logical index vector to subcohort of IN.S
 %
-% IN :   Structure containing parameters and covariates:
-%        IN.G          - Covariate matrix (rows = patterns).
-%        IN.recon      - Reconstruction mode (1 = back-project adjusted 
-%                        matrix to input space [default], 
-%                        2 = return reduced-space representation).
-%        IN.varop      - Operator for thresholding correlated factors 
-%                        ('gt','lt','ge','le'; default: 'gt').
-%        IN.corrmeth   - Correlation method for factor–covariate association:
-%                          1 = Pearson [default], 2 = Spearman, 3 = ANOVA.
-%        IN.corrthresh - Cutoff for correlation strength or p-value 
-%                        (default: 0.3).
-%        IN.corrcrit   - Thresholding criterion: 'corr' (default) or 'pval'.
-%        IN.DR         - Dimensionality reduction parameters (see
-%                        nk_DimRed_config). If not provided, PCA is used
-%                        with percentage-of-variance mode.
-%        IN.indX       - Logical index vector selecting subset of rows in S
-%                        used to compute factorization (default: all rows).
 %
-% S :    Source matrix used to (1) compute the reduced embedding space and 
-%        (2) identify variance components associated with covariates.
-%
-% ----------------------------- OUTPUTS -----------------------------------
-% sY :   Adjusted target matrix (cell array if Y was a cell array).
-% IN :   Updated parameter structure with computed reduction / correlation 
-%        parameters (e.g., loadings, correlation values, masks).
-% dT :   Dimensionality-reduced representation of the (adjusted) target.
-%
-% ----------------------------- NOTES -------------------------------------
-% This approach is conceptually similar to component-based denoising methods 
-% in neuroimaging such as:
-%   - CompCor (Behzadi et al., NeuroImage 2007): PCA on a source matrix, 
-%     identification of nuisance-related components, removal and reconstruction.
-%   - ICA-AROMA (Pruim et al., NeuroImage 2015): ICA decomposition, 
-%     classification of motion-related components, reconstruction without them.
-%
-% Both methods identify and remove variance components associated with 
-% nuisance or covariate effects before back-projecting the cleaned signal, 
-% which is the strategy applied here
+% ----- OUTPUTS -----
+% adjT :            Adjusted target matrix 
+% IN :              Parameter structure containing orig. and comp. params
 % =========================================================================
-% (c) Nikolaos Koutsouleris, 07/2023
-% =========================================================================
+% (c) Nikolaos Koutsouleris, 1/2016
 
 % =========================== WRAPPER FUNCTION ============================ 
 if ~exist('S','var'), S=[]; end
@@ -67,54 +42,14 @@ end
 
 % =========================================================================
 function [adjT, IN, dT] = PerfAdjForCovarsUsingPCAObj(T, IN, S)
-% =========================================================================
-% [adjT, IN, dT] = PerfAdjForCovarsUsingPCAObj(T, IN, S)
-% =========================================================================
-% Core routine for covariate adjustment using PCA/ICA. 
-% Projects a target matrix into the embedding space of a source matrix, 
-% identifies variance components correlated with covariates, and reconstructs 
-% the target matrix with those components retained (or just returns the pruned 
-% target matrix as is for downstream analyses).
-%
-% ----------------------------- INPUTS ------------------------------------
-% T :    Target matrix (rows = patterns, cols = features) to be adjusted.
-%
-% IN :   Structure with parameters and covariates:
-%        IN.G          - Covariate matrix (rows = patterns).
-%        IN.recon      - Reconstruction mode (1 = back-project adjusted 
-%                        matrix to input space [default], 
-%                        2 = return reduced-space representation).
-%        IN.varop      - Operator for thresholding correlated factors 
-%                        ('gt','lt','ge','le'; default: 'gt').
-%        IN.corrmeth   - Method to assess factor–covariate correlation:
-%                          1 = Pearson [default], 2 = Spearman, 3 = ANOVA.
-%        IN.corrthresh - Cutoff for correlation strength or p-value 
-%                        (default: 0.3).
-%        IN.corrcrit   - Thresholding criterion: 'corr' (default) or 'pval'.
-%        IN.DR         - Dimensionality reduction parameters (see 
-%                        nk_DimRed_config). Defaults to PCA.
-%        IN.indX       - Logical index vector specifying rows in S to use 
-%                        for factorization (default: all rows).
-%
-% S :    Source matrix used to compute the reduced embedding space and to 
-%        identify components correlated with covariates.
-%
-% ----------------------------- OUTPUTS -----------------------------------
-% adjT : Adjusted target matrix (back-projected or reduced representation,
-%        depending on IN.recon).
-% IN :   Updated parameter structure containing computed reduction and
-%        correlation parameters.
-% dT :   Dimensionality-reduced representation of the target matrix.
-%
-% =========================================================================
 global VERBOSE
 
 % Check existence of paramater structure
-if ~exist('IN','var') || isempty(IN)          
+if ~exist('IN','var') || isempty(IN),             
     error('No parameter structure specified! Abort!');  
 end
-if ~isfield(IN,'recon') || isempty(IN.recon)
-    IN.recon = 1;
+if ~isfield(IN,'recon') || isempty(IN.recon),
+    IN.recon = true;
 end
 if ~isfield(IN,'varop') || isempty(IN.varop)
     IN.varop = 'gt';
@@ -126,16 +61,16 @@ if ~isfield(IN,'ind0') || isempty(IN.ind0)
     
     compfl = true;
     % The source data matrix to compute the factorized matrix from
-    if ~exist('S','var') || isempty(S)
+    if ~exist('S','var') || isempty(S), 
         error('No training matrix specified in parameter structure'); 
     end
     % The source covariate matrix to compute correlation coefficients with
     % factorized data matrix
-    if (~isfield(IN,'G') || isempty(IN.G))
+    if (~isfield(IN,'G') || isempty(IN.G)),
         error('No target vector / matrix specified in parameter structure'); 
     end
     % The defaults correlation method
-    if ~isfield(IN,'corrmeth') || isempty(IN.corrmeth)
+    if ~isfield(IN,'corrmeth') || isempty(IN.corrmeth),
         IN.corrmeth = 1;                                    
     end
     switch IN.corrmeth
@@ -148,7 +83,7 @@ if ~isfield(IN,'ind0') || isempty(IN.ind0)
     end
 
     % The default correlation strength 
-    if ~isfield(IN,'corrthresh') || isempty(IN.corrthresh)
+    if ~isfield(IN,'corrthresh') || isempty(IN.corrthresh),
         IN.corrthresh = 0.3;                                
     end
     
@@ -159,39 +94,23 @@ if ~isfield(IN,'ind0') || isempty(IN.ind0)
     
     % if not otherwise specified use PCA in the 'percentage of
     % sum(eigenvalues) mode'
-
-    % CV Note: this can potentially also be adjusted so that DR.RedMode is
-    % directly set in _config
-    if (~isfield(IN,'DR') || isempty(IN.DR) || ~isfield(IN.DR,'RedMode')) && (~isfield(IN, 'redmethod') || IN.redmethod == 1)
+    if ~isfield(IN,'DR') || isempty(IN.DR) || ~isfield(IN.DR,'RedMode')
         IN.DR.DRsoft = 1; 
         IN.DR.RedMode = 'PCA';
         IN.DR.PercMode = IN.dimmode;  
-    elseif (~isfield(IN,'DR') || isempty(IN.DR) || ~isfield(IN.DR,'RedMode')) && IN.redmethod == 2 
-        IN.DR.RedMode = 'fastICA'; 
-        IN.DR.PercMode = IN.dimmode; % unecessary, might affect nk_PerfRedObj
-        IN.DR.DRsoft = 1; % unused, might affect nk_PerfRedPbj
-        IN.DR.whiten_opt = IN.whiten_opt; 
-        IN.DR.algorithm_opt = IN.algorithm_opt; 
-        IN.DR.fun_opt = IN.fun_opt; 
     end
     
     % Run dimensionality reduction on the source matrix
     [dS, IN] = nk_PerfRedObj(S(IN.indX,:),IN);
     IN.C = zeros(size(dS,2),size(IN.G,2));
-    IN.Pvalue = IN.C;
-
+    
     % Identify correlated factors in the factorized source matrix
     switch corrmeth
         case {'pearson', 'spearman'}
             for i = 1:size(IN.G,2)
                 % Determine correlations with covars in the source matrix
-                [Cvalues,~,~,Pvalues] = nk_CorrMat(dS,IN.G(IN.indX,i),corrmeth);
-                IN.C(:,i)=abs(Cvalues); IN.Pvalue(:,i)=Pvalues;
-                IN.C(isinf(IN.C(:,i)) | isnan(IN.C(:,i)),i) = 0;
-                if VERBOSE 
-                    maxi = max(IN.C(:,i)); 
-                    fprintf('\nWorking on covariate #%g => max=%g', i, maxi); 
-                end
+                if VERBOSE, fprintf('\nWorking on covariate #%g', i); end
+                IN.C(:,i) = abs(nk_CorrMat(dS,IN.G(IN.indX,i),corrmeth)');
             end
         case 'anova'
             % This is the more powerful option if we have multiple covars
@@ -200,41 +119,15 @@ if ~isfield(IN,'ind0') || isempty(IN.ind0)
             RES.X = [ones(size(IN.G(IN.indX,:),1),1) IN.G(IN.indX,:)];
             RES = nk_PerfANOVAObj(dS, RES);
             IN.C = sqrt(RES.R2);
-            IN.Pvalue = RES.p;
-            IN.C(isinf(IN.C) | isnan(IN.C)) = 0;
-            if VERBOSE
-                maxi = max(IN.C); 
-                fprintf('\nDummy matrix => max=%g', maxi); 
-            end
     end
 
     % Threshold eigenvariate correlations with covars
-    switch IN.corrcrit
-        case 'corr'
-            IN.subthresh = any(single(feval(IN.varop, IN.C, IN.corrthresh)),2);
-        case 'pval'
-            IN.subthresh = any(single(feval(IN.varop, IN.Pvalue, IN.corrthresh)),2);
-    end
-
+    IN.subthresh = single(feval(IN.varop, IN.C, IN.corrthresh));
+    
     % Check whether correlated factors exist or not!
-    if ~sum(IN.subthresh)
+    if ~sum(IN.subthresh),
         IN.ind0 = true(1,size(dS,2));
         warning('\nNo variance components identified at %g threshold. Returning unchanged matrix!', IN.corrthresh);
-        switch IN.recon
-            case 1
-              adjT = T;
-            case 2
-              if isempty(T) ||(isequal(T, S) && sum(IN.indX) == size(S,1))
-                 adjT = dS; 
-              else
-                 adjT = nk_PerfRedObj(T,IN);
-              end
-        end
-        dT = adjT;
-        return
-    elseif sum(IN.subthresh) == size(IN.subthresh,2)
-        IN.ind0 = true(1,size(dS,2));
-        warning('\nAll variance components identified at %g threshold. Returning unchanged matrix!', IN.corrthresh);
         switch IN.recon
             case 1
               adjT = T;
@@ -250,14 +143,14 @@ if ~isfield(IN,'ind0') || isempty(IN.ind0)
     end
 
     % Determine which eigenvariates have to be extracted
-    IN.ind0 = ~IN.subthresh;
+    IN.ind0 = ~sum(IN.subthresh,2);
 end
 if ~any(IN.ind0) 
     warning('All eigenvariates meet threshold criterion [%s %g]!\nCheck your data and your settings.',IN.varop,IN.corrthresh);
 end
     
-% Now project target matrix to source matrix embedding space
-if VERBOSE, fprintf(sprintf('\nProjecting target matrix to source %s space', IN.DR.RedMode)); end
+% Now project target matrix to source matrix PCA space
+if VERBOSE, fprintf('\nProjecting target matrix to source PCA space'); end
 if isempty(T) ||(exist('S','var') && isequal(T, S) && sum(IN.indX) == size(S,1))
     if exist('dS','var')
         dT = dS; 
@@ -272,48 +165,22 @@ end
 switch IN.recon
     case 1
         % Reconstruct target matrix only with / without extracted variance
-        % componentsp
+        % components
         if VERBOSE, fprintf('\nReconstructing target matrix based on selected components.'); end
-        
-        if strcmp(IN.DR.RedMode, 'fastICA')
-            dT(:,~IN.ind0) = 0;
-            [tT, IN.mpp] = cv_PerfICA(dT, IN.mpp, 'inverse_transform');
-            adjT = zeros(size(dT,1),numel(IN.indNonRem)); adjT(:,IN.indNonRem) = tT;
-        else
-            tT = bsxfun(@plus, IN.mpp.vec(:,IN.ind0)* dT(:,IN.ind0)' , IN.mpp.sampleMean')';
-            adjT = zeros(size(dT,1),numel(IN.indNonRem)); adjT(:,IN.indNonRem) = tT;
-        end
+        tT = bsxfun(@plus, IN.mpp.vec(:,IN.ind0)* dT(:,IN.ind0)' , IN.mpp.sampleMean')';
+        adjT = zeros(size(dT,1),numel(IN.indNonRem)); adjT(:,IN.indNonRem) = tT;
     case 2
         if VERBOSE, fprintf('\nLimiting target matrix to selected components.'); end
         % Limited projected target matrix to selected variance components
         adjT = dT(:,IN.ind0);
 end
 
-if VERBOSE
-    s0 = sum(~IN.ind0); if ~s0, fprintf('???'); end
+if VERBOSE, 
     if compfl
-        switch IN.varop
-            case 'gt'
-                varopstr = '>';
-            case 'lt'
-                varopstr = '<';
-            case 'ge'
-                varopstr = '>=';
-            case 'le'
-                varopstr = '<=';
-        end
-        switch IN.corrcrit
-            case 'corr'
-                critstr = 'correlation coefficient';
-                funci = @max; funcistr = 'max'; mx = IN.C(~IN.ind0,:); 
-            case 'pval'
-                critstr = 'p value';
-                funci = @min; funcistr = 'min'; mx = IN.Pvalue(~IN.ind0,:); 
-        end
-        fprintf(['\nProcessing finished. %g/%g components with %s %s %g (%s: %g) were identified.', ...
-            '\nRespective variance components was extracted from the input matrix.\n'],s0, size(IN.mpp.vec,2), critstr, varopstr, IN.corrthresh, funcistr, funci(mx(:))); 
+        fprintf(['\nProcessing finished. %g/%g components with r %s %g (max: %g) were identified.', ...
+            '\nRespective variance components was extracted from the input matrix.\n'],sum(~IN.ind0),size(IN.mpp.vec,2), IN.varop, IN.corrthresh, max(IN.C(~IN.ind0))); 
     else
-        fprintf('\nProcessing finished. %g variance components were removed from input matrix', s0)
+        fprintf('\nProcessing finished. %g variance components were removed from input matrix', sum(~IN.ind0))
     end
 end
 

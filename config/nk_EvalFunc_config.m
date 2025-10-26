@@ -1,19 +1,17 @@
-function [GridParam, modeflag] = nk_EvalFunc_config(res, param, parentstr, modeflag) 
+function [GridParam, modeflag] = nk_EvalFunc_config(res, param, parentstr) 
 global EXPERT
 
-if ~exist('modeflag', 'var') || isempty(modeflag), modeflag = res.modeflag; end
-
-deffunc = 1;
+modeflag = res.modeflag; deffunc = 1;
 if exist('param','var') && ~isempty(param)
     if isfield(param,'evalfunc')
         deffunc = param.evalfunc;
     elseif isfield(param,'GridParam')
         deffunc = param.GridParam;
     end
-    switch modeflag
+    switch res.modeflag
         case 'classification'
             if EXPERT
-                mn_act = [1 2 4 5 6 7 13 14 17 15 19 20 21 22 23];
+                mn_act = [1 2 4 5 6 7 13 14 17 15 19 20 21];
                 mn_str = [  'Accuracy [ sum(E~=P)*100/N ]|' ...
                             'True Positive Rate [ e.g. for one-class SVM ]|' ...
                             'False Positive Rate [ e.g. for one-class SVM ]|' ...
@@ -26,9 +24,7 @@ if exist('param','var') && ~isempty(param)
                             'F-score [ (1+beta2)*precision*recall / (beta2*(precision+recall)) * 100 ]|' ...
                             'Prognostic Summary Index [ PPV+NPV-100 ]|' ...
                             'Number Needed to Predict [1/PPV]|' ...
-                            'Expected Calibration Error [ECE]|' ...
-                            'Positive Likelihood Ratio [Sensitivity/(100-Specificity)|'...
-                            'Negative Likelihood Ratio [Specificity/(100-Sensitivity)'];
+                            'Expected Calibration Error [ECE]'];
                 
             else
                 mn_act = [1 6 7 14 17 19 ];
@@ -42,13 +38,12 @@ if exist('param','var') && ~isempty(param)
            
         case 'regression'
             if EXPERT
-                mn_act = [9 11 10 16 18 24 ];
+                mn_act = [9 11 10 16 18];
                 mn_str = [  'Mean Squared Error (MSE) [ sum((P-E).*(P-E)) ]|' ...
                             'Normalized Root of Mean Squared Deviation [ sqrt(MSE)*100/range(E) ]|' ...
                             'Squared Correlation Coefficient (R^2) [ don''t use with Leave-One-Out ]|' ...
                             'Pearson Correlation Coefficient (R) [ don''t use with Leave-One-Out ] |' ...
-                            'Mean Average Error [ mean(abs(P-E)) ]|' ...
-                            'Tail-Weighted Mean Squared Error (MSE) [ sum((P-E).*(P-E)) * (inverse density weights) ]|' ];
+                            'Mean Average Error [ mean(abs(P-E)) ]'];
             else
                 mn_act = [9 10 18];
                 mn_str = [  'Mean Squared Error [ sum((P-E).*(P-E)) ]|' ...

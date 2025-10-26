@@ -10,40 +10,34 @@ if ~exist('defaultfl','var') || isempty(defaultfl), defaultfl = 0; end
 
 % Defaults:
 % =========
-if isfield(NM.TrainParam, 'LABEL') && NM.TrainParam.LABEL.flag
-    label_temp = NM.TrainParam.LABEL.newlabel; 
-else
-    label_temp = NM.label; 
-end
-if numel(unique(label_temp)) < 3
+if numel(unique(NM.label)) < 3
     MULTI.flag = 0;
     MULTI.train = 0;
     return; 
 end
 multiflag     = 1;
 hardcoded     = 1;
-MultiTrain   = 1;
+multitrain    = 1;
 method        = 2;
 coding        = 1;
 decoding      = 1;
 BinBind       = 0;
 decisiontype  = 1;
 act           = 0;
-yesno         = {'yes','no'};
 if ~defaultfl
     nk_PrintLogo
     % Take over previous values if available
     if ~isempty(MULTI)
         if isfield(MULTI,'flag'),       multiflag = MULTI.flag; end
         if isfield(MULTI,'hardcoded'),  hardcoded = MULTI.hardcoded; end
-        if isfield(MULTI,'train'),      MultiTrain= MULTI.train; end
+        if isfield(MULTI,'train'),      multitrain = MULTI.train; end
         if isfield(MULTI,'method'),     method = MULTI.method; end    
         if isfield(MULTI,'coding'),     coding= MULTI.coding; end
         if isfield(MULTI,'decoding'),   decoding = MULTI.decoding; end
         if isfield(MULTI,'BinBind'),    BinBind = MULTI.BinBind; end
     end
     
-    if ~multiflag  
+    if ~multiflag,  
         multiflagstr = 'no';    
         menustr = sprintf('Train multi-class predictor [ %s ]', multiflagstr) ;
         menuact = 1;
@@ -51,8 +45,8 @@ if ~defaultfl
     else
         multiflagdef = 1;
         multiflagstr = 'yes';
-        if BinBind, binbinddef = 1; else, binbinddef = 2; end
-        if ~MultiTrain
+        if BinBind, binbinddef = 1; else binbinddef = 2; end
+        if ~multitrain, 
             multitrainstr =  'no'; 
             multitraindef = 2;
         else
@@ -93,18 +87,10 @@ if ~defaultfl
                 multimethodstr = 'Directed Acyclic Graph '; decodestr = 'DAG';
         end
         multimethodstr = [multimethodstr '( ' decodestr ' )'] ;
-        if ~MultiTrain
-            menustr = [ sprintf('Train multi-class predictor [ %s ]|', multiflagstr) ...
-                sprintf('Optimize NM training process for multi-group classification performance [ %s ]|', multitrainstr) ...
-                sprintf('Bind multi-class optimum to binary classifiers'' optimal hyperparams [ %s ]|', yesno{binbinddef}) ...];
-                sprintf('Specify multi-class decision mechanism [ %s ]', multimethodstr) ];
-            menuact = 1:4;
-        else
-            menustr = [ sprintf('Train multi-class predictor [ %s ]|', multiflagstr) ...
+        menustr = [ sprintf('Train multi-class predictor [ %s ]|', multiflagstr) ...
                 sprintf('Optimize NM training process for multi-group classification performance [ %s ]|', multitrainstr) ...
                 sprintf('Specify multi-class decision mechanism [ %s ]', multimethodstr) ];
-            menuact = [1 2 4];
-        end
+        menuact = 1:3;
     end        
     
     mestr = 'Multi-class prediction parameters'; navistr = [parentstr ' >>> ' mestr]; fprintf('\n\nYou are here: %s >>> ',parentstr); 
@@ -112,13 +98,11 @@ if ~defaultfl
     
     switch act
         case 1
-            multiflag = ~multiflag;
+            multiflag = nk_input('Train multi-class predictor',0,'yes|no',[1,0],multiflagdef);
         case 2
-            MultiTrain= ~MultiTrain;
-            if MultiTrain, BinBind=0; end
+            multitrain = nk_input('Optimize NM training process for multi-group classification performance',0,'yes|no',[1,0],multitraindef);
+            if ~multitrain, BinBind = nk_input('Bind multi-class predictor to binary classifiers'' optima',0,'yes|no',[1,0], binbinddef); else BinBind = 0; end
         case 3
-            BinBind = ~BinBind;  
-        case 4
              if isfield(NM.TrainParam,'RAND') && ...
                 isfield(NM.TrainParam.RAND,'Decompose') && ...
                     NM.TrainParam.RAND.Decompose == 2
@@ -139,7 +123,7 @@ if ~defaultfl
                         ['Sum of decision values|' ...
                          'Mean of decision values|' ...
                          'Product of decision values|' ...
-                         'Majority voting|' ...
+                         'Majority voriting|' ...
                          'Median of decision values'],1:5,decisiontype);
                 case 2
                     coding = 1; % Pairwise
@@ -154,7 +138,7 @@ if ~defaultfl
 end
 MULTI.flag           = multiflag;
 MULTI.method         = method;
-MULTI.train          = MultiTrain;
+MULTI.train          = multitrain;
 MULTI.hardcoded      = hardcoded;
 MULTI.coding         = coding;
 MULTI.decoding       = decoding;

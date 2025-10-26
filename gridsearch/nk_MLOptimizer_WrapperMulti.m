@@ -2,7 +2,7 @@ function [R, optmodel] = nk_MLOptimizer_WrapperMulti(Y, mY, L, bL, MultiL, mYnew
 
 global RFE SVM
 
-if nargin < 12
+if nargin < 12, 
     for curclass=1:numel(Y)
         SubFeat{curclass} = true(1,size(Y{curclass},2));
     end
@@ -32,7 +32,7 @@ end
 switch RFE.Wrapper.type
     %% GREEDY FORWARD/BACKWARD FEATURE SEARCH
     case 1 
-        funs = { @rfe_forward_multi_v2,  @rfe_backward_multi_v2 };
+        funs = { @rfe_forward_multi,  @rfe_backward_multi };
         [optparam, optind, optfound, optmodel] = funs{RFE.Wrapper.GreedySearch.Direction}(Y, mY, L, bL, MultiL, mYnew, Lnew, MultiLnew, Ps, SubFeat, FullParam, ngroups, ActStr{RFE.Wrapper.datamode});
     
     %% SIMULATED ANNEALING

@@ -1,11 +1,11 @@
-function [ mW, mP, mR, mSR, mC, W, mPA ] = nk_VisXWeight(inp, MD, Y, L, varind, P, F, VI, decompfl, memprob, procfl, Fadd)
+function [ mW, mP, mR, mSR, mC, W, mPA ]= nk_VisXWeight(inp, MD, Y, L, varind, P, F, VI, decompfl, memprob, procfl, Fadd)
 % =========================================================================
-% [mW, mP, mR, mSR, mC, W, mPA ] = nk_VisXWeight(inp, MD, Y, L, varind, ...
+% [mW, mP, mR, mSR, mC, W, mPA] = nk_VisXWeight(inp, MD, Y, L, varind, ...
 %                                          P, F, VI, decompfl, procfl, Fadd)
 % =========================================================================
 % Core visualization module that retrieves a weight vector and maps it back
 % to the input space of features by reversing processing steps as much as
-% possible and meaningful.
+% possible and meaningful
 %
 % Inputs:
 % ------
@@ -31,9 +31,9 @@ function [ mW, mP, mR, mSR, mC, W, mPA ] = nk_VisXWeight(inp, MD, Y, L, varind, 
 % W :           weight vector in processed feature space
 % mPA :
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, 08/2023
+% (c) Nikolaos Koutsouleris, 05/2022
 
-global SVM 
+global SVM %TEMPL
 if ~exist('memprob','var') || isempty(memprob), memprob = false; end % to fix bug report
 if ~exist('procfl','var') || isempty(procfl), procfl = true; end
 if ~exist('Fadd','var') || isempty(Fadd), Fadd = true(size(F)); end
@@ -65,9 +65,11 @@ end
 
 mW = cell(1,mM);
 if ~isempty(PA), mPA = cell(1,mM); end
-mP = []; mR = []; mSR = []; mC=[]; 
+
 if procfl
     mP = cell(1,mM); mR = cell(1,mM); mSR = cell(1,mM); mC = cell(1,nM);
+else
+    mP = []; mR = []; mSR = []; mC=[];
 end
 
 % Loop through modalities
@@ -103,16 +105,6 @@ for n=1:nM
     if procfl 
         
         if isfield(nPREPROC,'ACTPARAM'), nA = numel(nPREPROC.ACTPARAM); else, nA=0; end
-
-        for k = 1:nA
-            preprocs{k,1} = nPREPROC.ACTPARAM{1,k}.cmd;
-        end
-
-        if any(strcmp(preprocs,'JuSpace'))
-            juspaceflag = true;
-        else
-            juspaceflag = false;
-        end
         
         %%%%%%%%%%% PROJECT DATA BACK TO INPUT SPACE %%%%%%%%%%
 
@@ -130,120 +122,120 @@ for n=1:nM
             else
                 naPX = nPX{a};
             end
+            
+            switch nPREPROC.ACTPARAM{a}.cmd
 
-            if  ~juspaceflag
-                switch nPREPROC.ACTPARAM{a}.cmd
-    
-                    case 'scale'
-                        % Very frequently users opt to scale features after
-                        % factorization/dimensionality reduction. In these cases
-                        % scaling has to be reverted prior to back-projection
-                        if ~reducedimfl && decompfl(n)
-                            IN = nPREPROC.ACTPARAM{a}.SCALE;
-                            IN.minY = naPX.minY; IN.maxY = naPX.maxY; 
-                            IN.revertflag = true;
-                            nmW(nmW==0)=NaN; nmW = nk_PerfScaleObj(nmW', IN)'; nmW(isnan(nmW))=0;
+                case 'scale'
+                    % Very frequently users opt to scale features after
+                    % factorization/dimensionality reduction. In these cases
+                    % scaling has to be reverted prior to back-projection
+                    if ~reducedimfl && decompfl(n)
+                        IN = nPREPROC.ACTPARAM{a}.SCALE;
+                        IN.minY = naPX.minY; IN.maxY = naPX.maxY; 
+                        IN.revertflag = true;
+                        nmW(nmW==0)=NaN; nmW = nk_PerfScaleObj(nmW', IN)'; nmW(isnan(nmW))=0;
+                    end
+
+                case {'reducedim','remvarcomp'}
+                    
+                    if isfield(naPX,'recon') && naPX.recon==1
+                        fprintf('-');
+                    else
+                        if isfield(naPX.mpp,'vec')
+                           redvec = naPX.mpp.vec;
+                        elseif isfield(naPX.mpp,'factors')
+                           redvec = naPX.mpp.factors{1};
+                        elseif isfield(naPX.mpp,'u')
+                           redvec = naPX.mpp.u;
+                        elseif isfield(naPX.mpp,'M')
+                           redvec = naPX.mpp.M;
+                        elseif isfield(naPX.mpp,'W')
+                            redvec = naPX.mpp.W;
+                        elseif isfield(naPX.mpp,'network')
+                           error('Autoencoder reconstructions not supported!')
                         end
-    
-                    case {'reducedim','remvarcomp'}
-                        
-                        if isfield(naPX,'recon') && naPX.recon==1
-                            fprintf('-');
+
+                        if isfield(naPX,'ind0')
+                            ind0 = naPX.ind0;
+                            DR = naPX.DR;
                         else
-                            if isfield(naPX.mpp,'vec')
-                               redvec = naPX.mpp.vec;
-                            elseif isfield(naPX.mpp,'factors')
-                               redvec = naPX.mpp.factors{1};
-                            elseif isfield(naPX.mpp,'u')
-                               redvec = naPX.mpp.u;
-                            elseif isfield(naPX.mpp,'M')
-                               redvec = naPX.mpp.M;
-                            elseif isfield(naPX.mpp,'W')
-                                redvec = naPX.mpp.W;
-                            elseif isfield(naPX.mpp,'network')
-                               error('Autoencoder reconstructions not supported!')
-                            end
-                            if isfield(naPX,'ind0')
-                                ind0 = naPX.ind0;
-                                DR = naPX.DR;
-                            else
-                                ind0 = 1:size(redvec,2);
-                                DR = nPREPROC.ACTPARAM{a}.DR;
-                            end
-    
-                            mpp.vec = redvec(:,ind0);
-    
-                            switch DR.RedMode                                        
-                                case {'PCA','RobPCA','SparsePCA'}
-                                    if strcmp(DR.RedMode,'RobPCA') 
-                                        DRsoft = 1; 
-                                    else
-                                        DRsoft = DR.DRsoft;
-                                    end
-                                    % Project back to input space
-                                    switch DRsoft
-                                        case 0
-                                            nmW = reconstruct_data(nmW, mpp);
-                                            nmP = logical(reconstruct_data(nmP, mpp));
-                                            if ~isempty(PA), nmPA = reconstruct_data(nmPA, mpp); end
-                                        case 1
-                                            nmW = mpp.vec * nmW;
-                                            nmP = logical(mpp.vec * nmP);
-                                            if ~isempty(PA), nmPA = mpp.vec * nmPA; end
-                                    end
-                                case {'optNMF','NeNMF','NNMF','PLS','LPP', 'NPE', 'LLTSA', 'SPCA', 'PPCA', 'FA', 'FactorAnalysis', 'NCA', 'MCML', 'LMNN', 'fastICA'}
-                                     nmW = mpp.vec * nmW;
-                                     nmP = logical(mpp.vec * nmP);
-                                     if ~isempty(PA), nmPA = mpp.vec * nmPA; end
-                                
-                                otherwise
-                                     error('Reconstruction of data is not supported for this technique.');
-                            end
-    
-                            % If features had been removed prior to dimensionality
-                            % reduction take care that you recover the original space
-                            if isfield(naPX,'indNonRem') && ~isempty(naPX.indNonRem) && sum(~naPX.indNonRem) > 0
-                                tmW = zeros(size(naPX.indNonRem')); tmP = tmW; 
-                                tmW(naPX.indNonRem) = nmW; nmW = tmW; 
-                                tmP(naPX.indNonRem) = nmP; nmP = tmP;  
-                                if ~isempty(PA) 
-                                    tmPA = tmW; tmPA(naPX.indNonRem) = nmPA; nmPA = tmPA; 
+                            ind0 = 1:size(redvec,2);
+                            DR = nPREPROC.ACTPARAM{a}.DR;
+                        end
+
+                        mpp.vec = redvec(:,ind0);
+
+                        switch DR.RedMode                                        
+                            case {'PCA','RobPCA','SparsePCA'}
+                                if strcmp(DR.RedMode,'RobPCA') 
+                                    DRsoft = 1; 
+                                else
+                                    DRsoft = DR.DRsoft;
                                 end
-                                clear tmW tmP tmPA 
-                            end
-                            reducedimfl = true;
+                                % Project back to input space
+                                switch DRsoft
+                                    case 0
+                                        nmW = reconstruct_data(nmW, mpp);
+                                        nmP = logical(reconstruct_data(nmP, mpp));
+                                        if ~isempty(PA), nmPA = reconstruct_data(nmPA, mpp); end
+                                    case 1
+                                        nmW = mpp.vec * nmW;
+                                        nmP = logical(mpp.vec * nmP);
+                                        if ~isempty(PA), nmPA = mpp.vec * nmPA; end
+                                end
+                            case {'optNMF','NeNMF','NNMF','PLS','LPP', 'NPE', 'LLTSA', 'SPCA', 'PPCA', 'FA', 'FactorAnalysis', 'NCA', 'MCML', 'LMNN'}
+                                 nmW = mpp.vec * nmW;
+                                 nmP = logical(mpp.vec * nmP);
+                                 if ~isempty(PA), nmPA = mpp.vec * nmPA; end
+                            
+                            otherwise
+                                 error('Reconstruction of data is not supported for this technique.');
                         end
-    
-                    case {'elimzero','extfeat','extdim'}
-                        % Find eliminated feature vector
-                        if isfield(naPX,'NonPruneVec')
-                            IND = 'NonPruneVec';
-                        elseif isfield(naPX,'indNonRem')    
-                            IND = 'indNonRem';
-                        else
-                            IND = 'ind';
+
+                        % If features had been removed prior to dimensionality
+                        % reduction take care that you recover the original space
+                        if isfield(naPX,'indNonRem') && ~isempty(naPX.indNonRem) && sum(~naPX.indNonRem) > 0
+                            tmW = zeros(size(naPX.indNonRem')); tmP = tmW; 
+                            tmW(naPX.indNonRem) = nmW; nmW = tmW; tmP(naPX.indNonRem) = nmP; nmP = tmP;  
+                            if ~isempty(PA), tmPA = tmW; tmPA(naPX.indNonRem) = nmPA; nmPA = tmPA; end
+                            % Don't forget to adjust the feature masks and the
+                            % indices to modalities in case of fused feature spaces
+                            %tlFuVI = false(length(naPX.indNonRem),1); tlFuVI(naPX.indNonRem) = lFuVI; lFuVI = tlFuVI;
+                            %tlVI = true(length(naPX.indNonRem),1); tlVI(naPX.indNonRem) = fVI; fVI = tlVI;
+                            clear tmW tmP %tlFuVI tlVI;
                         end
-                        % Retrieve index vector to eliminated features
-                        if size(naPX.(IND),2)>1 && size(naPX.(IND),1)>1
-                            pIND = naPX.(IND)(:,inp.curlabel);
-                        else
-                            pIND = naPX.(IND);
-                        end
-                        % Eliminated features have to be re-introduced
-                        tmW = zeros(length(pIND),1); tmW(pIND) = nmW; nmW = tmW;   
-                        tmP = false(length(pIND),1); tmP(pIND) = nmP; nmP = tmP;
-                        if ~isempty(PA)
-                             tmPA = tmW; tmPA(naPX.(IND)) = nmPA; nmPA = tmPA; 
-                        end
-                        % Don't forget to adjust the feature masks and the
-                        % indices to modalities in case of fused feature spaces
-                        if ~reducedimfl
-                            tlFuVI = false(length(pIND),1); tlFuVI(lFuVI) = true; lFuVI = tlFuVI;
-                            tlVI = false(length(pIND),1); tlVI(fVI) = true; fVI = tlVI;
-                        end
-                        clear tmW tmpP tmPA tnmWF
-                end
+                        reducedimfl = true;
+                    end
+
+                case {'elimzero','extfeat','extdim'}
+                    % Find eliminated feature vector
+                    if isfield(naPX,'NonPruneVec')
+                        IND = 'NonPruneVec';
+                    elseif isfield(naPX,'indNonRem')    
+                        IND = 'indNonRem';
+                    else
+                        IND = 'ind';
+                    end
+                    % Retrieve index vector to eliminated features
+                    if size(naPX.(IND),2)>1 && size(naPX.(IND),1)>1
+                        pIND = naPX.(IND)(:,inp.curlabel);
+                    else
+                        pIND = naPX.(IND);
+                    end
+                    % Eliminated features have to be re-introduced
+                    tmW = zeros(length(pIND),1); tmW(pIND) = nmW; nmW = tmW;   
+                    tmP = false(length(pIND),1); tmP(pIND) = nmP; nmP = tmP;
+                    if ~isempty(PA)
+                         tmPA = tmW; tmPA(naPX.(IND)) = nmPA; nmPA = tmPA; 
+                    end 
+                    % Don't forget to adjust the feature masks and the
+                    % indices to modalities in case of fused feature spaces
+                    if ~reducedimfl
+                        tlFuVI = false(length(pIND),1); tlFuVI(lFuVI) = true; lFuVI = tlFuVI;
+                        tlVI = false(length(pIND),1); tlVI(fVI) = true; fVI = tlVI;
+                    end
             end
+
         end
     
         if size(nmW,2) > 1, nmW = nmW'; nmP = nmP'; 
@@ -252,7 +244,6 @@ for n=1:nM
         
         % Run univariate correlation analysis if no factorization method
         % had been applied to the data
-        % juspace: decompfl = FALSE 
         if ~decompfl(n)
             tY = zeros(size(Y,1),numel(nmP)); 
             if nM > 1
@@ -273,10 +264,10 @@ for n=1:nM
             nmR  =  nan(size(nmW)); nmSR = nmR; nmC = nmR;
         end
         
-        if nM == 1 && mM > 1
+        if nM == 1 && mM>1
             for m=1:numel(varind)
                 if procfl
-                    % Extract indices to modality
+                    % Estract indices to modality
                     indX = inp.X.dimvecx(m)+1:inp.X.dimvecx(m+1);
                     mW{m} = nmW(indX);
                     mP{m} = nmP(indX);
@@ -296,7 +287,6 @@ for n=1:nM
                     end
                     if ~isempty(PA), mPA{m} = nmPA; end
                 end
-                %if templfl, mWF{m} = nmWF; end
             end
         else
             mW{n} = nmW;
@@ -323,7 +313,7 @@ for n=1:nM
         end
     else
         nmW = zeros(numel(fVI),1); nmW(nmP) = W(lFuVI);
-        if ~isempty(PA) 
+        if ~isempty(PA), 
              nmPA = zeros(numel(fVI),1); nmPA(nmP) = PA(lFuVI);
         end
         if mM>1 % intermediate / late fusion

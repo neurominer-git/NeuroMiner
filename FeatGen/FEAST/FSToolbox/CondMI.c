@@ -120,57 +120,35 @@ double* CondMI(int k, int noOfSamples, int noOfFeatures, double *featureMatrix, 
     currentHighestFeature = -1;
     currentScore = 0.0;
     totalFeatureMI = 0.0;
-
-    /* 1) Try to find the best by Conditional MI */
+    
     for (j = 0; j < noOfFeatures; j++)
     {
+      /*if we haven't selected j*/
       if (selectedFeatures[j] == 0)
       {
-        currentScore = calculateConditionalMutualInformation(feature2D[j], classColumn, conditionVector, noOfSamples);
-
-        /* keep strict '>' to preserve original CondMI behaviour */
-        if (currentScore > score)
-        {
-          score = currentScore;
-          currentHighestFeature = j;
-        }
-      }
-    }
-
-    /* 2) FALLBACK: if no feature improved over score (i.e., currentHighestFeature == -1),
-          pick the remaining feature with the largest class MI */
-    if (currentHighestFeature == -1)
-    {
-      double best = -1.0;
-      int bestj = -1;
-      for (j = 0; j < noOfFeatures; j++)
-      {
-        if (selectedFeatures[j] == 0)
-        {
-          if (classMI[j] > best || (classMI[j] == best && j < bestj))  /* deterministic tie-breaker */
-          {
-            best = classMI[j];
-            bestj = j;
-          }
-        }
-      }
-      currentHighestFeature = bestj;
-    }
-
-    /* 3) Record and update state */
+        currentScore = 0.0;
+        totalFeatureMI = 0.0;
+        
+        /*double calculateConditionalMutualInformation(double *firstVector, double *targetVector, double *conditionVector, int vectorLength);*/
+        currentScore = calculateConditionalMutualInformation(feature2D[j],classColumn,conditionVector,noOfSamples);
+        
+			  if (currentScore > score)
+			  {
+				  score = currentScore;
+				  currentHighestFeature = j;
+			  }
+			}/*if j is unselected*/
+	  }/*for number of features*/
+  
     outputFeatures[i] = currentHighestFeature;
-
+    
     if (currentHighestFeature != -1)
     {
       selectedFeatures[currentHighestFeature] = 1;
-      mergeArrays(feature2D[currentHighestFeature], conditionVector, conditionVector, noOfSamples);
+      mergeArrays(feature2D[currentHighestFeature],conditionVector,conditionVector,noOfSamples);
     }
-    else
-    {
-      /* No unselected features left: stop early */
-      break;
-    }
-  }
+  
+  }/*for the number of features to select*/
   
   FREE_FUNC(classMI);
   FREE_FUNC(conditionVector);

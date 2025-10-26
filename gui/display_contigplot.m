@@ -9,7 +9,6 @@ h_list          = get(handles.selModelMeasures,'String');
 h_val           = get(handles.selModelMeasures,'Value');
 h_onevsall_val  = get(handles.selOneVsAll_Info,'Value');
 if ~exist('groupnames','var') || isempty(groupnames), groupnames = handles.NM.groupnames; end
-if h_val>numel(h_list), h_val=1; end
 switch h_list{h_val}
     case 'Classification plot'
         if strcmpi(h_classlist{h_class},'Multi-group classifier')
@@ -32,10 +31,10 @@ switch h_list{h_val}
         end
     case 'Regression plot'
        if ~exist('confmatrix','var') || isempty(confmatrix), confmatrix = handles.Regr.contigmat; end
-       thresh = str2double(get(handles.txtBinarize,'String'));
-       groupnames{1} = sprintf('Group 1 (>=%1.2f)',thresh);
-       groupnames{2} = sprintf('Group 2 (< %1.2f)',thresh);  
+       thresh = get(handles.txtBinarize,'String');
+       groupnames{1} = sprintf('Group 1 (>=%s)',thresh);
+       groupnames{2} = sprintf('Group 2 (< %s)',thresh);  
 end
 n_mat = bsxfun(@rdivide, confmatrix, sum(confmatrix,2))*100;
-axes(handles.axes20); h = nk_PlotConfusionMat(n_mat, groupnames, gca, handles.tblPerf);
+axes(handles.axes20); h = nk_PlotConfusionMat(n_mat, groupnames, gca, handles.txtPerf);
 handles.cmdExportAxes20.Position(2) = handles.axes20.Position(2)+ handles.axes20.Position(4)- handles.cmdExportAxes20.Position(4); 

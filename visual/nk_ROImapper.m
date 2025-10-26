@@ -87,7 +87,7 @@ end
 
 nROI = size(ROI,2);
 if ~exist("Pimg","var") || isempty(Pimg)
-    Pimg = spm_select(Inf,'image','Select staistical image(s)'); 
+    Pimg = spm_select(Inf,'image','Select cluster mask image(s)'); 
 end
 nP = size(Pimg,1);
 if ~exist("Paddimg","var") || isempty(Paddimg)
@@ -312,7 +312,7 @@ if saving && nargout > 1
     end
     M(delvec,:) = [];
     tROI = cell2table(M, 'VariableNames', H);
-    writetable(tROI, fullfile([options.name options.pattern_name]), 'FileType', 'spreadsheet', 'Sheet', 'Vol2ROIparc-Main');
+    writetable(tROI, fullfile(options.name, options.pattern_name), 'FileType', 'spreadsheet', 'Sheet', 'Vol2ROIparc-Main');
 end
 
 if nargout > 2 && isfield(options,'data') && ( numel(options.data) == nP || numel(options.data) == 1 )

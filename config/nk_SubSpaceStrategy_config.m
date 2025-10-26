@@ -46,6 +46,10 @@ if ~defaultfl
             SubSpaceCrit = nk_input(['Percentile [%] for ' d.CostType ' cutoff'],0, 'e', df);
     end
         
+   %param = nk_EnsembleStrategy2_config(param, SVM, MODEFL, [], navistr);
+    
+else
+   %param = nk_EnsembleStrategy2_config(param, SVM, MODEFL, 1);
 end
 
 param.SubSpaceStrategy              = SubSpaceStrategy;

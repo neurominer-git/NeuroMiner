@@ -6,12 +6,12 @@ function [sY, IN] = nk_PerfRemMeanDiffObj( Y, IN )
 % (specified in sIND) by first subtracting global mean (meanY) and then 
 % subtracting offsets (meanG) from target data 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, 10/2023
+% (c) Nikolaos Koutsouleris, 07/2022
 
 % =========================== WRAPPER FUNCTION ============================ 
 if iscell(Y) && exist('IN','var') && ~isempty(IN)
     sY = cell(1,numel(Y)); 
-    for i=1:numel(Y)
+    for i=1:numel(Y), 
         % Define active indices depending on training or testing situation
         if isfield(IN,'meanY') && isfield(IN,'meanG')
            if isfield(IN,'sTsInd'), IN.sIND = IN.sTsInd{i}; else, IN.sIND =[]; end
@@ -41,11 +41,6 @@ global VERBOSE
 
 if isempty(IN),eIN=true; else, eIN=false; end
 sY = Y;
-if isfield(IN,'func')
-    mfunc = str2func(IN.func);
-else
-    mfunc = @nm_nanmean;
-end
 
 if eIN || ~isfield(IN,'sIND') || isempty(IN.sIND), IN.sIND = ones(size(Y,1),1); end
 
@@ -53,43 +48,15 @@ if eIN || ~isfield(IN,'sIND') || isempty(IN.sIND), IN.sIND = ones(size(Y,1),1); 
 % parameters to.
 if eIN || ~isfield(IN,'dIND') || isempty(IN.dIND), IN.dIND = IN.sIND; end
 
-% Find unique group indices and determine number of groups
-if size(IN.sIND,2) > 1 % dummy coded, the case with MultiCentIntensNorm2
-    MS = size(IN.sIND,2);
-    sIND = zeros(size(IN.sIND,1),1);
-    for i = 1:MS
-        sIND(IN.sIND(:,i)) = i; 
-    end
-    IN.sIND = sIND; 
-    MS = unique(IN.sIND); 
-    % find non-zero entries in source and destination vectors
-    indGS = IN.sIND~=0; indGD = IN.dIND~=0;
-else
-    % find non-zero entries in source and destination vectors
-    indGS = IN.sIND~=0; indGD = IN.dIND~=0;
-    MS = unique(IN.sIND(indGS)); 
-end
-nMS = numel(MS); 
+% find non-zero entries in source and destination vectors
+indGS = IN.sIND~=0; indGD = IN.dIND~=0;
 
-if ~MS, nMS = 0; end
-dIND = zeros(size(IN.dIND,1),1);
-if size(IN.dIND,2) > 1
-    MD = size(IN.dIND,2);
-    for i = 1:MD
-        dIND(IN.dIND(:,i)) = i; 
-    end
-    IN.dIND = dIND;
-    MD = unique(IN.dIND); 
-else
-    MD = unique(IN.dIND(indGD)); 
-end
-nMD = numel(MD);  
-
-if ~MD, nMD = 0; end
+MS = unique(IN.sIND(indGS)); nMS = numel(MS); if ~MS, nMS = 0; end
+MD = unique(IN.dIND(indGD)); nMD = numel(MD); if ~MD, nMD = 0; end
 
 if ~isfield(IN,'meanY') || isempty(IN.meanY)  
     % Compute overall mean of the data to be adjusted in non-zero indices
-    IN.meanY = mfunc(Y(indGS,:));
+    IN.meanY = nm_nanmean(Y(indGS,:));
 end
     
 if ~isfield(IN,'meanG') || isempty(IN.meanG) && nMS > 0
@@ -99,7 +66,7 @@ if ~isfield(IN,'meanG') || isempty(IN.meanG) && nMS > 0
     IN.meanG = zeros(nMS, D);
     for i = 1:nMS
         indGi = IN.sIND == MS(i);
-        IN.meanG(i,:) = mfunc(Y(indGi,:)); 
+        IN.meanG(i,:) = nm_nanmean(Y(indGi,:)); 
     end
     % Store unique source groups
     IN.MS = MS;
@@ -123,14 +90,11 @@ for i=1:nMD
         % corresponding source group exists and compute the source mean on
         % the fly
         if VERBOSE, fprintf('\nNo saved group means for destination group %g available. Computing means on the fly using the respective source group',MD(i)); end
-        meanGi = mfunc(Y(IN.sIND == MD(i),:));
+        meanGi = nm_nanmean(Y(IN.sIND == MD(i),:));
     else
         % if not, compute the destination-group specific mean 
         if VERBOSE, fprintf('\nNeither saved group mean or source group exists for destination group %g. Use destination group to compute means',MD(i)); end
-        meanGi = mfunc(Y(IN.dIND == MD(i),:));
-        if all(indGS == 0) 
-            IN.meanY = nm_nanmean(Y(indGD,:)); 
-        end
+        meanGi = nm_nanmean(Y(IN.dIND == MD(i),:));
     end
     
     % Remove offsets between destination group and meanY.

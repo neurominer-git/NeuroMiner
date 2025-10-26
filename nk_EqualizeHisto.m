@@ -1,4 +1,4 @@
-function [ tI, I ] = nk_EqualizeHisto(Eq, V, I, modeflag)
+function [ I, tI ] = nk_EqualizeHisto(Eq, V, I, modeflag)
 
 
 if ~exist('V','var') || isempty(V), error('target label vector missing or undefined'); end
@@ -45,6 +45,8 @@ switch modeflag
                tV = [ tV; V(ind) ];
            end
         end
+        %ind = randperm(numel(tI));
+        %tI = tI(ind);
         I = setdiff(I, tI);
 
     case 'classification'

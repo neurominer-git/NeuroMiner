@@ -18,11 +18,7 @@ switch datatype
             if ~exist(Vm.fspec,'file'), Thresh = struct('nVml',0,'Vml',0,'Lm',[],'threshop','gt'); return; end
             [~,Vmx] = SurfaceReader(Vm.fspec);
         else
-            if isnumeric(Vm.cdata)
-                Vmx = Vm.cdata';
-            else
-                Vmx = Vm.cdata(1:end)';
-            end
+            Vmx = Vm.cdata';
         end
 end
 Vml = unique(Vmx(:)); 

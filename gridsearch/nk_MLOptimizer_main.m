@@ -2,6 +2,12 @@ function analysis = nk_MLOptimizer_main(inp, datid, PreML)
 
 global SVM GRD MODEFL W2AVAIL VERBOSE BATCH
 
+% Write some info to command line
+clc
+fprintf('******************************\n')
+fprintf('**  PARAMETER OPTIMIZATION  **\n')
+fprintf('******************************\n')
+
 if ~isfield(inp,'batchflag') || isempty(inp.batchflag), inp.batchflag = false; end
 if ~isfield(inp,'probflag') || isempty(inp.probflag), inp.probflag = false; end
 if ~isfield(inp,'simFlag') || isempty(inp.simFlag), inp.simFlag = false; end
@@ -17,11 +23,9 @@ if VERBOSE, fprintf('\n************ %s-TRAINING ************', strout); end
 if numel(inp.X) > 1
     inparams.Y = inp.X(inp.curmodal).Y; 
     if isfield(inp.X(inp.curmodal),'Yw'), inparams.Yw = inp.X(inp.curmodal).Yw; end
-    if isfield(inp.X(inp.curmodal),'altY'), inparams.AltY = inp.X(inp.curmodal).altY; end
 else
     inparams.Y = inp.X.Y; 
     if isfield(inp.X,'Yw'), inparams.Yw = inp.X.Yw; end
-    if isfield(inp.X,'altY'), inparams.AltY = inp.X.altY; end
 end
 
 inparams.id =               datid;
@@ -51,19 +55,12 @@ inparams.P =                inp;
 inparams.analyses =         inp.analyses;
 inparams.stacking =         inp.stacking;
 inparams.rootdir =          inp.rootdir;
-inparams.maindir =          inp.maindir;
 inparams.gdmat =            inp.gdmat;
 inparams.preprocmat =       inp.preprocmat;
-if isfield(inp,'ParamOptimizationMode')
-    inparams.ParamOptimizationMode = inp.ParamOptimizationMode;
-end
 if isfield(inp,'time2event')
     inparams.time2event =   inp.time2event;
 end
-if isfield(inp, 'C')
-    inparams.C =            inp.C;
-end
-inparams.curanal =          inp.curanal;
+
 clear inp
 
 % Prepare Parameter containers
@@ -72,7 +69,6 @@ inparams.Params_desc = cell(inparams.nclass,1);
 inparams.nMLparams = zeros(inparams.nclass,1);
 inparams.nPreMLparams = zeros(inparams.nclass,1);
 inparams.ModalityVec = cell(inparams.nclass,1);
-
    
 % Define ML optimization params
 for i=1:inparams.nclass        
@@ -176,7 +172,7 @@ for i=1:inparams.nclass
     
     %% other algorithms have to be treated as special cases (will be revised in the future to have one parameter interface for all algorithms)
     switch SVM.prog
-        case {'matLRN','GLMNET','GRDBST','ROBSVM','ELASVM','BAYLIN'}
+        case {'matLRN','GLMNET','GRDBST','ROBSVM','ELASVM'}
             if strcmp(SVM.prog,'matLRN'), F='matLearn'; else, F=SVM.prog; end
             if ~isfield(GRD.(F),'Params') || isempty(GRD.(F).Params)
                  if VERBOSE, fprintf('\n%s #%g: No parameters have to be optimized.',strout,i); end
@@ -186,38 +182,6 @@ for i=1:inparams.nclass
                     inparams.Params_desc{i}{end+1} = GRD.(F).Params(j).name;
                 end
             end
-
-        case 'MLPERC'
-            for j=1:numel(GRD.(SVM.prog).Params)
-                %Use the index for 'MLPERC_hidden_layer_sizes'
-                if strcmp(GRD.(SVM.prog).Params(j).name, 'MLPERC_hidden_layer_sizes')
-                    inparams.Params{i}{end+1} = 1:size(GRD.(SVM.prog).Params(j).range, 1);
-                else
-                    inparams.Params{i}{end+1} = GRD.(SVM.prog).Params(j).range;
-                end
-                inparams.Params_desc{i}{end+1} = GRD.(SVM.prog).Params(j).name;
-            end
-
-        case 'TFDEEP'
-            %Optimization dependent on whether file entry is used in expert
-            %mode.
-            if ~strcmp(GRD.(SVM.prog).Params(end).range, 'none')
-                %Expert mode 
-                inparams.Params{i}{end+1} = 1:size(GRD.(SVM.prog).Params(end).range, 1);
-                inparams.Params_desc{i}{end+1} = GRD.(SVM.prog).Params(end).name;
-            else
-                %Default mode; all params but last, and using model in Python/.
-                for j=1:numel(GRD.(SVM.prog).Params)-1
-                    %Use the index for 'MLPERC_hidden_layer_sizes'
-                    if strcmp(GRD.(SVM.prog).Params(j).name, 'TFDEEP_hidden_layer_sizes')
-                        inparams.Params{i}{end+1} = 1:size(GRD.(SVM.prog).Params(j).range, 1);
-                    else
-                        inparams.Params{i}{end+1} = GRD.(SVM.prog).Params(j).range;
-                    end
-                    inparams.Params_desc{i}{end+1} = GRD.(SVM.prog).Params(j).name;
-                end
-            end
-
         case 'MEXELM'
             inparams.Params{i}{end+1} = GRD.Neuronparams;
             inparams.Params_desc{i}{end+1} = 'Hidden neurons';
@@ -312,5 +276,5 @@ for i=1:inparams.nclass
 end
 
 analysis = nk_MLOptimizer(inparams, inparams.stranalysis, inparams.id, inparams.GridAct, inparams.batchflag);
- 
+
 end

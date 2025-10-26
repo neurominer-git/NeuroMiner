@@ -1,94 +1,60 @@
 #include "mex.h"
-#include "matrix.h"
-#include <cmath>
-#include <cstddef>
-
-/*
- * fastcorr: correlation between two real vectors (double or single).
- * Usage: r = fastcorr(x,y)
- */
-
-template <typename GetX, typename GetY>
-static double corr_impl(std::size_t n, GetX X, GetY Y)
-{
-    // Welford-style single pass with numerically stable updates
-    double sum_sq_x = 0.0, sum_sq_y = 0.0, sum_coproduct = 0.0;
-    double mean_x = X(0);
-    double mean_y = Y(0);
-
-    for (std::size_t i = 1; i < n; ++i)
-    {
-        const double sweep = static_cast<double>(i) / static_cast<double>(i + 1);
-        const double dx = X(i) - mean_x;
-        const double dy = Y(i) - mean_y;
-        sum_sq_x      += dx * dx * sweep;
-        sum_sq_y      += dy * dy * sweep;
-        sum_coproduct += dx * dy * sweep;
-        mean_x        += dx / static_cast<double>(i + 1);
-        mean_y        += dy / static_cast<double>(i + 1);
-    }
-
-    const double pop_sd_x = std::sqrt(sum_sq_x / static_cast<double>(n));
-    const double pop_sd_y = std::sqrt(sum_sq_y / static_cast<double>(n));
-    const double cov_xy   = sum_coproduct / static_cast<double>(n);
-
-    if (pop_sd_x == 0.0 || pop_sd_y == 0.0)
-        return mxGetNaN(); // undefined when one vector is constant
-
-    return cov_xy / (pop_sd_x * pop_sd_y);
-}
+#include "math.h"
+/*************************************************************************/
+/*                                                                       */
+/* This function computes the correlation between vectors x and y.       */
+/* The algorithm is quite fast and is considered numerically stable.     */
+/*                                                                       */
+/*************************************************************************/
+/*                                                                       */
+/*            Author: Francesco Pozzi                                    */
+/*            E-Mail: francesco.pozzi@anu.edu.au                         */
+/*            Date: 4 December 2008                                      */
+/*                                                                       */
+/*************************************************************************/
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
-    // --- Argument checks ---
-    if (nrhs != 2)
-        mexErrMsgIdAndTxt("fastcorr:arity", "Expected exactly two input vectors.");
 
-    const mxArray *ax = prhs[0];
-    const mxArray *ay = prhs[1];
+int i;
+double sum_sq_x, sum_sq_y, sum_coproduct, mean_x, mean_y, sweep, delta_x, delta_y, pop_sd_x, pop_sd_y, cov_x_y, correlation;
+double *x, *y;
+int dimx, dimy;
+double *out;
 
-    if (!mxIsNumeric(ax) || mxIsComplex(ax) || !mxIsNumeric(ay) || mxIsComplex(ay))
-        mexErrMsgIdAndTxt("fastcorr:real", "Inputs must be real numeric vectors (single or double).");
+dimx = mxGetNumberOfElements(prhs[0]);
+dimy = mxGetNumberOfElements(prhs[1]);
 
-    // Allow row or column vectors; forbid empty and matrices
-    if (!(mxGetM(ax) == 1 || mxGetN(ax) == 1) || !(mxGetM(ay) == 1 || mxGetN(ay) == 1))
-        mexErrMsgIdAndTxt("fastcorr:shape", "Inputs must be vectors (row or column).");
+if((dimx == dimy) && (dimx > 1)){
 
-    const mwSize nx = mxGetNumberOfElements(ax);
-    const mwSize ny = mxGetNumberOfElements(ay);
+  x = (double *) mxGetPr(prhs[0]);
+  y = (double *) mxGetPr(prhs[1]);
 
-    if (nx != ny || nx < 2)
-        mexErrMsgIdAndTxt("fastcorr:length", "Vectors must have the same length >= 2.");
+  sum_sq_x = 0;
+  sum_sq_y = 0;
+  sum_coproduct = 0;
+  mean_x = *x;
+  mean_y = *y;
+  for (i = 1; i < dimx; i++){
+    sweep = (double) (i + 0.0) / (i + 1.0);
+    delta_x = *(x + i) - mean_x;
+    delta_y = *(y + i) - mean_y;
+    sum_sq_x = sum_sq_x + delta_x * delta_x * sweep;
+    sum_sq_y = sum_sq_y + delta_y * delta_y * sweep;
+    sum_coproduct = sum_coproduct + delta_x * delta_y * sweep;
+    mean_x = mean_x + delta_x / (i + 1.0);
+    mean_y = mean_y + delta_y / (i + 1.0);
+  }
+  pop_sd_x = sqrt(sum_sq_x / dimx);
+  pop_sd_y = sqrt(sum_sq_y / dimx);
+  cov_x_y = sum_coproduct / dimx;
+  correlation = cov_x_y / (pop_sd_x * pop_sd_y);
+}
 
-    // --- Build element accessors for either double or single ---
-    mxClassID cx = mxGetClassID(ax);
-    mxClassID cy = mxGetClassID(ay);
+/***************************************************************************************/
+/***************************************************************************************/
+plhs[0] = mxCreateDoubleMatrix(1, 1, mxREAL);
+out = mxGetPr(plhs[0]);
+*(out) = correlation;
 
-    if (!((cx == mxDOUBLE_CLASS) || (cx == mxSINGLE_CLASS)))
-        mexErrMsgIdAndTxt("fastcorr:type", "x must be single or double.");
-    if (!((cy == mxDOUBLE_CLASS) || (cy == mxSINGLE_CLASS)))
-        mexErrMsgIdAndTxt("fastcorr:type", "y must be single or double.");
-
-    const double *xD = nullptr; const float *xF = nullptr;
-    const double *yD = nullptr; const float *yF = nullptr;
-
-    if (cx == mxDOUBLE_CLASS) xD = mxGetPr(ax);
-    else                      xF = static_cast<const float*>(mxGetData(ax));
-
-    if (cy == mxDOUBLE_CLASS) yD = mxGetPr(ay);
-    else                      yF = static_cast<const float*>(mxGetData(ay));
-
-    auto X = [&](std::size_t i) -> double {
-        return (xD ? xD[i] : static_cast<double>(xF[i]));
-    };
-    auto Y = [&](std::size_t i) -> double {
-        return (yD ? yD[i] : static_cast<double>(yF[i]));
-    };
-
-    // --- Compute correlation as double ---
-    const double r = corr_impl(static_cast<std::size_t>(nx), X, Y);
-
-    // --- Output (double scalar) ---
-    plhs[0] = mxCreateDoubleMatrix(1, 1, mxREAL);
-    *mxGetPr(plhs[0]) = r;
 }

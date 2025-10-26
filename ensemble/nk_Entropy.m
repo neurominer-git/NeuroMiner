@@ -1,39 +1,40 @@
-function H_vote_norm = nk_Entropy(P, class_list, ~, ~)
-% NK_ENTROPY Normalized vote-entropy of ensemble predictions (label-free).
-% See header in your version; this one additionally honors 'class_list'
-% to keep normalization consistent across subsets.
+function H = nk_Entropy(P, vec, m, n)
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+% function H = nk_Entropy(P, vec, m, n)
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+% Compute entropy-based measure of ensemble diversity
+%
+% Inputs:
+% =======
+% P     = Input matrix
+% vec   = unique values in input matrix
+% m     = # of rows in P
+% n     = # of columns in P
+%
+% Outputs:
+% ========
+% H     = Entropy of P
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% (c) Nikolaos Koutsouleris, 03/2012, NeuroMiner software package
 
-% P: N x n hard labels
-[N,n] = size(P);
-
-% Determine class universe for consistent normalization
-if nargin >= 2 && ~isempty(class_list)
-    classes = class_list(:);
-else
-    classes = unique(P(:));        % fallback: infer from P
+P = sign(P);
+if nargin < 4, n = size(P,2); end;
+if nargin < 3, m = size(P,1); end;
+if nargin < 2, vec = unique(P); else vec = unique(vec(vec~=0)); end
+%onevec = ones(n,1);
+try  
+    H = mean(arrayfun(@(i) entropy(uint8(P(:,i))),1:n));
+catch
+    H=0;
 end
-K = numel(classes);
-if K <= 1 || n == 0 || N == 0
-    H_vote_norm = 0;               % no dispersion possible
-    return
-end
-
-% Map P to indices 1..K (respecting the provided classes)
-[lia, idx] = ismember(P, classes.');
-if ~all(lia(:))
-    % Any labels outside 'classes' -> fold them into the nearest policy;
-    % here we drop them into the first class to keep code robust.
-    idx(~lia) = 1;
-end
-
-% Fast vote counts per row: N x K
-rowIdx = repelem((1:N).', n, 1);
-Count = accumarray([rowIdx, idx(:)], 1, [N, K]);
-
-% Per-row entropy and normalization
-p = Count / n;                         % N x K
-% Avoid log2(0) without branching
-Hrow = -sum(p .* log2(max(p, eps)), 2);
-H_vote_norm = mean(Hrow) / log2(K);
-
-end
+% for j=1:numel(vec)
+%     % Compute frequency of k_j (class) for sample x_i
+%     pf = P==vec(j);
+%     f = (pf*onevec)./n;
+%     f = -f.*log(f);
+%     f(isnan(f)) = 0;
+%     %if ~f, continue, end
+%     Kx = Kx + sum(f);
+% end
+% H = Kx/m;

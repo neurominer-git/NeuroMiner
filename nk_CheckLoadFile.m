@@ -1,20 +1,13 @@
 function [out, fnd, out2, out3, out4] = nk_CheckLoadFile(pth, filetyp, f, d, ovrwrt, nclass)
-global FUSION RAND 
+global FUSION
 
 % Check file type
-a = regexp(filetyp,'CVdatamat','ONCE'); if ~isempty(a), a=1; else, a=0; end
+a = regexp(filetyp,'CVdatamat','ONCE'); if ~isempty(a), a=1; else a=0; end
 
 nvar = size(pth,1); % get number of variates
 
 out = []; fnd = false; out2=[]; out3 = [];
 if ~exist('ovrwrt','var') || isempty(ovrwrt), ovrwrt  = false; end
-
-% Addition of 11/05/2024: Dealing with missing data
-if ~isfield(FUSION,'DealWithCompleteNanRows')
-    DealWithCompleteNanRows = 1;
-else
-    DealWithCompleteNanRows = FUSION.DealWithCompleteNanRows;
-end
 
 for i=1:nvar
 
@@ -25,8 +18,8 @@ for i=1:nvar
         if ovrwrt
             fprintf('\nFound %s file, CV2 partition [%g,%g].',filetyp, f, d)
         else
-            [~,n] = fileparts(px);
-            if ~a
+            [p,n] = fileparts(px);
+            if ~a,
                 fprintf('\nFound %s file for modality #%g, CV2 partition [%g,%g].',filetyp, i, f, d)
             else
                 fprintf('\nFound %s file, CV2 partition [%g,%g].',filetyp, f, d)
@@ -40,42 +33,30 @@ for i=1:nvar
                 fnd = false;
                 return
             end
-            
             if exist('GD','var')
                 out = GD;
-            
             elseif exist('pGD','var')
                 out = pGD;
-
             elseif exist('mapY','var')
                 
                 [iy,jy] = size(mapY.Tr);
                 
-                switch FUSION.flag % Concatenate modality data into single structure 
-
-                    case 2 % Intermediate fusion
-                        
-                        if ~iscell(mapY.Tr{1,1}{1})
-                            t_nclass = 1;
-                            multiproc = true;
-                        else
-                            t_nclass = nclass;
-                            multiproc = false;
-                        end
-                        if i == 1
+                switch FUSION.flag % Concatenate modality data into single structure
+                    case 2
+                        if i == 1, 
                             out = mapY; 
                             out.Tr = cell(iy,jy);
                             out.CV = cell(iy,jy);
                             out.Ts = cell(iy,jy);
                             out.VI = cell(iy,jy);
                             
-                            if ~multiproc
+                            if iscell(mapY.Tr{1,1})
                                 for k=1:iy
                                     for l=1:jy
-                                        out.Tr{k,l} = cell(t_nclass,1);
-                                        out.CV{k,l} = cell(t_nclass,1);
-                                        out.Ts{k,l} = cell(t_nclass,1);
-                                        out.VI{k,l} = cell(t_nclass,1);
+                                        out.Tr{k,l} = cell(nclass,1);
+                                        out.CV{k,l} = cell(nclass,1);
+                                        out.Ts{k,l} = cell(nclass,1);
+                                        out.VI{k,l} = cell(nclass,1);
                                     end
                                 end
                             end
@@ -85,32 +66,14 @@ for i=1:nvar
                         if i>1, fprintf('\nAdding data of modality #%g to single data matrix.',i); end
                         for k=1:iy
                             for l=1:jy
-                                for j=1:t_nclass
-                                    % in multi-class preprocessing we don't
-                                    % have a one-nested cell array as data
-                                    % container, e.g.
-                                    % mapY.Tr{CV1 perm, CV1 fold}{data shelves}
-                                    if multiproc
-                                        TR = mapY.Tr{k,l};
-                                        CV = mapY.CV{k,l};
-                                        TS = mapY.Ts{k,l};
-                                        nZo = size(out.Tr{k,l},1);
-                                    else
-                                        % in binary preprocessing we have a
-                                        % two-nested cell arrays as data
-                                        % containers, e.g.:
-                                        % mapY.Tr{CV1 perm, CV1 fold}{binary classifier}{data shelves}
-                                        TR = mapY.Tr{k,l}{j};
-                                        CV = mapY.CV{k,l}{j};
-                                        TS = mapY.Ts{k,l}{j};
-                                        nZo = size(out.Tr{k,l}{j},1);
-                                    end
+                                for j=1:nclass
                                     if i>1
                                         % Create mixtures of data shelves,
                                         % if modality concatenation is
                                         % activated
                                         cnt = 1;
-                                        nZp = size(TR,1);
+                                        nZo = size(out.Tr{k,l}{j},1);
+                                        nZp = size(mapY.Tr{k,l}{j},1);
                                         MixCount = nZo * nZp;
                                         tOut.Tr = cell(MixCount,1);
                                         tOut.CV = cell(MixCount,1);
@@ -118,56 +81,33 @@ for i=1:nvar
                                         tOut.VI = cell(MixCount,1);
                                         for zp = 1:nZp
                                             for zo = 1:nZo
-                                                if multiproc
-                                                    tOut.Tr{cnt} = [ out.Tr{k,l}{zo}, TR{zp} ];
-                                                    tOut.CV{cnt} = [ out.CV{k,l}{zo}, CV{zp} ];
-                                                    tOut.Ts{cnt} = [ out.Ts{k,l}{zo}, TS{zp} ];
-                                                    tOut.VI{cnt} = [ out.VI{k,l}{zo}; i*ones(size(TR{zp},2),1) ]; 
-                                                else
-                                                    tOut.Tr{cnt} = [ out.Tr{k,l}{j}{zo}, TR{zp} ];
-                                                    tOut.CV{cnt} = [ out.CV{k,l}{j}{zo}, CV{zp} ];
-                                                    tOut.Ts{cnt} = [ out.Ts{k,l}{j}{zo}, TS{zp} ];
-                                                    tOut.VI{cnt} = [ out.VI{k,l}{j}{zo}; i*ones(size(TR{zp},2),1) ]; 
-                                                end
+                                                tOut.Tr{cnt} = [ out.Tr{k,l}{j}{zo}, mapY.Tr{k,l}{j}{zp} ];
+                                                tOut.CV{cnt} = [ out.CV{k,l}{j}{zo}, mapY.CV{k,l}{j}{zp} ];
+                                                tOut.Ts{cnt} = [ out.Ts{k,l}{j}{zo}, mapY.Ts{k,l}{j}{zp} ];
+                                                tOut.VI{cnt} = [ out.VI{k,l}{j}{zo}; i*ones(size(mapY.Tr{k,l}{j}{zp},2),1) ]; 
                                                 cnt = cnt+1;
                                             end
                                         end
-                                        if multiproc
-                                            out.Tr{k,l} = tOut.Tr;
-                                            out.CV{k,l} = tOut.CV;
-                                            out.Ts{k,l} = tOut.Ts;
-                                            out.VI{k,l} = tOut.VI;
-                                        else
-                                            out.Tr{k,l}{j} = tOut.Tr;
-                                            out.CV{k,l}{j} = tOut.CV;
-                                            out.Ts{k,l}{j} = tOut.Ts;
-                                            out.VI{k,l}{j} = tOut.VI;
-                                        end
+                                        out.Tr{k,l}{j} = tOut.Tr;
+                                        out.CV{k,l}{j} = tOut.CV;
+                                        out.Ts{k,l}{j} = tOut.Ts;
+                                        out.VI{k,l}{j} = tOut.VI;
                                         clear tOut;
                                     else
-                                        if multiproc
-                                            out.Tr{k,l} = TR;
-                                            out.CV{k,l} = CV;
-                                            out.Ts{k,l} = TS;
-                                            for m=1:numel(TR)
-                                                out.VI{k,l}{m} = ones(size(TR{m},2),1);
-                                            end
-                                        else
-                                            out.Tr{k,l}{j} = TR;
-                                            out.CV{k,l}{j} = CV;
-                                            out.Ts{k,l}{j} = TS;
-                                            for m=1:numel(TR)
-                                                out.VI{k,l}{j}{m} = ones(size(TR{m},2),1);
-                                            end
+                                        out.Tr{k,l}{j} = mapY.Tr{k,l}{j};
+                                        out.CV{k,l}{j} = mapY.CV{k,l}{j};
+                                        out.Ts{k,l}{j} = mapY.Ts{k,l}{j};
+                                        for m=1:numel(mapY.Tr{k,l}{j})
+                                            out.VI{k,l}{j}{m} = ones(size(mapY.Tr{k,l}{j}{m},2),1);
                                         end
                                     end
                                 end   
                             end
                         end
                        
-                    case {0,1,3,4} % Create structure storing modality information separately
+                    case {0,1,3,4} % Create structure storing modality information separately for MKL
                         
-                        if i == 1
+                        if i == 1, 
                             out = mapY; 
                             out.Tr = cell(iy,jy,nvar);
                             out.CV = cell(iy,jy,nvar);
@@ -186,7 +126,7 @@ for i=1:nvar
                         end
                         for k=1:iy
                             for l=1:jy
-                                if size(mapY.Tr{k,l},2) == nclass && ~RAND.Decompose == 9
+                                if size(mapY.Tr{k,l},2) == nclass
                                     for j=1:nclass % loop through binary
                                         % Concatenate CV1 training data
                                         out.Tr{k,l,i}(:,j) = mapY.Tr{k,l}(:,j);
@@ -207,13 +147,12 @@ for i=1:nvar
                         end
                         
                 end
-
             elseif exist('mapYocv','var') 
                 [iy,jy] = size(mapYocv.Ts);
 
                 switch FUSION.flag % Concatenate modality data into single structure
                     case 2
-                        if i == 1
+                        if i == 1, 
                             out = mapYocv; out.Ts = cell(iy,jy);
                             if iscell(mapYocv.Ts{1,1})
                                 for k=1:iy
@@ -239,7 +178,7 @@ for i=1:nvar
                         end
                         
                     case {0,1,3,4} % Create structure storing modality information separately for MKL
-                        if i == 1 
+                        if i == 1, 
                             out = mapYocv; 
                             out.Ts = cell(iy,jy,nvar);
                         end
@@ -267,10 +206,4 @@ for i=1:nvar
             out3=xpos;out4=ypos;
         end
     end
-end
-
-if exist('mapY','var') && (FUSION.flag == 1 || FUSION.flag == 2)
-    fprintf('\nChecking combined data shelves for missing data.')
-    [iy,jy] = size(mapY.Tr);
-    out = nk_DealWithNaNCases(out, iy, jy, nclass, DealWithCompleteNanRows);
 end

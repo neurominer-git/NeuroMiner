@@ -21,7 +21,7 @@ sz = zeros(numel(Perf),1);
 for i=1:numel(Perf)
     sz(i) = size(Perf{i},1);
 end
-if numel(unique(sz)) > 1
+if numel(unique(sz)) > 1,
     avgflag = false;
     if VERBOSE; fprintf('\nUnequal number of subspaces across CV1 data partitions.'); end
 else
@@ -86,7 +86,7 @@ for i=1:nperms
                                 case 3 % percentile defined by user
                                     pr = percentile( Px, Crit ) ;
                                     F{i,j,curclass}( Px >= pr ) = true;
-                                    if VERBOSE, fprintf('max=%1.4f, min=%1.4f',Mx(i,j,curclass), pr); end
+                                    if VERBOSE, fprintf('max=%1.4f, min=%1.4f',Mx(i,j,curclass), pr); end;
         %                       case 4 % adaptive method (ROC for classification/MSE for regression problems)
         %                             % Sort feature subspaces
         %                             [sPx,sInd] = sort(Px,'descend');
@@ -111,14 +111,14 @@ for i=1:nperms
                             switch SubSpaceStrategy
                                 case 1 % "the winner takes it all"              
                                     F{i,j,curclass}(indm) = true;
-                                     if VERBOSE, fprintf('max=%1.4f',Mx(i,j,curclass)); end
+                                     if VERBOSE, fprintf('max=%1.4f',Mx(i,j,curclass)); end;
                                 case 2 % within range defined by user from max
                                     F{i,j,curclass}( Px <= (Mx(i,j,curclass) + Crit) ) = true;
-                                    if VERBOSE, fprintf('max=%1.4f, min=%1.4f',Mx(i,j,curclass),(Mx(i,j,curclass) - Crit)); end
+                                    if VERBOSE, fprintf('max=%1.4f, min=%1.4f',Mx(i,j,curclass),(Mx(i,j,curclass) - Crit)); end;
                                 case 3 % percentile defined by user
                                     pr = percentile(Px,Crit);
                                     F{i,j,curclass}( Px <= pr ) = true;
-                                    if VERBOSE, fprintf('max=%1.4f, min=%1.4f',Mx(i,j,curclass), pr); end
+                                    if VERBOSE, fprintf('max=%1.4f, min=%1.4f',Mx(i,j,curclass), pr); end;
                             end
                     end
             end

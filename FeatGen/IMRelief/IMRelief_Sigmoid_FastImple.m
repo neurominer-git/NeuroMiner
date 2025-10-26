@@ -24,20 +24,7 @@ Uc = unique(targets);
 if min(Uc)==-1
     targets(targets==1) = 1;
     targets(targets==-1) = 2;
-    Uc = unique(targets); 
 end
-if ~ismember(1, Uc)
-    % binary multiclass, e.g. in case of 2 vs. 3 
-    targets(targets == min(targets)) = 1; 
-    targets(targets ~= min(targets)) = 2; 
-    Uc = unique(targets); 
-else
-% binary multiclass, e.g. in case of 1 vs. 3 
-    targets(targets==1) = 1;
-    targets(targets~=1) = 2;
-    Uc = unique(targets); 
-end
-
 Targets = targets-1; % 0 for class 1, 1 for class 2
 Ucz = unique(Targets);
 [dim,N_patterns] = size(patterns);      % Data dimenionality
@@ -56,13 +43,13 @@ theta = zeros(tmax,1);
 
 % Define X
 lUc = length(Uc); N = zeros(lUc,1); X = cell(lUc,1);
-for c = 1:lUc
+for c = 1:lUc,
     indC = targets == c;
     N(c) = sum(indC); 
     X{c} = patterns(:,indC); 
 end 
 
-while  Difference > 0.01 && t <= tmax
+while  Difference > 0.01 && t <= tmax;
     
     if t>0 && verbose, fprintf('\nIter #%g: theta = %1.2f',t, Difference);end
     t=t+1;
@@ -70,7 +57,7 @@ while  Difference > 0.01 && t <= tmax
     NH = zeros(dim, N_patterns);
     if t>1 && verbose, fprintf(' => Compute NM and NH ...'); end
    
-    for i = 1:N_patterns
+    for i = 1:N_patterns,
 
         o=1; 
         %fprintf('\n %g of %g',i,N_patterns);
@@ -96,7 +83,7 @@ while  Difference > 0.01 && t <= tmax
             %calculate probabilities
             prob = exp(-dist/sigma);
             if ~isempty(temp_index);prob(temp_index(1)) = 0;end
-            if sum(prob)~=0
+            if sum(prob)~=0;
                 prob_1 = prob/sum(prob);
             else
                 [dum,I] = sort(dist);
@@ -105,7 +92,7 @@ while  Difference > 0.01 && t <= tmax
             end
             
             % Nearest Hit
-            if targets(i) == c
+            if targets(i) == c;
                 NH(:,i) = Temp * prob_1(:);
             % Nearest Miss
             else % Find min_(c=1...c) dist(x_n, NM^(c)(x_n(|w) across c groups
@@ -125,7 +112,7 @@ while  Difference > 0.01 && t <= tmax
     
     % Check whether One-vs-All multi-group decomposition needs to be
     % performed:
-    if numel(Ucz) == 2
+    if numel(Ucz) == 2, 
         Ux = 1;
     else
         Ux = numel(Ucz);

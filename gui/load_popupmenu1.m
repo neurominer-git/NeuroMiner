@@ -1,3 +1,5 @@
+% UIWAIT makes nk_PrintResults2 wait for user response (see UIRESUME)
+% uiwait(handles.figure1);
 function load_popupmenu1(handles)
 
 switch handles.modeflag

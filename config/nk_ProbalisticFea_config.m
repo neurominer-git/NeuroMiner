@@ -7,7 +7,7 @@ tPFE.Mode            = 1;    % Perform PFE
 tPFE.Perc            = 90;   % Absolute number/Percentage of CV1 feature mask agreement
 tPFE.TolWin          = 25;   % Percentage of CV1 feature mask agreement
 tPFE.MinNum          = 1;    % Minimum # features required across CV1
-tPFE.PruneFlag       = true; % Flag for different operations using the Cross-C1 agreement vector
+tPFE.PruneFlag        = 1;    % Flag for different operations using the Cross-C1 agreement vector
 
 if ~defaultsfl && ~isempty(PFE)
     
@@ -18,6 +18,7 @@ if ~defaultsfl && ~isempty(PFE)
     if isfield(PFE,'MinNum'), tPFE.MinNum   = PFE.MinNum; end
     if isfield(PFE,'PruneFlag'), tPFE.PruneFlag = PFE.PruneFlag; end
     if isfield(PFE,'flag'), tPFE.flag = PFE.flag; end
+    if ~tPFE.PruneFlag, tPFE.PruneFlag = 2; else, tPFE.PruneFlag = 1; end
     
     if tPFE.flag==1, PROBFEASTR_FLAG = 'yes'; else, PROBFEASTR_FLAG = 'no'; end
     
@@ -33,7 +34,7 @@ if ~defaultsfl && ~isempty(PFE)
     switch tPFE.PruneFlag
         case 1
             PROBFEASTR_PRUNEFLAG = 'Prune unselected features from each model and retrain models';
-        case 0
+        case 2
             PROBFEASTR_PRUNEFLAG = 'Retrain models using single optimized feature mask';
     end
     
@@ -58,7 +59,7 @@ if ~defaultsfl && ~isempty(PFE)
                                             ['Cross-CV1 feature selection agreement with tolerance window|' ...
                                             'Absolute number of most consistently selected features|' ...
                                             'Percentage of most consistently selected features'],1:3,tPFE.Mode);
-                if Mode >0, tPFE.Mode=Mode; else, return; end
+                if Mode >0, tPFE.Mode=Mode; else return; end
                 switch tPFE.Mode
                     case 1
                         tPFE.Perc    = nk_input('Define minimum percentage of cross-CV1 agreement as cutoff for feature selection',0,'i', tPFE.Perc);
@@ -72,7 +73,9 @@ if ~defaultsfl && ~isempty(PFE)
 
             end    
         case 3
-            tPFE.PruneFlag = ~tPFE.PruneFlag;
+            tPFE.PruneFlag = nk_input('Define how the cross-CV1 feature agreement data should be used',0, 'm', ...
+                ['Retrain all CV1 models after pruning them from unselected features|',...
+                 'Retrain all CV1 models using the same selected feature space'], [1,0], tPFE.PruneFlag);
     end
 end
 

@@ -17,31 +17,15 @@ switch progtype
     
     case 'LIBSVM'
         
-        if isfield(res.TrainParam,'LABEL') && res.TrainParam.LABEL.flag == 1
-            modeflag = res.TrainParam.LABEL.newmode;
-        else
-            modeflag = res.modeflag;
-        end
-        act = 1; 
-        while act
-            [act,param] = nk_LIBSVM_config(res, param, [], [], parentstr, modeflag); 
-        end
-        
+        param = nk_LIBSVM_config(res, param, [],[], parentstr);
+
     case 'SVMPRF'
         
         param = nk_SVMPRF_config(param);
         
     case 'LIBLIN'
         
-        if isfield(res.TrainParam,'LABEL') && res.TrainParam.LABEL.flag == 1
-            modeflag = res.TrainParam.LABEL.newmode;
-        else
-            modeflag = res.modeflag;
-        end
-        act = 1;
-        while act
-            [act, param] = nk_LIBLIN_config(modeflag, param, [], parentstr);
-        end
+        param = nk_LIBLIN_config(res, param, [], parentstr);
         kerntype = [];
         
     case 'LSTSVM'

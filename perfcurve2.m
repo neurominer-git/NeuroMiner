@@ -284,29 +284,29 @@ p.addRequired('labels', ...
 p.addRequired('scores',@(x) ~isempty(x) && (isnumeric(x) || iscell(x)));
 p.addRequired('PosClass', ...
     @(x) ~isempty(x) && (ischar(x) || isnumeric(x) || islogical(x)));
-p.addParameter('NegClass','all', ...
+p.addParamValue('NegClass','all', ...
     @(x) ~isempty(x) && (ischar(x) || isnumeric(x) || iscell(x)));
-p.addParameter('XCrit','FPR',@(x) ischar(x) || isa(x,'function_handle'));
-p.addParameter('YCrit','TPR',@(x) ischar(x) || isa(x,'function_handle'));
-p.addParameter('XVals','', ...
+p.addParamValue('XCrit','FPR',@(x) ischar(x) || isa(x,'function_handle'));
+p.addParamValue('YCrit','TPR',@(x) ischar(x) || isa(x,'function_handle'));
+p.addParamValue('XVals','', ...
     @(x) (ischar(x) && (strcmpi(x,'all') || isempty(x))) || ...
     (~isempty(x) && isnumeric(x)) );
-p.addParameter('TVals','', ...
+p.addParamValue('TVals','', ...
     @(x) (ischar(x) && (strcmpi(x,'all') || isempty(x))) || ...
     (~isempty(x) && isnumeric(x)) );
-p.addParameter('UseNearest','on',@(x) strcmpi(x,'on') || strcmpi(x,'off'));
-p.addParameter('ProcessNaN','ignore', ...
+p.addParamValue('UseNearest','on',@(x) strcmpi(x,'on') || strcmpi(x,'off'));
+p.addParamValue('ProcessNaN','ignore', ...
     @(x) strcmpi(x,'ignore') || strcmpi(x,'addtofalse'));
-p.addParameter('Prior','empirical', ...
+p.addParamValue('Prior','empirical', ...
     @(x) (ischar(x) && (strcmpi(x,'empirical') || strcmpi(x,'uniform'))) ...
     || (isnumeric(x) && numel(x)==2) );
-p.addParameter('Cost',[0 0.5; 0.5 0], ...
+p.addParamValue('Cost',[0 0.5; 0.5 0], ...
     @(x) isnumeric(x) && size(x,1)==2 && size(x,2)==2);
-p.addParameter('Weights',[],@(x) isempty(x) || isfloat(x) || iscell(x));
-p.addParameter('NBoot',0,@(x) isnumeric(x) && isscalar(x) && x>=0);
-p.addParameter('BootType','bca',@(x) ischar(x));
-p.addParameter('BootArg',{},@(x) iscell(x));
-p.addParameter('Alpha',0.05,@(x) isnumeric(x) && isscalar(x) && x>0 && x<1);
+p.addParamValue('Weights',[],@(x) isempty(x) || isfloat(x) || iscell(x));
+p.addParamValue('NBoot',0,@(x) isnumeric(x) && isscalar(x) && x>=0);
+p.addParamValue('BootType','bca',@(x) ischar(x));
+p.addParamValue('BootArg',{},@(x) iscell(x));
+p.addParamValue('Alpha',0.05,@(x) isnumeric(x) && isscalar(x) && x>0 && x<1);
 p.FunctionName = 'perfcurve';
 
 % Parse inputs
@@ -333,7 +333,7 @@ alpha          = p.Results.Alpha;
 % By default use supplied thresholds for computing the curve
 useTVals = true;
 if ~isempty(tVals) && ~isempty(xVals)
-    error(sprintf('\nBoth T and X supplied!'));
+    error(message('stats:perfcurve:BothTandXsupplied'));
 end
 % If X values are supplied, use them to compute the curve
 if ~isempty(xVals)
@@ -350,7 +350,7 @@ if nboot>0
     doboot = true;
 end
 if docv && doboot
-    error(sprintf('\nBoth CV and bootstrap requested!'));
+    error(message('stats:perfcurve:BothCVandBootstrapRequested'));
 end
 nsub = max(ncv,nboot);
 
@@ -362,15 +362,15 @@ if docv
 end
 
 % Convert class labels to a cat array
-labels = categorical(labels);
-trueNames = categories(labels);
+labels = nominal(labels);
+trueNames = getlabels(labels);
 if length(trueNames) < 2
-    error(sprintf('\nNot Enough Classes!'));
+    error(message('stats:perfcurve:NotEnoughClasses'));
 end
 
 % Check costs
 if (cost(2,1)-cost(2,2))<=0 || (cost(1,2)-cost(1,1))<=0
-    error(sprintf('\nInvalid cost!'));
+    error(message('stats:perfcurve:InvalidCost'));
 end
 
 % Sort scores in the descending order
@@ -408,7 +408,7 @@ end
 % Check that confidence bound computation by CV is not requested for
 % user-defined criteria
 if (isa(xCrit,'function_handle') || isa(yCrit,'function_handle')) && docv
-    error(sprintf('\nUser Crit Conf Bounds!'));
+    error(message('stats:perfcurve:UserCritConfBounds'));
 end
 
 % Determine criteria to compute
@@ -467,10 +467,10 @@ Y = Yvalues(tpX,fpX,Wcum,afy,[]);
 % 'accept all' thresholds
 special = (div==1 | div==Ndiv);
 if any(isnan(X(~special)))
-    error(sprintf('\nBad X crit value!'));
+    error(message('stats:perfcurve:BadXCritValue'));
 end
 if any(isnan(Y(~special)))
-      error(sprintf('\nBad Y crit value!'));
+    error(message('stats:perfcurve:BadYCritValue'));
 end
 
 % Get thresholds from indices
@@ -635,39 +635,39 @@ end
 
 function [W,negClassNames] = membership(sLabels,sWeights,posClass,negClass,trueNames)
 % Find the positive class. Must have exactly one.
-posClass = cellstr(categorical(posClass));
+posClass = cellstr(nominal(posClass));
 if length(posClass)>1
-      error(sprintf('\nToo many positive classes!'));
+    error(message('stats:perfcurve:TooManyPositiveClasses'));
 end
 if ~ismember(posClass,trueNames)
-    error(sprintf('\nPositive class not found!'));
+    error(message('stats:perfcurve:PositiveClassNotFound'));
 end
 
 % Check negative class labels
 if strcmpi(negClass,'all')
-    negClass = categorical(trueNames);
+    negClass = nominal(trueNames);
     [~,posClassLoc] = ismember(posClass,cellstr(negClass));
     negClass(posClassLoc) = [];
-    negClass = categorical(negClass);
+    negClass = nominal(negClass);
 else
-    negClass = categorical(negClass);
+    negClass = nominal(negClass);
     tf = ismember(cellstr(negClass),trueNames);
     if any(~tf)
-       error(sprintf('\nNegative class not found!'));
+        error(message('stats:perfcurve:NegativeClassNotFound'));
     end
     tf = ismember(posClass,cellstr(negClass));
     if tf
-         error(sprintf('\nPositive and negative classes overlap!'));
+        error(message('stats:perfcurve:PositiveAndNegativeClassesOverlap'));
     end
 end
 nNeg = length(negClass);
 
 % Names of selected negative classes
-negClassNames = unique(negClass);
+negClassNames = getlabels(negClass);
 
 % Check for duplicate entries
 if nNeg~=length(negClassNames)
-    error(sprintf('\nDuplicate negative classes!'));
+    error(message('stats:perfcurve:DuplicateNegativeClasses'));
 end
 
 % Fill out the membership matrix

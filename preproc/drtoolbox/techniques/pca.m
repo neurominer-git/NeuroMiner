@@ -38,9 +38,9 @@ function [mappedX, mapping] = pca(X, no_dims)
     end
 	
 	% Perform eigendecomposition of C
-    idxnonfin = ~isfinite(C);
-	C(idxnonfin) = 0;
-	[M, lambda] = eig(C);
+	C(isnan(C)) = 0;
+	C(isinf(C)) = 0;
+    [M, lambda] = eig(C);
     
     % Sort eigenvectors in descending order
     [lambda, ind] = sort(diag(lambda), 'descend');

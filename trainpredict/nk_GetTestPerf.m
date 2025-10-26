@@ -1,4 +1,4 @@
-function [ts, rs, ds, Model] = nk_GetTestPerf(Xtest, Ytest, Features, Model, X, nonevalflag, ngroups)
+function [ts, rs, ds, Model] = nk_GetTestPerf(Xtest, Ytest, Features, Model, X, nonevalflag)
 % =====================================================================================
 % function [ts, rs, ds] = nk_GetTestPerf(Xtest, Ytest, Features, Model, X, nonevalflag)
 % =====================================================================================
@@ -38,33 +38,15 @@ if ~isempty(Features)
 end
 ts = zeros(s,1);
 if iscell(Xtest)
-    % Check and remove cases that include missings.
-    [Xtest{1}, Ytest, I] = nk_ManageNanCases(Xtest{1}, Ytest, [], 'prune_single');
+    % Check and remove Nan cases
+    [Xtest{1}, Ytest, I] = nk_ManageNanCases(Xtest{1}, Ytest);
     nsubj = size(Xtest{1},1); 
 else 
-    [Xtest, Ytest, I] = nk_ManageNanCases(Xtest, Ytest, [], 'prune_single');
+    [Xtest, Ytest, I] = nk_ManageNanCases(Xtest, Ytest);
     nsubj = size(Xtest,1); 
 end
-% Check if you have to deal with a multi-class problem
-switch MODEFL
-    case 'classification'
-        if exist('ngroups','var') && ~isempty(ngroups)
-            nclass = ngroups;
-        else
-            nclass = 2;
-        end
-        if nclass>2
-            ds = zeros(nsubj,s,nclass); 
-            rs = zeros(nsubj,s,nclass); 
-        else
-            ds = zeros(nsubj,s); 
-            rs = ds;
-        end
-    case 'regression'
-        ds = zeros(nsubj,s); 
-        rs = ds;
-end
-if ~exist('nonevalflag','var') || isempty(nonevalflag), nonevalflag = false; end
+rs = zeros(nsubj,s); ds = rs;
+if ~exist('nonevalflag','var'), nonevalflag = false; end
 
 for k=1:s % Loop through all feature subspaces
         
@@ -86,7 +68,7 @@ for k=1:s % Loop through all feature subspaces
             if iscell(Model), Model{k} = md; else, Model = md; end
             if ~nonevalflag, ts(k) = EVALFUNC(Ytest, rs(:,k)); end
         otherwise
-            [ rs(:,k,:), ds(:,k,:) ] = PREDICTFUNC(X, tXtest, Ytest, md, Features, k);
+            [ rs(:,k), ds(:,k) ] = PREDICTFUNC(X, tXtest, Ytest, md, Features, k);
             % Adjust probabilities if probabilistic output has been
             % geenerated by the probabilistic algorithm
             if SVM.RVMflag && ~strcmp(MODEFL,'regression') , ds(:,k) = nk_CalibrateProbabilities(ds(:,k)); end
@@ -101,11 +83,9 @@ if ~any(ds)
     warning(['The prediction algorithm returned only 0''s in CV2 [%g,%g], CV1 [%g, %g]!' ...
              '\nTest sample dimensions: %g rows, %g features.' ...
              '\nCheck your learning parameters.'], ...
-        CVPOS.CV2p, CVPOS.CV2f, CVPOS.CV1p,CVPOS.CV1f, size(tXtest,1), size(tXtest,2)); 
+        CVPOS.CV2p, CVPOS.CV2f, CVPOS.CV1p,CVPOS.CV1f, height(tXtest), size(tXtest,2)); 
 end
-if sum(isnan(ds))
-    error(sprintf('\nThe prediction algorithm %s returned scores with nonfinite values! Check your learning parameters.', SVM.prog)); 
-end
+if sum(isnan(ds)), error('The prediction algorithm returned scores with nonfinite values! Check your learning parameters.'); end
 %if numel(ds)>1 && numel(unique(ds))==1, error('The prediction algorithm returned all non-unique scores! Check your learning parameters.'); end
 
 % Check and add-back Nan cases

@@ -69,9 +69,9 @@ for i=1:size(imgfile,1)
                 timgvol = SurfaceReader(iimgfile);
         end
         clear timgvol
-    catch ERR
+    catch
         ind(i) = false;
-        mess = GenerateMessageEntry(mess, sprintf('ERROR: File %s could not be opened and was removed from the file list: %s! ',imgfile(i,:)), ERR.message);
+        mess = GenerateMessageEntry(mess, sprintf('ERROR: File %s could not be opened and was removed from the file list! ',imgfile(i,:)));
         if ~exist('fid','var')
             fid = fopen(fullfile(pwd,sprintf('NM_ReadError_%s.log',timestampstr)),'a');
             fprintf(fid,'The following image files could not be opened:');  
@@ -87,7 +87,7 @@ if ~isempty(imgfile)
         case {'nifti','spm'}
             imgvol = spm_vol(imgfile); 
         case 'surf'
-            if size(imgfile,1)==1
+            if size(imgfile,1)==1,
                 iimgfile = deblank(imgfile(1,:));
                 imgvol = SurfaceReader(iimgfile);
             else

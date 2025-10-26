@@ -45,7 +45,7 @@ end
 while n >= 1
 	for j=index(ci):n
 		ghat(j) = ghat(ci);
-    end
+	end;
 	n = index(ci)-1;
 	ci = ci-1;
 end

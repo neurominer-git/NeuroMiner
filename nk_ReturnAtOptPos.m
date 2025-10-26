@@ -9,7 +9,7 @@ if ~isempty(Pnt.data_ind)
 else
     Ix = 1;
 end
-if ~isempty(oTr) && iscell(oTr)
+if iscell(oTr)
     Tr = oTr{Ix}; 
     if ~oocvonly
         CV = oCV{Ix}; Ts = oTs{Ix};   
@@ -21,17 +21,12 @@ if ~isempty(oTr) && iscell(oTr)
             Ocv = oOcv{Ix}; 
         end
     end
-elseif ~isempty(oTr)
+else
     Tr = oTr; 
     if ~oocvonly
         CV = oCV; Ts = oTs;   
     end
     if ~isempty(oOcv), Ocv = oOcv; end
-else
-    Tr = [];
-    CV = [];
-    Ts = [];
-    Ocv= [];
 end
 
 if nargout == 5
@@ -45,7 +40,6 @@ if nargout == 5
     else
         oTrainedParam = Pnt.TrainedParam;
     end
-    try
     if ~isempty(Pnt.nA)
         TrainedParam = cell(1,Pnt.nA);
         for a = 1:Pnt.nA
@@ -57,8 +51,5 @@ if nargout == 5
         end
     else
         TrainedParam = oTrainedParam;
-    end
-    catch
-        fprintf('problem')
     end
 end

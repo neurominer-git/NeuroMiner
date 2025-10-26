@@ -7,7 +7,7 @@ if iscell(P)
             [mPerf{curclass}, sdPerf{curclass}, Params{curclass}] = extract_perf(P{curclass}(:,Pind), Perf(:,curclass));
         end
     else
-        if size(Perf,2)==numel(P)
+        if size(Perf,2)==numel(P),
             [mPerf, sdPerf, Params] = extract_perf(P{curclass}(:,Pind), Perf(:,curclass));
         else
             [mPerf, sdPerf, Params] = extract_perf(P{curclass}(:,Pind), Perf);
@@ -26,18 +26,18 @@ else
 end
 
 if exist('plotflag','var') || ~isempty(plotflag)
-   if ~exist('ha','var') || isempty(ha)
+   if ~exist('ha','var') || isempty(ha), 
        figure('Name','NM Performance Analysis Plot: Parameter subspaces'); hold on
        ha = gca; 
    end
    if (iscell(P) && nclass > 1) || iscell(mPerf)
-      mPx = cell2mat(mPerf)'; Parx = cell2mat(Params');    
+      mPx = cell2mat(mPerf)'; sPx = cell2mat(sdPerf)'; Parx = cell2mat(Params');    
    
    else
-      mPx = mPerf; Parx = Params;    
+      mPx = mPerf; sPx = sdPerf; Parx = Params;    
    end
    cla(ha);
-   bars = bar(ha, mPx);
+   bars = bar(ha, mPx); %errorbar(repmat( (1:size(Parx,1))',1,nclass),mPx,sPx,'LineStyle','none');
    ha.XLim = [0.5 size(Parx,1)+0.5]; ha.YLimMode = 'auto';
    ha.XTick = 1:size(Parx,1); ha.XTickLabel=num2str(Parx(:,1));
 
@@ -48,5 +48,5 @@ function [mPerf, sdPerf, uPi] = extract_perf(Pi, Perf)
 uPi = unique(Pi);
 nuPi = numel(uPi);
 if nuPi==1, warning('Only one parameter found'); end
-mPerf = arrayfun(@(i) nm_nanmean(Perf(Pi == uPi(i))), 1:nuPi);
-sdPerf = arrayfun(@(i) nm_nanstd(Perf(Pi == uPi(i))), 1:nuPi);
+mPerf = arrayfun(@(i) mean(Perf(Pi == uPi(i))), 1:nuPi);
+sdPerf = arrayfun(@(i) std(Perf(Pi == uPi(i))), 1:nuPi);

@@ -1,4 +1,4 @@
-function param = nk_Simba_config(param, setupfl, defaultsfl, ngroups, BINMOD)
+function param = nk_Simba_config(param, setupfl, defaultsfl, ngroups)
 % function param = nk_Simba_config(param, setupfl)
 %
 % Setup parameters for Simba algorithm
@@ -15,7 +15,7 @@ Beta = 'auto'; betadef = 1; betastr='';
 cuda = 0;
 iter_abort_crit=100;
 
-if ngroups > 2 && ~BINMOD, binmode = 0; else, binmode = 1; end
+if ngroups > 2, binmode = 0; else binmode = 1; end
 
 if ~exist('setupfl','var') || isempty(setupfl), setupfl=0; end
 if ~exist('defaultsfl','var') || isempty(defaultsfl), defaultsfl=0; end
@@ -38,12 +38,12 @@ if ~defaultsfl
             if isfield(param.simba,'utilfunc')
                 utilfunc = param.simba.utilfunc;
                 if utilfunc == 2
-                    if isfield(param.simba.extra_param,'beta')
+                    if isfield(param.simba.extra_param,'beta'), 
                         betastr = param.simba.extra_param.beta;                    
                     else
                         betastr = Beta;
                     end
-                    if isnumeric(betastr)
+                    if isnumeric(betastr), 
                         Beta = betastr;
                         betastr = nk_ConcatParamstr(betastr);
                         betadef = 2;
@@ -59,17 +59,31 @@ if ~defaultsfl
             if isfield(param.simba,'cuda'), cuda = param.simba.gpu; end
         end
     end
-    
+
+    %if ~cuda, cudastr = 'no'; else cudastr = 'yes'; end
+    if isfield(param,'binmode'), binmode = param.binmode; end
+    if ~binmode, binmodestr='multi-group'; else binmodestr='pairwise'; end
+
     % -------------------------------------------------------------------------
     nk_PrintLogo
-  
-    act = nk_input('Simba: Parameter Setup',0, 'mq', ...
-        ['# Starting points to avoid local maxima [' num2str(st_points) ']|' ...
-        'Maximum # of iterations [' num2str(max_iter) ']|' ...
-        'Iteration stopping criterion [' num2str(iter_abort_crit) ']|' ...
-        'Block size [' num2str(block_size) ']|' ...
-        'Utility function [' utilfuncstr betastr ']'],1:5);
-  
+    if ngroups > 2,
+
+        act = nk_input('Simba: Parameter Setup',0, 'mq', ...
+            ['# Starting points to avoid local maxima [' num2str(st_points) ']|' ...
+            'Maximum # of iterations [' num2str(max_iter) ']|' ...
+            'Iteration stopping criterion [' num2str(iter_abort_crit) '% feature rank stability]|' ...
+            'Block size [' num2str(block_size) ']|' ...
+            'Utility function [' utilfuncstr betastr ']|' ...
+            'Multi-group / Pairwise group processing [' binmodestr ']'],1:6);
+    else
+        act = nk_input('Simba: Parameter Setup',0, 'mq', ...
+            ['# Starting points to avoid local maxima [' num2str(st_points) ']|' ...
+            'Maximum # of iterations [' num2str(max_iter) ']|' ...
+            'Iteration stopping criterion [' num2str(iter_abort_crit) ']|' ...
+            'Block size [' num2str(block_size) ']|' ...
+            'Utility function [' utilfuncstr betastr ']'],1:5);
+    end
+
     switch act
         case 1
             st_points = nk_input('Starting points',0,'i',st_points,1);
@@ -101,6 +115,9 @@ if ~defaultsfl
                             Beta = nk_input('Beta',0,'e', Beta);
                     end
             end
+        case 6
+            binmode = uint8(nk_input('Multi-group or pairwise processing?', 0, 'm', ...
+                                'Multi-group|Binary',[0,1],binmode));
     end
 else
     act = 0;

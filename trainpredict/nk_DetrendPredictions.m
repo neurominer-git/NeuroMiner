@@ -10,7 +10,7 @@ if exist('X','var') && ~isempty(X)
     % Compute beta of rotation parameters between original label and error
     if ~exist('beta','var') || isempty(beta)
         IN.TrCovars = E;
-        [~, IN] = nk_UnivCorrProcsObj(X, IN);
+        [~, IN] = nk_PartialCorrelationsObj(X, IN);
         beta = IN.beta;
     end
 else
@@ -24,6 +24,6 @@ if ~exist('X','var')
 end
 IN.TsCovars = X;
 % Now detrend predictions based on X and beta
-Ycorr = nk_UnivCorrProcsObj(Y, IN);
+Ycorr = nk_PartialCorrelationsObj(Y, IN);
 
 end

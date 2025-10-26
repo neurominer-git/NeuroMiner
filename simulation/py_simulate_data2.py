@@ -1,16 +1,12 @@
 # function that simulates data with the same structure as input data
 import pandas as pd
 import numpy as np
-from sdv.metadata import SingleTableMetadata
-from sdv.single_table import GaussianCopulaSynthesizer
+from sdv.tabular import GaussianCopula
 from sdv.constraints import OneHotEncoding, FixedCombinations
 from sdv.sampling import Condition
 
 data = pd.read_csv(data_file)
-#data['label'] = labels 
-
-metadata = SingleTableMetadata()
-metadata.detect_from_dataframe(data)
+data['label'] = labels 
 
 # preallocate space for simulated dataset
 sim_sample = pd.DataFrame(columns = data.columns)
@@ -25,21 +21,13 @@ if cv1lco > 0 and cv2lco > 0:
 
 # consider dummy-coded sites    
 if type(sitesCols) is not int:
+    auxSitesColsNames = [f'Y{idx}' for idx in sitesCols]
     sitesColsPy = [x-1 for x in sitesCols]
-    auxSitesColsNames = data.columns[sitesColsPy]
- 
-    sites_constraint =  {
-        'constraint_class': 'OneHotEncoding',
-        'constraint_parameters': {
-            'column_names': auxSitesColsNames
-        }
-    }
-
-    print(sites_constraint)
+    sites_constraint = OneHotEncoding(column_names = auxSitesColsNames)
     constraints.append(sites_constraint)
         
-model = GaussianCopulaSynthesizer(metadata)
-model.add_constraints(constraints = constraints)    
+model = GaussianCopula(constraints = constraints)
+    
 model.fit(data)
 
 # conditions 

@@ -32,7 +32,7 @@ switch act
                 Unq = unique(Ti);
                 nUnq = numel(Unq); 
                 if nUnq>uniquelim
-                    errordlg(sprintf('\nFound %g unique values in column ''%s'' while only %g unique values are allowed.', nUnq, Vars{i}, uniquelim ));
+                    errordlg('\nFound %g unique values in column ''%s'' while only %g unique values are allowed.', nUnq, Vars{i}, uniquelim );
                     Tdummy = T;
                     return
                 end

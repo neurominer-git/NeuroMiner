@@ -21,7 +21,7 @@ switch act
             I2.VCV2SPEARMAN_UNCORR_PVAL = cell(nclass,nM);
             I2.VCV2PEARSON_FDR_PVAL     = cell(nclass,nM);
             I2.VCV2SPEARMAN_FDR_PVAL    = cell(nclass,nM);
-            if linsvmfl
+            if linsvmfl, 
                 I2.VCV2PVAL_ANALYTICAL = cell(nclass,nM);
                 I2.VCV2PVAL_ANALYTICAL_FDR = cell(nclass,nM);
             end
@@ -55,7 +55,7 @@ switch act
             I1.VCV1SPEARMAN_UNCORR_PVAL = cell(nclass,nM);
             I1.VCV1PEARSON_FDR_PVAL     = cell(nclass,nM);
             I1.VCV1SPEARMAN_FDR_PVAL    = cell(nclass,nM);
-            if linsvmfl
+            if linsvmfl, 
                 I1.VCV1PVAL_ANALYTICAL  = cell(nclass,nM);
                 I1.VCV1PVAL_ANALYTICAL_FDR = cell(nclass,nM);
             end
@@ -73,7 +73,7 @@ switch act
     case 'accum'
         
         if exist('I1','var')
-            if ischar(I1) && exist(I1,'file')
+            if ischar(I1) && exist(I1,'file'), 
                 try
                     load(I1); 
                     filefound = true;
@@ -89,7 +89,7 @@ switch act
 
         for h=1:nclass
 
-            if any(permfl)
+            if any(permfl), 
                 I2.VCV2MPERM(h,ll) 		  = mean(I1.VCV1MPERM{h});
                 I2.VCV2MPERM_CV2(h,ll) 	  = sum(I1.VCV1MPERM_CV2{h})/nperms(1);
             end
@@ -97,16 +97,16 @@ switch act
             % Loop through modalities
             for n = 1:nM
 
-                [D,~,~,badcoords]         = getD(FUSION.flag, inp, n); badcoords = ~badcoords;
-
-                if ~decompfl(n)	
-                    if isempty(I2.PCV2SUM{h,n})
+                [D,~,~,badcoords]         = getD(FUSION.flag, inp, n); badcoords = ~badcoords; 
+                if ~decompfl(n),			
+                    if isempty(I2.PCV2SUM{h,n}), 
                         I2.PCV2SUM{h, n}(badcoords)        = I1.PCV1SUM{h, n}(badcoords);
                     else
                         I2.PCV2SUM{h, n}(badcoords)        = I2.PCV2SUM{h, n}(badcoords)' + I1.PCV1SUM{h, n}(badcoords);
                     end
                     % Changed from median to mean computation (30.12.2018)
                     % log-transform first then compute the mean for P values 
+                    %I2.VCV2PDP{h,n}                     = [ I2.
                     I2.VCV2PEARSON{h, n}                = [ I2.VCV2PEARSON{h, n}                nm_nanmean(I1.VCV1PEARSON{h, n},2) ];
                     I2.VCV2SPEARMAN{h, n}               = [ I2.VCV2SPEARMAN{h, n}               nm_nanmean(I1.VCV1SPEARMAN{h, n},2) ];
                     I2.VCV2PEARSON_UNCORR_PVAL{h, n}    = [ I2.VCV2PEARSON_UNCORR_PVAL{h, n}    nm_nanmean(-log10(I1.VCV1PEARSON_UNCORR_PVAL{h, n}),2) ];
@@ -126,12 +126,12 @@ switch act
                 if any(permfl)
                     % Changed from median to mean computation for P values (30.12.2018)
                     if isempty(I2.VCV2PERM{h, n})
-                        I2.VCV2PERM{h, n}       = double(nm_nansum(I1.VCV1PERM{h, n},2)) ;
-                        I2.VCV2PERM_FDR{h, n}   = double(nm_nansum(I1.VCV1PERM_FDR{h, n},2));
+                        I2.VCV2PERM{h, n}       = double(nm_nanmean(I1.VCV1PERM{h, n},2)) ;
+                        I2.VCV2PERM_FDR{h, n}   = double(nm_nanmean(I1.VCV1PERM_FDR{h, n},2));
                         I2.VCV2ZSCORE{h, n}     = double(nm_nansum(I1.VCV1ZSCORE{h, n},2));
                     else
-                        I2.VCV2PERM{h, n}       = [ I2.VCV2PERM{h,n} double(nm_nansum(I1.VCV1PERM{h, n},2)) ];
-                        I2.VCV2PERM_FDR{h, n}   = [ I2.VCV2PERM_FDR{h,n} double(nm_nansum(I1.VCV1PERM_FDR{h, n},2)) ];
+                        I2.VCV2PERM{h, n}       = [ I2.VCV2PERM{h,n} double(nm_nanmean(I1.VCV1PERM{h, n},2)) ];
+                        I2.VCV2PERM_FDR{h, n}   = [ I2.VCV2PERM_FDR{h,n} double(nm_nanmean(I1.VCV1PERM_FDR{h, n},2)) ];
                         I2.VCV2ZSCORE{h, n}     = [ I2.VCV2ZSCORE{h,n} double(nm_nansum(I1.VCV1ZSCORE{h, n},2)) ];
                     end
                 end 
@@ -140,35 +140,29 @@ switch act
                 I1.VCV1MEAN{h,n}                = nm_nanmedian(I1.VCV1{h,n},2);
                 I1.VCV1SUM{h,n}                 = nm_nansum(I1.VCV1{h,n},2);
                 I1.VCV1SQ{h,n}                  = nm_nansum(I1.VCV1{h,n}.^2,2);
-                if inp.CVRnorm == 1
-                    I1.VCV1STD{h,n}             = nm_nanstd(I1.VCV1{h,n},2);
-                else
-                    I1.VCV1STD{h,n}            = (nm_nanstd(I1.VCV1{h,n},2)./sqrt(I1.VCV1NMODEL(h)))*1.96;
-                end
-
+                %I1.VCV1STD{h,n}                 = (nm_nanstd(I1.VCV1{h,n},2)./sqrt(I1.VCV1NMODEL(h)))*1.96;
+                I1.VCV1STD{h,n}                 = nm_nanstd(I1.VCV1{h,n},2);
                 indMEANgrSE                     = abs(I1.VCV1MEAN{h,n}) > I1.VCV1STD{h,n};
                 if isempty(I2.VCV2SUM{h, n})
                     I2.GCV2SUM{h, n}            = nan(D,ix*jx,'double');
                     I2.VCV2PROB{h, n}           = indMEANgrSE;
                     I2.VCV2SUM{h, n}            = I1.VCV1SUM{h,n};
-                    I2.VCV2SUM2{h,n}            = (I1.VCV1SUM{h,n}.^2);
+                    I2.VCV2SUM2{h,n}            = (I1.VCV1SUM{h,n}.^2);%./I1.VCV1SEL{h, n};
                     I2.VCV2SQ{h, n}             = I1.VCV1SQ{h,n};
                     I2.VCV2MEAN{h, n}           = I1.VCV1MEAN{h,n};
                     I2.VCV2STD{h, n}            = I1.VCV1STD{h,n};
                     I2.VCV2SEL{h, n}            = I1.VCV1SEL{h, n};
                     I2.VCV2VCV1{h,n}            = I1.VCV1{h,n};
-                    I2.VCV2ratCV2{h,n}          = nk_ComputeCVR(I1.VCV1{h,n}, I1.VCV1SEL{h, n}); 
                 else
-                    I2.GCV2SUM{h, n}(:,ll)      = I1.VCV1SUM{h, n};
+                    I2.GCV2SUM{h, n}(:,ll)      = I1.VCV1SUM{h, n};% ./  I1.VCV1SEL{h,n};  
                     I2.VCV2PROB{h, n}           = [I2.VCV2PROB{h, n}   indMEANgrSE ];
                     I2.VCV2SUM{h, n}            = [I2.VCV2SUM{h, n}    I1.VCV1SUM{h, n}];
-                    I2.VCV2SUM2{h,n}            = [I2.VCV2SUM2{h, n}   I1.VCV1SUM{h,n}.^2];
+                    I2.VCV2SUM2{h,n}            = [I2.VCV2SUM2{h, n}   I1.VCV1SUM{h,n}.^2];%./I1.VCV1SEL{h, n}];
                     I2.VCV2SQ{h, n}             = [I2.VCV2SQ{h, n}     I1.VCV1SQ{h, n} ];
                     I2.VCV2MEAN{h, n}           = [I2.VCV2MEAN{h, n}   I1.VCV1MEAN{h, n}];
                     I2.VCV2STD{h, n}            = [I2.VCV2STD{h, n}    I1.VCV1STD{h, n}];
-                    I2.VCV2SEL{h, n}            = I2.VCV2SEL{h, n} + I1.VCV1SEL{h, n};
+                    I2.VCV2SEL{h, n}            = I2.VCV2SEL{h, n}     + I1.VCV1SEL{h, n};
                     I2.VCV2VCV1{h,n}            = [I2.VCV2VCV1{h,n}    I1.VCV1{h,n}];
-                    I2.VCV2ratCV2{h,n}          = [ I2.VCV2ratCV2{h,n} nk_ComputeCVR(I1.VCV1{h,n}, I1.VCV1SEL{h, n})];
                 end 
             end
             I2.VCV2NMODEL(h) = I2.VCV2NMODEL(h) + I1.VCV1NMODEL(h);

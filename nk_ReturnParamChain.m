@@ -7,10 +7,11 @@ PX = struct('Params',[],'Params_desc',[],'Typ',[],'cmd',[],'steps',[],'stepparam
 for n=1:nP
     
     Params = []; Params_desc = []; Typ = []; cmd = ''; steps = []; ll=1;
-    if iscell(PO), PREPROC = PO{n}; else, PREPROC = PO; end
+    if iscell(PO), PREPROC = PO{n}; else PREPROC = PO; end
+    if nP>1, Pstr = sprintf('_M%g',n); end
     if isfield(PREPROC,'PX') && ~isempty(PREPROC.PX) && isfield(PREPROC.PX,'Px')
         [Params, Params_desc, Typ] = retrieve_from_struct(PREPROC.PX.Px, optimonly);
-        if isfield(PREPROC,'cmd'), cmd = PREPROC.cmd; else, cmd=[]; end
+        if isfield(PREPROC,'cmd'), cmd = PREPROC.cmd; else cmd=[]; end
         steps = 1;
         f = fieldnames(PREPROC);
         stepparams = getfield(PREPROC,f{1});
@@ -27,15 +28,16 @@ for n=1:nP
                    Typ = [Typ cTyp];
                    cmd = char(cmd, repmat(PREPROC.ACTPARAM{i}.cmd,numel(cParams_desc),1));
                    steps = [steps repmat(i,1,numel(cParams_desc))];
+                   %f = fieldnames(PREPROC.ACTPARAM{i});
                    stepparams{ll} = PREPROC.ACTPARAM{i};
                    ll = ll+1;
                end
             end
         end
         % Finally, check for pre-chain parameter arrays
-        if isfield(PREPROC,'SPATIAL') && isfield(PREPROC.SPATIAL,'PX') && ~isempty(PREPROC.SPATIAL.PX) && ~isempty(PREPROC.SPATIAL.PX.opt)
+        if isfield(PREPROC,'SPATIAL') && isfield(PREPROC.SPATIAL,'PX') && ~isempty(PREPROC.SPATIAL.PX.opt)
              [cParams, cParams_desc, cTyp] = retrieve_from_struct(PREPROC.SPATIAL.PX.Px, optimonly);
-             if ~isempty(cParams)
+             if ~isempty(cParams), 
                  Params = [Params cParams];
                  Params_desc = [Params_desc cParams_desc];
                  Typ = [Typ cTyp];
@@ -51,7 +53,7 @@ for n=1:nP
             PX(n).Params = Params;
             PX(n).Params_desc = Params_desc;
             PX(n).Typ = Typ;
-            if ~isempty(cmd)
+            if ~isempty(cmd), 
                 PX(n).cmd = cellstr(cmd); 
                  if strcmp(PX(n).cmd{1},''), PX(n).cmd(1)=[]; end
             end
@@ -62,7 +64,7 @@ for n=1:nP
             PX.Params = Params;
             PX.Params_desc = Params_desc;
             PX.Typ = Typ;
-            if ~isempty(cmd) 
+            if ~isempty(cmd), 
                 PX.cmd = cellstr(cmd);
                 if strcmp(PX.cmd{1},''), PX.cmd(1)=[]; end
             end

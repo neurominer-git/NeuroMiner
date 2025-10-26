@@ -3,7 +3,7 @@ function D = nk_DirSelector(titlestr, D)
 global SPMAVAIL
 
 if isempty(SPMAVAIL), SPMAVAIL = logical(exist('spm_select','file')); end
-if ~exist('D','var') || ~exist(D,'dir')
+if ~exist('D','var') || ~exist(D,'dir'), 
     D = {pwd}; 
 elseif ischar(D)
     D = {D}; 

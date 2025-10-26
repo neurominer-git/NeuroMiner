@@ -17,10 +17,10 @@
 %the top %N features are returned.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%(c) Nikolaos Koutsouleris, 10 / 2025
+%(c) Nikolaos Koutsouleris, 09 / 2015
 function [AgreeFeat, AgreePerc] = ProbabilisticFea(F, EnsStrat, q)
 global VERBOSE
-
+%persistent h_probabilisticfea
 
 % Compute the features' between-classifier conistency
 % as percentage of between-classifier "agreement"
@@ -47,12 +47,8 @@ switch EnsStrat.Mode
     case 3
         % Percentage of top-features selected
         [~,ind] = sort(AgreePerc,'descend');
-        thresh = ceil(numel(AgreePerc)*(EnsStrat.Perc(q)/100));
+        thresh = ceil(sum(AgreePerc>0)*(EnsStrat.Perc(q)/100));
         tF = false(nF,1); tF(ind(1:thresh)) = true;
-    case 4
-        % >Percentage of cross-subspace agreement
-        ind = AgreePerc>EnsStrat.Perc(q);
-        tF = false(nF,1); tF(ind) = true;
 end
 
 if isfield(EnsStrat,'PruneFlag')
@@ -61,13 +57,11 @@ if isfield(EnsStrat,'PruneFlag')
             % Here we prune unselected features for each individual feature
             % mask
             AgreeFeat = logical(F);
-            tF = repmat(tF,1,mF);
-            idx0 = AgreeFeat~=tF;
-            AgreeFeat(idx0)=false;
-            if ~any(AgreeFeat(:))
+            AgreeFeat(bsxfun(@ne,AgreeFeat, tF)) = false;
+            if any(sum(AgreeFeat)==0)
                 error(sprintf('\nFeature pruning resulted in empty feature spaces!\nChange your settings to the use of a single feature mask.'))
             end
-        case 0
+        case 2
             % Here we take over only the selected features into a single
             % mask for all CV1 training partitions
              AgreeFeat = tF;
@@ -76,7 +70,7 @@ else
     AgreeFeat = tF; 
 end
 
-if VERBOSE && ~isdeployed
+if VERBOSE
     h_temp = findobj('Tag','FeatureMatrix');
     if isempty(h_temp)
         h_temp = figure('Name', 'Probabilistic Feature Exraction', ...

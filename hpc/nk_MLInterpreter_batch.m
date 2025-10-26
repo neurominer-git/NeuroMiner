@@ -15,60 +15,27 @@ fclose(fid);
 % ==================================================================================================================
 NMpath        		= params{1}{1};					% NM root folder
 datpath             = params{1}{2};					% NM structure
-jobdir              = params{1}{3};                 % job/output directory
-analind             = str2double(params{1}{4});		% Analysis index to identify analysis for HPC
-oocvind             = str2double(params{1}{5});		% multi flag in case MULTI-CLASS analysis has been conducted
-saveparam           = str2double(params{1}{6});     % Save optimized parameters and models to disk for future use
-loadparam           = str2double(params{1}{7});	    % Load optimized parameters and models from disk instead
-reestimateflag      = str2double(params{1}{8});     % restimate interpretations based on predictions
-optparammaster      = params{1}{9};                 % Master file containing paths optimized preproc parameter files
-optmodelsmaster     = params{1}{10};                 % Master file containing paths optimized models files
-curCPU              = str2double(params{1}{11});	% Current CPU to be used
-numCPU              = str2double(params{1}{12});    % Number of CPUs in the submitted job
-CV2x1               = str2double(params{1}{13});    % Range param for CV2 grid definition: Perm start CV2
-CV2x2               = str2double(params{1}{14});    % Range param for CV2 grid definition: Perm end CV2
-CV2y1               = str2double(params{1}{15});    % Range param for CV2 grid definition: Fold start CV2
-CV2y2               = str2double(params{1}{16});	% Range param for CV2 grid definition: Fold end CV2
-selectsamples       = str2double(params{1}{17});	% Select All or User-defined samples
-try
-    sampleID            = eval(params{1}{18});	% Sample IDs if user-defined sample selection
-catch
-    sampleID = {};
-end
+analind             = str2double(params{1}{3});		% Analysis index to identify analysis for HPC
+oocvind             = str2double(params{1}{4});		% multi flag in case MULTI-CLASS analysis has been conducted
+saveparam           = str2double(params{1}{5});     % Save optimized parameters and models to disk for future use
+loadparam           = str2double(params{1}{6});	    % Load optimized parameters and models from disk instead
+reestimateflag      = str2double(params{1}{7});     % restimate interpretations based on predictions
+optparammaster      = params{1}{8};                 % Master file containing paths optimized preproc parameter files
+optmodelsmaster     = params{1}{9};                 % Master file containing paths optimized models files
+curCPU              = str2double(params{1}{10});	% Current CPU to be used
+numCPU              = str2double(params{1}{11});    % Number of CPUs in the submitted job
+CV2x1               = str2double(params{1}{12});    % Range param for CV2 grid definition: Perm start CV2
+CV2x2               = str2double(params{1}{13});    % Range param for CV2 grid definition: Perm end CV2
+CV2y1               = str2double(params{1}{14});    % Range param for CV2 grid definition: Fold start CV2
+CV2y2               = str2double(params{1}{15});	% Range param for CV2 grid definition: Fold end CV2
+
 if ~isdeployed
     addpath(NMpath);
 end
 warning('off','MATLAB:FINITE:obsoleteFunction')
 fprintf('\nLoading NM structure: %s',datpath)
 load(datpath);
-
-% change analysis rootpath in batch mode
-% change analysis rootpath in batch mode
-if isdeployed
-    if jobdir(end) == '/'
-        jobdir = jobdir(1:end-1);
-    end
-    for i=1:analind
-        analind_i = i; 
-        parentdir = NM.analysis{1,analind_i}.parentdir;
-        if parentdir(end) == '/'
-            parentdir = parentdir(1:end-1);
-        end
-        NM.analysis{1,analind_i}.parentdir = jobdir;
-        NM.analysis{1,analind_i}.rootdir = strrep(NM.analysis{1,analind_i}.rootdir,parentdir,jobdir);
-        NM.analysis{1,analind_i}.logfile = strrep(NM.analysis{1,analind_i}.logfile,parentdir,jobdir);
-        NM.analysis{1,analind_i}.paramdir = strrep(NM.analysis{1,analind_i}.paramdir,parentdir,jobdir);
-        NM.analysis{1,analind_i}.paramfile = strrep(NM.analysis{1,analind_i}.paramfile,parentdir,jobdir);
-        if isfield(NM.analysis{1,analind_i}, 'GDdims')
-            NM.analysis{1,analind_i}.GDdims{1,1}.RootPath = strrep(NM.analysis{1,analind_i}.GDdims{1,1}.RootPath, parentdir, jobdir);
-        end
-    end
-end
-
 assignin('base','NM',NM);
-
-fprintf('\nThe updated path of the NM structure root dir is: %s',NM.analysis{1,analind}.rootdir)
-fprintf('\n')
 
 % %%%%%%%%%%%%%%%%%%%%%%%%% INITIALIZE NeuroMiner %%%%%%%%%%%%%%%%%%%%%%%%%
 action = struct('addrootpath',1, ...
@@ -124,9 +91,7 @@ inp = struct( 'analind', analind, ...
               'ovrwrtperm', 2, ...                      
               'recompute_estimates', reestimateflag, ... 
               'saveCV1', 2, ...                         
-              'loadparam', loadparam, ...   
-              'selectsamples', selectsamples, ...
-              'sampleID', {sampleID}, ...
+              'loadparam', loadparam, ...               
               'batchflag', 1, ...
               'HideGridAct', false);                          
 

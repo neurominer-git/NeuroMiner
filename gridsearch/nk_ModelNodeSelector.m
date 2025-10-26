@@ -1,6 +1,6 @@
 function [GD, MultiBinBind] = nk_ModelNodeSelector(GD, MD, label, f, d, nclass, Ps, Pdesc, combcell, act)
 
-global CV MULTI GRD SAV MODEFL RFE RAND MULTILABEL SVM xCV simFlag DEBUG CVPOS
+global CV MULTI GRD SAV MODEFL RFE RAND MULTILABEL SVM xCV simFlag
 
 if ~isempty(simFlag) && simFlag
     tCV = xCV;
@@ -45,8 +45,6 @@ for curlabel=1:nl
                     RegulC = nk_ComputeRegulFunction(GD.C(:,:,curlabel), 0, GRD.OptRegul.RegulTypeComplexity);
                 end
                 Regul = (RegulDiv + RegulC) / 2;
-            case 4
-                Regul = nk_ComputeRegulFunction(GD.sTR(:,:,curlabel), 0, GRD.OptRegul.RegulTypeComplexity);
         end
     else
         Regul =  GD.C(:,:,curlabel);
@@ -107,7 +105,18 @@ for curlabel=1:nl
                 end
             else
                 GD.BinaryGridSelection{curclass}{curlabel} = BinaryGridSelection;
+%                 if isfield(GRD,'NodeSelect')  && GRD.NodeSelect.mode == 3
+%                     TransNodeArray = nk_CatNodes(BinaryGridSelection.bestCV1TsPred,curclass);
+%                     [ix,jx] = size(TransNodeArray);
+%                     % Loop through TransNodeArray (CV1 partitions)
+%                     for ti = 1 : ix
+%                         for tj = 1 : jx
+% 
+%                         end
+%                     end
+%                 end
             end
+
         end
 
         if nPerc > 1
@@ -196,7 +205,7 @@ for curlabel=1:nl
                Regul = mean(GD.C,2);
            end
            % Now select optimal parameters for the multi-group learning machine
-           if nPerc > 1 
+           if nPerc > 1 ; 
                TransNodeMeanPerf = zeros(nPerc,1);
                TransNodeSDPerf  = zeros(nPerc,1);
            end
@@ -236,15 +245,6 @@ for curlabel=1:nl
             PerfCritMult, OptPerc, GD.BinaryGridSelection{curclass}{curlabel}.Nodes)
        end
    
-    end
-end
-
-if ~isempty(DEBUG) && isfield(DEBUG,'optmodel') && DEBUG.optmodel
-    filename = fullfile(pwd,sprintf('OptModel_%s_CV2%g-%g_CV1%g-%g.mat',SAV.matname,CVPOS.CV2p,CVPOS.CV2f));
-    if MULTI.flag
-        save(filename,"BinaryGridSelection","MultiGroupGridSelection");
-    else
-        save(filename,"BinaryGridSelection");
     end
 end
           

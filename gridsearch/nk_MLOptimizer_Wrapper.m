@@ -1,19 +1,23 @@
 function [R, optmodel] = nk_MLOptimizer_Wrapper(Y, label, Ynew, labelnew, Ps, FullParam, SubFeat)
 
-global RFE 
+global RFE SVM
 
 if nargin < 7, SubFeat = true(1,size(Y,2)); end
-ActStr = {'Tr', 'CV', 'TrCV', 'TrCVsep'};
+ActStr = {'Tr', 'CV', 'TrCV'};
 
 % Remove cases which are completely NaN
-[Y, label] = nk_ManageNanCases(Y, label, [], 'prune_single');
-[Ynew, labelnew] = nk_ManageNanCases(Ynew, labelnew, [], 'prune_single');
+[Y, label] = nk_ManageNanCases(Y, label);
+[Ynew, labelnew] = nk_ManageNanCases(Ynew, labelnew);
+
+% Run ADASYN if needed
+if isfield(SVM,'ADASYN') && SVM.ADASYN.flag == 1
+    [Y, label] = nk_PerfADASYN(Y, label , SVM.ADASYN);
+end
 
 switch RFE.Wrapper.type
-    % GREEDY FORWARD/BACKWARD FEATURE SEARCH (since NM 1.4: with adaptive
-    % versions)
+    % GREEDY FORWARD/BACKWARD FEATURE SEARCH
     case 1 
-        funs = { @rfe_forward_v2,  @rfe_backward_v2 };
+        funs = { @rfe_forward,  @rfe_backward };
         [optparam, optind, optfound, optmodel] = funs{RFE.Wrapper.GreedySearch.Direction}( Y, label, Ynew, labelnew, Ps, SubFeat, FullParam, ActStr{RFE.Wrapper.datamode} );
     % SIMULATED ANNEALING
     case 2

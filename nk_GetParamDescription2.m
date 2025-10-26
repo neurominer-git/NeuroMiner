@@ -63,7 +63,7 @@ switch action
         targetscalestr = 'NA'; labelimputestr = 'NA';
         if isfield(params,'LABELMOD') 
             if isfield(params.LABELMOD,'TARGETSCALE') && ~isempty(params.LABELMOD.TARGETSCALE)
-                if params.LABELMOD.TARGETSCALE
+                if params.LABELMOD.TARGETSCALE, 
                     targetscalestr = 'Target scaling [0, 1]';
                 else
                     targetscalestr = '';
@@ -112,45 +112,10 @@ switch action
                     spatialfilterstr = '27-NN variance filtering';
                 case 4
                     spatialfilterstr = 'Gaussian smoothing';
-                    spatialfilterstr = [spatialfilterstr ' [ ' nk_ConcatParamstr(params.SPATIAL.cubefwhm) ' ] '];
+                    spatialfilterstr = [spatialfilterstr ' [ ' nk_ConcatParamstr(params.SPATIAL.cubefwhm) ' ] ']; 
                 case 5
-                    spatialfilterstr = 'Neurotransmitter correlations';
-                    if isfield(params.SPATIAL,'JUSPACE') && ~isempty(params.SPATIAL.JUSPACE) && ...
-                            isfield(params.SPATIAL.JUSPACE,'NTList') && ~isempty(params.SPATIAL.JUSPACE.NTList)
-                        for i = 1:size(params.SPATIAL.JUSPACE.NTList,2)
-                            PETnames{i,1} = params.SPATIAL.JUSPACE.NTList{1,i}.id;
-                        end
-                        PETnames = strjoin(PETnames, ', ');
-                        spatialfilterstr = [spatialfilterstr ' [ ' PETnames ' ] ']; 
-                    elseif params.SPATIAL.JUSPACE.completeflag && ~params.SPATIAL.JUSPACE.importflag
-                        spatialfilterstr = sprintf('Warning: DATA NOT IMPORTED from neurotransmitter correlations setup');
-                    elseif ~params.SPATIAL.JUSPACE.completeflag
-                        spatialfilterstr = sprintf('Warning: SETUP INCOMPLETE for neurotransmitter correlations');
-                    else
-                        PETnames = 'undefined';
-                        spatialfilterstr = [spatialfilterstr ' [ ' PETnames ' ] ']; 
-                    end
-                case 6
                     spatialfilterstr = 'Resampling';
-                    spatialfilterstr = [spatialfilterstr ' [ ' nk_ConcatParamstr(params.SPATIAL.cubevoxres) ' ] '];
-                case 7
-                    spatialfilterstr = 'ROI mean values';
-                    if isfield(params.SPATIAL,'ROIMEANS') && ~isempty(params.SPATIAL.ROIMEANS) && ...
-                       isfield(params.SPATIAL.ROIMEANS,'atlas') && ~isempty(params.SPATIAL.ROIMEANS.atlas)
-                        for j= 1:size(params.SPATIAL.ROIMEANS.atlas,1) 
-                            if j == 1
-                                ATLASSTR = deblank(params.SPATIAL.ROIMEANS.atlas(j,:));
-                            else
-                                ATLASSTR = sprintf('%s, %s', ATLASSTR, deblank(params.SPATIAL.ROIMEANS.atlas(j,:)));
-                            end
-                        end
-                        spatialfilterstr = [spatialfilterstr '. Atlas: ' ATLASSTR]; 
-                    elseif ~params.SPATIAL.ROIMEANS.completeflag
-                        spatialfilterstr = sprintf('Warning: SETUP INCOMPLETE for ROI mean values');
-                    else
-                        ATLASSTR = 'undefined';
-                        spatialfilterstr = [spatialfilterstr ' [ ' ATLASSTR ' ] ']; 
-                    end                
+                    spatialfilterstr = [spatialfilterstr ' [ ' nk_ConcatParamstr(params.SPATIAL.cubevoxres) ' ] ']; 
             end
         end
         if isfield(params,'ACTPARAM') 
@@ -205,8 +170,6 @@ switch action
                                     impstr = sprintf('median of %g nearest neighbors (%s)',params.ACTPARAM{i}.IMPUTE.k, 'Jaccard');
                                 case 'hamming'
                                     impstr = sprintf('median of %g nearest neighbors (%s)',params.ACTPARAM{i}.IMPUTE.k, 'Hamming');
-                                case 'downshift'
-                                    impstr = 'Downshifted Gaussian imputation (left-censored)';
                                 case 'hybrid'
                                     impstr = sprintf('median of %g nearest neighbors (%s)',params.ACTPARAM{i}.IMPUTE.k, 'Hybrid');    
                                 otherwise
@@ -217,10 +180,15 @@ switch action
                             else
                                 preprocact{i} = sprintf('Imputation in Matrix Block [ %g columns, first: %g, last: %g ]: %s', numel(b), min(b), max(b), impstr);
                             end
-
                         case 'correctnuis'
 
-                            if isfield(params.ACTPARAM{i},'METHOD') && params.ACTPARAM{i}.METHOD == 1
+                            if isfield(params.ACTPARAM{i},'METHOD') && params.ACTPARAM{i}.METHOD == 2
+                                combatfl = 1;
+                            else
+                                combatfl = 0;
+                            end
+                                
+                            if ~combatfl
                             
                                 if ~isempty(params.ACTPARAM{i}.COVAR) 
                                     preprocact{i} = 'Partial correlations [ Covars:';
@@ -246,39 +214,17 @@ switch action
                                             preprocact{i} = [preprocact{i} ', increase effects' ];
                                     end
                                 end
-                            elseif isfield(params.ACTPARAM{i},'METHOD') && params.ACTPARAM{i}.METHOD == 2
+                            else
                                 if ~isempty(params.ACTPARAM{i}.COVAR) 
                                       preprocact{i} = ['ComBat batch effect correction [ batch vector: ' res.covnames{params.ACTPARAM{i}.COVAR} ];
                                 end
                                 if params.ACTPARAM{i}.MCOVARUSE
-                                    if ~isempty(params.ACTPARAM{i}.MCOVAR)
-                                        preprocact{i} = [ preprocact{i} ', variance retainment for covariates ' strjoin( res.covnames(params.ACTPARAM{i}.MCOVAR),', ') ];
-                                    end
-                                    if params.ACTPARAM{i}.MCOVARLABEL == 1
-                                        preprocact{i} = [ preprocact{i} ', label variance retainment' ];
-                                    else
-                                        preprocact{i} = [ preprocact{i} ', no label variance retainment' ];
+                                    preprocact{i} = [ preprocact{i} ', retainment variable(s): ' strjoin( res.covnames(params.ACTPARAM{i}.MCOVAR),', ') ];
+                                    if params.ACTPARAM{i}.MCOVARLABEL
+                                        preprocact{i} = [ preprocact{i} ' + label' ];
                                     end
                                 end
-                            elseif isfield(params.ACTPARAM{i},'METHOD') && params.ACTPARAM{i}.METHOD == 3
-                                if ~isempty(params.ACTPARAM{i}.COVAR) 
-                                    preprocact{i} = 'DIR [ Covars:';
-                                    covstr = ' ';
-                                    for j=1:numel(params.ACTPARAM{i}.COVAR)
-                                        covstr = [covstr res.covnames{params.ACTPARAM{i}.COVAR(j)} ', '];
-                                    end
-                                    preprocact{i} = [preprocact{i} covstr(1:end-2) ];
-                                end
-                                if ~isempty(params.ACTPARAM{i}.LAMBDA)
-                                    preprocact{i} = [preprocact{i} ', corr. strength: ' num2str(params.ACTPARAM{i}.LAMBDA)];
-                                end
-                                if ~isempty(params.ACTPARAM{i}.DISTYPE)
-                                    if params.ACTPARAM{i}.DISTYPE == 1
-                                        preprocact{i} = [preprocact{i} ', distribution: median'];
-                                    elseif params.ACTPARAM{i}.DISTYPE == 2
-                                        preprocact{i} = [preprocact{i} ', distribution: mean'];
-                                    end
-                                end
+                                
                             end
                             preprocact{i} = [preprocact{i} ' ]'];
                             
@@ -359,7 +305,7 @@ switch action
                                 ', #SDs: ' num2str(params.ACTPARAM{i}.SYMBOL.symStdNum) ')' ];
 
                         case 'reducedim'
-                    
+
                             if strcmp(params.ACTPARAM{i}.DR.RedMode,'PLS')
                                 if isfield(params.ACTPARAM{i}.DR.PLS,'algostr')
                                     PLSalgo = sprintf('PLS (%s)',params.ACTPARAM{i}.DR.PLS.algostr);
@@ -384,16 +330,6 @@ switch action
                                             params.ACTPARAM{i}.PX.Px(j).Params_desc, nk_ConcatParamstr(params.ACTPARAM{i}.PX.Px(j).Params));
                                     end
                                     RedMode = sprintf('%s, %s ]', RedMode, paramstr);
-                                end
-                            end
-                            if isfield(params.ACTPARAM{i},'TEMPLPROC')
-                                if params.ACTPARAM{i}.TEMPLPROC
-                                    RedMode = sprintf('%s, matrix realignment activated', RedMode);
-                                end
-                            end
-                            if isfield(params.ACTPARAM{i},'USEALL')
-                                if params.ACTPARAM{i}.USEALL
-                                    RedMode = sprintf('%s, OVERFITTING RISK: all available data for template generation !!!', RedMode);
                                 end
                             end
                             preprocact{i} = ['Reduce dimensionality (' RedMode ')'];
@@ -473,23 +409,6 @@ switch action
                                     if params.ACTPARAM{i}.RANK.Pearson == 1, algostr = 'Pearson'; else, algostr = 'Spearman'; end
                                 case 'extern'
                                     algostr = 'External ranking';
-                                case 'fscore'
-                                    weightstr = 'no class weighting'; bootstr = 'no bootstrapping'; fscoretypestr = 'mean(SD) approach';
-                                    if isfield( params.ACTPARAM{i}.RANK,'B') && params.ACTPARAM{i}.RANK.B > 0 
-                                        bootstr = sprintf(', bootstrapping with %g iters',params.ACTPARAM{i}.RANK.B); 
-                                    end
-                                    if isfield( params.ACTPARAM{i}.RANK,'WeightMode') && strcmp(params.ACTPARAM{i}.RANK.WeightMode,'auto')
-                                        weightstr = 'class weighting active';
-                                    end
-                                    if  isfield( params.ACTPARAM{i}.RANK,'FScoreType')
-                                        switch params.ACTPARAM{i}.RANK.FScoreType
-                                            case 'mean'
-                                                fscoretypestr = 'mean(SD) approach';                                        
-                                            case 'median'
-                                                fscoretypestr = 'median(IQR) approach';
-                                        end
-                                    end
-                                    algostr = sprintf('fscore (%s)', strjoin({fscoretypestr, weightstr, bootstr},', ')); 
                                 case 'extern_fscore'
                                     algostr = 'External combined with f-score ranking';
                                 otherwise
@@ -498,19 +417,19 @@ switch action
                             
                             switch params.ACTPARAM{i}.RANK.weightmethod
                                 case 1
-                                    preprocact{i} = sprintf('Rank up features using %s', algostr );
+                                    preprocact{i} = sprintf('Rank up features using %s ', algostr );
                                 case 2
-                                    preprocact{i} = sprintf('Rank down features using %s', algostr );
+                                    preprocact{i} = sprintf('Rank down features using %s ', algostr );
                             end
                             
                             if ~any(strcmp(params.ACTPARAM{i}.RANK.algostr,{'extern','pls'}))
                                 switch params.ACTPARAM{i}.RANK.ranktype
                                     case 1
-                                         preprocact{i} = sprintf( '%s => NM target label', preprocact{i} );
+                                         preprocact{i} = sprintf( '%s => target label', preprocact{i} );
                                     case 2
-                                         preprocact{i} = sprintf( '%s => user-defined categorical label: %s', preprocact{i}, params.ACTPARAM{i}.RANK.labeldesc );
+                                         preprocact{i} = sprintf( '%s => categorical label: %s', preprocact{i}, params.ACTPARAM{i}.RANK.labeldesc );
                                     case 3
-                                         preprocact{i} = sprintf( '%s => user-defined continuous label: %s', preprocact{i}, params.ACTPARAM{i}.RANK.labeldesc);
+                                         preprocact{i} = sprintf( '%s => continuous label: %s', preprocact{i}, params.ACTPARAM{i}.RANK.labeldesc);
                                 end
                             end
                             
@@ -520,20 +439,14 @@ switch action
                                     case 1
                                         threshstr = sprintf('exp. multiplier(s): %s', nk_ConcatParamstr(params.ACTPARAM{i}.W_ACT.exponent));
                                         threshstr = [ 'soft feature selection (' threshstr ')' ];
-                                    case {2, 3, 4, 5}
+                                    case {2, 3}
                                         switch params.ACTPARAM{i}.W_ACT.softflag
                                             case 2
                                                 threshstr = sprintf('percentile(s): %s%%', nk_ConcatParamstr(params.ACTPARAM{i}.W_ACT.threshvec));
                                             case 3
                                                 threshstr = sprintf('absolute threshold(s): %s', nk_ConcatParamstr(params.ACTPARAM{i}.W_ACT.absvec));
-                                            case 4
-                                                threshstr = sprintf('top X number(s) of features: %s', nk_ConcatParamstr(params.ACTPARAM{i}.W_ACT.topfeats));
-                                            case 5
-                                                threshstr = sprintf('Operator-based cutoff: %s => %s', ...
-                                                            func2str(params.ACTPARAM{i}.W_ACT.operator), ...
-                                                            nk_ConcatParamstr(params.ACTPARAM{i}.W_ACT.cutoff));
                                         end
-                                        if params.ACTPARAM{i}.W_ACT.clustflag == 1
+                                        if params.ACTPARAM{i}.W_ACT.clustflag == 1, 
                                             threshstr = [ 'clusterized ' threshstr ]; 
                                         end
                                         threshstr = [ 'thresholding (' threshstr ')' ];
@@ -556,11 +469,11 @@ switch action
                             end
                             switch params.ACTPARAM{i}.REMVARCOMP.corrmeth
                                 case 1
-                                    REMVARCOMP_corrmeth_str = 'Method: Pearson';
+                                    REMVARCOMP_corrmeth_str = 'Correlation Method: Pearson';
                                 case 2
-                                    REMVARCOMP_corrmeth_str = 'Method: Spearman';
+                                    REMVARCOMP_corrmeth_str = 'Correlation Method: Spearman';
                                 case 3
-                                    REMVARCOMP_corrmeth_str = 'Method: ANOVA';
+                                    REMVARCOMP_corrmeth_str = 'Correlation Method: ANOVA';
                             end
                             if isfield(params.ACTPARAM{i}.REMVARCOMP,'recon')
                                 switch params.ACTPARAM{i}.REMVARCOMP.recon
@@ -577,19 +490,9 @@ switch action
                             else
                                 REMVARCOMP_varop_str = 'undefined';
                             end
-                            if isfield(params.ACTPARAM{i}.REMVARCOMP,'SUBGROUP')
-                                switch params.ACTPARAM{i}.REMVARCOMP.SUBGROUP.flag
-                                    case 1
-                                        REMVARCOMP_subgroup_str = 'all';
-                                    case 2
-                                        REMVARCOMP_subgroup_str = sprintf('%g cases',sum(params.ACTPARAM{i}.REMVARCOMP.SUBGROUP.ind));
-                                    case 3
-                                        REMVARCOMP_subgroup_str = sprintf('%g%% of cases random selected', params.ACTPARAM{i}.REMVARCOMP.SUBGROUP.indperc);
-                                end
-                            end
                             REMVARCOMP_corrthresh_str = nk_ConcatParamstr(params.ACTPARAM{i}.REMVARCOMP.corrthresh);
-                            preprocact{i} = sprintf('Variance extraction [ %s, %s, Cutoff(s): %s, Operator: %s, Back-projection: %s, Training sample: %s ]', ...
-                                REMVARCOMP_G_str, REMVARCOMP_corrmeth_str , REMVARCOMP_corrthresh_str, REMVARCOMP_varop_str, REMVARCOMP_recon_str, REMVARCOMP_subgroup_str);
+                            preprocact{i} = sprintf('Variance extraction [ %s, %s, Correlation cutoff(s): %s, Operator: %s, Back-projection: %s ]', ...
+                                REMVARCOMP_G_str, REMVARCOMP_corrmeth_str , REMVARCOMP_corrthresh_str, REMVARCOMP_varop_str, REMVARCOMP_recon_str);
                         case 'devmap'
                             
                             if ~isempty(params.ACTPARAM{i}.DEVMAP.glabel)
@@ -612,19 +515,7 @@ switch action
                             end
                             %preprocact{i} = sprintf('%s ]', preprocact{i});
                         case 'graphMetrics'
-                            actparamAUX = params.ACTPARAM{i};
-                            if ~isempty(actparamAUX.GRAPHMETRICS.metricslist) 
-                                for j= 1:size(actparamAUX.GRAPHMETRICS.metricslist,2) 
-                                    if j == 1
-                                        METRICSLISTSTR = actparamAUX.GRAPHMETRICS.metricslist{j}.id;
-                                    else
-                                        METRICSLISTSTR = sprintf('%s, %s', METRICSLISTSTR, actparamAUX.GRAPHMETRICS.metricslist{j}.id);
-
-                                    end
-                                end
-                                preprocact{i} = sprintf('Compute graph metrics from connectivity matrices: %s ', METRICSLISTSTR);
-                            end
-                            
+                            preprocact{i} = 'Compute graph metrics from connectivity matrices';
                             
                         case 'graphComputation'
                             preprocact{i} = 'Construct individual networks';
@@ -635,73 +526,22 @@ switch action
                         case 'customPreproc'
                             preprocact{i} = sprintf('Perform custom preprocessing step. Function: %s', params.ACTPARAM{i}.CUSTOMPREPROC.filename); 
                         
-
-                		case 'JuSpace'
+                        case 'JuSpace'
                             actparamAUX = params.ACTPARAM{i};
-                            if ~isempty(actparamAUX.JUSPACE.NTList) && actparamAUX.JUSPACE.completeflag && actparamAUX.JUSPACE.importflag
-                                for j= 1:size(actparamAUX.JUSPACE.NTList,2) 
+                            if ~isempty(actparamAUX.JUSPACE.petList) 
+                                for j= 1:size(actparamAUX.JUSPACE.petList,2) 
                                     if j == 1
-                                        NTLISTSTR = actparamAUX.JUSPACE.NTList{j}.id;
+                                        PETLISTSTR = actparamAUX.JUSPACE.petList{j}.id;
                                     else
-                                       NTLISTSTR = sprintf('%s, %s', NTLISTSTR, actparamAUX.JUSPACE.NTList{j}.id);
+                                        PETLISTSTR = sprintf('%s, %s', PETLISTSTR, actparamAUX.JUSPACE.petList{j}.id);
 
                                     end
                                 end
-                                preprocact{i} = sprintf('Compute correlations with neurotransmitter maps: %s (JuSpace Toolbox)', NTLISTSTR);
-                            elseif actparamAUX.JUSPACE.completeflag && ~actparamAUX.JUSPACE.importflag
-                                preprocact{i} = sprintf('Warning: DATA NOT IMPORTED from neurotransmitter correlations setup');
-                            elseif ~actparamAUX.JUSPACE.completeflag
-                                preprocact{i} = sprintf('Warning: SETUP INCOMPLETE for neurotransmitter correlations');
+                                preprocact{i} = sprintf('Compute correlations with neurotransmitter maps: %s (JuSpace Toolbox)', PETLISTSTR);
                             end
-
                         case 'ROImeans'
-                            actparamAUX = params.ACTPARAM{i};
-                            if ~isempty(actparamAUX.ROIMEANS.atlas)
-                                for j = 1:size(actparamAUX.ROIMEANS.atlas,1) 
-                                    if j == 1
-                                        ATLASSTR = deblank(actparamAUX.ROIMEANS.atlas(j,:));
-                                    else
-                                        ATLASSTR = sprintf('%s, %s', ATLASSTR, deblank(actparamAUX.ROIMEANS.atlas(j,:)));
-                                    end
-                                end
-                                preprocact{i} = sprintf('Compute ROI mean values. Atlas: %s', ATLASSTR);
-                            end
-                       
-                        case 'skewcorr'
-                            % Extract the skew-correction struct
-                            if isfield(params.ACTPARAM{i}, 'SKEWCORR') && ~isempty(params.ACTPARAM{i}.SKEWCORR)
-                                SKEW = params.ACTPARAM{i}.SKEWCORR;
-                                
-                                % Start building a description string
-                                transformStr = sprintf('Method: %s', SKEW.transformMethod);
-                                
-                                % Show skew threshold(s)
-                                thrStr = nk_ConcatParamstr(SKEW.SkewThr, true);
-                                mainStr = sprintf('Skewness correction [ %s, Threshold: %s', transformStr, thrStr);
-                                
-                                % Box–Cox or Yeo–Johnson extras
-                                switch lower(SKEW.transformMethod)
-                                    case 'boxcox'
-                                        if strcmpi(SKEW.BoxCoxLambdaType,'auto')
-                                            mainStr = sprintf('%s, BoxCox lambda: auto (MLE)', mainStr);
-                                        else
-                                            lamStr = nk_ConcatParamstr(SKEW.BoxCoxLambdaVal, true);
-                                            mainStr = sprintf('%s, BoxCox lambda: manual [%s]', mainStr, lamStr);
-                                        end
-                                    case 'yeojohnson'
-                                        if strcmpi(SKEW.YJLambdaType,'auto')
-                                            mainStr = sprintf('%s, Yeo–Johnson lambda: auto (MLE)', mainStr);
-                                        else
-                                            lamStr = nk_ConcatParamstr(SKEW.YJLambdaVal, true);
-                                            mainStr = sprintf('%s, Yeo–Johnson lambda: manual [%s]', mainStr, lamStr);
-                                        end
-                                    otherwise
-                                        % 'log' => no extra parameters to display
-                                end
-                                preprocact{i} = sprintf('%s ]', mainStr);
-                            else
-                                preprocact{i} = 'Skewness correction [ undefined ]';
-                            end
+                            preprocact{i} = sprintf('Compute ROI mean values. Atlas: %s', params.ACTPARAM{i}.ROIMEANS.atlas); 
+                        
                     end
                     
                 else
@@ -819,8 +659,6 @@ switch action
                             num2str(params.Filter.EnsembleStrategy.Perc) ...
                             ', min # of features: ' ...
                             num2str(params.Filter.EnsembleStrategy.MinNum) ')'];
-                    case 10
-                        vargout.FeatFltEnsStrat = 'Boosting strategy';
 
                     otherwise 
 
@@ -923,7 +761,7 @@ switch action
             case 4
                 vargout.EnsConMode = 'Ensemble-based Probabilistic Feature Extraction';
             case 5
-                vargout.EnsConMode = 'Boosting';
+                vargout.EnsConMode = 'Adaboost (NOT TESTED)';
         end
         switch params.EnsembleStrategy.DivCrit
             case 0
@@ -969,14 +807,14 @@ switch action
                 if ~isfield(params.Wrapper.PFE,'Mode'), params.Wrapper.PFE.Mode = 3; end
                 switch params.Wrapper.PFE.Mode
                     case 1
-                        vargout.WrapperPFE = sprintf('%s ( thresh: %g% (-%g), Min. no. of feats: %s )',vargout.WrapperPFE, ...
+                        vargout.WrapperPFE = sprintf('%s [ thresh: %g% (-%g), Min. No. of feats: %s]',vargout.WrapperPFE, ...
                                 params.Wrapper.PFE.Perc, ...
                                 params.Wrapper.PFE.TolWin, ...
                                 params.Wrapper.PFE.MinNum);
                     case 2
-                        vargout.WrapperPFE = sprintf('%s ( %g top feats )',vargout.WrapperPFE,params.Wrapper.PFE.Perc);
+                        vargout.WrapperPFE = sprintf('%s [ %g% top feats ]',vargout.WrapperPFE,params.Wrapper.PFE.Perc);
                     case 3
-                        vargout.WrapperPFE = sprintf('%s ( %g%% top feats )',vargout.WrapperPFE,params.Wrapper.PFE.Perc);
+                        vargout.WrapperPFE = sprintf('%s [ %g%% top feats ]',vargout.WrapperPFE,params.Wrapper.PFE.Perc);
                 end
             else
                 vargout.WrapperPFE = sprintf('Cross-CV1 PFE off');
@@ -988,9 +826,7 @@ switch action
                 case 2
                     vargout.WrapperDataMode = 'CV1 test data';
                 case 3
-                    vargout.WrapperDataMode = 'Full CV1 partition';
-                case 4
-                    vargout.WrapperDataMode = 'CV1 training + test data';
+                    vargout.WrapperDataMode = 'CV1 training & test data';
             end
             if isfield(params.Wrapper,'GreedySearch')
                 switch params.Wrapper.GreedySearch.FeatStepPerc
@@ -1118,7 +954,7 @@ switch action
                 cnt = cnt+1;
                 preML_nCombsn = 0; 
             end
-            if preML_nCombs == 0
+            if preML_nCombs == 0, 
                 preML_nCombs = preML_nCombsn;
             else
                 preML_nCombs = preML_nCombs * preML_nCombsn;
@@ -1134,7 +970,7 @@ switch action
             ML{1} = sprintf('none');
             ML_nCombsn = 0; 
         end  
-        if ML_nCombs == 0
+        if ML_nCombs == 0, 
             ML_nCombs = ML_nCombsn;
         else
             ML_nCombs = ML_nCombs * ML_nCombsn;
@@ -1197,12 +1033,6 @@ switch action
                 vargout.prog = 'Sequence Optimizer';
             case 'ELASVM'
                 vargout.prog = 'Support Vector Elastic Net';
-            case 'MLPERC'
-                vargout.prog = 'Multilayer Perceptron';
-            case 'TFDEEP'
-                vargout.prog = 'Tensorflow neural network';
-            case 'BAYLIN'
-                vargout.prog = 'Linear Bayesian algorithm';
             otherwise
                 vargout.prog = params.SVM.prog;
         end
@@ -1336,12 +1166,6 @@ switch action
                 vargout.classifier = 'Willbur-Cox proportional hazard regression';
             case 'ELASVM'
                 vargout.classifier = 'SVEN (Support-Vector Elastic Network)';
-            case 'MLPERC'
-                vargout.classifier = 'Python''s sklearn.neural_network.MLPClassifier algorithm';
-            case 'TFDEEP'
-                vargout.classifier = 'Python''s tensorflow.keras.Sequential algorithm';
-            case 'BAYLIN'
-                vargout.classifier = 'Python''s sklearn.sklearn.linear_model.BayesianRidge/ARDRegression algorithm';
         end
         
     case 'kernel'            

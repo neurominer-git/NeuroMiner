@@ -8,10 +8,8 @@ menustr = ['Set root paths of neuroimaging tools (SPM/Freesurfer)|' ...
            'Create VISdatamat path master|' ...
            'Create OptPreprocParam path master|' ...
            'Create OptModel path master|' ...
-           'Update analyses'' paths to new root directory|' ...
-           'Surface Reslicer (works only in Linux and requires Freesurfer)|' ...
-           'Feature Relevance Plotting Tool'];
-menuact = 2:11;
+           'Update analyses'' paths to new root directory'];
+menuact = 2:9;
 
 nk_PrintLogo
 act = nk_input('Choose utility function',0,'mq', menustr, menuact, 1);
@@ -44,18 +42,20 @@ switch act
     case 9
         complvec = []; for z=1:numel(NM.analysis), if NM.analysis{z}.status, complvec = [ complvec z ]; end; end
         t_act = 1; brief = 1; analind = 1; showmodalvec = []; 
-        while t_act>0 
-            [t_act, analind, ~, showmodalvec , brief] = nk_SelectAnalysis(NM, 0, 'MAIN INTERFACE >> UPDATE ANALYSES ROOT DIRECTORIES ', analind, [], 0, showmodalvec, brief); 
+        while t_act>0, 
+            [t_act, analind, ~, showmodalvec , brief] = nk_SelectAnalysis(NM, 0, 'MAIN INTERFACE >> UPDATE ANALYSES ROOT DIRECTORIES ', analind, [], 1, showmodalvec, brief); 
         end
-        if isempty(analind), analind = complvec; end
+        if ~isempty(analind), 
+            analind = complvec(analind);
+        else
+            analind = complvec;
+        end
         newdir = nk_DirSelector('Update analyses'' root paths');
         NM = nk_UpdateRootPaths(NM, analind, newdir);
     case 10
-        [P, Y] = nk_FSreslice();
+        [P, Y] = nk_FSreslice;
         assignin('base','P',P);
         assignin('base','Y',Y);    
-    case 11
-        FeatureRelevanceGUI();
 end
 
 nk_Utilities

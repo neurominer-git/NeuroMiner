@@ -25,8 +25,8 @@ function [optparam, optind, optfound, optmodel] = ...
 %  optfound      :   Flag whether an optimal model has been identified
 %  optmodel      :   Optimized model
 %==========================================================================
-%(c) Nikolaos Koutsouleris, 04/2024
-global VERBOSE TRAINFUNC 
+%(c) Nikolaos Koutsouleris, 11/2020
+global VERBOSE BATCH TRAINFUNC 
 
 r = rfe_algo_settings(Y, label, Ynew, labelnew, Ps, FullFeat, FullParam, ActStr);
 
@@ -55,16 +55,8 @@ if VERBOSE
     end
 end
 
-lstep = 1;
-if r.lperc
-    if r.PercMode == 1
-        lstep = ceil((numel(S)/100)*r.lperc);
-    else
-        lstep = r.lperc;
-    end
-end
+lstep = ceil((numel(S)/100)*r.lperc);
 
-%% Start Wrapper: BACKWARD FEATURE ELIMINATION
 switch r.WeightSort 
     
     case 1 %% Sorting is done according to CV1 test performance
@@ -100,11 +92,8 @@ switch r.WeightSort
             else
                 rind = krem;
             end
-            
             S(lvec(ind(rind))) = [];
-            if r.PercMode == 1
-                lstep = ceil((numel(S)/100)*r.lperc);
-            end
+            lstep = ceil((numel(S)/100)*r.lperc);
 
             if feval(r.evaldir, param, optparam)
                 optparam = param; optind = r.FullInd(S); optfound = 1; 
@@ -151,9 +140,7 @@ switch r.WeightSort
             [~, ind] = sort(W,'ascend');
          
             % Recompute lstep according to current feature pool
-            if r.lperc && r.PercMode == 1
-    	        lstep = ceil((numel(S)/100)*r.lperc); 
-            end
+            if r.lperc, lstep = ceil((numel(S)/100)*r.lperc); end
             k = k - numel(krem);
              
          end

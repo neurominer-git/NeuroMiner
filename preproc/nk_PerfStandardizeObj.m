@@ -19,14 +19,14 @@ function [sY, IN] = nk_PerfStandardizeObj(Y, IN)
 % =========================== WRAPPER FUNCTION ============================ 
 if iscell(Y) && exist('IN','var') && ~isempty(IN)
     sY = cell(1,numel(Y)); 
-    for i=1:numel(Y)
+    for i=1:numel(Y), 
         % Define active indices depending on training or testing situation
         if isfield(IN,'trained') && IN.trained 
-           if isfield(IN,'sTsInd'), IN.sIND = IN.sTsInd{i}; else, IN.sIND =[]; end
-           if isfield(IN,'dTsInd'), IN.dIND = IN.dTsInd{i}; else, IN.dIND = []; end
+           if isfield(IN,'sTsInd'), IN.sIND = IN.sTsInd{i}; else IN.sIND =[]; end
+           if isfield(IN,'dTsInd'), IN.dIND = IN.dTsInd{i}; else IN.dIND = []; end
         else
-           if isfield(IN,'sTrInd'), IN.sIND = IN.sTrInd{i}; else, IN.sIND = []; end
-           if isfield(IN,'dTrInd'), IN.dIND = IN.dTrInd{i}; else, IN.dIND =[]; end
+           if isfield(IN,'sTrInd'), IN.sIND = IN.sTrInd{i}; else IN.sIND = []; end
+           if isfield(IN,'dTrInd'), IN.dIND = IN.dTrInd{i}; else IN.dIND =[]; end
         end
         sY{i} = PerfStandardizeObj(Y{i}, IN ); 
     end
@@ -34,13 +34,13 @@ else
     if ~exist('IN','var'), IN=[]; end
     % Define active indices depending on training or testing situation
     if isfield(IN,'trained') && IN.trained
-       if isfield(IN,'sTsInd'), IN.sIND = IN.sTsInd; else, IN.sIND =[]; end
-       if isfield(IN,'dTsInd'), IN.dIND = IN.dTsInd; else, IN.dIND =[]; end
+       if isfield(IN,'sTsInd'), IN.sIND = IN.sTsInd; else IN.sIND =[]; end
+       if isfield(IN,'dTsInd'), IN.dIND = IN.dTsInd; else IN.dIND =[]; end
     else
-       if isfield(IN,'sTrInd'), IN.sIND = IN.sTrInd; else, IN.sIND = []; end
-       if isfield(IN,'dTrInd'), IN.dIND = IN.dTrInd; else, IN.dIND = []; end
+       if isfield(IN,'sTrInd'), IN.sIND = IN.sTrInd; else IN.sIND = []; end
+       if isfield(IN,'dTrInd'), IN.dIND = IN.dTrInd; else IN.dIND = []; end
     end
-    [ sY, IN ] = PerfStandardizeObj(Y, IN);
+    [ sY, IN ] = PerfStandardizeObj(Y, IN );
 end
 % ========================================================================= 
 function [sY, IN] = PerfStandardizeObj(Y, IN)
@@ -67,6 +67,7 @@ if eIN || ~IN.trained
     nG = size(IN.sIND,2);
     
     switch IN.method
+        
      
         case {'standardization using median', 'standardization using mean'}
             
@@ -95,7 +96,6 @@ if eIN || ~IN.trained
 
             if isfield(IN,'WINSOPT') && ~isempty(IN.WINSOPT) && IN.WINSOPT
                 IN.meanY2 = zeros(nG,nY);
-                IN.meanY2computed = false;
             end
        
         case 'mean-centering'
@@ -130,8 +130,8 @@ else
     if isempty(IN.sIND), IN.sIND = true(mY,1); end
 end
 % with dIND the user defined which cases in the matrix are normalized 
-if eIN ||~isfield(IN,'dIND')  || isempty(IN.dIND)
-    if size(IN.sIND,2) > 1
+if eIN ||~isfield(IN,'dIND')  || isempty(IN.dIND), 
+    if size(IN.sIND,2) > 1,
         error('Destination [%g-by-%g] matrix is missing in IN structure', mY, nG);
     else
         IN.dIND = true(mY,1);
@@ -148,33 +148,28 @@ for i=1:nG
     % Perform standardization
     switch IN.method
         case {'standardization using median', 'standardization using mean'}
-            funmean = @nm_nanmedian; if strcmp(IN.method,'standardization using mean'), funmean = @nm_nanmean; end
-            tY = round(bsxfun(@rdivide, bsxfun(@minus, Y(IN.dIND(:,i),:), IN.meanY(i,:)), IN.stdY(i,:)),9);
+            funmean = 'nm_nanmedian'; if strcmp(IN.method,'standardization using mean'), funmean = 'nm_nanmean'; end
+            tY = bsxfun(@rdivide, bsxfun(@minus, Y(IN.dIND(:,i),:), IN.meanY(i,:)), IN.stdY(i,:));
             % Winsorize data to prespecified highest and lowest values
-            if ~isempty(IN.WINSOPT) 
+            if ~isempty(IN.WINSOPT) && ~sum(IN.meanY2(:))
+                %Perform standardization
                 indP = tY>IN.WINSOPT; indN = tY<-1*IN.WINSOPT;
                 tY(indP) = IN.WINSOPT; tY(indN) = -1*IN.WINSOPT;
                 % Re-center the data to the mean
-                % meanY2 has to be computed only once (in the training
-                % data) otherwise it will change according to the
-                % application data 
-                if ~IN.meanY2computed 
-                    IN.meanY2(i,:) = funmean(tY(IN.sIND(:,i),:));
-                    nanvec = isnan(IN.meanY2(i,:));
-                    if any(nanvec), fnanvec = find(nanvec); IN.meanY2(i,fnanvec) = funmean(Y(IN.sIND(:,i),fnanvec));end
-                    IN.meanY2computed = true;
-                end
-                tY = round(bsxfun(@minus, tY, IN.meanY2(i,:)),9);
+                IN.meanY2(i,:) = feval(funmean,(tY(IN.sIND(:,i),:)));
+                nanvec = isnan(IN.meanY2(i,:));
+                if any(nanvec), fnanvec = find(nanvec); IN.meanY2(i,fnanvec) = nm_nanmean(Y(IN.sIND(:,i),fnanvec));end
+                tY = bsxfun(@minus, tY, IN.meanY2(i,:));
                 if VERBOSE, fprintf('\n\t\t\tWinsorized # of values >%gSD threshold: (+) %g / (-) %g; data re-centered.', IN.WINSOPT, sum(indP(:)),sum(indN(:))); end
             end
         case 'mean-centering'
-            tY = round(bsxfun(@minus, Y(IN.dIND(:,i),:), IN.meanY(i,:)),9);
+            tY = bsxfun(@minus, Y(IN.dIND(:,i),:), IN.meanY(i,:));
         case 'l1-median centering'
-            tY = round(bsxfun(@minus, Y(IN.dIND(:,i),:), ones(size(Y(IN.dIND(:,i),:),1),1)*IN.L1median(i,:)),9);
+            tY = bsxfun(@minus, Y(IN.dIND(:,i),:), ones(size(Y(IN.dIND(:,i),:),1),1)*IN.L1median(i,:));
         case 'qn-standardization'
-            tY = round(bsxfun(@rdivide, Y(IN.dIND(:,i),:), ones(size(Y(IN.dIND(:,i),:),1),1)*IN.qn(i,:)),9);
+            tY = bsxfun(@rdivide, Y(IN.dIND(:,i),:), ones(size(Y(IN.dIND(:,i),:),1),1)*IN.qn(i,:));
         case 'sn-standardization'
-            tY = round(bsxfun(@rdivide, Y(IN.dIND(:,i),:), ones(size(Y(IN.dIND(:,i),:),1),1)*IN.sn(i,:)),9);
+            tY = bsxfun(@rdivide, Y(IN.dIND(:,i),:), ones(size(Y(IN.dIND(:,i),:),1),1)*IN.sn(i,:));
     end
 
     sY(IN.dIND(:,i),:) = tY;
@@ -198,6 +193,7 @@ function s=qn(y)
 % 1273-1283
 
 % Written by Sven Serneels, University of Antwerp
+
 if size(y,2)>1
     if size(y,1)>1
         for i=1:size(y,2)
@@ -209,7 +205,7 @@ if size(y,2)>1
     end
 else
     s=qnsven(y);
-end
+end;
 
 % ---> Sn scale estimator
 function s=sn(y)
@@ -226,6 +222,7 @@ function s=sn(y)
 % 1273-1283
 
 % Written by Sven Serneels, University of Antwerp
+
 if size(y,2)>1
     if size(y,1)>1
         for i=1:size(y,2)
@@ -237,7 +234,7 @@ if size(y,2)>1
     end
 else
     s=snsven(y);
-end
+end;
 
 % -----------------------------------------
 function s=snsven(y)
@@ -249,7 +246,7 @@ if n>1000
     mys=zeros(nbins,1);
     ninbins=floor(n/nbins);
     for i=1:nbins
-        if (mod(n,nbins)~=0 && i==nbins)
+        if (mod(n,nbins)~=0 & i==nbins)
             mys(i)=median(sy((i-1)*ninbins+1:n));
         else
             mys(i)=median(sy((i-1)*ninbins+1:i*ninbins));
@@ -289,7 +286,7 @@ end
 s=cn*s;
 
 %-----------------------------
-function [mX]=L1median(X,tol)
+function [mX]=L1median(X,tol);
 
 % L1MEDIAN calculates the multivariate L1-median 
 % I/O: [mX]=L1median(X,tol);
@@ -303,7 +300,7 @@ function [mX]=L1median(X,tol)
 
 if nargin <2
     tol=1.e-08;
-end
+end;
 
 [n,p]=size(X);
 maxstep=100;
@@ -332,7 +329,7 @@ while (k<=maxstep)
     end
     m=mold+delta;   % computation of a new estimate
     nstep=0;
-    while all(mrobj(X,m)>=mrobj(X,mold))&&(nstep<=maxhalf)
+    while all(mrobj(X,m)>=mrobj(X,mold))&(nstep<=maxhalf)
         nstep=nstep+1;
         m=mold+delta./(2^nstep);
     end
@@ -372,7 +369,7 @@ if n>1000
     mys=zeros(nbins,1);
     ninbins=floor(n/nbins);
     for i=1:nbins
-        if (mod(n,nbins)~=0 && i==nbins)
+        if (mod(n,nbins)~=0 & i==nbins)
             mys(i)=median(sy((i-1)*ninbins+1:n));
         else
             mys(i)=median(sy((i-1)*ninbins+1:i*ninbins));

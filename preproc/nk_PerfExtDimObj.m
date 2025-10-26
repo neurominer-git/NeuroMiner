@@ -14,7 +14,7 @@ function [pY, IN] = PerfExtDimObj(Y, IN)
 global VERBOSE
 
 % Defaults
-if isempty(IN),eIN=true; else, eIN=false; end
+if isempty(IN),eIN=true; else eIN=false; end
 [m,n] = size(Y);
 % Check for and eliminate zero variance attributes
 if eIN || ~isfield(IN,'indNonRem') || isempty(IN.indNonRem)
@@ -28,20 +28,18 @@ if eIN || ~isfield(IN,'indNonRem') || isempty(IN.indNonRem)
                 S = sum(IN.mpp.val)*IN.opt; 
                 cS = cumsum(IN.mpp.val);
                 nD = cS <= S ;
-                if ~sum(nD) 
+                if ~sum(nD), 
                     nD = false(1,numel(cS)); 
                     nD(1) = true;
                 end
        end
     end
     IN.indNonRem = false(1,n); IN.indNonRem(nD) = true ; 
+    if length(nD) > n
+        IN.indNonRem = true(1,n);
+    end
 end
 if VERBOSE, fprintf(' extracting %g components.', sum(IN.indNonRem)); end
-try
-    pY = Y(:,IN.indNonRem);
-catch
-    fprintf('|d%g',sum(IN.indNonRem));
-    IN.indNonRem = true(1,size(Y,2));
-    pY = Y; 
-end
+pY = Y(:,IN.indNonRem);
+
 

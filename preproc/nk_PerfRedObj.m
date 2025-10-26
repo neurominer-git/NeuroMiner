@@ -24,30 +24,23 @@ function [sY, IN] = nk_PerfRedObj(Y, IN)
 % =========================== WRAPPER FUNCTION ============================ 
 if iscell(Y) && exist('IN','var') && ~isempty(IN)
     sY = cell(1,numel(Y)); 
-    for i=1:numel(Y)
-        IN.i = i+1;
-        [sY{i}, IN] = PerfRedObj(Y{i}, IN); 
-    end
+    for i=1:numel(Y), [sY{i}, IN] = PerfRedObj(Y{i}, IN); end
 else
-    [ sY, IN ] = PerfRedObj( Y, IN );
+    [ sY, IN ] = PerfRedObj(Y, IN );
 end
 
 % =========================================================================
 function [pY, IN] = PerfRedObj(Y, IN)
 
-global VERBOSE TEMPL
+global VERBOSE
 
 % Defaults
-if isempty(IN),eIN=true; else, eIN=false; end
+if isempty(IN),eIN=true; else eIN=false; end
 
 % Check for and eliminate zero variance attributes
 if eIN || ~isfield(IN,'DR') || isempty(IN.DR), error('Parameters for dimensionality reduction not specified'); end
 if eIN || ~isfield(IN,'indNonRem') || isempty(IN.indNonRem)
-    if isempty(TEMPL) 
-        IN.indNonRem = any(Y); if VERBOSE, fprintf(' removing %g zero features.', sum(~IN.indNonRem)); end
-    else
-        IN.indNonRem = true(1,width(Y));
-    end
+    IN.indNonRem = any(Y); if VERBOSE, fprintf(' removing %g zero features.', sum(~IN.indNonRem)); end
 end
 
 if isfield(IN.DR,'opt')
@@ -64,8 +57,7 @@ end
 Y( ~isfinite(Y) ) = 0;
 Y = Y(:,IN.indNonRem);
 if isempty(Y)
-    warning('No features in input matrix!!!\nCheck your previous processing steps.')
-    Y = nan(1, size(Y,2));
+    error('No features in input matrix!!!\nCheck your previous processing steps')
 end
 if eIN || ~isfield(IN,'mpp') || isempty(IN.mpp)
     
@@ -76,7 +68,7 @@ if eIN || ~isfield(IN,'mpp') || isempty(IN.mpp)
     % Dimensionality check
     if ~isempty(IN.DR.dims)
         if VERBOSE, fprintf(' %g', IN.DR.dims); end
-        if sum(IN.indNonRem) < IN.DR.dims || size(Y,2) < IN.DR.dims
+        if sum(IN.indNonRem) < IN.DR.dims || size(Y,2) < IN.DR.dims,
            fprintf('Number of nonzero features (=%g) in original space less than number of features (=%g) in projected space!', ...
                sum(IN.indNonRem),IN.DR.dims);
            IN.DR.dims = sum(IN.indNonRem)-1;
@@ -95,11 +87,7 @@ if eIN || ~isfield(IN,'mpp') || isempty(IN.mpp)
             end
             if isfield(IN.DR.PLS,'algostr'), IN.algostr = IN.DR.PLS.algostr; end
             [pY,pX,~,IN] = nk_PLS(Y, L, IN);
-            % If other X designs than the label are used, we can combine the
-            % latent scores of both LVs, otherwise we use only the latent
-            % scores of Y because otherwise the method will introduce
-            % information leakage despite rdCV.
-            if IN.DR.PLS.uselabel>1, pY=[pY pX]; end
+            %pY=[pY pX];
             
         case 'ProbPCA'
             iter = nk_ReturnParam([IN.DR.RedMode '-Iter'],Params_desc, opt);
@@ -170,7 +158,12 @@ if eIN || ~isfield(IN,'mpp') || isempty(IN.mpp)
                     M = IN.mpp.sampleMean;
                     vec = IN.mpp.vec;
             end
-
+            % Re-order components to map current 
+            % component space to template component space
+            if isfield(IN.DR,'mpp_template') && ~isempty(IN.DR.mpp_template)
+                fprintf(' Reorder components...')
+                
+            end
             % Finally, map data to component space
             pY = bsxfun(@minus, Y, M) * vec; 
 
@@ -180,7 +173,7 @@ if eIN || ~isfield(IN,'mpp') || isempty(IN.mpp)
             pY = bsxfun(@minus, Y, IN.mpp.sampleMean) * IN.mpp.vec;
             
         case 'NNMF'
-            if isfield(IN.DR,'NMFmethod') 
+            if isfield(IN.DR,'NMFmethod'), 
                 optFE.feMethod = IN.DR.NMFmethod; 
             else
                 optFE.feMethod = 'nmf';
@@ -215,54 +208,14 @@ if eIN || ~isfield(IN,'mpp') || isempty(IN.mpp)
                 end
             end
             pY = pY'; IN.mpp.r_err = fitRes;
-        case {'optNMF', 'NeNMF','NMFlib'}
+        case {'optNMF', 'NeNMF'}
             switch IN.DR.RedMode
                 case 'optNMF'
                     [IN.mpp.W, IN.mpp.H] = opnmf_mem(Y', IN.DR.dims);
-                    nY = norm(Y,'fro'); %Compute the Frobenius norm of Y
-                    R = IN.mpp.W*IN.mpp.H;
-                    % Compute reconstruction error
-                    IN.mpp.r_err  = norm(Y'-R,'fro')*100/nY;
-                    pY = AUtoPhysicalUnits(Y',IN.mpp.W); pY=pY';
                 case 'NeNMF'
-                    [IN.mpp.W, IN.mpp.H, IN.mpp.r_err] = feval( IN.DR.NMFmethod, Y', [], [], IN.DR.dims, IN.DR.tmax);
-                    pY = AUtoPhysicalUnits(Y',IN.mpp.W); pY=pY';
-                case 'NMFlib'
-                    switch IN.DR.NMFmethod
-                        case 'ordinal-nmf'
-                            [out, infos] = ordinalNMF(Y', IN.DR.dims, IN.DR.options);
-                            IN.mpp.W = out.W; IN.mpp.H = out.H; 
-                            pY = ordinalNMF_test(Y', IN.mpp, IN.DR.options);
-                            IN.mpp.r_err = infos.logLikelihood(end);
-                        case 'sparse-mu-nmf'
-                            [out, infos] = sparse_mu_nmf(Y', IN.DR.dims, IN.DR.options);
-                            IN.mpp.W = out.W; IN.mpp.H = out.H; 
-                            pY = sparse_mu_nmf_test(Y', IN.mpp, IN.DR.options);
-                            IN.mpp.r_err = infos.cost_best(end);
-                        case 'orth-mu'
-                            [out, infos] = orth_mu_nmf(Y', IN.DR.dims, IN.DR.options);
-                            IN.mpp.W = out.W; IN.mpp.H = out.H; 
-                            pY = orth_mu_nmf_test(Y', IN.mpp, IN.DR.options);
-                            IN.mpp.r_err = infos.cost_best(end);
-                        case 'dtpp'
-                            [out, infos] = dtpp_nmf(Y', IN.DR.dims, IN.DR.options);
-                            IN.mpp.W = out.W; IN.mpp.H = out.H; 
-                            pY = dtpp_nmf_test(Y', IN.mpp, IN.DR.options);
-                            IN.mpp.r_err = infos.cost_best(end);
-                        case 'hals-so-nmf'
-                            [out, infos] = hals_so_nmf(Y', IN.DR.dims, IN.DR.options);
-                            IN.mpp.W = out.W; IN.mpp.H = out.H; 
-                            pY = hals_so_nmf_test(Y', IN.mpp, IN.DR.options);
-                            IN.mpp.r_err = infos.cost_best(end);
-                        case 'alternating_onmf'
-                            [out, infos] = alternating_onmf(Y', IN.DR.dims, IN.DR.options);
-                            IN.mpp.W = out.W; IN.mpp.H = out.H; 
-                            pY = alternating_onmf_test(Y', IN.mpp, IN.DR.options);
-                            IN.mpp.r_err = infos.cost_best(end);
-                    end
-                    pY=pY';
+                    [IN.mpp.W, IN.mpp.H, IN.mpp.fitRes] = feval( IN.DR.NMFmethod, Y', [], [], IN.DR.dims, IN.DR.tmax);
             end
-            
+            pY = AUtoPhysicalUnits(Y',IN.mpp.W); pY=pY';
         case 'NCA'
             Lambda = nk_ReturnParam('Lambda',Params_desc, opt);
             [pY,IN.mpp] = compute_mapping([IN.DR.labels Y], IN.DR.RedMode, IN.DR.dims, Lambda);
@@ -277,63 +230,19 @@ if eIN || ~isfield(IN,'mpp') || isempty(IN.mpp)
                 case 'poly'
                     [pY,IN.mpp] = compute_mapping(Y, IN.DR.RedMode, IN.DR.dims, IN.DR.kernel.type, IN.DR.kernel.d, IN.DR.kernel.R);
             end
-        case 'fastICA'
-            if ~isfield(IN,'tolerance')
-                IN.tolerance = 1.0000e-04; % default of scikit-learn implementation
-                IN.max_iters = 200; % default of scikit-learn implementation
-                IN.algorithm_opt = 'parallel';
-                IN.fun_opt = 'logcosh';
-                IN.whiten_opt = 'unit-variance';
-            end
-            fastICAoptions.dims = IN.DR.dims;
-            fastICAoptions.tolerance = IN.tolerance; % CV: could be added as hyperparameter in the future
-            fastICAoptions.max_iters= IN.max_iters; % CV: could be added as hyperparameter in the future
-            fastICAoptions.algorithm_opt = IN.algorithm_opt;
-            fastICAoptions.whiten_opt = IN.whiten_opt;
-            fastICAoptions.fun_opt = IN.fun_opt;
-
-            [pY, IN.mpp] = cv_PerfICA(Y, fastICAoptions, 'train'); 
         otherwise
             [pY,IN.mpp] = compute_mapping(Y,IN.DR.RedMode, IN.DR.dims, IN.DR.Modus);
-    end
-    % Re-order components to map current 
-    % component space to template component space.
-    % This currently works only for PCA. To make it work for more methods, 
-    % we need to assign from the different transformation matrix structures 
-    % to target and reference matrices (according to dim red techniques).
-    if isfield(IN.DR,'mpp_template') && ~isempty(IN.DR.mpp_template) && (isfield(TEMPL,'execute_template_creation') && ~TEMPL.execute_template_creation)
-        if VERBOSE, fprintf(' Run procrustes transform ...'); end
-        switch IN.DR.RedMode
-            case {'PCA', 'RobPCA', 'FactorAnalysis', 'SparsePCA', 'ProbPCA'}
-                [aligned_target, aligned_targetval] = nk_AlignPCAModels(IN.DR.mpp_template.vec , IN.mpp.vec, IN.mpp.val);
-                IN.mpp.vec = aligned_target;
-                IN.mpp.val = aligned_targetval;
-                pY = bsxfun(@minus, Y, M) * IN.mpp.vec; 
-            otherwise
-                if VERBOSE, fprintf(' currently not supported for %s', IN.DR.RedMode); end
-        end
     end
 else
     switch IN.DR.RedMode
         case 'PLS'
-            [pY, pX] = nk_PLS(Y, IN.DR.PLS.VT{IN.i}, IN);
-            % If other X designs than the label are used, we can combine the
-            % latent scores of both LVs, otherwise we use only the latent
-            % scores of Y because otherwise the method will introduce
-            % information leakage despite rdCV.
-            if IN.DR.PLS.uselabel>1, pY = [ pY pX ]; end
+            [pY, pX] = nk_PLS(Y, [], IN);
         case {'PCA','SparsePCA'}
             switch IN.DR.DRsoft
                 case 0
                     pY = out_of_sample(Y, IN.mpp);
                 case 1
-                    % corrected on the 11/11/2023, the floating point
-                    % precision is insufficient to produce identical
-                    % results across different matrices with partly
-                    % identical rows. Therefore the precision is reduced
-                    % using round at 9 decimal places (potentially this
-                    % needs to be adapted in the future(
-                    pY = round(bsxfun(@minus, Y, IN.mpp.sampleMean) * IN.mpp.vec, 9);    
+                    pY = bsxfun(@minus, Y, IN.mpp.sampleMean) * IN.mpp.vec;    
             end
         case 'RobPCA'
             pY = bsxfun(@minus, Y, IN.mpp.sampleMean) * IN.mpp.vec;
@@ -341,26 +250,10 @@ else
             pY = featureExtrationTest(IN.TrX',Y',IN.mpp); pY = pY';
         case {'optNMF','NeNMF'}
             pY = AUtoPhysicalUnits(Y',IN.mpp.W); pY=pY';
-        case 'NMFlib'
-            switch IN.DR.NMFmethod
-                case 'ordinal-nmf'
-                    pY = ordinalNMF_test(Y', IN.mpp, IN.DR.options);
-                case 'sparse-mu-nmf'
-                    pY = sparse_mu_nmf_test(Y', IN.mpp, IN.DR.options);
-                case 'orth-mu'
-                    pY = orth_mu_nmf_test(Y', IN.mpp, IN.DR.options);
-                case 'dtpp'
-                    pY = dtpp_nmf_test(Y', IN.mpp, IN.DR.options);
-                case 'hals-so-nmf'
-                    pY = hals_so_nmf_test(Y', IN.mpp, IN.DR.options);
-                case 'alternating_onmf'
-                    pY = alternating_onmf_test(Y', IN.mpp, IN.DR.options);
-            end
-            pY = pY';
         case 'SPCA'
             pY = nk_PerfSPCA(Y, IN.mpp);
-        case 'fastICA'
-            pY = cv_PerfICA(Y, IN.mpp, 'test');
+%         case 'LMNN2.5'
+%             pY = (IN.mpp.L * Y')';
         otherwise
             try
                 pY = out_of_sample(Y, IN.mpp);

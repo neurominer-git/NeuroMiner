@@ -6,10 +6,16 @@ amode = 1;
 ovrwrt = 3;
 na_str = '?'; mn_str = []; mn_act = [];
 Amodes = {'generate new','manage existing'};
-Aovrwrt = {'delete', 'delete & wipe', 'complete reset', 'parameter reset', 'update paths and descriptors', 'overwrite NM parameter template', 'manage on disk'};
+Aovrwrt = {'delete', 'delete & wipe', 'complete reset', 'parameter reset', 'update paths and descriptors', 'overwrite NM parameter template'};
 
 if ~exist('A','var') || isempty(A)
-    A = struct('mode', amode, 'analdim', analdim, 'ovrwrt', ovrwrt, 'id', na_str, 'desc', na_str, 'parentdir', na_str, 'rootdir', na_str);
+    A.mode = amode;
+    A.analdim = analdim;
+    A.ovrwrt = ovrwrt;
+    A.id = na_str;
+    A.desc = na_str;
+    A.parentdir = na_str;
+    A.rootdir = na_str;
 end
 
 if isfield(NM,'analysis')
@@ -58,7 +64,7 @@ if A.ovrwrt > 1 && A.ovrwrt<6
     
 end
 
-if any(strcmp(A.parentdir,na_str)) || any(strcmp(A.desc,na_str)) || any(strcmp(A.id,na_str)) 
+if any(strcmp(A.parentdir,na_str)) || any(strcmp(A.desc,na_str)) || any(strcmp(A.id,na_str)), 
     disallow=true; 
 end
 
@@ -107,7 +113,7 @@ switch act
          if ischar(parentdir) && exist(parentdir,'dir')==7, A.parentdir = parentdir; end
              
     case 'def_analysis_id'
-        if isfield(A,'id') && ~isempty(A.id), id_def = A.id;  else, id_def = []; end
+        if isfield(A,'id') && ~isempty(A.id), id_def = A.id;  end
         id = nk_input('Provide an alphanumeric identifier for your analysis',0,'s',id_def);
         if isempty(id) || strcmp(id,''), A.id=na_str; return; end
         A.id = id;
@@ -127,10 +133,10 @@ switch act
         
         switch A.ovrwrt
     
-            case {1,2} % Delete or delete & wipe
+            case {1,2}
                 if A.ovrwrt == 2
                     askfl = questdlg('Are you sure you want to wipe this analysis from your computer?',mestr,'Yes','No','No');
-                    if strcmp(askfl,'Yes')
+                    if strcmp(askfl,'Yes'), 
                         for i=1:numel(A.analdim)
                             rmdir( NM.analysis{A.analdim(i)}.rootdir,'s' ); 
                         end
@@ -138,7 +144,7 @@ switch act
                 end
                 NM.analysis(A.analdim) = [];
                 if isempty(NM.analysis), NM = rmfield(NM,'analysis'); end
-            case {3,4} % Reset analysis
+            case {3,4}
                 if A.ovrwrt == 3
                     NM.analysis{A.analdim} = []; 
                     NM.analysis{A.analdim}.id                 = A.id;                   
@@ -149,31 +155,10 @@ switch act
                 end
                 NM.analysis{A.analdim}.params.TrainParam      = NM.TrainParam;
                 NM.analysis{A.analdim}.params.datadescriptor  = NM.datadescriptor;
+                NM.analysis{A.analdim}.params.modeflag        = NM.modeflag;
                 NM.analysis{A.analdim}.params.cv              = NM.cv;
                 NM.analysis{A.analdim}.params.id              = NM.id;
                 NM.analysis{A.analdim}.meta.TIME              = datestr(now);
-                if isfield(NM,'C')
-                    NM.analysis{A.analdim}.C                  = NM.C;
-                end
-                if isfield(NM.TrainParam, 'LABEL') && NM.TrainParam.LABEL.flag
-                    NM.analysis{A.analdim}.params.label.label       = NM.TrainParam.LABEL.newlabel; 
-                    NM.analysis{A.analdim}.params.label.modeflag    = NM.TrainParam.LABEL.newmode;
-                    NM.analysis{A.analdim}.params.label.altlabelflag = NM.TrainParam.LABEL.flag;
-                    NM.analysis{A.analdim}.params.label.labelname = NM.TrainParam.LABEL.newlabelname;
-                    if strcmp(NM.TrainParam.LABEL.newmode, 'classification')
-                        NM.analysis{A.analdim}.params.label.altgroupnames = NM.TrainParam.LABEL.newgroupnames; 
-                    end
-                    %NM.analysis{A.analdim}.params.TrainParam = rmfield(NM.analysis{A.analdim}.params.TrainParam, 'LABEL'); % remove LABEL field from analysis' TrainParam to save memory
-                else 
-                    NM.analysis{A.analdim}.params.label.label       = NM.label;
-                    NM.analysis{A.analdim}.params.label.modeflag    = NM.modeflag; 
-                    NM.analysis{A.analdim}.params.label.labelname   = NM.datadescriptor{1,1}.input_settings.label_edit;
-                    NM.analysis{A.analdim}.params.label.altlabelflag = 0;
-                    if isfield(NM.TrainParam, 'LABEL') && NM.TrainParam.LABEL.flag && isfield(NM.TrainParam.LABEL,'newmode') && strcmp(NM.TrainParam.LABEL.newmode, 'classification')
-                        NM.analysis{A.analdim}.params.label.altgroupnames = NM.groupnames; 
-                    end
-                    
-                end
                 try
                   NM.analysis{A.analdim}.meta.USER              = java.lang.System.getProperty('user.name');
                   NM.analysis{A.analdim}.meta.OS.name           = java.lang.System.getProperty('os.name');
@@ -185,8 +170,8 @@ switch act
                 NM.analysis{A.analdim}.meta.MATLAB.ver        = ver;
                 NM.analysis{A.analdim}.meta.NM.ver            = NM.defs.NM_ver;
                 NM.analysis{A.analdim}.status = 0;
-                [ ~, NM.analysis{A.analdim} ]        = nk_NMLogFileManager('init', NM, NM.analysis{A.analdim});
-            case 5 % Reset analysis paths to new directory
+                [ log_status, NM.analysis{A.analdim} ]        = nk_NMLogFileManager('init', NM, NM.analysis{A.analdim});
+            case 5
                 old_rootdir = sprintf('NM_ID%s_A%g_%s',NM.analysis{A.analdim}.params.id,A.analdim,NM.analysis{A.analdim}.id); 
                 old_rootdirpath = NM.analysis{A.analdim}.rootdir;
                 new_rootdirpath = fullfile(A.parentdir,old_rootdir);
@@ -203,13 +188,11 @@ switch act
                         mess.text = sprintf('%s\n\t\t\t\t\t%s', mess.text, A.desc{i});
                     end
                     mess.text = sprintf('%s\nParent directory: %s\nRoot directory: %s', mess.text, A.parentdir, new_rootdirpath);
-                    nk_NMLogFileManager('add_entry', NM, NM.analysis{A.analdim}, 'InitAnalysis:UpdatePaths', mess);
+                    log_status = nk_NMLogFileManager('add_entry', NM, NM.analysis{A.analdim}, 'InitAnalysis:UpdatePaths', mess);
                 end
-            case 6 % overwrite NM parameter workspace
+            case 6
                 NM.TrainParam = NM.analysis{A.analdim}.params.TrainParam;
                 NM.cv = NM.analysis{A.analdim}.params.cv;
-            case 7 % mang
-
         end
         act='BACK';
 end

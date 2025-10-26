@@ -26,7 +26,7 @@ function y = nm_nanstd(x,dim,flag)
 %    See also STD
 
 % -------------------------------------------------------------------------
-%    author:      Jan Gl√§scher
+%    author:      Jan Gl‰scher
 %    affiliation: Neuroimage Nord, University of Hamburg, Germany
 %    email:       glaescher@uke.uni-hamburg.de
 %    
@@ -51,7 +51,6 @@ end
 
 % Find NaNs in x and nm_nanmean(x)
 nans = isnan(x);
-fullnans = sum(nans,dim) == size(x,2);
 avg = nm_nanmean(x,dim);
 
 % create array indicating number of element 
@@ -65,30 +64,8 @@ x = x - repmat(avg,tile);
 count = size(x,dim) - sum(nans,dim);
 
 % Replace NaNs with zeros.
-if anynan(x)
-    try
-        x(isnan(x)) = 0;
-    catch ERROR
-        switch ERROR.identifier
-            case 'MATLAB:nomem'
-                %for-loop to avoid out of memory error if x is 3-dimensional
-                if length(size(x)) == 3
-                    for i=1:size(x,length(size(x)))
-                        temp = x(:,:,i);
-                        temp(isnan(temp)) = 0;
-                        try
-                            x(:,:,i) = temp;
-                        catch
-                        end
-                    end
-                else
-                    rethrow(ERROR)
-                end
-            otherwise
-                rethrow(ERROR)
-        end
-    end
-end
+x(isnan(x)) = 0; 
+
 
 % Protect against a  all NaNs in one dimension
 i = find(count==0);
@@ -99,5 +76,5 @@ else
 	y = sqrt(sum(x.*x,dim)./max(count,1));
 end
 y(i) = i + NaN;
-y(fullnans) = nan;
+
 % $Id: nm_nanstd.m,v 1.1 2004/07/15 22:42:15 glaescher Exp glaescher $

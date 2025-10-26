@@ -16,6 +16,7 @@ if ~exist('ModelOnly','var') || isempty(ModelOnly)
     ModelOnly = 1;
 end
 
+
 if strcmp(modeflag,'classification')
     uLabels = unique(label);
     nu = numel(uLabels);
@@ -120,28 +121,10 @@ for i = 1:nP
             idx = find(strcmp(P.Params_desc,'Tol')); 
             if idx, Tolerance = sprintf( ' -e %1.4f', Ps(i,idx)); end
             cmdstr = [  SlackParam EpsParam Tolerance CMDSTR.notolmodel CMDSTR.quiet];
-            if nu>2
-                pattern = '-s\s[1-9]';
-                cmdstr = regexprep(cmdstr,pattern,'-s 4');
-                fprintf('\Feature weighting using multi-class LIBLINEAR model using Crammer-Singer algorithm: %s', cmdstr);
-            else
-                fprintf('\nFeature weighting using LIBLINEAR model with command string:%s', cmdstr);
-            end
+            fprintf('\nTraining LIBLINEAR model with command string:%s', cmdstr);
             model = train_liblin244(label,Y,cmdstr);
-            if nu < 3 % binary
-                if contains(cmdstr,'-B 1')
-                    R(:,i) = model.w(1:end-1); 
-                else
-                    R(:,i) = model.w;
-                end
-            else
-                if contains(cmdstr,'-B 1')
-                    R(:,i) = sum(model.w(:,1:end-1)); 
-                else
-                    R(:,i) = sum(model.w); % multiclass
-                end
-            end
-            nonzerofeat = sum(R(:,i) ~= 0); 
+            R(:,i) = model.w; 
+            nonzerofeat = sum(model.w ~= 0); 
             fprintf(' ==> %g (%1.2f%%) Non-zero features.', nonzerofeat, nonzerofeat*100/model.nr_feature);
     end
     

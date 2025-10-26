@@ -30,16 +30,12 @@
 
 function [P, Perf, d, sim, crit] = nk_MultiDecideMaxWins(H, Y, Classes, ngroups, maxfunc, weightflag)
 
-global RAND SVM MULTI
+global RAND SVM
 
-if isfield(MULTI,'optcrit')
-    multimode = MULTI.optcrit;
+if ~isempty(SVM) && SVM.GridParam == 14
+    multimode = 1;
 else
-    if ~isempty(SVM) && SVM.GridParam == 14
-        multimode = 1;
-    else
-        multimode = 0;
-    end
+    multimode = 0;
 end
 
 if iscell(H)
@@ -82,7 +78,7 @@ for k=1:iy % Loop through partitions (in case iscell(H) = true)
         nsubj       = size(Hkl,1);
         
         Weights = zeros(1,ngroups);
-        if iscell(H), tH= []; for curclass=1:nclass, tH = [tH H{k,l,curclass}]; end; else, tH = H; end
+        if iscell(H), tH= []; for curclass=1:nclass, tH = [tH H{k,l,curclass}]; end; else tH = H; end
         
         td = zeros(nsubj,ngroups);
         
@@ -142,7 +138,7 @@ tHX1(ind1)  = abs(tHX(ind1));   % Get respective absolute scores for +1 group
 tHX2(ind2)  = abs(tHX(ind2));   % Get respective absolute scores for -1 group
 Weights(indG) = Weights(indG) + weightC; % Update weights
 
-if size(tHX,2) == 1
+if size(tHX,2) == 1, 
     if strcmp(maxfunc,'majvote')
         td(:, indG(1)) = td(:, indG(1)) + ind1; % Majority voting for +1 group
         td(:, indG(2)) = td(:, indG(2)) + ind2; % Majority voting for -1 group

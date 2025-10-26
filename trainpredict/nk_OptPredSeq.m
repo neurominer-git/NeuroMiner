@@ -105,55 +105,10 @@ if ~exist('IN','var') || isempty(IN)
             case 1 % Flexible anchoring based on the decision boundaries of the models. This is for classification models only
                 Anchor = sum(jD < 0) * 100 / m; LL=zeros(numel(Anchor),1); UL=LL;
                 for z=1:nD % Loop through models
-                    
-                    % jD is m x nD
-                    x  = jD(:, z);
-                    xf = x(isfinite(x)); % finite values only
-                    nfin = numel(xf);
-                    
-                    % 1) Empty/degenerate column: fallback to median anchor and ±Lims
-                    if nfin == 0
-                        Anchor(z) = 50;
-                        LL(z) = max(0,  50 - Lims(1));
-                        UL(z) = min(100, 50 + Lims(2));
-                    else
-                        % 2) Anchor from data (fraction below 0 among finite values)
-                        Anchor(z) = 100 * sum(xf < 0) / nfin;
-                    
-                        % 3) Lower side
-                        Lthr = xf(xf < 0);
-                        if isempty(Lthr)
-                            % no mass below 0 → use offset around anchor
-                            LL(z) = max(0, Anchor(z) - Lims(1));
-                        else
-                            pLthr = percentile(Lthr, 100 - Lims(1));  
-                            if ~isfinite(pLthr)
-                                LL(z) = max(0, Anchor(z) - Lims(1));
-                            else
-                                % % at/below pLthr among finite values only
-                                LL(z) = 100 * sum(xf <= pLthr) / nfin;
-                            end
-                        end
-                    
-                        % 4) Upper side
-                        Uthr = xf(xf > 0);
-                        if isempty(Uthr)
-                            UL(z) = min(100, Anchor(z) + Lims(2));
-                        else
-                            pUthr = percentile(Uthr, Lims(2));        
-                            if ~isfinite(pUthr)
-                                UL(z) = min(100, Anchor(z) + Lims(2));
-                            else
-                                UL(z) = 100 * sum(xf <= pUthr) / nfin;
-                            end
-                        end
-                    
-                        % 5) Final clamps to keep a sensible ordering and range
-                        LL(z) = min(LL(z), Anchor(z));
-                        UL(z) = max(UL(z), Anchor(z));
-                        LL(z) = max(0,   LL(z));
-                        UL(z) = min(100, UL(z));
-                    end
+                    Lthr = jD( jD(:,z) < 0, z ); % find subjects below the boundary
+                    pLthr = percentile(Lthr, 100 - Lims(1)); LL(z) = sum(jD(:,z) <= pLthr)*100/m; % Compute lower percentile for case propagation
+                    Uthr = jD( jD(:,z) > 0, z ); % find subjects above the boundary
+                    pUthr = percentile(Uthr, Lims(2)); UL(z) = sum(jD(:,z) <= pUthr)*100/m; % Compute upper percentile for case propagation
                 end
             case 2 % Fixed percentile anchoring starting at the median
                 Anchor = repmat(50,1,nD); % Define the median for all models
@@ -172,7 +127,7 @@ if ~exist('IN','var') || isempty(IN)
             vecneg{z}(1)=[];
             % Upper percentile vector
             vecpos{z} = Anchor(z):  (UL(z)-Anchor(z)) / nCutOff : UL(z); 
-            if isempty(vecpos{z}), vecpos{z} = Anchor(z) : 100-Anchor(z)/nCutOff : 100; end
+            if isempty(vecpos{z}), vecneg{z} = Anchor(z) : 100-Anchor(z)/nCutOff : 100; end
             vecpos{z}(1)=[]; 
         end
         
@@ -339,7 +294,7 @@ for j=1:numel(R.vecneg{I})
         allOPT      = OPTCRIT(L,jD);
         if VERBOSE
             try
-                fprintf('\nNext Node %g: %1.2f [%4g cases; Lower thresh: %1.2f, Upper thresh: %1.2f]', I+1, allOPT, numel(fI(ind)), lthr, uthr); 
+                fprintf('\nNext Node %g: %1.2f [%4g cases; Lower thresh: %1.2f, Upper thresh: %1.2f]', I+1, rOPT.(char(OPTCRIT)), numel(fI(ind)), lthr, uthr); 
             catch
             end
         end

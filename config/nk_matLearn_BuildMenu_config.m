@@ -9,7 +9,7 @@ for i=1:nO
         Pname = strsplit(param.Params(i).name,'.');
         switch Pname{1}
             case 'subModel'
-                if iscell(param.sublearner.algo), algo = char(param.sublearner.algo); else, algo = param.sublearner.algo; end
+                if iscell(param.sublearner.algo), algo = char(param.sublearner.algo); else algo = param.sublearner.algo; end
                 opt_str = sprintf('%s', algo);
             case {'subOptions','kernelOptions'}
                 jopt_str=[];
@@ -27,10 +27,6 @@ for i=1:nO
                             if ~param.Params(i).range, opt_str = 'no';  else, opt_str = 'yes'; end
                         case 'e'
                             opt_str=nk_ConcatParamstr(param.Params(i).range);
-                        case 'mlp_struct_def'
-                            opt_str = mat2str(param.Params(i).range);
-                        case 'tf_struct_file_def'
-                            opt_str = mat2str(param.Params(i).range);
                         otherwise
                             if iscell(param.Params(i).range)
                                 opt_str=char(param.Params(i).range);
@@ -46,14 +42,14 @@ for i=1:nO
         switch opt.name{i}
             case 'subOptions'
                 if isfield(param,'sublearner')
-                    if iscell(param.sublearner.algo), algo = char(param.sublearner.algo); else, algo = param.sublearner.algo; end
+                    if iscell(param.sublearner.algo), algo = char(param.sublearner.algo); else algo = param.sublearner.algo; end
                     subopts = nk_matLearn_getopts_config([],'get_learner_params',algo);
                     if isempty(subopts), no_mnu=true; end
                 end
             case 'kernelOptions'
                 if isfield(param,'kernelFunc') && isfield(param,'Params')
                     for j=1:numel(param.Params)
-                        if strcmp(param.Params(j).name,'kernelFunc')
+                        if strcmp(param.Params(j).name,'kernelFunc'),
                             kernelopts = nk_matLearn_getopts_config(opt, 'get_kernel_params', char(param.Params(j).range), param);
                             if ~isfield(kernelopts,'desc'), no_mnu=true; end
                             break
@@ -62,7 +58,7 @@ for i=1:nO
                 end
         end
     end
-    if ~no_mnu
+    if ~no_mnu, 
         desc{icnt} = sprintf('%s [ %s ]', opt.desc{i}, opt_str); 
         icnt=icnt+1;
     end

@@ -40,7 +40,7 @@ try
                 t_label = table2array(t_Y(:,label_edit(j)));
         end
         
-        % Check whether unlabeled datapoints have to be added to the label
+        % Ceck whether unlabeled datapoints have to be added to the label
         % matrix
         if IO.nangroup == 1 && IO.nan_subjects > 0
            t_label = [t_label; nan(IO.nan_subjects,size(t_label,2))];
@@ -79,14 +79,9 @@ try
         end
 
         if strcmp(IO.modeflag,'classification') 
-            if IO.oocvflag && isfield (IO,'desc_groups')
-                desc_groups = IO.desc_groups;
-            else
-                desc_groups = unique(t_label(IO.nonnan_label),'stable');
-            end
+            desc_groups = unique(t_label(IO.nonnan_label),'stable');
             IO.desc_groups = desc_groups;
             n_samples = numel(desc_groups);
-            n_subjects = zeros(n_samples,1);
             for i=1:n_samples
                 n_subjects(i) = sum(strcmp(t_label(IO.nonnan_label),desc_groups{i}) & selCases);
             end

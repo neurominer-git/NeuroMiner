@@ -31,11 +31,12 @@ if nargin < 2
 	end	  
 end
 
+
 % Find NaNs in x and nm_nanmean(x)
 nans = isnan(x);
-fullnans = sum(nans,dim) == size(x,2);
 
 count = size(x,dim) - sum(nans,dim);
+
 
 % Protect against a  all NaNs in one dimension
 i = find(count==0);
@@ -44,6 +45,5 @@ count(i) = 1;
 y = nm_nanstd(x,dim)./sqrt(count);
 
 y(i) = i + NaN;
-y(fullnans) = nan;
 
 % $Id: nm_nansem.m,v 1.1 2004/07/22 09:02:27 glaescher Exp glaescher $

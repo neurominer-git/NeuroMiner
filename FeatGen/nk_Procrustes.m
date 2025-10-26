@@ -3,7 +3,7 @@ function [RotMat, rotatemat] = nk_Procrustes(TempMat,SourceMat)
 % Define coordinate space between orignal and rotated components
 temp=TempMat'*SourceMat;
 
-% Orthogonalize space
+% Orthogonalze space
 [V,~,U]=svd(temp);
 
 % Determine procrustean transform

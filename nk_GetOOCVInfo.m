@@ -71,10 +71,7 @@ if AS.analcompleteflag >0 && AS.oocvappflag
                             OOCVinfo.Analyses{i}.cases{j}   = NM.OOCV{OOCVinfo.Analyses{i}.OOCVvec(j)}.cases;
                             OOCVinfo.Analyses{i}.files{j}   = NM.OOCV{OOCVinfo.Analyses{i}.OOCVvec(j)}.files;
                             OOCVinfo.Analyses{i}.defs{j}    = NM.OOCV{OOCVinfo.Analyses{i}.OOCVvec(j)}.defs;
-                            OOCVinfo.Analyses{i}.descriptor{j} = sprintf('%s (<-%s): %g cases%s', ...
-                                        OOCVinfo.Analyses{i}.desc{j}, ...
-                                        OOCVinfo.Analyses{i}.date{j}, ...
-                                        OOCVinfo.Analyses{i}.n_subjects_all(j), lblstr); 
+                            OOCVinfo.Analyses{i}.descriptor{j} = sprintf('%s (<-%s): %g cases%s',  OOCVinfo.Analyses{i}.desc{j}, OOCVinfo.Analyses{i}.date{j}, OOCVinfo.Analyses{i}.n_subjects_all(j), lblstr); 
                         catch
                             fprintf('\nOOCV data container %g does not exist',j);
                         end
@@ -83,5 +80,7 @@ if AS.analcompleteflag >0 && AS.oocvappflag
                      OOCVinfo.Analyses{i}.OOCVdone = false;
                  end
              end
+
     end
+    
 end

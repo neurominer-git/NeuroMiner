@@ -22,13 +22,13 @@ if isempty(beta) || isempty(p)
     % Compute beta of rotation parameters between original label and error
     if ~exist('beta','var') || isempty(beta)
         IN.TrCovars = X;
-        [Ecorr, IN] = nk_UnivCorrProcsObj(E, IN);
+        [Ecorr, IN] = nk_PartialCorrelationsObj(E, IN);
         beta = IN.beta;
     else
         IN.TrCovars = X;
         IN.TsCovars = X;
         IN.beta = beta;
-        Ecorr = nk_UnivCorrProcsObj(E, IN);
+        Ecorr = nk_PartialCorrelationsObj(E, IN);
     end
     
 else
@@ -38,7 +38,7 @@ else
     E = Y - X;
     IN.beta = beta;
     IN.TsCovars = X;
-    Ecorr = nk_UnivCorrProcsObj(E, IN); Ecorr = Ecorr(:,1);
+    Ecorr = nk_PartialCorrelationsObj(E, IN); Ecorr = Ecorr(:,1);
 end
 
 Ycorr = X + Ecorr; 

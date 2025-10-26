@@ -1,6 +1,6 @@
 function performance = nk_MultiClassAssessConfMatrix(confmatrix, label, pred, errs, crit)
 
-if ~exist('crit','var') || isempty(crit)
+if ~exist('crit','var') || isempty(crit),
     crit='all';
 end
 sumconf=sum(sum(confmatrix));
@@ -39,7 +39,7 @@ end
 performance.confusion_matrix    = confmatrix;
 performance.errors              = errs;
 performance.accuracy            = P*100/sumconf;
-if any(strcmp({'all','BAC'},crit))
+if any(strcmp({'all','BAC'},crit)),
     performance.BAC                 = [];
     for i = 1:numel(performance.class)
         performance.BAC = [ performance.BAC performance.class{i}.BAC];
@@ -47,3 +47,5 @@ if any(strcmp({'all','BAC'},crit))
     performance.BAC_SD = nm_nanstd(performance.BAC);
     performance.BAC_Mean = nm_nanmean(performance.BAC);
 end
+
+return

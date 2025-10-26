@@ -33,7 +33,7 @@ switch format
         if mode, out = nk_input(desc,0,'i',def); else, out=def; end
     case 'yes|no'
         if mode
-            if isfield(param,nam)
+            if isfield(param,nam),
                 switch param.nam
                     case 0
                         def = 2;
@@ -91,7 +91,7 @@ switch format
         for i=1:numel(param.Params)
             if strcmp(param.Params(i).name,'kernelFunc'); indx = i; break; end
         end
-        if indx
+        if indx, 
             param.kernelOptions = nk_matLearn_getopts_config(param.kernelOptions,'get_kernel_params',char(param.Params(indx).range),param.learner.framework);
             if isfield(param.kernelOptions,'name') && ~ischar(param.kernelOptions.name)
                 out = nk_matLearn_DefAlgoParams_config(param.kernelOptions, param.kernelOptions, mode);
@@ -101,34 +101,8 @@ switch format
         else
             out=[];
         end
-    %Case for matrix definition for MLPs.
-    case 'mlp_struct_def'
-        if isfield(param,nam), def = param.(nam); end
-        if mode, out = nk_input(desc,0,'i',mat2str(def)); else, out=def; end
-
-    %Case for file module load for TF SeqNN.
-    case 'tf_struct_file_def'
-        if isfield(param,nam), def = param.(nam); end
-        if mode
-            out = nk_FileSelector(Inf,'.py','select Python file(s) with tf model structures','\.py$');
-            valid_files = []; 
-            for i = 1:size(out, 1)
-                path_i = nk_RelPath(out(i, :), pwd);
-                if isfile(path_i)
-                    valid_files = [valid_files; path_i];
-                end
-            end
-            
-            if isempty(valid_files)
-                out = 'none';
-            else
-                out = valid_files;
-            end
-        else 
-            out=def; 
-        end
-
+        
     otherwise
-        if isfield(opt,nam), def = find(strcmp(sel,opt.(nam))); else, def=1;end
-        if mode, out = nk_input(desc,0,'m',format,sel,def); else, out = sel{def}; end
+        if isfield(opt,nam), def = find(strcmp(sel,opt.(nam))); else def=1;end
+        if mode, out = nk_input(desc,0,'mq',format,sel,def); else, out = sel{def}; end
 end

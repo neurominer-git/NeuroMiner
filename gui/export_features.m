@@ -4,16 +4,12 @@ warning off
 
 curclass = get(handles.popupmenu1,'Value');
 filename = sprintf('%s_A%g_Features', handles.params.TrainParam.SAV.matname, handles.curranal);
-[nmodal, nlabels] = size(handles.visdata_table);
+[nlabels, nmodal] = size(handles.visdata_table);
 
 if strcmp(handles.modeflag,'regression')
     ModeStr = 'Rgr';
 else
-    if curclass>handles.nclass 
-        ModeStr = 'MultiCl';
-    else
-        ModeStr = sprintf('Cl%g',curclass);
-    end
+    ModeStr = sprintf('Cl%g',curclass);
 end
 
 for i=1:nlabels
@@ -27,7 +23,7 @@ for i=1:nlabels
         else
              SpreadSheetName = sprintf('%s', ModeStr);
         end
-        TBL = handles.visdata_table(j, i).tbl(curclass);
+        TBL = handles.visdata_table(i, j).tbl(curclass);
         ERR = tbl2file(TBL, filename, SpreadSheetName);
     end
 end

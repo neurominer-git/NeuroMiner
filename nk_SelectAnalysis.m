@@ -70,7 +70,7 @@ if isfield(dat,'analysis')
     if islogical(indanal), indanal=find(indanal); end
     n = length(analyses);
     if brief
-        analsel = print_analysis_quickselector(analyses, indanal);
+        analsel = print_analysis_quickselector(analyses);
         if ~analsel 
             return; 
         elseif analsel > 0
@@ -318,7 +318,7 @@ if isfield(dat,'analysis')
         if analind == n && n ~= 1
             menustr = [menustr '|<= Go to previous analysis'];
             menudat = [menudat 1];
-            if n > 2 && analind > 2
+            if n > 2 && analind > 2,
                 menustr = [menustr '|<<= Go to first analysis'];
                 menudat = [menudat 7];
             end
@@ -427,19 +427,17 @@ function print_modalitydata(dat, params, varind)
         fprintf('No optimization of ML parameters \n')
     end
     
-function analind = print_analysis_quickselector(analyses, indanal)
+function analind = print_analysis_quickselector(analyses)
     
 nk_PrintLogo
 fprintf('\n\t'); fprintf('============================================= '); 
 fprintf('\n\t'); fprintf('***        Quick Analysis Selector        *** ');
 fprintf('\n\t'); fprintf('============================================= ');
-analysisPos = 6; 
-for i = 1:numel(analyses)
-    numDigits = length(num2str(i));
-    fprintf('\n\t#%g\t%*s Analysis [ %3g ]: ID : %s', i, analysisPos - numDigits - 2, '==>', indanal(i), analyses{i}.id);
+for i=1:numel(analyses)
+    fprintf('\n\t** Analysis [ %3g ]: ID : %s', i, analyses{i}.id);
 end
 fprintf('\n');
-analsel = nk_input(sprintf('Type the number [#] of analysis you want to choose,\n\t''S'' for analysis sequence\n\t''M'' for detailed analysis information,\n\tor some other string to return'),0,'sq');
+analsel = nk_input(sprintf('Type the number of analysis you want to choose,\n\t''S'' for analysis sequence\n\t''M'' for detailed analysis information,\n\tor some other string to return'),0,'sq');
 if any(strcmp({'S','s'},analsel))
     analind = nk_input('Type sequence of analyses you want to work on',0,'e');
 elseif ~any(strcmp({'M','m'}, analsel)) && ~isnan(str2double(analsel)) 

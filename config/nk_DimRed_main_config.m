@@ -1,17 +1,14 @@
-function [DR, PX, TEMPLPROC, USEALL, act] = nk_DimRed_main_config(DR, PX, TEMPLPROC, USEALL, parentstr, defaultsfl)
-global EXPERT 
+function [DR, PX, act] = nk_DimRed_main_config(DR, PX, parentstr, defaultsfl)
 
 if ~exist('defaultsfl','var') || isempty(defaultsfl); defaultsfl = false; end
 CALIBUSE = 2; 
 
 if ~defaultsfl
-    if isempty(DR), [DR, PX, TEMPLPROC, USEALL] = nk_DimRed_main_config(DR, PX, TEMPLPROC, USEALL, parentstr, true); end
+    if isempty(DR), [DR, PX] = nk_DimRed_main_config(DR, PX, parentstr, true); end
     if isfield(DR,'RedMode'),   RedMode = DR.RedMode; else, RedMode = []; end
     if isfield(DR,'dims'),      dims = DR.dims; else, dims = []; end
     if isfield(DR,'PercMode'),  PercMode = DR.PercMode; else, PercMode = []; end
     if isfield(DR,'CALIBUSE'),  CALIBUSE = DR.CALIBUSE; end
-    if ~exist('TEMPLPROC','var') || isempty(TEMPLPROC), TEMPLPROC = false; end
-    if ~exist('USEALL','var') || isempty(USEALL), USEALL = false; end
     if ~ischar(RedMode)
         DRSTR_REDMODE = 'undefined';
     else
@@ -42,28 +39,13 @@ if ~defaultsfl
     else
         DRSTR_DIM = [ nk_ConcatParamstr(dims) DRSTR_PERCMODE ];
     end
-
-    if strcmp(DRSTR_REDMODE,'PLS') 
+    if strcmp(DRSTR_REDMODE,'PLS')
         menustr = ['Select dimensionality reduction method [ ' DRSTR_REDMODE ' ]'];
         menuact = 1;
-    elseif strcmp(DRSTR_REDMODE, 'fastICA')
+    else
         menustr = ['Select dimensionality reduction method [ ' DRSTR_REDMODE ' ]|', ...
-                   'Define fastICA settings [ dimensions: ' DRSTR_DIM ' ]'];
-        menuact = [1 3];
-    else 
-        menustr = ['Select dimensionality reduction method [ ' DRSTR_REDMODE ' ]|', ...
-                   'Define dimenisonality of mapping results [ ' DRSTR_DIM ' ]'];
+                   'Define dimensionality of mapping results [ ' DRSTR_DIM ' ]'];
         menuact = 1:2;
-    end
-    % Configuration of matrix realignment only available for expert
-    % settings
-    if EXPERT && contains(DRSTR_REDMODE,{'PCA', 'RobPCA', 'FactorAnalysis', 'SparsePCA', 'ProbPCA'})
-        if TEMPLPROC, DRSTR_PROCRUST = 'yes'; else, DRSTR_PROCRUST = 'no'; end 
-        menustr = [menustr '|Use Procrustes rotation to align CV1-level factorizations [ ' DRSTR_PROCRUST ' ]'];
-        menuact = [menuact 4];
-        if USEALL==1, DRSTR_PROCRUST_USEALL = 'yes'; else, DRSTR_PROCRUST_USEALL = 'no'; end
-        menustr = [menustr '|Use all the training data for template generation [ ' DRSTR_PROCRUST_USEALL ' ]'];
-        menuact = [menuact 5];
     end
     
     [menustr, menuact] = nk_CheckCalibAvailMenu_config(menustr, menuact, CALIBUSE);
@@ -78,17 +60,8 @@ if ~defaultsfl
         case 2 % for compatibility
             t_act = 1; while t_act > 0, [dims, PercMode, t_act] = nk_ExtDim_config(RedMode, PercMode, dims, 0, navistr);end
             DR.dims = dims; DR.PercMode = PercMode;
-        case 3
-            act = 1;
-            while act > 0
-                [DR, PX, act] = cv_fastICA_config(DR, PX, parentstr, defaultsfl);
-            end
-        case 4
-            TEMPLPROC = ~TEMPLPROC; 
-        case 5
-            USEALL = ~USEALL;
         case 1000
-            CALIBUSE = nk_AskCalibUse_config(mestr, CALIBUSE);
+            CALIBUSE = nk_AskCalibUse_config(mestr, CALIBUSE); 
     end
 else
     [DR, PX] = return_dimred(DR, PX, parentstr, true);
@@ -102,8 +75,6 @@ if numel(DR.dims)<2, DR.EXTOPT = true; else, DR.EXTOPT = false; end
 DR.CALIBUSE = CALIBUSE;
 
 end
-
-% _________________________________________________________________________
 
 function [DR, PX] = return_dimred(DR, PX, parentstr, defaultsfl)
 global EXPERT NM
@@ -125,8 +96,7 @@ if ~defaultsfl
                'Linear Local Tangent Space Alignment           (low-D only, >32 GB RAM for high-D data)|' ...
                'Large-Margin Nearest Neighbour                 ()|' ...
                'Linear Discriminant Analysis                   (low-D only)|' ...
-               'Neighborhood Component Analysis                (low-D only)|' ...
-               'Independent Component Analysis                  (fastICA)'];
+               'Neighborhood Component Analysis                (low-D only)'];
     menuact = { 'PCA', ...
                 'RobPCA',... 
                 'NNMF', ...
@@ -140,8 +110,7 @@ if ~defaultsfl
                 'LLTSA',...
                 'LMNN',...
                 'LDA',...
-                'NCA',...
-                'fastICA'};    
+                'NCA' };    
     if isfield(DR,'RedMode'), def = find(strcmp(menuact,DR.RedMode)); else, def = 1; end
     if EXPERT
         menustr = [menustr '|' ...
@@ -247,7 +216,7 @@ if ~defaultsfl
             PX = nk_AddParam(DR.Laplacian.s, 'Laplacian-Sigma', 1, PX);
 
         case 'LLE'
-            if isfield(DR,'LLE'), k = DR.LLE.k; else, k=12; end
+            if isfield(DR,'LLE'), k = DR.LLE.k; else k=12; end
             DR.LLE.k = nk_input('# of nearest neighbors (k)',0,'e',k);
             PX = nk_AddParam(DR.LLE.k, 'LLE-K', 1, PX, 'replace');
         
@@ -257,9 +226,6 @@ if ~defaultsfl
 
         case 'LMNN'
             PX = nk_AddParam([], [], [], PX,'reset');
-
-        case 'fastICA'
-            DR.DRsoft = 1; PX = nk_AddParam([], [], [], PX,'reset');
        
     end
 else

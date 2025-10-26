@@ -19,7 +19,7 @@ function IN  = nk_PerfFeatRankObj(oY, IN)
 % IN.weightmethod     :     Upweight (=1) or downweight (=2) features
 % IN.W                :     The ranking vector/matrix over the features
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, 04/2025
+% (c) Nikolaos Koutsouleris, 04/2022
 
 global VERBOSE
 
@@ -27,11 +27,6 @@ global VERBOSE
 if isempty(IN),             error('Suitable input structure is missing. See the functions'' help for more information.'); end
 if ~isfield(IN,'curlabel'), error('Label vector/matrix is missing! Add a ''curlabel'' variable to your input structure.'); end
 if ~isfield(IN,'algostr'),  error('No feature weighting algorithm found in the input structure. Provide one according to the function help.'); end
-if ~isfield(IN,'TakeAbs'),  TakeAbs = 1; else, TakeAbs = IN.TakeAbs; end
-if ~isfield(IN,'Scale'), WeightScale = 1; else, WeightScale = IN.Scale; end
-if ~isfield(IN,'ReplZeroNaNwithRealMin'),  ReplZeroNaNwithRealMin = 1; else, ReplZeroNaNwithRealMin = IN.ReplZeroNaNwithRealMin; end
-if ~isfield(IN,'ReplInfwithMax'), ReplInfwithMax = 1; else, ReplInfwithMax = IN.ReplInfwithMax; end
-
 if isfield(IN,'curglabel') && ~isempty(IN.curglabel)
     Y = oY(logical(IN.curglabel),:); L = IN.curlabel(logical(IN.curglabel)); 
 else
@@ -49,7 +44,7 @@ end
 switch IN.algostr
     
     case 'varfeat'
-        IN.W = nm_nanvar(Y);
+        IN.W = var(Y);
     
     case 'idetect'
         IN.idetect.sigma = nk_ReturnParam('Sigma',Params_desc, opt); 
@@ -104,10 +99,11 @@ switch IN.algostr
         if VERBOSE, fprintf(' feast'); end
         IN.FEAST.NumFeat = nk_ReturnParam('NumFeat', Params_desc, opt); 
         [~, IN.W] = nk_FEAST(Y, L, [], IN.FEAST);
+        %IN.W = IN.W';
         
     case 'auc'
         % Area-under-the-Curve ooperator
-        IN.W = nk_AUCFeatRank(Y, L); 
+        IN.W = (nk_AUCFeatRank(Y, L))'; 
 
     case {'pearson','spearman'}
         % simple univariate correlation using Pearson's or Spearman's
@@ -118,41 +114,14 @@ switch IN.algostr
         else
             type = 'spearman';
         end
-        IN.W = nk_CorrMat(Y,L,type);
+        IN.W = abs(nk_CorrMat(Y,L,type));
 
     case 'fscore'
-        % simple measure for binary classification providing a ratio of
-        % between-group distance to cross-group scatter. Two versions are
-        % available , one based on mean/SD and the other based on
-        % median/IQR. 
-        if ~isfield(IN,'FScoreType'), IN.FScoreType = 'mean'; end 
-        N = []; 
-        if ~isfield(IN,'WeightMode') || ~isfield(IN,'Weights') || ~isfield(IN, 'B')
-            switch IN.FScoreType 
-                case 'mean'
-                    if VERBOSE; fprintf(' F-Score [Mean/SD]'); end
-                    meanfun =  'nm_nanmean'; stdfun = 'nm_nanstd';
-                case 'median'
-                    if VERBOSE; fprintf(' F-Score [Median/IQR]'); end
-                    meanfun = 'nm_nanmedian'; stdfun = 'iqr'; 
-            end
-            IN.W = nk_FScoreFeatRank(Y, L, N, meanfun, stdfun);
-        else
-            % New version of nk_FScoreFeatRank has been partly implemented 
-            % in C++ to increase speed. Furthermore, class-weighting and 
-            % bootstrapping of the F-Score have been newly implemented in 
-            % NM 1.4
-            switch IN.FScoreType 
-                case 'mean'
-                    meantype = 1;
-                case 'median'
-                    meantype = 2; 
-            end
-            IN.W = nk_FScoreFeatRankNew(Y, L, N, meantype, [], IN.WeightMode, IN.Weights, IN.B);
-        end        
+        if VERBOSE; fprintf(' F-Score'); end
+        IN.W = (nk_FScoreFeatRank(Y,L))';
 
     case 'rgs'
-        if ~isempty(opt) && ~isempty(Params_desc) 
+        if ~isempty(opt) && ~isempty(Params_desc); 
             IN.RGS.extra_param.k = nk_ReturnParam('K',Params_desc, opt); 
             IN.RGS.extra_param.beta = nk_ReturnParam('Beta',Params_desc, opt); 
         end
@@ -168,27 +137,15 @@ switch IN.algostr
         end
         if strcmp(IN.SVM.modeflag,'regression'), L = nk_ScaleData(L,0,1); end
         if isfield(IN.SVM,'evalperf'), evalperf = IN.SVM.evalperf; else, evalperf = 1; end
-        IN.W = nk_SVMFeatRank(Y, L, IN.SVM, evalperf); 
+        IN.W = abs(nk_SVMFeatRank(Y, L, IN.SVM, evalperf))'; 
 
     case 'relief'
-        % Currently we use the MATLAB implementation of RELIEF but we may
-        % switch to the RELIEF function which does not depend on the
-        % Machine Learning and Statistics toolbox
         [~,IN.W] = relieff(Y, L, IN.Relief.k);
         
     case 'anova'
-        % This is a relevant filter method for multi-group settings.
-        if width(L)==1
-            % if zeros are detected the respective cases should be ignored
-            idx_include = L~=0;
-            L = nk_MakeDummyVariables(L(idx_include));
-        else
-            idx_include = any(L,2);
-            L = L(idx_include,:);
-        end
-        IN.X = [ones(height(L),1) L]; 
-        IN = nk_PerfANOVAObjNew(Y(idx_include,:),IN);
-        IN.W = IN.F;
+        IN.X = [ones(size(L,1),1) L]; 
+        IN = nk_PerfANOVAObj(Y,IN);
+        IN.W = IN.R2;
     
     case 'pls'
         if strcmp(IN.PLS.algostr,'spls')
@@ -196,19 +153,14 @@ switch IN.algostr
             IN.PLS.cv = nk_ReturnParam('SPLS-cv',Params_desc, opt); 
         end
         [~,~,~,IN.PLS] = nk_PLS(Y, L, IN.PLS);
-        IN.W = IN.PLS.mpp.u;
+        IN.W = abs(IN.PLS.mpp.u);
         
     case 'extern'
-        % External ranking using weight vectors generated outside of NM.
-        % Use with caution: it is strongly discouraged to use weight
-        % vectors that have been computed on the given NM cases outside of 
-        % the cross-validation loop.
-        IN.W = IN.EXTERN;
+        IN.W = abs(IN.EXTERN);
 		
 	case 'extern2'
-        % This option is not accessible in the configurator
 		W1 = abs(IN.EXTERN);
-		for i=1:numel(IN.algostr2)
+		for i=1:numel(IN.algostr2);
 			IN2 = IN;
 			IN2.algostr = IN.algostr2{i};
 			if VERBOSE, fprintf(' ...adding ranking map using %s',IN2.algostr); end
@@ -219,16 +171,14 @@ switch IN.algostr
 		IN.W = W1;
 end
 
-% Transpose weights if needed
+%Transpose weights if needed
 if size(IN.W,1) < size(IN.W,2); IN.W = IN.W'; end
 
-% Scale from realmin to 1 and take care of non-finite values in the weight vector
-if TakeAbs == 1, if VERBOSE, fprintf('\n\tAbs(rank vector)'); end; IN.W = abs(IN.W); end
-if WeightScale == 1, if VERBOSE, fprintf('\n\tScale(rank vector)'); end; IN.W = scaledata(IN.W,[],0,1); end
-if ReplZeroNaNwithRealMin == 1, if VERBOSE, fprintf('\n\tRank vector(Zeros|NaNs)=realmin'); end; IN.W(IN.W==0 | isnan(IN.W)) = realmin; end
-if ReplInfwithMax == 1, if VERBOSE, fprintf('\n\tRank vector(Infs)=max(rank vector)'); end; IN.W(isinf(IN.W)) = max(IN.W(:)); end
+% Scale from 0 to 1
+IN.W = nk_PerfScaleObj(IN.W);
 
 % If downweighting has been selected invert the weight vector
 if IN.weightmethod == 2, IN.W = 1-IN.W; end
 
-
+% Make sure there are no NaNs in the weight vector
+IN.W(~isfinite(IN.W))=0;

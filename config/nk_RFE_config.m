@@ -16,11 +16,7 @@ if ~isempty(act) || ~defaultsfl
     
     RFE = TrainParam.RFE;
     RFE.dispres = 1;
-    if ~isfield(TrainParam,'ActiveModality')
-        [~,RFE.PreML] = nk_GenPreML(TrainParam.PREPROC);
-    else
-        [~,RFE.PreML] = nk_GenPreML(TrainParam.PREPROC{TrainParam.ActiveModality});
-    end
+    [~,RFE.PreML] = nk_GenPreML(TrainParam.PREPROC{TrainParam.ActiveModality});
     nk_PrintLogo
     
     immretstr = ''; menuvec = 1:3;
@@ -98,6 +94,17 @@ if isfield(RFE,'Wrapper') && isfield(RFE.Wrapper,'EnsembleStrategy') &&...
 end
 
 CV2Mode = 1;
+% if flgWrp || flgFlt
+%     CV2Mode = nk_input('Define CV2 ensemble construction method',0, 'm',...
+%                          ['Aggregate all CV1 ensembles of given CV2 partition|' ...
+%                           'Take over optimization parameters of CV1 ensemble construction (not functional)|' ...
+%                           'Define independent CV2 ensemble construction strategy (not functional)'],1:3);
+% else
+%     CV2Mode = nk_input('Define CV2 ensemble construction method',0, 'm',...
+%                          ['Aggregate all CV1 ensembles of given CV2 partition|' ...
+%                           'Define independent CV2 ensemble construction strategy (not functional)'],[1,3]);
+%     
+% end
 
 switch CV2Mode
    
@@ -107,7 +114,7 @@ switch CV2Mode
         RFE.CV2Class.EnsembleStrategy.DataType = 0;
         
         if flgWrp || flgFlt
-            if flgWrp
+            if flgWrp, 
                 RFE.CV2Class.EnsembleStrategy.Metric = RFE.Wrapper.EnsembleStrategy.Metric;
             else
                 RFE.CV2Class.EnsembleStrategy.Metric = RFE.Filter.EnsembleStrategy.Metric;
@@ -129,12 +136,12 @@ switch CV2Mode
             RFE.CV2Class.EnsembleStrategy = RFE.Filter.EnsembleStrategy;
         end
     case 3
-        RFE.CV2Class = nk_EnsembleStrategy_config(NM, RFE.CV2Class, [], parentstr);
+        RFE.CV2Class = nk_EnsembleStrategy2_config(NM, RFE.CV2Class, [], parentstr);
 end
     
 % Should the base learners be retrained using the entire CV1 data ? 
 RFE.ClassRetrain = ...
-    nk_input('Retrain classifiers with the full CV1 partition ?',0,'yes|no',[1,0],1);
+    nk_input('Retrain classifiers with all data (CV1 training + CV1 test data) ?',0,'yes|no',[1,0],1);
 
 % Should the CV1 ensembles' outputs be aggregated or their base learners
 % outputs be pulled together across the CV2 partitions in order to create 

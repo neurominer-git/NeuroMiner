@@ -48,7 +48,7 @@ for ii=1:PermNum % Loop through CV1 permutations
             end
             Tr{curclass} = OUT.Trdecs{i,j,curclass}(:,Fx);
             CV{curclass} = OUT.CVdecs{i,j,curclass}(:,Fx);
-            [nTrSubj(curclass), nDicho(curclass)] = size(Tr{curclass});
+            [nTrSubj(curclass) nDicho(curclass)] = size(Tr{curclass});
             nCVSubj(curclass) = size(CV{curclass},1);
         end
         
@@ -57,21 +57,18 @@ for ii=1:PermNum % Loop through CV1 permutations
         OUT.mts{i,j} = zeros(mxNFea,1);
         OUT.mCVPred{i,j} = zeros(nCVSubj(1), mxNFea);
         OUT.mTrPred{i,j} = zeros(nTrSubj(1), mxNFea);
-        if ~isfield(IN.Y,'mCVL')
-            error('I cannot find multi-class labels in your preprocessed data container. Did you change your multi-class settings between data preprocessing and model training?')
-        end
+        
         CVL = IN.Y.mCVL{i,j}(:,MULTILABEL.curdim); TrL = IN.Y.mTrL{i,j}(:,MULTILABEL.curdim);
         CVdecsCat = zeros(nCVSubj(1), IN.nclass);
         TrdecsCat = zeros(nTrSubj(1), IN.nclass);
-        
+        Classes = [];
         for k=1:mxNFea % Loop through feature subspaces
             
             indMx = k <= nDicho;
-            Classes = [];
             
             % Construct multi-group decision matrix
             for curclass=1:IN.nclass
-                if ~indMx(curclass), indFea = nDicho(curclass); else, indFea = k; end
+                if ~indMx(curclass), indFea = nDicho(curclass); else indFea = k; end
                 TrdecsCat(:,curclass)   = Tr{curclass}(:,indFea);
                 CVdecsCat(:,curclass)   = CV{curclass}(:,indFea);
                 Classes = [Classes repmat(curclass,numel(indFea))];

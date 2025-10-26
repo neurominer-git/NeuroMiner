@@ -16,13 +16,13 @@ saveflx = false; if exist('savefl','var') && ~isempty(savefl), if savefl, savefl
 if ~exist('tdir','var') || isempty(tdir) || ~exist(tdir,'dir'), tdir = pwd; end
 emptfl = false;
 if ~exist('concatfl','var') || isempty(concatfl), concatfl = false; end
-if (~exist('mastermat','var') || ~exist(mastermat,'file'))
+if (~exist('mastermat','var') || ~exist(mastermat,'file')), 
     masterflx = false;
 else
     masterflx = true;
 end
 
-if ~exist('UIopt','var') || isempty(UIopt)
+if ~exist('UIopt','var') || isempty(UIopt),
     UIopt.title           = 'Generate PreprocMaster using ...';
     UIopt.filtermaster    = 'PreprocMaster.*ID.*\.mat';
     UIopt.promptmaster    = 'PreprocMaster';
@@ -31,12 +31,12 @@ if ~exist('UIopt','var') || isempty(UIopt)
 end
 fl = 1;
 if ~masterflx && ~saveflx
-    fl = nk_input(UIopt.title,0,'m', ...
-                'Master file|Manual file(s) selection',[1,2], 1);
+    fl = nk_input(UIopt.title,0,'mq', ...
+                'Master file|Manual file(s) selection',[1,2],1);
     switch fl
         case 0
             return
-        case 1
+        case 1, 
             mastermat = nk_FileSelector(1, 'matrix', ['Select ' UIopt.promptmaster], UIopt.filtermaster,[],tdir);
             if isempty(mastermat) || ~exist(deblank(mastermat),'file'), return; end
     end
@@ -101,7 +101,7 @@ switch fl
                     end
                 end
                 
-                % Check if ID matches current ID of data structure
+                    % Check if ID matches current ID of data structure
                 if ~strcmp(FeatInfo{i}{v}.id,datid)
                     error('\nID Mismatch: ID of feature extraction info (%s) does not match current NM workspace ID (%s)!',FeatInfo{i}{v}.id,datid);
                 else

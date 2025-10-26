@@ -183,7 +183,7 @@ function CVerr = cvglmnet(x,y,family,options,type,nfolds,foldid,parallel,keep,gr
 %    cvglmnetPlot(fit1_cv);
 %    
 % % Parallel
-%    parpool;
+%    matlabpool;
 %    x=randn(1e3,100);
 %    y=randn(1e3,1);
 %    tic;
@@ -291,9 +291,9 @@ cpredmat = cell(nfolds,1);
 
 if (parallel == true)
     offpar = 0;
-    if isempty(gcp('nocreate'))
+    if matlabpool('size') <= 0
         offpar = 1;
-        parpool;
+        matlabpool;
     end
     
     parfor i = 1: nfolds
@@ -309,7 +309,7 @@ if (parallel == true)
     end
     
     if (offpar)
-        delete(gcp('nocreate'));
+        matlabpool close;
     end    
 else   
     for i = 1: nfolds        

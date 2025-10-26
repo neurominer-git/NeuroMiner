@@ -36,7 +36,7 @@ function [sY, IN] = PerfScaleObj(Y, IN)
 % Defaults
 if isempty(IN),eIN=true; else, eIN=false; end
 % Determine min and max over entire array?
-if eIN|| ~isfield(IN,'AcMatFl')         || isempty(IN.AcMatFl),     IN.AcMatFl = false;     end
+if eIN|| ~isfield(IN,'overmatflag')     || isempty(IN.AcMatFl),     IN.AcMatFl = false;     end
 % Scale to [0,1] or [-1,1]?
 if eIN || ~isfield(IN,'ZeroOne')        || isempty(IN.ZeroOne),     IN.ZeroOne = 1;      end
 % Revert any scaling?
@@ -68,28 +68,14 @@ switch IN.ZeroOne
     case 1
         % Scale EACH FEATURE in the data to [0, 1]
         if ~IN.revertflag
-            %if there is only 1 case in OOCV, 
-            %need to use this single element command 
-            if isscalar(IN.ise)
-                sY = (Y(:,IN.ise) - IN.minY(IN.ise)) / (IN.maxY(IN.ise) - IN.minY(IN.ise));
-            %for general case
-            else
-                sY = (Y(:,IN.ise) - repmat(IN.minY(IN.ise),mY,1)) * spdiags(1./(IN.maxY(IN.ise)-IN.minY(IN.ise))', 0, nY, nY);
-            end
+            sY = (Y(:,IN.ise) - repmat(IN.minY(IN.ise),mY,1)) * spdiags(1./(IN.maxY(IN.ise)-IN.minY(IN.ise))', 0, nY, nY); 
         else
             sY = bsxfun(@plus,bsxfun(@times, Y(:,IN.ise), (IN.maxY(IN.ise) - IN.minY(IN.ise))),IN.minY(IN.ise));           
         end
     case 2
         % Scale EACH FEATURE in the data to [-1, 1]
         if ~IN.revertflag
-            %if there is only 1 case in OOCV, 
-            %need to use this single element command 
-            if isscalar(IN.ise)
-                sY = 2 * ((Y(:,IN.ise) - IN.minY(IN.ise)) / (IN.maxY(IN.ise) - IN.minY(IN.ise))) - 1;
-            %for general case
-            else
-                sY = 2 * bsxfun(@rdivide,bsxfun(@minus,Y(:,IN.ise),IN.minY(IN.ise)),IN.maxY(IN.ise)-IN.minY(IN.ise)) - 1;
-            end
+            sY = 2 * bsxfun(@rdivide,bsxfun(@minus,Y(:,IN.ise),IN.minY(IN.ise)),IN.maxY(IN.ise)-IN.minY(IN.ise)) - 1;
         else
             sY = bsxfun(@times, Y(:,IN.ise)./2+0.5, (IN.maxY(IN.ise)-IN.minY(IN.ise)) + IN.minY(IN.ise));
         end

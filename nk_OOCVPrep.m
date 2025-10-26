@@ -2,9 +2,10 @@
 % =========================================================================
 % FORMAT [act, inp] = nk_OOCVprep(act, inp, parentstr)
 % =========================================================================
-% Runtime module for the application of models to OOCV data
+% Runtime model of independent test data prediction
+%
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, last modified 04/2024
+% (c) Nikolaos Koutsouleris, last modified 07/2021
 
 global CV 
 
@@ -26,20 +27,13 @@ if ~exist('inp','var') || isempty(inp)
                     ...                         % 2 = operate at CV2 level
                     'loadparam', 2, ...         % 1 = load existing optpreproc and/or optmodel parameters from disk
                     ...                         % 2 = recompute parameters
-                    'PERM', struct( 'flag', 2, 'nperms', 1000), ... % Permutation analysis performed on OOCV data
                     'HideGridAct', false, ...
                     'batchflag', 0);            % 1 = Run in batchmode (without graphics outputs)
                                                 % 0 = run in interactive mode
 end
 na_str = '?'; inp.datatype = 'OOCVdatamat'; 
-OverWriteStr = []; GridSelectStr = []; 
-LoadModelsStr = []; LoadParamsStr = []; 
-LoadStr = []; SaveStr = []; SaveCV1Str = []; 
-PermFlagStr = []; PermNPermsStr = []; 
-OverWriteAct = []; GridSelectAct = []; 
-LoadModelsAct = []; LoadParamsAct = []; 
-LoadAct = []; SaveAct = []; SaveCV1Act = []; 
-PermFlagAct = []; PermNPermsAct = []; 
+OverWriteStr = []; GridSelectStr = []; LoadModelsStr = []; LoadParamsStr = []; LoadStr = []; SaveStr = []; SaveCV1Str = [];
+OverWriteAct = []; GridSelectAct = []; LoadModelsAct = []; LoadParamsAct = []; LoadAct = []; SaveAct = []; SaveCV1Act = [];
 DATASCRAM = false; if isfield(NM.defs,'data_scrambled') && ~isempty(NM.defs.data_scrambled), DATASCRAM = NM.defs.data_scrambled;end
     
 %% Configure menu
@@ -58,18 +52,13 @@ end
 
 analysis      = NM.analysis{inp.analind(1)}; 
 % Select independent test data container
-if isfield(inp,'oocvind')
-    OOCVSelStr = sprintf('New data #%g: %s', inp.oocvind, inp.OO.desc);
-else
-    OOCVSelStr = na_str; 
-end
+if isfield(inp,'oocvind'), OOCVSelStr = sprintf('New data #%g: %s', inp.oocvind, inp.OO.desc); else, OOCVSelStr = na_str; end
 OOCVSelectStr = sprintf('Choose independent data to work on [ %s ]|', OOCVSelStr);                                          OOCVSelectAct = 2;   
-
 if DATASCRAM, inp.loadparam = 1; inp.saveparam = 2; end
 if ~isempty(analysis)
     
     % Initialize global parameters for the selected analysis
-    nk_SetupGlobalVariables(analysis.params, 'setup_main', 0); 
+    nk_SetupGlobVars2(analysis.params, 'setup_main', 0); 
     
     % Compute from scratch or use pre-computed datamats ?
     LFL_opts        = {'Compute from scratch',sprintf('Use precomputed %s',inp.datatype)};                                      
@@ -130,16 +119,6 @@ if ~isempty(analysis)
             SaveCV1Str = sprintf('Save pre-processing params at CV1 level [ %s ]|', SAVE_opts{inp.saveCV1});                SaveCV1Act = 12;
         end
     end
-
-    % if the currently selected OOCV container has labels allow user to test model significance in OOCV data 
-    if isfield(inp,'OO') && isfield(inp.OO,'labels_known') && inp.OO.labels_known
-        PERM_opts       = {'yes', 'no'};   
-        PermFlagStr = sprintf('Perform permutation analysis [ %s ]|', PERM_opts{inp.PERM.flag});                            PermFlagAct = 13;
-        if inp.PERM.flag == 1
-            PermNPermsStr = sprintf('Define no. of permutations [ %g ]', inp.PERM.nperms);                                  PermNPermsAct = 14;
-        end
-    end
-
 end
  
  %% Build interactive menu
@@ -152,9 +131,7 @@ menustr = [ AnalSelectStr ...
             SaveCV1Str ...
             LoadStr ...
             LoadParamsStr ... 
-            LoadModelsStr ...
-            PermFlagStr ...
-            PermNPermsStr ];
+            LoadModelsStr ];
 
 menuact = [ AnalSelectAct ...
             OOCVSelectAct ...
@@ -165,9 +142,7 @@ menuact = [ AnalSelectAct ...
             SaveCV1Act ...
             LoadAct ...
             LoadParamsAct ...
-            LoadModelsAct ...
-            PermFlagAct ...
-            PermNPermsAct ];       
+            LoadModelsAct ];       
 
 disallow = false;
 
@@ -184,7 +159,7 @@ if ~disallow, menustr = [menustr '|PROCEED >>>']; menuact = [menuact 10]; end
 %% Display menu and act on user selections
 nk_PrintLogo
 mestr = 'Independent test module run-time configuration'; navistr = [parentstr ' >>> ' mestr]; fprintf('\nYou are here: %s >>>',parentstr);
-if ~inp.batchflag && act<17, act = nk_input(mestr, 0, 'mq', menustr, menuact); end
+if ~inp.batchflag && act<13, act = nk_input(mestr, 0, 'mq', menustr, menuact); end
 
 switch act
     
@@ -215,7 +190,7 @@ switch act
        
     % Select OOCV data
     case 2    
-        [ NM, OO, oocvind ] = nk_SelectOOCVdata(NM, true, false, false);  
+        [ NM, OO, oocvind ] = nk_SelectOOCVdata(NM, 1, 0);  
         if ~isempty(oocvind), inp.OO = OO; inp.oocvind = oocvind; end 
     case 3
          lfl = nk_input('Define run-time mode of independent test module',0,'mq',strjoin(LFL_opts, '|'),[1,2],inp.lfl);
@@ -237,17 +212,15 @@ switch act
     case 7
         if inp.loadparam == 1, inp.loadparam = 2; elseif inp.loadparam == 2,  inp.loadparam = 1; end
     case 8
-        tdir = create_defpath(NM.analysis{inp.analind}, inp.oocvind(1));
+        tdir = create_defpath(NM.analysis{inp.analind}, inp.oocvind);
         optpreprocmat = nk_GenDataMaster(NM.id, 'OptPreprocParam', CV, [], tdir);
         if ~isempty(optpreprocmat), inp.optpreprocmat = optpreprocmat; end
     case 9
-        tdir = create_defpath(NM.analysis{inp.analind}, inp.oocvind(1));
+        tdir = create_defpath(NM.analysis{inp.analind}, inp.oocvind);
         optmodelmat = nk_GenDataMaster(NM.id, 'OptModel', CV, [], tdir);
         if ~isempty(optmodelmat), inp.optmodelmat = optmodelmat; end
     case {10,11}
-         for j=1:numel(inp.oocvind)
-            inp.oocvname = sprintf('OOCV_%g',inp.oocvind(j));
-         end
+         inp.oocvname = sprintf('OOCV_%g',inp.oocvind);
          nA = 1; if numel(inp.analind)>1, nA = numel(inp.analind); end
          for i=1:nA
             NM.runtime.curanal = inp.analind(i);
@@ -256,18 +229,13 @@ switch act
             inp.analysis_id = NM.analysis{inp.analind(i)}.id;
             inp.saveoptdir = [ NM.analysis{inp.analind(i)}.rootdir filesep 'opt' ];
             NM.analysis{inp.analind(i)}.OOCV{inp.oocvind} = OOCVPrep(NM, inp, NM.analysis{inp.analind(i)});
-            nk_SetupGlobalVariables(NM.analysis{inp.analind(i)}.params, 'clear', 0); 
+            nk_SetupGlobVars2(NM.analysis{inp.analind(i)}.params, 'clear', 0); 
          end
          NM = rmfield(NM,'runtime');
     case 12
         if inp.saveCV1 == 1, inp.saveCV1 = 2; elseif inp.saveCV1 == 2,  inp.saveCV1 = 1; end
-    case 13
-        if inp.PERM.flag == 1, inp.PERM.flag = 2; elseif inp.PERM.flag == 2,  inp.PERM.flag = 1; end
-    case 14
-        inp.PERM.nperms = nk_input('Define no. of permutation for testing model significance in OOCV data',0,'e', inp.PERM.nperms);
 end
 
-% =========================================================================
 function tdir = create_defpath(analysis, oocvind)
  
 rootdir = analysis.GDdims{1}.RootPath;
@@ -281,7 +249,7 @@ else
     oocvdir = sprintf('OOCV_%g', oocvind);
     tdir = fullfile(rootdir, oocvdir);
 end
-
+%
 % =========================================================================
 function OOCVres = OOCVPrep(dat, inp1, analysis)
 global SAV MODEFL CV OOCV FUSION MULTILABEL
@@ -308,20 +276,11 @@ if isfield(inp1.OO,'label') && ~isempty(inp1.OO.label)
     inp1.LabelCV     = dat.label; 
     inp1.labelOOCV   = inp1.OO.label; 
 end
-
 inp1.cases_oocv      = inp1.OO.cases;
 inp1.nOOCVsubj       = numel(inp1.OO.cases);
 inp1.id              = dat.id;
 stranalysis          = SAV.matname;
 inp1.ngroups         = numel(unique(dat.label(~isnan(dat.label))));
-
-if analysis.params.label.altlabelflag && isfield(inp1.OO,'altlabels') && ...
-    isfield(inp1.OO.altlabels, analysis.params.label.labelname) && ...
-    ~isempty(eval(sprintf('inp1.OO.altlabels.%s', analysis.params.label.labelname)))
-    inp1.LabelCV     = analysis.params.label.label;
-    inp1.labelOOCV   = eval(sprintf('inp1.OO.altlabels.%s', analysis.params.label.labelname));
-    inp1.ngroups     = numel(unique(analysis.params.label.label(~isnan(analysis.params.label.label))));
-end
 
 switch MODEFL
     case 'classification'
@@ -333,26 +292,11 @@ switch MODEFL
         OOCVres.predictions = cell(MULTILABEL.dim,1);
 end
 
-if isfield(inp1.OO,'groups') && size(inp1.OO.groups,1)==numel(inp1.OO.cases)
-    if size(inp1.OO.groups,2)>1 && islogical(inp1.OO.groups)
-        [~,inp1.groupind] = max(inp1.OO.groups,[],2);
-    else
-        inp1.groupind = inp1.OO.groups;
+if isfield(inp1.OO,'groups') && numel(inp1.OO.groups)==numel(inp1.OO.cases)
+    inp1.groupind = inp1.OO.groups;
+    if isfield(inp1.OO,'groupnames')
+        inp1.groupnames = inp1.OO.groupnames;
     end
-    inp1.groupvec = unique(inp1.groupind);
-    inp1.nsubgroups  = numel(unique(inp1.groupind));
-    if isfield(inp1.OO,'grpnames') && numel(inp1.OO.grpnames) == inp1.nsubgroups
-        inp1.groupnames = inp1.OO.grpnames;
-    else
-        inp1.groupnames = cellstr([repmat('Group #',inp1.nsubgroups,1) num2str((1:inp1.nsubgroups)')]);
-    end
-    if isfield(inp1.OO,'refgroup') && any(inp1.groupind == inp1.OO.refgroup)
-        inp1.refgroup= inp1.OO.refgroup;
-        inp1.nsubgroups = inp1.nsubgroups-1;
-        inp1.groupvec(inp1.OO.refgroup) = [];
-    end
-else
-    inp1.nsubgroups=1;
 end
 if isfield(inp1,'targdir') 
     inp1.rootdir = fullfile(inp1.targdir, inp1.oocvname);
@@ -361,7 +305,7 @@ elseif isfield(analysis,'rootdir') && exist(analysis.rootdir,'dir')
 else
     inp1.rootdir = fullfile(pwd,analysis.params.TrainParam.SVM.prog, inp1.oocvname);
 end
-inp1.maindir = analysis.rootdir;
+
 if ~exist(inp1.rootdir,'dir'), mkdir(inp1.rootdir); end
 nl = nk_GetLabelDim(MULTILABEL);
 
@@ -369,7 +313,7 @@ nl = nk_GetLabelDim(MULTILABEL);
 for i = 1:inp1.nF
     
     % **************************** ANALYSIS SETUP *****************************
-    inp2 = nk_DefineFusionModeParams(dat, analysis, F, nF, i, inp1.oocvind);
+    inp2 = nk_SetFusionMode2(dat, analysis, F, nF, i, inp1.oocvind);
     OOCV = tOOCV;
     inp = catstruct(inp1,inp2);
     inp.loadGD = true;
@@ -382,34 +326,31 @@ for i = 1:inp1.nF
 	        fprintf('\nLoading:\n%s',strOOCVfile);
 	        load(strOOCVfile)
         else
-	        if MULTILABEL.flag && MULTILABEL.dim>1 
-		        fprintf('\n\n');fprintf('====== Working on label #%g: %s ====== ',j, MULTILABEL.desc{MULTILABEL.sel});
+	        if MULTILABEL.flag && MULTILABEL.dim>1
+		        fprintf('\n\n');fprintf('====== Working on label #%g ====== ',j);
 		        inp.curlabel = j;
 	        else
 		        inp.curlabel = 1;
 	        end
-            if strcmp(MODEFL,'classification')
-                switch OOCV.groupmode
-                    case 1
-	                    inp.multiflag = 0;
-	                    [ijOOCV.BinResults, ijOOCV.FileNames, ijOOCV.RootPath] = nk_OOCV(inp);
-                    case 2
-	                    inp.multiflag = 1;
-	                    [ijOOCV.MultiResults, ijOOCV.FileNames, ijOOCV.RootPath] = nk_OOCV(inp);
-                    case 3
-	                    inp.multiflag = 0;
-	                    [ijOOCV.BinResults, ijOOCV.FileNames, ijOOCV.RootPath] = nk_OOCV(inp);inp.nsubgroups
-	                    inp.multiflag = 1;
-	                    [ijOOCV.MultiResults, ijOOCV.FileNames, ijOOCV.RootPath] = nk_OOCV(inp);
-                end
+	        if strcmp(MODEFL,'classification')
+		        switch OOCV.groupmode
+			        case 1
+				        inp.multiflag = 0;
+				        [ijOOCV.BinResults, ijOOCV.FileNames, ijOOCV.RootPath] = nk_OOCV(inp);
+			        case 2
+				        inp.multiflag = 1;
+				        [ijOOCV.MultiResults, ijOOCV.FileNames, ijOOCV.RootPath] = nk_OOCV(inp);
+			        case 3
+				        inp.multiflag = 0;
+				        [ijOOCV.BinResults, ijOOCV.FileNames, ijOOCV.RootPath] = nk_OOCV(inp);
+				        inp.multiflag = 1;
+				        [ijOOCV.MultiResults, ijOOCV.FileNames, ijOOCV.RootPath] = nk_OOCV(inp);
+		        end
             else
                 inp.multiflag = 0;
-                [ijOOCV.RegrResults, ijOOCV.FileNames, ijOOCV.RootPath] = nk_OOCV(inp);
-            end
+		        [ijOOCV.RegrResults, ijOOCV.FileNames, ijOOCV.RootPath] = nk_OOCV(inp);
+	        end
 	        fprintf('\nSaving:\n%s',strOOCVfile);
-            OOCV.descriptor = inp.desc_oocv;
-            OOCV.index = inp.oocvind;
-            OOCV.analysis_id = inp.analysis_id;
 	        save(strOOCVfile,'ijOOCV', 'OOCV');	
         end
         

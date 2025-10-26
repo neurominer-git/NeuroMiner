@@ -1,57 +1,20 @@
 function [ sY, Y, IN ] = nk_CorrectPredTails( Y, X, IN )
-%   [sY, Y, IN] = nk_CorrectPredTails(Y, X, IN) corrects for systematic prediction
-%   errors, which tend to be larger at the tails of the label distribution.
-%   The function computes a linear correction based on the relationship between
-%   labels and prediction errors from a reference dataset and applies this
-%   correction to the predictions of a target sample.
-%
-%   INPUTS:
-%     Y   - Target sample predictions. When Y is empty, the function
-%           operates in a Leave-One-Out (LOO) mode on the reference dataset.
-%
-%     X   - Label data for Y, if Y is provided.
-%
-%     IN  - A structure that must include the following fields:
-%             .TrPred : Reference sample predictions 
-%                        (e.g., NM.analysis{1}.GDdims{1}.Regr.mean_predictions)
-%             .TrObs  : True labels for the reference sample 
-%                        (e.g., NM.label)
-%
-%           It can optionally include:
-%             .beta   : Pre-computed correction slopes. If absent, they are computed.
-%             .p      : Additional parameters associated with the correction.
-%
-%   OUTPUTS:
-%     sY  - Corrected predictions for the target sample.
-%
-%     Y   - The original target predictions (or the reference predictions 
-%           in LOO mode, if Y was originally empty).
-%
-%     IN  - The updated structure with the computed correction parameters:
-%             .beta and .p.
-%
-%   OPERATION MODES:
-%     1. Leave-One-Out (LOO) Mode:
-%          When Y is empty, the function iterates through the reference sample,
-%          excluding one sample at a time, computes correction parameters (slope and
-%          intercept) for that sample using the remaining data, and then applies the
-%          correction to obtain a corrected prediction.
-%
-%     2. Reference Modeling Mode:
-%          When Y is provided, the function computes the correction parameters once
-%          from the entire reference set (IN.TrPred and IN.TrObs) and applies them to Y.
-%
-%   EXAMPLE USAGE:
-%     % Define the reference sample predictions and observations:
-%     IN.TrPred = NM.analysis{1}.GDdims{1}.Regr.mean_predictions;
-%     IN.TrObs  = NM.label;
-%
-%     % Define the target sample predictions:
-%     Y = NM.analysis{1}.OOCV{1}.RegrResults{1}.Group{1}.MeanCV2PredictedValues;
-%
-%     % Apply the correction:
-%     [sY, Y, IN] = nk_CorrectPredTails(Y, [], IN);
 % =========================================================================
+% function [ sY, Y, IN ] = nk_CorrectPredTails( Y, IN )
+% =========================================================================
+% Regression models usually produce higher prediction errors at the tails
+% of the label distribution. This functon corrects for this effect by
+% (1) computing the slope between labels and prediction errors using a
+% reference dataset and (2) applying the correction parameters to the
+% predictions of a target sample.
+%
+% IN could be defined as follows, e.g.:
+% IN.TrPred = NM.analysis{1}.GDdims{1}.Regr.mean_predictions
+% IN.TrObs = NM.label;
+%
+% Y could be :
+% NM.analysis{1}.OOCV{1}.RegrResults{1}.Group{1}.MeanCV2PredictedValues
+% _________________________________________________________________________
 % (c) Nikolaos Koutsouleris, 02/2021
 
 flag = false;

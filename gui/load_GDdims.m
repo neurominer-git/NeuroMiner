@@ -38,7 +38,7 @@ if isfield(GDdims,'BinClass') || isfield(GDdims,'MultiClass')
     
     handles.modeflag                            = 'classification';
     handles.nclass                              = numel(GDdims.BinClass);
-    if isfield(handles,'BinClass'), handles = rmfield(handles,'BinClass'); end
+    
     for j=1:handles.nclass
         handles.BinClass{j}.description         = Params.class{1,1}{j}.groupdesc; %NM.cv.class
         handles.BinClass{j}.groupind            = Params.class{1,1}{j}.groups;
@@ -177,7 +177,6 @@ if isfield(GDdims,'BinClass') || isfield(GDdims,'MultiClass')
     end    
     % Add multi-class data to handles
     if isfield(GDdims,'MultiClass')
-        if isfield(handles,'MultiClass'), handles = rmfield(handles,'MultiClass'); end
         handles.ngroups                             = numel(handles.NM.groupnames);
         handles.MultiClass                          = GDdims.(fld);
         indn                                        = ~isnan(GDdims.(fld).multi_probabilitiesCV2(:,1,handles.curlabel)) & I;
@@ -188,21 +187,13 @@ if isfield(GDdims,'BinClass') || isfield(GDdims,'MultiClass')
         handles.MultiClass.probabilities            = GDdims.(fld).multi_probabilitiesCV2(indn , :, handles.curlabel);
         handles.MultiClass.onevsall_labels          = zeros(numel(indn),handles.ngroups);
         handles.MultiClass.onevsall_scores          = zeros(numel(indn),handles.ngroups);
-
-        % Initialize
-        N = size(handles.MultiClass.labels ,1); K = handles.ngroups;
-        onevsall_labels = -ones(N, K);   % -1 for "rest", +1 for "class j"
-        onevsall_scores = nan(N, K);     % probability for class j
-    
-        % If your class indices align with columns 1..K, this is straightforward:
-        for j = 1:K
-            onevsall_labels(:, j) = 2*(handles.MultiClass.labels == j) - 1;   % +1 if label==j, else -1
-            onevsall_scores(:, j) = handles.MultiClass.probabilities(:, j);               % OvR probability = p_j
+        for j = 1:handles.ngroups
+            ind = true(1,handles.ngroups); ind(j) = false;
+            probrest = nanmean(handles.MultiClass.probabilities(:,ind),2);
+            %probone  = handles.MultiClass.probabilities(:,j);
+            handles.MultiClass.onevsall_labels(:,j) = handles.MultiClass.labels == j;     
+            handles.MultiClass.onevsall_scores(:,j) = 1-probrest;
         end
-
-        handles.MultiClass.onevsall_labels = onevsall_labels;     
-        handles.MultiClass.onevsall_scores = onevsall_scores;
-        
         handles.MultiClass.onevsall_labels(handles.MultiClass.onevsall_labels == 0) = -1;
         for j = 1:handles.ngroups
             [handles.MultiClass.X{j}, ...
@@ -256,35 +247,24 @@ if isfield(GDdims,'BinClass') || isfield(GDdims,'MultiClass')
         handles.MultiClass.tbl_cont.rownames   = fieldnames(handles.MultiClass.class{1});
         handles.MultiClass.tbl_cont.colnames   = {'Metric'};
         handles.MultiClass.tbl_cont.array      = [];
-       
+        remind = find(  strcmp('FPRvec',handles.MultiClass.tbl_cont.rownames) | ...
+                        strcmp('TPRvec',handles.MultiClass.tbl_cont.rownames) | ...
+                        strcmp('X',handles.MultiClass.tbl_cont.rownames));
         for j = 1:handles.ngroups
-            fldnm =  fieldnames(handles.MultiClass.class{j});
-            remind = find(  strcmp('FPRvec',fldnm) | ...
-                        strcmp('TPRvec',fldnm) | ...
-                        strcmp('X',fldnm));
             handles.MultiClass.tbl_cont.colnames{j+1} = sprintf('%s vs REST',handles.NM.groupnames{j});
-            arr = struct2cell( handles.MultiClass.class{j });
+            arr = struct2cell( handles.MultiClass.class{j});
             arr(remind)=[];
             handles.MultiClass.tbl_cont.array = [handles.MultiClass.tbl_cont.array arr];
         end
         handles.MultiClass.tbl_cont.array = cell2mat(handles.MultiClass.tbl_cont.array);
         handles.MultiClass.tbl_cont.rownames(remind) = [];
     end
-    
-elseif isfield(GDdims,'Regr') % Regression Model
-    curlabel= handles.curlabel;
-    if size(Label,2)>1
-        if ~isfield(handles.NM.analysis{handles.curranal}.params.TrainParam,'MULTILABEL')
-            curlabel = 1:size(Label,2);
-        elseif isfield(handles.NM.analysis{handles.curranal}.params.TrainParam.MULTILABEL,'sel')
-            curlabel = handles.NM.analysis{handles.curranal}.params.TrainParam.MULTILABEL.sel;
-        end
-    end
-    handles.labels                                  = Label(I,curlabel);
+elseif isfield(GDdims,'Regr') % Regression Model 
+    handles.labels                                  = Label(I,handles.curlabel);
     handles.modeflag                                = 'regression';
     handles.nclass                                  = 1;
     handles.Regr                                    = GDdims.Regr;
-    handles.Regr.labels                             = Label(I,curlabel);
+    handles.Regr.labels                             = Label(I,handles.curlabel);
     handles.Regr.cases                              = handles.subjects(I);
     handles.Regr.index_predictions                  = GDdims.Regr.index_predictions(I,handles.curlabel);
     handles.Regr.mean_predictions                   = GDdims.Regr.mean_predictions(I,handles.curlabel);

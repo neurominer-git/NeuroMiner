@@ -26,7 +26,7 @@ function [optparam, optind, optfound, optmodel] = ...
 %  optmodel      :   Optimized model
 %==========================================================================
 %(c) Nikolaos Koutsouleris, 11/2020
-global VERBOSE TRAINFUNC 
+global VERBOSE BATCH TRAINFUNC 
 
 r = rfe_algo_settings_multi(Y, mY, label, labelB, labelM, Ynew, labelnew, labelnewM, Ps, FullFeat, FullParam, ngroups, ActStr);
 nclass=numel(Y);

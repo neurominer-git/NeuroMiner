@@ -1,13 +1,13 @@
 function [GridSelectorResults, ipos] = ...
     nk_GridOptimumSelector(TR, TS, C, MD, FEAT, Weights, CV2Pred, CV1Pred, P, Pdesc, combcell, act, perc)
 
-global SAV DEBUG
+global SAV 
 
 if ~exist('perc','var'), perc = []; end
 
 %%%%%%%%%%%%%%%%%%%%%%%% MAX SELECTION %%%%%%%%%%%%%%%%%%%%%%%%%%
 C(isnan(C)) = 0;
-[ipos, ind0] = nk_FindGridOpt(TR, TS, C, act, perc);
+[ipos, ind0] = nk_FindGridOpt2(TR, TS, C, act, perc);
 nipos = numel(ipos); 
 %%%%%%%%%%%%%%%%%%% SELECT PARAMS AT OPTIMUM %%%%%%%%%%%%%%%%%%%%
 if iscell(P) 
@@ -17,26 +17,16 @@ if iscell(P)
            GridSelectorResults.bestP{curclass}= P{curclass}(ipos,:);
         end
     else
-       if iscell(P{1})
-           for curclass=1:numel(P)
-               try
-                GridSelectorResults.bestP{curclass}= P{curclass}(ipos,:);
-               catch
-                   fprintf('problem')
-               end
-           end
-       else
         GridSelectorResults.bestP = P(ipos,:);
-       end
     end
 else
     GridSelectorResults.bestP = P(ipos,:);
 end
 
 nP = 1;
-if iscell(P) && ~combcell
+if iscell(P) && ~combcell, 
     nP = sP(2); 
-elseif ~iscell(P) && (isscalar(P) && isnan(P))
+elseif ~iscell(P) && (numel(P)==1 && isnan(P))
     P = repmat({nan},nP,1); Pdesc = P;
 end
 
@@ -81,10 +71,11 @@ for curclass=1:nP
     end
  end
 
+
 GridSelectorResults.Npos = ipos;
 GridSelectorResults.SelNodes = ind0;
 
-if SAV.savemodel || (~isempty(DEBUG) && isfield(DEBUG,'optmodel') && DEBUG.optmodel), GridSelectorResults.bestmodel = MD(ipos); end
+if SAV.savemodel, GridSelectorResults.bestmodel = MD(ipos); end
 GridSelectorResults.bestfeats  = FEAT(ipos);
 GridSelectorResults.bestweights = Weights(ipos);
 GridSelectorResults.bestacc = TR(ipos);
@@ -97,7 +88,7 @@ fprintf('\nMean CV1 performance: %1.2f, Mean CV2 performance: %g across %g nodes
     mean(GridSelectorResults.bestacc), mean(GridSelectorResults.besttestparam), ...
     numel(GridSelectorResults.Npos))
 
-if ~isempty(C)
+if ~isempty(C),
     GridSelectorResults.bestcomplexity = C(ipos);
 end
 GridSelectorResults.Nodes = length(ipos);

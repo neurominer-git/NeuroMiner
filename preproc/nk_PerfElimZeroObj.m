@@ -30,7 +30,7 @@ if eIN || ~isfield(IN,'NonPruneVec') || isempty(IN.NonPruneVec)
     if ~isfield(IN,'nan'),  IN.nan = 1;  end
     if ~isfield(IN,'perc'), IN.perc = []; end
     % Identify zero-variance columns
-    if IN.zero == 1,  indNullVar = std(Y)==0; else, indNullVar = false(1,size(Y,2));end
+    if IN.zero == 1,  indNullVar = var(Y)==0; else, indNullVar = false(1,size(Y,2));end
     % Identify columns containing NaNs
     if IN.nan == 1,   indNan = any(isnan(Y)); else, indNan = false(1,size(Y,2)); end
     % Identify Inf columns
@@ -51,8 +51,9 @@ if eIN || ~isfield(IN,'NonPruneVec') || isempty(IN.NonPruneVec)
     end
     
 end
-% prune zero-variance graph edges 
-if isfield(SVM, 'kernel') && SVM.kernel.kerndef >=5
+    % prune zero-variance graph edges 
+if SVM.kernel.kerndef >=5
+    %if IN.zero == 1,   indGraphNullVar = var(Y)==0;    else, indGraphNullVar = false(1,size(Y,2));end
     Y(:,~(IN.NonPruneVec)) = 0;
 else
     Y = Y(:,IN.NonPruneVec);

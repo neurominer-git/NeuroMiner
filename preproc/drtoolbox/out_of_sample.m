@@ -34,7 +34,7 @@ function t_point = out_of_sample(point, mapping)
         
         % Linear mappings
         case {'PCA', 'LDA', 'LPP', 'NPE', 'LLTSA', 'SPCA', 'PPCA', 'FA', 'NCA', 'MCML', 'LMNN'}
-            t_point = round(bsxfun(@minus, point, mapping.mean) * mapping.M,9);
+            t_point = bsxfun(@minus, point, mapping.mean) * mapping.M;
             
         % Kernel PCA mapping
         case 'KernelPCA'

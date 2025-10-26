@@ -20,7 +20,7 @@ for q=1:nP
     
     for curclass=1:IN.nclass
 
-        if VERBOSE
+        if VERBOSE, 
             if nP>1
                 fprintf('\nAggregating feature masks for predictor #%g, threshold iteration: %g (T=%g)',curclass, q, Param.PFE.Perc(q)); 
             else
@@ -57,10 +57,11 @@ for q=1:nP
             for j=1:IN.nfolds  % loop through CV1 folds
 
                 if size(tkIndMat,2) > 1, kIndMat_ll = tkIndMat(:,ll); else, kIndMat_ll = tkIndMat; end
-                if ~any(kIndMat_ll)
+                if ~any(kIndMat_ll),
                     if nP==1 || q==nP
-                        warning('\nYour feature selection procedure returned an empty feature space. Use feature mask over entire CV1 data as replacement!'); 
-                        kIndMat_ll=sum(tkIndMat,2)>0;
+                        error(sprintf('\nYour feature selection procedure returned an empty feature space. Relax your selection parameters!')); 
+                    else 
+                        warning('\nYour feature selection procedure returned an empty feature space. Will check next threshold!'); 
                     end
                 end
                 if nc == 1 

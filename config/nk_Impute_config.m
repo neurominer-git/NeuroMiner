@@ -1,6 +1,6 @@
 function [ IMPUTE, act ] = nk_Impute_config(NM, IMPUTE, varind, parentstr, defaultsfl)
 
-IMPUTEDEF_K = 7; IMPUTEDEF_METH = 'SeqkNN' ; IMPUTEDEF_BLOCK = [];
+IMPUTEDEF_K = 7; IMPUTEDEF_METH = 'euclidean' ; IMPUTEDEF_BLOCK = [];
 if ~exist('varind','var') || isempty(varind), varind=1; end
 IMPUTEDEF_HYBMETH1 = 'jaccard'; 
 IMPUTEDEF_HYBMETH2 = 'euclidean';
@@ -13,7 +13,7 @@ if ~defaultsfl
     if isfield(IMPUTE,'method'),    IMPUTEDEF_METH = IMPUTE.method;     end
     if isfield(IMPUTE,'blockind'),  IMPUTEDEF_BLOCK = IMPUTE.blockind; 	end
     if isfield(IMPUTE,'k'),         IMPUTEDEF_K = IMPUTE.k;             end
-    if isfield(IMPUTE,'hybrid')    
+    if isfield(IMPUTE,'hybrid'),    
         IMPUTEDEF_HYBMETH1 = IMPUTE.hybrid.method1;
         IMPUTEDEF_HYBMETH2 = IMPUTE.hybrid.method2;
         IMPUTEDEF_HYBTHRESH = IMPUTE.hybrid.cutoff;
@@ -33,7 +33,7 @@ if ~defaultsfl
     menuact = [ menuact 2 ];
     
     switch IMPUTEDEF_METH2
-         case {2,3,4,5,6,7,8,9} 
+         case {2,3,4,5,6,7,8} 
             IMPUTESTR_K = sprintf('%g nearest neighbors',IMPUTEDEF_K); 
             menustr = [menustr '|Define # of nearest neighbors [ ' IMPUTESTR_K ' ]'];
             menuact = [menuact 3];
@@ -56,7 +56,6 @@ if ~defaultsfl
         case 2
             allfeats = nk_input('Use all available features or define feature subspace',0,'m','All features|Subspace',[0,1], IMPUTEDEF_ALL);
             if allfeats
-                % this needs to be adapted to the early fusion setting
                 if isfield(NM,'featnames') && ~isempty(NM.featnames{varind})
                     F = NM.featnames{varind};
                     fprintf('\n'); fprintf('Feature list');
@@ -65,7 +64,7 @@ if ~defaultsfl
                         fprintf('\n'); fprintf(' [%4g]',i); fprintf('\t%s',F{i});
                     end   
                 end
-                blockind = nk_input('Define logical index of features to be imputed ',0,'e',[]);
+                blockind = nk_input('Define logical index of features to be imputed ',0,'e',[],size(NM.Y{varind},2));
                 if ~islogical(blockind), blockind = logical(blockind); end
                 IMPUTEDEF_BLOCK = false(1,size(NM.Y{varind},2));
                 IMPUTEDEF_BLOCK(blockind) = true;
@@ -112,10 +111,6 @@ switch IMPUTEDEF_METH
         IMPUTESTR_METH = sprintf('kNN imputation (JACCARD: nominal positive only)'); IMPUTEDEF_METH2 = 7;
     case 'hybrid'
         IMPUTESTR_METH = sprintf('kNN imputation (HYBRID: Adaptive to nominal vs. ordinal/continuous features'); IMPUTEDEF_METH2 = 8;
-    case 'SeqkNN'
-        IMPUTESTR_METH = sprintf('Sequential kNN imputation (EUCLIDEAN; significantly faster than other kNN methods)'); IMPUTEDEF_METH2 = 9;
-    case 'downshift'
-        IMPUTESTR_METH = sprintf('Downshifted Gaussian imputation (for left-censored data)'); IMPUTEDEF_METH2 = 10;
 end
 
 function IMPUTEDEF_METH = return_methdef(TYPE, IMPUTEDEF_METH2)
@@ -130,10 +125,9 @@ switch TYPE
     
     case 1 % Coninuous data
         IMPUTEDEF_METHMENU = ['MANHATTAN distance-based nearest-neighbor search (Scale / Standardize first!)|', ...
-                 'EUCLIDEAN distance-based nearest-neighbor search (Scale / Standardize first!)', ...
-                 '|Sequential kNN-based imputation method (EUCLIDEAN)'];
+                 'EUCLIDEAN distance-based nearest-neighbor search (Scale / Standardize first!)'];
         if ~isempty(which('pdist2'))
-            IMPUTEDEF_METHMENUSEL = {'cityblock', 'euclidean','SeqkNN'};
+            IMPUTEDEF_METHMENUSEL = {'cityblock', 'euclidean'};
             IMPUTEDEF_METHMENU = [IMPUTEDEF_METHMENU ...
                                   '|SEUCLIDEAN distance-based nearest-neighbor search', ...
                                   '|COSINE similarity-based nearest-neighbor search'];
@@ -143,21 +137,18 @@ switch TYPE
         end
     case 2 % All
         IMPUTEDEF_METHMENU = ['Median of non-NaN values in given case|', ...
-             'Mean of non-NaN values in given feature|', ...
-             'MANHATTAN distance-based nearest-neighbor search (Scale / Standardize first!)|', ...
-             'EUCLIDEAN distance-based nearest-neighbor search (Scale / Standardize first!)', ...
-             '|Sequential kNN-based imputation method (EUCLIDEAN)', ...
-             '|Downshifted Gaussian imputation (for left-censored data)'];
-        IMPUTEDEF_METHMENUSEL = {'singlemean', 'mean', 'cityblock', 'euclidean', 'SeqkNN', 'downshift'};
+                 'Mean of non-NaN values in given feature|', ...
+                 'MANHATTAN distance-based nearest-neighbor search (Scale / Standardize first!)|', ...
+                 'EUCLIDEAN distance-based nearest-neighbor search (Scale / Standardize first!)'];
+        IMPUTEDEF_METHMENUSEL = {'singlemean', 'mean', 'cityblock', 'euclidean'};
         if  ~isempty(which('pdist2'))
             IMPUTEDEF_METHMENU = [IMPUTEDEF_METHMENU ...
                                   '|SEUCLIDEAN distance-based nearest-neighbor search', ...
                                   '|COSINE similarity-based nearest-neighbor search', ...
                                   '|HAMMING distance-based nearest-neighbor search', ...
                                   '|JACCARD distance-based nearest-neighbor search', ...
-                                  '|Downshifted Gaussian imputation (for left-censored data)|', ...
                                   '|Nearest-neighbor imputation using hybrid method'];
-            IMPUTEDEF_METHMENUSEL = [IMPUTEDEF_METHMENUSEL  {'seuclidean', 'cosine', 'hamming', 'jaccard', 'downshift', 'hybrid'}];
+            IMPUTEDEF_METHMENUSEL = [IMPUTEDEF_METHMENUSEL  {'seuclidean', 'cosine', 'hamming', 'jaccard', 'hybrid'}];
         else
              error('Statistics toolbox not available!')
         end

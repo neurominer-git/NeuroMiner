@@ -1,6 +1,6 @@
 function [PerfPermFoldCV, PerfPermFoldTS, models] = nk_CVPermFold(Y, nclass, ngroups, Ps, FilterSubSets, batchflag)
 % =========================================================================
-% [PerfPermFoldCV, PerfPermFoldTS, models] = nk_CVPermFold2(Y, ...
+% FORMAT [PerfPermFoldCV, PerfPermFoldTS, models] = nk_CVPermFold2(Y, ...
 %                                               nclass, ...
 %                                               Ps, FilterSubSets,
 %                                               batchflag
@@ -12,9 +12,9 @@ function [PerfPermFoldCV, PerfPermFoldTS, models] = nk_CVPermFold(Y, nclass, ngr
 % INPUT:
 % --------
 % Y             = data in CV2 partition, consisting of ...:
-%                 • Y.Tr = CV1 training data (training data) 
-%                 • Y.CV = CV1 cross-validation data (optimization data)
-%                 • Y.Ts = CV2 cross-validation data (validation data)
+%                 * Y.Tr = CV1 training data (training data) 
+%                 * Y.CV = CV1 cross-validation data (optimization data)
+%                 * Y.Ts = CV2 cross-validation data (validation data)
 % nclass        = no. of binary dichotimizers
 % Ps            = parameters for training the prediction algorithm
 % FilterSubSets = Filtered features subsets
@@ -28,38 +28,40 @@ function [PerfPermFoldCV, PerfPermFoldTS, models] = nk_CVPermFold(Y, nclass, ngr
 %                     validation sample (outer CV loop = CV2)
 % models            = models returned by the optimization procedure of
 %                     OptimCore
-%
-% Subfunctions: nk_TrainPermFold, nk_PredictData
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris 10/2025
+% (c) Nikolaos Koutsouleris 12/2018
 
-global RFE MULTILABEL BATCH
+global RFE MULTILABEL BATCH CV
 
-if ( ~exist('batchflag','var') || isempty(batchflag)) || isempty(BATCH), batchflag = false; BATCH = false; end
+if ( ~exist('batchflag','var') || isempty(batchflag)) || isempty(BATCH), batchflag = false; BATCH = false; end;
 
 curlabel = MULTILABEL.curdim;
 
-%% Step 1: Train classifier(s) in current outer partition
-tPerfPermFoldCV = nk_TrainPermFold(Y, nclass, ngroups, Ps, FilterSubSets{curlabel}, batchflag);
+% Step 1: Train classifier(s) in current outer partition
+tPerfPermFoldCV = nk_TrainPermFold2(Y, nclass, ngroups, Ps, FilterSubSets{curlabel}, batchflag);
 
 weights = []; detrendmd = [];
 
-%% Step 2: Get the trained models
+% Step 2: Get the trained models
 if RFE.Wrapper.flag
+
     % Some wrapper algorithm was applied for feature extraction
     models  = tPerfPermFoldCV.Wrapper.Models;
     feats   = tPerfPermFoldCV.Wrapper.SubSpaces;
-    if RFE.Wrapper.SubSpaceFlag
+    if RFE.Wrapper.SubSpaceFlag,
         weights = tPerfPermFoldCV.Wrapper.Weights;
     end
+
     if isfield(tPerfPermFoldCV.Wrapper,'detrend')
         detrendmd = tPerfPermFoldCV.Wrapper.detrend;
     end
-else
+
+else%if RFE.Filter.flag
+
     % Ok, only filtering was applied 
     models  = tPerfPermFoldCV.Filter.Models;
     feats   = tPerfPermFoldCV.Filter.SubSpaces;
-    if RFE.Filter.SubSpaceFlag
+    if RFE.Filter.SubSpaceFlag,
         weights = tPerfPermFoldCV.Filter.Weights;
     end
     if isfield(tPerfPermFoldCV.Filter,'detrend')
@@ -67,10 +69,13 @@ else
     end
 end
 
-%% Step 3: Now apply the trained model(s) to the CV2 test data
-if ~isfield(Y,'mTsL'), mTsL = []; else, mTsL = Y.mTsL; end
+% Step 3: Now apply the trained model(s) to the CV2 test data
+if ~isfield(Y,'mTsL'), mTsL = []; else mTsL = Y.mTsL; end
 
-tPerfPermFoldTS = nk_PredictData(feats, weights, Y.Tr, Y.TrInd, Y.CV, Y.CVInd, Y.Ts, Y.TsInd, Y.TsL, [], mTsL, models, ngroups, detrendmd);
+tPerfPermFoldTS = nk_PredictData(feats, weights, Y.Tr, Y.TrInd, Y.TrL, ...
+                                                Y.CV, Y.CVInd, Y.CVL, ...
+                                                Y.Ts, Y.TsInd, Y.TsL, ...
+                                                [], mTsL, models, ngroups, detrendmd);
 
 if MULTILABEL.dim>1
    PerfPermFoldCV{curlabel} = tPerfPermFoldCV; 
@@ -85,3 +90,7 @@ else
         PerfPermFoldCV.detrend = detrendmd;
    end
 end
+
+
+
+

@@ -4,14 +4,14 @@ function [dims, indvol, Y, vox] = nk_ReadMaskIndVol(Vm, Vp, label, labelop)
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 indvol=[];
-if ~exist('Vm','var') || isempty(Vm)
+if ~exist('Vm','var'),
     Pm = spm_select(1,'image','Space-defining image');
     Vm = spm_vol(Pm);
 elseif exist('Vm','var') &&  ~isstruct(Vm) && exist(Vm,'file')
     Vm = spm_vol(Vm);
 end
 
-if ~exist('Vp','var') || isempty(Vp)
+if ~exist('Vp','var'),
     Pp = spm_select(1,'image','Image to read');
     Vp = spm_vol(Pp);
 elseif exist('Vp','var') && ~isstruct(Vp) && exist(Vp,'file')

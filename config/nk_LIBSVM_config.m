@@ -1,14 +1,13 @@
-function [act,param] = nk_LIBSVM_config(res, param, defaultsfl, cvfl, parentstr, modeflag)
+function param = nk_LIBSVM_config(res, param, defaultsfl, cvfl, parentstr)
 
 if ~exist('defaultsfl','var') || isempty(defaultsfl), defaultsfl=0; end
 if ~exist('cvfl','var') || isempty(cvfl), cvfl = 0; end
 if ~exist('param','var') || ~isfield(param,'LIBSVM'), param.LIBSVM = []; end
-if ~exist('modeflag', 'var') || isempty(modeflag), modeflag = res.modeflag; end
 
 % DEFAULTS 
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 % LIBSVM version
-if isfield(param.LIBSVM,'LIBSVMver') 
+if isfield(param.LIBSVM,'LIBSVMver') , 
     LIBSVMver = param.LIBSVM.LIBSVMver;     
 else
     LIBSVMver = 0;
@@ -29,10 +28,10 @@ switch LIBSVMver
 end
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 % Classifier / Regressor type
-if isfield(param.LIBSVM,'classifier') && isnumeric(param.LIBSVM.classifier)
+if isfield(param.LIBSVM,'classifier') && isnumeric(param.LIBSVM.classifier),
     classifier = param.LIBSVM.classifier;
 else
-    switch modeflag
+    switch res.modeflag
         case 'classification'
             classifier = 0; 
         case 'regression'
@@ -159,7 +158,7 @@ pstr = sprintf('%g',p);
 % INTERACTIVE LIBSVM MENU CONFIGURATION
 if ~defaultsfl
     
-    switch modeflag
+    switch res.modeflag
         case 'classification'
             switch classifier 
                 case 3
@@ -200,7 +199,10 @@ if ~defaultsfl
         case 1
             
            LIBSVMver = nk_input('LIBSVM version to use',0,'m',...
-               'LIBSVM 3.12 (supports data instance weighting)|LIBSVM 2.9.1', [0 1], LIBSVMver);
+               ['LIBSVM 3.12 (supports data instance weighting)|' ...
+               'LIBSVM 2.9.1|' ...
+               'LIBSVM 2.89|' ...
+               'LIBSVM 2.89 PLUS (only for classification)'], 0:3, LIBSVMver);
            switch LIBSVMver
                case {2,3}
                     quiet = ' -q 1';
@@ -209,34 +211,23 @@ if ~defaultsfl
             end
                     
         case 2
-            switch modeflag
+            switch res.modeflag
                 case 'classification'
                     switch LIBSVMver
                         case 3
-                            % menuclact = ['C-SVC (L1-regul.)|' ...
-                            %             'C-SVC (L2-regul.)|' ...
-                            %             'nu-SVC|' ...
-                            %             'one-class SVC|' ...
-                            %             'SVDD (L1-regul.)|' ...
-                            %             'SVDD (L2-regul.)|' ];
-                            % menuclsel = [0, 1, 2, 3, 6, 7];
-                            % Deactivated one-class methods for NM 1.3
-                            % Release
                             menuclact = ['C-SVC (L1-regul.)|' ...
                                         'C-SVC (L2-regul.)|' ...
-                                        'nu-SVC'];
-                            menuclsel = [0, 1, 2];
+                                        'nu-SVC|' ...
+                                        'one-class SVC|' ...
+                                        'SVDD (L1-regul.)|' ...
+                                        'SVDD (L2-regul.)|' ];
+                            menuclsel = [0, 1, 2, 3, 6, 7];
                             cldef = find(menuclsel == classifier);
                         case {0,1,2}
                             menuclact = ['C-SVC (L1-regul.)|' ...
                                          'nu-SVC|' ...
                                          'one-class SVM'];
                             menuclsel = [0, 1, 2];
-                            % Deactivated one-class methods for NM 1.3
-                            % Release
-                            % menuclact = ['C-SVC (L1-regul.)|' ...
-                            %               'nu-SVC'];
-                            % menuclsel = [0, 1];
                             cldef = find(menuclsel == classifier);
                     end   
                 case 'regression'
@@ -246,7 +237,7 @@ if ~defaultsfl
                     cldef = find(menuclsel == classifier);     
             end
             classifier = nk_input('Classifier type to use',0,'m', menuclact, menuclsel, cldef);
-            if ~cvfl && strcmp(modeflag,'regression')
+            if ~cvfl && strcmp(res.modeflag,'regression')
                 switch classifier
                     case 3
                         p = .1;
@@ -290,4 +281,6 @@ param.LIBSVM.Optimization.nu = nu;
 param.LIBSVM.Optimization.p = p;
 param.LIBSVM.Weighting = weighting;
 param.LIBSVM.quiet = quiet;
+
+if act, param = nk_LIBSVM_config(res, param, [], [], parentstr); end
 
