@@ -1,0 +1,47 @@
+function [net_benefit, true_labels, predicted_probs] = nk_PerfDCA(true_labels, predicted_probs, threshold_values)
+
+% true_labels: True class labels (0 or 1)
+% predicted_probs: Predicted probabilities from the classifier
+% threshold_values: Probability thresholds to evaluate
+
+if any(predicted_probs<0) 
+     [predicted_probs, true_labels] = probtransform(true_labels, predicted_probs, [], 'platt');
+end
+
+num_thresholds = numel(threshold_values);
+num_cases = numel(true_labels);
+
+% Initialize variables to store results
+net_benefit = zeros(num_thresholds, 1);
+ta = net_benefit;
+prevalence = sum(true_labels==1)/num_cases;
+
+% Loop through each threshold value
+for i = 1:num_thresholds
+    threshold = threshold_values(i);
+    
+    % Convert probabilities to binary predictions based on the threshold
+    predicted_labels = double(predicted_probs >= threshold);
+
+    % Calculate True Positives, False Positives, True Negatives, False Negatives
+    TP = sum(predicted_labels == 1 & true_labels == 1);
+    FP = sum(predicted_labels == 1 & true_labels == 0);
+    %TN = sum(predicted_labels == 0 & true_labels == 0);
+    %FN = sum(predicted_labels == 0 & true_labels == 1);
+
+    % Calculate net benefit for the current threshold
+    %net_benefit(i) = (TP / num_cases) - (FP / (num_cases - TP));
+    net_benefit(i) = ( TP / num_cases ) - ( threshold / (1-threshold) ) * ( FP / num_cases ) ;
+    ta(i) = prevalence  - ( threshold / (1-threshold) ) * ( 1 - prevalence) ;
+end
+
+% Plot the decision curve
+figure;
+plot(threshold_values, net_benefit, 'b', 'LineWidth', 2); hold on
+plot(threshold_values, ta, 'r', 'LineWidth', 2); 
+plot(threshold_values,zeros(1,numel(threshold_values)),'k', 'LineWidth', 2);
+xlabel('Probability Threshold');
+ylabel('Net Benefit');
+title('Decision Curve Analysis');
+legend({'Predict according to model','Predict all','Predict none'});
+grid on;
