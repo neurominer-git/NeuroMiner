@@ -1,7 +1,0 @@
-# Basic statistics
-
-# Information-theoretic statistics
-.statistics.infotheory:
-  # Mutual information
-  mutual_info:
-    - estimator: gaussian

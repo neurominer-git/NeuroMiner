@@ -1,0 +1,800 @@
+
+
+<!DOCTYPE html>
+
+
+<html lang="en" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Result Viewer &#8212; NeuroMiner Manual</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+<link href="_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+
+  
+  <link href="_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=e353d410970836974a52" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" href="_static/styles/sphinx-book-theme.css?digest=14f4ca6b54d191a8c7657f6c759bf11a5fb86285" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-thebe.css" />
+    <link rel="stylesheet" type="text/css" href="_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=e353d410970836974a52" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52" />
+
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/clipboard.min.js"></script>
+    <script src="_static/copybutton.js"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?digest=5a5c038af52cf7bc1a1ec88eea08e6366ee68824"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="_static/design-tabs.js"></script>
+    <script async="async" src="https://www.googletagmanager.com/gtag/js?id=G-1F3TPH8HH8"></script>
+    <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){ dataLayer.push(arguments); }
+                gtag('js', new Date());
+                gtag('config', 'G-1F3TPH8HH8');
+            </script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"
+const thebe_selector = ".thebe,.cell"
+const thebe_selector_input = "pre"
+const thebe_selector_output = ".output, .cell_output"
+</script>
+    <script async="async" src="_static/sphinx-thebe.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '4.7_mainmenu_display_training_results';</script>
+    <link rel="canonical" href="https://neurominer-git.github.io/NeuroMiner/4.7_mainmenu_display_training_results.html" />
+    <link rel="shortcut icon" href="_static/nm_logo2.ico"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Visualization results" href="4.7.01_mainmenu_display_visualization_results.html" />
+    <link rel="prev" title="Interprete predictions" href="4.14_mainmenu_interprete_classifiers.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__primary"
+          id="__primary"/>
+  <label class="overlay overlay-primary" for="__primary"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__secondary"
+          id="__secondary"/>
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+  
+    <nav class="bd-header navbar navbar-expand-lg bd-navbar">
+    </nav>
+  
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+  
+
+<a class="navbar-brand logo" href="intro.html">
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="_static/nm_logo.png" class="logo__image only-light" alt="Logo image"/>
+    <script>document.write(`<img src="_static/nm_logo.png" class="logo__image only-dark" alt="Logo image"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item"><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="intro.html">
+                    NeuroMiner
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">News</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="5.00_1.4_release_notes.html">NeuroMiner 1.4 (10/2025) — Release notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="0.1_2025_MLSchool.html">Online Machine Learning School: For Precision Medicine 2025</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="1.0_introduction.html">Introduction</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="2.0_prerequisites.html">Suggested Prerequisites</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="3.0_gettingstarted.html">Installation &amp; Configuration</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="3.0.00_macos_users.html">Setting up NeuroMiner on macOS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3.0.01_python_matlab.html">Python integration in MATLAB</a></li>
+
+</ul>
+</li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">NeuroMiner interface</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="4.0_mainmenu.html">Main interface overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="4.1_mainmenu_input_data.html">Data entry in NeuroMiner</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="4.2_mainmenu_define_parameter_template.html">Define parameter template</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="4.2.00_paramtemp_data_fusion.html">Data Fusion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.01_paramtemp_cv_settings.html">Cross-validation settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.02_paramtemp_preprocessing_pipeline.html">Preprocessing pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.03_paramtemp_classification_algorithm.html">Classification algorithm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.04_paramtemp_learning_algorithm_parameters.html">Learning algorithm parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.05_paramtemp_ensemble_generation_strategies.html">Ensemble generation strategies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.06_paramtemp_visualization_options.html">Visualization Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.07_paramtemp_interpretation_options.html">Prediction interpretation options</a></li>
+
+<li class="toctree-l2"><a class="reference internal" href="4.2.08_paramtemp_model_saving_options.html">Model saving options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.09_paramtemp_define_verbosity_level.html">Define verbosity level</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.10_paramtemp_inspect_workspace.html">Inspect workspace</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.11_paramtemp_save_parameter_template.html">Save parameter template</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.12_paramtemp_load_training_template.html">Load training template</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.13_paramtemp_multigroup.html">Multi-group analyses</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.14_paramtemp_stacking.html">Stacking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.15_paramtemp_different_label.html">Use different label</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.16_paramtemp_synthetic_data.html">Synthetic data</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="4.3_mainmenu_initialize_delete_analyses.html">Initialize analyses</a></li>
+<li class="toctree-l1"><a class="reference internal" href="4.4_mainmenu_preprocess_features.html">Preprocess features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="4.5_mainmenu_train_supervised_classifiers.html">Train supervised classifiers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="4.6_mainmenu_visualize_classifiers.html">Visualize classifiers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="4.14_mainmenu_interprete_classifiers.html">Interprete predictions</a></li>
+<li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Result Viewer</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="4.7.01_mainmenu_display_visualization_results.html">Visualization results</a></li>
+
+
+
+
+
+<li class="toctree-l2"><a class="reference internal" href="4.7.02_mainmenu_display_interpretation_results.html">ML Interpreter (MLI) results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="4.8_mainmenu_OOCV_analysis.html">Out of Sample Cross-Validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="4.15_mainmenu_export_model.html">Export model parameters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="4.9_mainmenu_load_struct.html">Load NeuroMiner structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="4.10_mainmenu_save_struct.html">Save NeuroMiner structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="4.11_mainmenu_change_wd.html">Change working directory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="4.12_mainmenu_estimate_sample_size.html">Estimate sample size (simulation tool)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="4.13_mainmenu_utilities.html">Utilities</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Parallelization</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="5.01_NM_compilation.html">Parallelization on HPC server - NeuroMiner compilation</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="5.02_NM_tutorial.html">NeuroMiner tutorial</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</label></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/neurominer-git/NeuroMiner" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/neurominer-git/NeuroMiner/issues/new?title=Issue%20on%20page%20%2F4.7_mainmenu_display_training_results.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/4.7_mainmenu_display_training_results.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+<script>
+document.write(`
+  <button class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch" data-mode="light"><i class="fa-solid fa-sun"></i></span>
+    <span class="theme-switch" data-mode="dark"><i class="fa-solid fa-moon"></i></span>
+    <span class="theme-switch" data-mode="auto"><i class="fa-solid fa-circle-half-stroke"></i></span>
+  </button>
+`);
+</script>
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+  </button>
+`);
+</script>
+<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</label>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Result Viewer</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#accuracy-and-model-performance">Accuracy and model performance</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-comparisons">Model comparisons</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#classification-performance">Classification performance</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generalization-error">Generalization error</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-complexity">Model complexity</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ensemble-diversity">Ensemble diversity</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-selection-frequency">Model selection frequency</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multi-group-results">Multi-group results</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#scores-probabilities-calibration-nm-1-4">Scores –&gt; Probabilities &amp; Calibration (NM 1.4)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#calibration-methods">1. Calibration Methods</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#platt-scaling">Platt Scaling</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#isotonic-regression">Isotonic Regression</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#bayesian-binning-into-quantiles-bbq">Bayesian Binning into Quantiles (BBQ)</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#recompute-calibration">2. Recompute Calibration</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#offset-removal-oocv-only">3. Offset Removal (OOCV Only)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#automatic-behavior">Automatic Behavior</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#interpretation">Interpretation</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#decisioncurve-analysis">Decision‑Curve Analysis</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">Interpretation</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article" role="main">
+                  
+  <div class="tex2jax_ignore mathjax_ignore section" id="result-viewer">
+<span id="mainmenu-display-training-results"></span><h1>Result Viewer<a class="headerlink" href="#result-viewer" title="Permalink to this heading">#</a></h1>
+<p>Once initialization, preprocessing, and model training have been performed, the results can then be viewed using this option. The results display interface can be understood in three main divisions:</p>
+<ol class="arabic simple">
+<li><p>the accuracy and model performance (initial screen)</p></li>
+<li><p>the model performance across the selected hyperparameters</p></li>
+<li><p>results concerning the individual features in the analysis</p></li>
+</ol>
+<div class="section" id="accuracy-and-model-performance">
+<h2>Accuracy and model performance<a class="headerlink" href="#accuracy-and-model-performance" title="Permalink to this heading">#</a></h2>
+<p>See {numref}(fig:Display_ClassPlot): The performance of a model can be fundamentally described by the degree to which the predictions match the target scores (e.g., how many people are classified correctly or how closely the features and target are related in a regression). In NeuroMiner, this is represented in multiple ways that each address a different aspect of the relationship between subjects, predictions, and targets.</p>
+<div class="figure align-default" id="fig-display-classplot">
+<img alt="Neurominer result viewer, classification plot" src="_images/Display_ClassPlot.png" />
+<p class="caption"><span class="caption-number">Fig. 12 </span><span class="caption-text">Result viewer option 1: Classification plot</span><a class="headerlink" href="#fig-display-classplot" title="Permalink to this image">#</a></p>
+</div>
+</div>
+<div class="section" id="model-comparisons">
+<h2>Model comparisons<a class="headerlink" href="#model-comparisons" title="Permalink to this heading">#</a></h2>
+<p>The user can perform statistical or visual comparisons when there is more than one analysis:</p>
+<div class="figure align-default" id="fig-nm-resultviewer-comparsion-dropdown">
+<img alt="Neurominer result viewer, comparisons options" src="_images/NM_resultviewer_comparison_dropdown.png" />
+</div>
+<p>See {numref}(fig:NM_resultviewer_statistical_comparison): Statistical comparisons can be conducted between the model performances using a variety of statistics using the ”Statistical Comparisons” option. The results of these comparisons are output in either excel spreadsheet files (i.e., xlsx) or in text files (i.e., csv) for Linux and Mac. The menu is quite intuitive (i.e., as below) where you select the analyses you want to compare on the right, you press the ”Save As” button to choose a name, and then you select the ”Compare” button to generate the files. The files will be generated in your working directory.</p>
+<div class="figure align-default" id="fig-nm-resultviewer-statistical-comparsion">
+<img alt="Neurominer result viewer, statistical comparison" src="_images/NM_resultviewer_statistical_comparison.png" />
+<p class="caption"><span class="caption-number">Fig. 13 </span><span class="caption-text">Within the main results display, the user can go to the ”Comparisons” menu item and then select the option to calculate statistical differences between separate models</span><a class="headerlink" href="#fig-nm-resultviewer-statistical-comparsion" title="Permalink to this image">#</a></p>
+</div>
+<p>See <a class="reference internal" href="#fig-nm-resultviewer-visual-comparsion"><span class="std std-numref">Fig. 14</span></a>: The user can also perform ”Visual Comparisons”. The user needs to select some performance measures that they want to compare visually in the top-half of the pop-up box using the ”Select” column tick-boxes, then select the analyses in the lower-half of the pop-up box. Then simply press ”Visualize”. If the bar plots are not good then the user can change it to ”Line plots” and then press ”Visualize” again.</p>
+<div class="figure align-default" id="fig-nm-resultviewer-visual-comparsion">
+<img alt="Neurominer result viewer, visual comparisons" src="_images/NM_resultviewer_visual_comparison.png" />
+<p class="caption"><span class="caption-number">Fig. 14 </span><span class="caption-text">Within the main results display, the user can go to the ”Comparisons” menu item and then select the option to display visual comparisons between separate models</span><a class="headerlink" href="#fig-nm-resultviewer-visual-comparsion" title="Permalink to this image">#</a></p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Due to incompatibilities of MATLAB’s App Designer with MATLAB versions older than R2021a, this model comparison tool only works in MATLAB R2021a and newer versions.</p>
+</div>
+</div>
+<div class="section" id="classification-performance">
+<h2>Classification performance<a class="headerlink" href="#classification-performance" title="Permalink to this heading">#</a></h2>
+<p>See <a class="reference internal" href="#fig-display-cvperf"><span class="std std-numref">Fig. 15</span></a>: NeuroMiner was built to work with hyperparameter optimization within a nested-cross validation framework as a standard. In this plot, you will see the inner-cycle, CV1, mean test performance plotted in blue and then the outer cycle, CV2, mean test performance plotted in red. Each point represents a hyperparameter combination. This gives an indication of how the hyperparameter combinations are influencing the test performance. On the right, the display also shows heatmaps that show how the performance in the CV1/CV2 folds changes over the permutations.</p>
+<div class="figure align-default" id="fig-display-cvperf">
+<img alt="Neurominer result viewer, cv performance plot" src="_images/Display_CVperf.png" />
+<p class="caption"><span class="caption-number">Fig. 15 </span><span class="caption-text">Result viewer: Cross-validation performance</span><a class="headerlink" href="#fig-display-cvperf" title="Permalink to this image">#</a></p>
+</div>
+</div>
+<div class="section" id="generalization-error">
+<h2>Generalization error<a class="headerlink" href="#generalization-error" title="Permalink to this heading">#</a></h2>
+<p>See <a class="reference internal" href="#fig-display-generror"><span class="std std-numref">Fig. 16</span></a>: Another way to look at CV2 test performance is with the generalization error, which is calculated in NeuroMiner as the CV1-test performance minus the CV2 test performance.</p>
+<div class="figure align-default" id="fig-display-generror">
+<img alt="Neurominer result viewer, generalization error" src="_images/Display_GenError.png" />
+<p class="caption"><span class="caption-number">Fig. 16 </span><span class="caption-text">Result viewer: Generalization error</span><a class="headerlink" href="#fig-display-generror" title="Permalink to this image">#</a></p>
+</div>
+</div>
+<div class="section" id="model-complexity">
+<h2>Model complexity<a class="headerlink" href="#model-complexity" title="Permalink to this heading">#</a></h2>
+<p>See <a class="reference internal" href="#fig-display-complexity"><span class="std std-numref">Fig. 17</span></a>. In NeuroMiner, complexity is defined as the percentage of support vectors divided by the number of subjects in the tested fold. This feature is useful to determine how varying parameter combinations may affect the fit of the model.</p>
+<div class="figure align-default" id="fig-display-complexity">
+<img alt="Neurominer result viewer, complexity" src="_images/Display_Complexity.png" />
+<p class="caption"><span class="caption-number">Fig. 17 </span><span class="caption-text">Result viewer: Model complexity</span><a class="headerlink" href="#fig-display-complexity" title="Permalink to this image">#</a></p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Model complexity can only be calculated for LIBSVM and RVM, but not for LIBLINEAR.</p>
+</div>
+</div>
+<div class="section" id="ensemble-diversity">
+<h2>Ensemble diversity<a class="headerlink" href="#ensemble-diversity" title="Permalink to this heading">#</a></h2>
+<p>See <a class="reference internal" href="#fig-display-ensemblediv"><span class="std std-numref">Fig. 18</span></a>: This is a measure of Shannon entropy across CV1 models for each CV2 partition. A higher entropy means higher disagreement between the CV1 models. This measure is useful because increased entropy will often result in a better fitting model at the CV2 level. It is useful to note that entropy can be maximized as a performance criterion in addition to accuracy.</p>
+<div class="figure align-default" id="fig-display-ensemblediv">
+<img alt="Neurominer result viewer, ensemble diversity" src="_images/Display_EnsembleDiv.png" />
+<p class="caption"><span class="caption-number">Fig. 18 </span><span class="caption-text">Result viewer: Ensemble diversity</span><a class="headerlink" href="#fig-display-ensemblediv" title="Permalink to this image">#</a></p>
+</div>
+</div>
+<div class="section" id="model-selection-frequency">
+<h2>Model selection frequency<a class="headerlink" href="#model-selection-frequency" title="Permalink to this heading">#</a></h2>
+<p>See <a class="reference internal" href="#fig-display-modelselection"><span class="std std-numref">Fig. 19</span></a>: Within an ensemble framework, the models that are selected within the inner, CV1, cycle are then applied to the outer test data. For example, if it is a 10x10 CV1 framework with a winner-takes-all method of model selection, then 100 models will be applied to the held-out CV2 test fold. This plot displays the percentage of times that each parameter combination was selected.</p>
+<div class="figure align-default" id="fig-display-modelselection">
+<img alt="Neurominer result viewer, model selection" src="_images/Display_ModelSelection.png" />
+<p class="caption"><span class="caption-number">Fig. 19 </span><span class="caption-text">Result viewer: Model selection frequency</span><a class="headerlink" href="#fig-display-modelselection" title="Permalink to this image">#</a></p>
+</div>
+</div>
+<div class="section" id="multi-group-results">
+<h2>Multi-group results<a class="headerlink" href="#multi-group-results" title="Permalink to this heading">#</a></h2>
+<p>If a multi-group analysis is conducted the results display will change to accommodate the groups. There will be a result section for each classifier and one results section for the multigroup model (see <a class="reference internal" href="#fig-display-multigroup"><span class="std std-numref">Fig. 20</span></a>).</p>
+<div class="figure align-left" id="fig-display-multigroup">
+<img alt="Neurominer result viewer, model selection" src="_images/Display_MultiGroup.png" />
+<p class="caption"><span class="caption-number">Fig. 20 </span><span class="caption-text">Result viewer: Multi-group display</span><a class="headerlink" href="#fig-display-multigroup" title="Permalink to this image">#</a></p>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>It is important to note that in the misclassification web the red dots are determined by which label (the one above) is misclassified as which label (the one at the bottom). Every corner represents one type of misclassification. The random classification line (the black dashed line) represents the random classification percentage. It differs based on the number of groups in the analysis. For a three-class analysis, it is represented by 6 points at 33%.</p>
+</div>
+</div>
+<div class="section" id="scores-probabilities-calibration-nm-1-4">
+<h2>Scores –&gt; Probabilities &amp; Calibration (NM 1.4)<a class="headerlink" href="#scores-probabilities-calibration-nm-1-4" title="Permalink to this heading">#</a></h2>
+<p>Many machine learning models, such as Support Vector Machines (SVMs), produce decision scores rather than probabilities. While these scores are excellent for ranking subjects (e.g., who is most likely to be a patient), they are not well-calibrated. A score of “0.8” does not mean there is an 80% chance of being in the positive class.</p>
+<p>Probability calibration is a post-processing step that corrects this. It builds a mapping model that converts these arbitrary decision scores into probabilities. A well-calibrated model is one where a prediction of “80% probability” means that, out of all cases given that score, 80% of them actually belong to the positive class.</p>
+<p>NeuroMiner applies this calibration by training a calibration model on the CV1 training scores and then applying it to the CV1/CV2 test scores. It offers three distinct methods for this transformation. If you want to convert scores to probabilities in the classification plot and export them, press <strong>Scores –&gt; Probabilities</strong>. Probability scores will be appended to the Output.csv File which you can export by clicking <strong>E</strong> next to the classification plot after calibration. To check the quality of calibration of the model, press <strong>Calibration</strong>.</p>
+<div class="section" id="calibration-methods">
+<h3>1. Calibration Methods<a class="headerlink" href="#calibration-methods" title="Permalink to this heading">#</a></h3>
+<div class="section" id="platt-scaling">
+<h4>Platt Scaling<a class="headerlink" href="#platt-scaling" title="Permalink to this heading">#</a></h4>
+<p>This method fits a simple logistic regression (sigmoid) model to the classifier’s output scores. It assumes that there is a sigmoidal relationship between the scores and the true probabilities.</p>
+<p><strong>How it Works</strong>: It learns an S-shaped curve to map scores onto the [0, 1] probability interval.</p>
+<p><strong>Pros</strong>: It’s a parametric method, making it robust and less prone to overfitting, especially on smaller datasets. The NeuroMiner implementation also automatically includes class weights to correct for unbalanced data.</p>
+<p><strong>Cons</strong>: If the true relationship between scores and probabilities is not sigmoid-shaped, this method can be less accurate than non-parametric alternatives.</p>
+</div>
+<div class="section" id="isotonic-regression">
+<h4>Isotonic Regression<a class="headerlink" href="#isotonic-regression" title="Permalink to this heading">#</a></h4>
+<p>This is a more flexible, non-parametric method. It fits a non-decreasing, step-wise function to the data. It makes no assumptions about the shape of the relationship between scores and probabilities, other than that it should be monotonic (i.e., as the score increases, the probability should not decrease).</p>
+<p><strong>How it Works</strong>: It essentially learns a set of “steps” that best map scores to probabilities.</p>
+<p><strong>Pros</strong>: Its flexibility allows it to correct for any monotonic distortion, often making it more accurate than Platt scaling on larger datasets.</p>
+<p><strong>Cons</strong>: Because it’s non-parametric, it requires more data and can be more prone to overfitting on very small datasets.</p>
+</div>
+<div class="section" id="bayesian-binning-into-quantiles-bbq">
+<h4>Bayesian Binning into Quantiles (BBQ)<a class="headerlink" href="#bayesian-binning-into-quantiles-bbq" title="Permalink to this heading">#</a></h4>
+<p>This is a modern, non-parametric method that groups scores into bins of equal size (quantiles) and then uses a Bayesian averaging approach to estimate the probability within each bin.</p>
+<p><strong>How it Works</strong>: It creates a “smart histogram” of the scores and calculates a robust probability for each bin.</p>
+<p><strong>Pros</strong>: It is designed to be both flexible and robust, often providing a good balance between the properties of Platt scaling and Isotonic regression.</p>
+<p><strong>Cons</strong>: It is a more complex method conceptually.</p>
+</div>
+</div>
+<div class="section" id="recompute-calibration">
+<h3>2. Recompute Calibration<a class="headerlink" href="#recompute-calibration" title="Permalink to this heading">#</a></h3>
+<p>This is a checkbox that is only active if a calibration has been performed previously for the current analysis. By default, NeuroMiner will reuse a previously computed calibration model to save time. Check this box if you have changed something about the data (e.g., selected a different subset of subjects) and want to force the tool to re-learn the calibration model from scratch using the current data configuration.</p>
+</div>
+<div class="section" id="offset-removal-oocv-only">
+<h3>3. Offset Removal (OOCV Only)<a class="headerlink" href="#offset-removal-oocv-only" title="Permalink to this heading">#</a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This option only appears when you are viewing Out-Of-Cross-Validation (OOCV) data.</p>
+</div>
+<p>This feature is used to correct for a potential “domain shift” or “batch effect” where the distribution of classifier scores for the OOCV dataset is systematically different from the training dataset. It works by aligning the median of the OOCV scores with the median of the training scores.</p>
+<ul class="simple">
+<li><p>None: No offset correction is applied.</p></li>
+<li><p>Remove offset using [Group 1] data: Calculates the median score from Group 1 subjects only in both the training set and the OOCV set, and then shifts the OOCV scores to align the medians.</p></li>
+<li><p>Remove offset using [Group 2] data: Same as above, but uses Group 2 subjects only.</p></li>
+<li><p>Remove offset using all training data: Calculates the median using all subjects in the training and OOCV sets to perform the alignment.</p></li>
+</ul>
+</div>
+<div class="section" id="automatic-behavior">
+<h3>Automatic Behavior<a class="headerlink" href="#automatic-behavior" title="Permalink to this heading">#</a></h3>
+<p>There are cases where you will not see the interactive dialog box:</p>
+<p><strong>Probabilistic Classifiers</strong>: If the machine learning algorithm you used (e.g., Logistic Regression, Naive Bayes) already produces probabilities (handles.params.probflag is true), the calibration step is automatically skipped. The raw probabilities from the model are used directly.</p>
+<p><strong>Pre-specified Method</strong>: If the calibration method is already defined in a script or batch process, the function will run non-interactively using the specified method.</p>
+</div>
+<div class="section" id="interpretation">
+<h3>Interpretation<a class="headerlink" href="#interpretation" title="Permalink to this heading">#</a></h3>
+<p>After calibration, you can view a reliability plot. A perfectly calibrated model will have a curve that lies along the main diagonal. The Expected Calibration Error (ECE) quantifies the deviation from this ideal line.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Choosing a Method:
+For small N, Platt Scaling is often the safest and most robust choice.
+For larger N, Isotonic Regression or BBQ are more powerful and may yield better-calibrated probabilities.</p>
+</div>
+<div class="figure align-default" id="fig-nm-display-classification-calibration">
+<img alt="Neurominer result viewer, dca" src="_images/NM_Display_classification_Calibration.png" />
+<p class="caption"><span class="caption-number">Fig. 21 </span><span class="caption-text">Result viewer: Calibration Figure Window</span><a class="headerlink" href="#fig-nm-display-classification-calibration" title="Permalink to this image">#</a></p>
+</div>
+</div>
+</div>
+<div class="section" id="decisioncurve-analysis">
+<h2>Decision‑Curve Analysis<a class="headerlink" href="#decisioncurve-analysis" title="Permalink to this heading">#</a></h2>
+<p>While metrics like accuracy and AUC measure a model’s statistical performance, Decision-Curve Analysis (DCA) answers a more practical question: “Is this model clinically useful?” It evaluates whether using a model to make decisions does more good than harm compared to simple, default strategies.</p>
+<p>DCA achieves this by plotting the Net Benefit of a model across a range of probability thresholds.</p>
+<p><strong>What is Net Benefit?</strong> Net Benefit is the primary metric in DCA. It combines the benefits of correctly identifying positive cases (true positives) with the harms of incorrectly identifying negative cases as positive (false positives).</p>
+<p>Think of it this way: the benefit of a model is finding patients who need treatment. The cost is subjecting healthy individuals to unnecessary treatment. Net Benefit subtracts this cost from the benefit. The formula is structured so that the “cost” of a false positive is weighted by the probability threshold, reflecting how a clinician might balance risks and rewards.</p>
+<div class="section" id="id1">
+<h3>Interpretation<a class="headerlink" href="#id1" title="Permalink to this heading">#</a></h3>
+<p>A DCA plot has three key curves, which are the direct outputs of the nk_DCA function:</p>
+<p><strong>The Model Curve (netBenefits)</strong>: This is the main curve, showing the net benefit of using your model’s predicted probabilities to make decisions at every possible threshold.</p>
+<p><strong>The “Treat All” Line (treatAll)</strong>: This line represents the net benefit of a simple policy where you ignore the model and apply the intervention (e.g., treatment) to every single person.</p>
+<p><strong>The “Treat None” Line (treatNone)</strong>: This is always a horizontal line at a net benefit of zero. It represents the baseline strategy of applying the intervention to no one.</p>
+<p><strong>The Decision Rule</strong>: To interpret the plot, you choose a threshold probability on the x-axis that represents a clinically acceptable risk. For example, a clinician might decide to act only if a model predicts a &gt;20% chance of disease. At that chosen threshold, the best strategy is the one with the highest curve.</p>
+<p>Your model is considered clinically useful if its curve is above both the “Treat All” and “Treat None” lines within a range of clinically relevant and reasonable thresholds. If the “Treat All” line is highest, it suggests the condition is common or serious enough that everyone should be treated. If the model’s curve is below the “Treat None” line, it means the model is doing more harm than good.</p>
+<div class="figure align-default" id="fig-nm-display-classification-dca">
+<img alt="Neurominer result viewer, dca" src="_images/NM_Display_classification_DCA.png" />
+<p class="caption"><span class="caption-number">Fig. 22 </span><span class="caption-text">Result viewer: Decision Curve Analysis Window</span><a class="headerlink" href="#fig-nm-display-classification-dca" title="Permalink to this image">#</a></p>
+</div>
+</div>
+</div>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./."
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+                <footer class="bd-footer-article">
+                  
+<div class="footer-article-items footer-article__inner">
+  
+    <div class="footer-article-item"><!-- Previous / next buttons -->
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="4.14_mainmenu_interprete_classifiers.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Interprete predictions</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="4.7.01_mainmenu_display_visualization_results.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Visualization results</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div></div>
+  
+</div>
+
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#accuracy-and-model-performance">Accuracy and model performance</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-comparisons">Model comparisons</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#classification-performance">Classification performance</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generalization-error">Generalization error</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-complexity">Model complexity</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ensemble-diversity">Ensemble diversity</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-selection-frequency">Model selection frequency</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multi-group-results">Multi-group results</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#scores-probabilities-calibration-nm-1-4">Scores –&gt; Probabilities &amp; Calibration (NM 1.4)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#calibration-methods">1. Calibration Methods</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#platt-scaling">Platt Scaling</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#isotonic-regression">Isotonic Regression</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#bayesian-binning-into-quantiles-bbq">Bayesian Binning into Quantiles (BBQ)</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#recompute-calibration">2. Recompute Calibration</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#offset-removal-oocv-only">3. Offset Removal (OOCV Only)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#automatic-behavior">Automatic Behavior</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#interpretation">Interpretation</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#decisioncurve-analysis">Decision‑Curve Analysis</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">Interpretation</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By <a href="https://www.lmu-klinikum.de/psychiatrie-und-psychotherapie/forschung-research/working-groups/precision-psychiatry/7ef67d79b4ad4804">Section for Precision Psychiatry, Ludwig-Maximilian-University Munich</a> / <a href="https://www.psych.mpg.de/2571270/precision-psychiatry">Precision Psychiatry Group, Max Planck Institute of Psychiatry</a>
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  <p class="copyright">
+    
+      © Copyright 2022.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="_static/scripts/bootstrap.js?digest=e353d410970836974a52"></script>
+<script src="_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
