@@ -789,24 +789,24 @@ for f=1:ix % Loop through CV2 permutations
                                         fprintf('\n\t%3g | OptModel =>', u);
                                         [perf_orig, I1.TS{h}(:,il(h)), I1.DS{h}(:,il(h))] = nk_GetTestPerf(modelTs, modelTsL, Find, MD{h}{m}{k,l}{u}, modelTr); 
                                         fprintf(' %1.2f',perf_orig)
-                                    end
 
-                                    % Prepare boosting weights, if relevant
-                                    if isempty(Wkl), wu = 1; else, wu = Wkl(u); end
-                                    if ~isfinite(wu) || wu < 0, wu = 1; end  % harden
-
-                                    % Apply boosting weights if needed
-                                    % (otherwise multiply with 1)
-                                    I1.DS{h}(:,il(h)) = nm_apply_scalar_weight(I1.DS{h}(:,il(h)), wu);  
-
-                                    if inp.multiflag
-                                        % Here we collect the predicted labels and decision
-                                        % scores of the observed binary classifier for the subsequent multiclass model assessment
-                                        [~, I1.mTS{h}(:,il(h)), I1.mDS{h}(:,il(h))] = nk_GetTestPerf(modelTsm, modelTsmL, Find, MD{h}{m}{k,l}{u}, modelTr, true); 
-
+                                        % Prepare boosting weights, if relevant
+                                        if isempty(Wkl), wu = 1; else, wu = Wkl(u); end
+                                        if ~isfinite(wu) || wu < 0, wu = 1; end  % harden
+    
                                         % Apply boosting weights if needed
                                         % (otherwise multiply with 1)
-                                        I1.mDS{h}(:,il(h)) = nm_apply_scalar_weight(I1.mDS{h}(:,il(h)), wu);  
+                                        I1.DS{h}(:,il(h)) = nm_apply_scalar_weight(I1.DS{h}(:,il(h)), wu);  
+    
+                                        if inp.multiflag
+                                            % Here we collect the predicted labels and decision
+                                            % scores of the observed binary classifier for the subsequent multiclass model assessment
+                                            [~, I1.mTS{h}(:,il(h)), I1.mDS{h}(:,il(h))] = nk_GetTestPerf(modelTsm, modelTsmL, Find, MD{h}{m}{k,l}{u}, modelTr, true); 
+    
+                                            % Apply boosting weights if needed
+                                            % (otherwise multiply with 1)
+                                            I1.mDS{h}(:,il(h)) = nm_apply_scalar_weight(I1.mDS{h}(:,il(h)), wu);  
+                                        end
                                     end
 
                                     if sigfl % Permutations in model space
