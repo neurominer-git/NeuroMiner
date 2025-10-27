@@ -1,0 +1,377 @@
+function [ SPATIAL, PX ] = nk_Spatial_config(SPATIAL, PX, defaultsfl, parentstr,brainmask, Thresh)
+% Compute spatial consistency of discriminative effects
+
+if ~exist('defaultsfl','var') || isempty(defaultsfl),  defaultsfl = 0; end;
+if ~exist('PX','var'), PX =  []; end;
+cubetype    = 1;
+cubefwhm    = 8;
+cubevoxres  = 3;
+
+if ~defaultsfl
+   
+    if ~isempty(SPATIAL) && isfield(SPATIAL,'cubetype'), cubetype = SPATIAL.cubetype; else SPATIAL.cubetype = cubetype; end
+    if ~isempty(SPATIAL) && isfield(SPATIAL,'cubefwhm'), cubefwhm = SPATIAL.cubefwhm; else SPATIAL.cubefwhm = cubefwhm; end
+    if ~isempty(SPATIAL) && isfield(SPATIAL,'cubevoxres'), cubevoxres = SPATIAL.cubevoxres; else SPATIAL.cubevoxres = cubevoxres; end
+    if exist('brainmask','var')
+        if ~isempty(SPATIAL), SPATIAL.brainmask = brainmask; end
+    end
+    if exist('Thresh','var')
+        if ~isempty(SPATIAL), SPATIAL.Thresh = Thresh; end
+    end
+
+    switch cubetype
+        case 1
+            cubetypestr = 'No filtering';
+        case 2
+            cubetypestr = 'Absolute difference filtering (6 neighbors)';
+        case 3
+            cubetypestr = 'Cube variance filtering (27 neighbors)';
+        case 4
+            cubetypestr = 'Gaussian smoothing';
+            cubefwhmstr = nk_ConcatParamstr(cubefwhm);
+        case 5
+            cubetypestr = 'Neurotransmitter correlations';
+        case 6
+            cubetypestr = 'Resampling';
+            cubevoxresstr = nk_ConcatParamstr(cubevoxres);
+        case 7
+            cubetypestr = 'ROI MEANS';
+    end
+   
+    menustr = sprintf('Select spatial operation [ %s ]|', cubetypestr); menuact = 1;
+    switch SPATIAL.cubetype 
+        case 4
+            menustr = sprintf('%s|Specify Gaussian filter width [ %s ]', menustr, cubefwhmstr ); menuact = [ menuact 2 ];
+        case 5
+            if ~isfield(SPATIAL,'JUSPACE')
+                SPATIAL.JUSPACE = [];
+            end
+
+            if ~isfield(SPATIAL.JUSPACE,'brainmask')
+                SPATIAL.JUSPACE.brainmask = SPATIAL.brainmask;
+                brainmask = SPATIAL.JUSPACE.brainmask;
+            elseif isfield(SPATIAL.JUSPACE,'brainmask') && ~isempty(SPATIAL.JUSPACE.brainmask)
+                brainmask = SPATIAL.JUSPACE.brainmask;
+            end
+
+            if ~isfield(SPATIAL.JUSPACE,'Thresh')
+                SPATIAL.JUSPACE.Thresh = SPATIAL.Thresh;
+                Thresh = SPATIAL.JUSPACE.Thresh;
+            elseif isfield(SPATIAL.JUSPACE,'Thresh') && ~isempty(SPATIAL.JUSPACE.Thresh)
+                Thresh = SPATIAL.JUSPACE.Thresh;
+            end
+
+            if ~exist('JuSpace_act','var')
+                JuSpace_act = 0;
+            end
+
+            [SPATIAL.JUSPACE, JuSpace_act, menuact_JuSpace, menustr_JuSpace ] = JuSpace_config(SPATIAL.JUSPACE, brainmask, Thresh, [], JuSpace_act, true);
+
+            menuact = [menuact menuact_JuSpace+1] ; menustr = [menustr menustr_JuSpace];
+        case 6
+            menustr = sprintf('%s|Specify voxel resolution [ %s ]', menustr, cubevoxresstr ); menuact = [ menuact 3 ];
+        case 7
+            Atlas = [];
+            AtlasDir = [];
+            AtlasLabels = [];
+            SPATIAL.ROIMEANS.completeflag = false;
+
+            if ~isfield(SPATIAL,'ROIMEANS')
+                SPATIAL.ROIMEANS = [];
+            end
+
+            if ~isfield(SPATIAL.ROIMEANS,'Thresh')
+                SPATIAL.ROIMEANS.Thresh = SPATIAL.Thresh;
+                Thresh = SPATIAL.ROIMEANS.Thresh;
+            elseif isfield(SPATIAL.ROIMEANS,'Thresh') && ~isempty(SPATIAL.ROIMEANS.Thresh)
+                Thresh = SPATIAL.ROIMEANS.Thresh;
+            end
+
+            if ~isfield(SPATIAL.ROIMEANS,'brainmask')
+                SPATIAL.ROIMEANS.brainmask = SPATIAL.brainmask;
+                brainmask = SPATIAL.ROIMEANS.brainmask;
+            elseif isfield(SPATIAL.ROIMEANS,'brainmask') && ~isempty(SPATIAL.ROIMEANS.brainmask)
+                brainmask = SPATIAL.ROIMEANS.brainmask;
+            end
+
+            if isfield(SPATIAL.ROIMEANS,'atlas') && ~isempty(SPATIAL.ROIMEANS.atlas)
+                Atlas = SPATIAL.ROIMEANS.atlas;
+            end
+            if isfield(SPATIAL.ROIMEANS,'AtlasLabels') && ~isempty(SPATIAL.ROIMEANS.AtlasLabels) 
+                AtlasLabels = SPATIAL.ROIMEANS.AtlasLabels; 
+            end
+
+            if ~isempty(Atlas)
+                if size(Atlas,1) > 1
+                    for i = 1:size(Atlas,1)
+                        if i == 1
+                            ATLASSTR = [Atlas(i,:)];
+                        else
+                            ATLASSTR = [ATLASSTR,Atlas(i,:)];
+                        end
+                        SPATIAL.ROIMEANS.completeflag = true;
+                    end
+                else
+                    ATLASSTR = Atlas;
+                    SPATIAL.ROIMEANS.completeflag = true;
+                end
+            else
+                AtlasDef = 2;
+                ATLASSTR = 'not defined';
+            end
+            menustr = [menustr                           '|'...
+                       'Download atlases from CAT12    ' '|' ...
+                       'Atlas                            [ ' ATLASSTR ' ]|'];
+            menuact = [menuact 5 6];
+    end
+    
+    nk_PrintLogo
+
+    mestr = 'Spatial operations'; navistr = [parentstr ' >>> ' mestr]; fprintf('\nYou are here: %s >>> ',parentstr); 
+    
+    if SPATIAL.cubetype == 5
+        JuSpace_act = nk_input(mestr,0,'mq', menustr, menuact);
+
+        if isequal(JuSpace_act,0)
+            act = 0;
+        elseif isequal(JuSpace_act, 1)
+            act = 1;
+        else
+            act = 4;
+        end
+    else
+        act = nk_input(mestr,0,'mq', menustr, menuact);
+    end
+    
+    
+    switch act
+        case 1
+            SPATIAL.cubetype = uint8(nk_input('Select spatial operation',0,'m',...
+                ['No filtering|' ...
+                'Absolute difference filtering (6 neighbors)|' ...
+                'Cube variance filtering (27 neighbors)|' ...
+                'Gaussian smoothing|' ...
+                'Neurotransmitter correlations|' ...
+                'ROI means computation|'],...%'Resampling (=>Voxel size)']
+                [1:5,7],cubetype));
+            switch SPATIAL.cubetype 
+                case 4
+                    SPATIAL.cubefwhm = 8;
+                    PX = nk_AddParam(SPATIAL.cubefwhm, 'FWHM', 0, PX, 'replace');
+                case 6
+                    SPATIAL.cubevoxres = 3;
+                    PX = nk_AddParam(SPATIAL.cubefwhm, 'VOX', 0, PX, 'replace');
+                otherwise
+                    PX = nk_AddParam(SPATIAL.cubefwhm, 'FWHM', 0, PX, 'reset');
+            end
+        case 2
+            SPATIAL.cubefwhm = nk_input('Specify Gaussian filter width range [mm]',0,'e', cubefwhm);
+            PX = nk_AddParam(SPATIAL.cubefwhm,'FWHM', 0, PX, 'replace');
+        case 3
+            SPATIAL.cubevoxres =  nk_input('Specify voxel resolution range [mm]',0,'e', cubevoxres);
+            PX = nk_AddParam(SPATIAL.cubevoxres,'VOX', 0, PX, 'replace');
+        case 4
+            [SPATIAL.JUSPACE, menuact_JuSpace, menustr_JuSpace ] = JuSpace_config(SPATIAL.JUSPACE, brainmask, Thresh, [], JuSpace_act-1, true);
+    
+            menuact = [menuact menuact_JuSpace+1] ; menustr = [menustr menustr_JuSpace];
+        case 5
+            AtlasDownloadFlag = nk_input('Do you want to download atlas files from CAT12?',0, ...
+                                            'yes|no',[1,0],1);
+
+            if AtlasDownloadFlag
+        
+                SPMAVAIL = logical(exist('spm_select','file'));
+    
+                if AtlasDownloadFlag == 1
+                    if SPMAVAIL
+                        SaveDirAtlas = spm_select(1, 'dir', 'Select directory for saving atlases');
+                    else
+                        SaveDirAtlas = uigetdir(pwd, 'Select directory for saving atlases');
+                    end
+                end
+    
+                if AtlasDownloadFlag == 1
+                    AtlasDir = download_atlas_cat12(SaveDirAtlas);
+                else
+                    AtlasDir = [];
+                end
+            end
+            SPATIAL.ROIMEANS.AtlasDir = AtlasDir;
+        case 6
+             hdrstr = 'Select atlas'; 
+            if isfield(SPATIAL.ROIMEANS,'AtlasDir') && ~isempty(SPATIAL.ROIMEANS.AtlasDir)
+                Atlas = nk_FileSelector(Inf, 'nifti', hdrstr, '.*\.nii$', [], SPATIAL.ROIMEANS.AtlasDir);
+            else
+                Atlas = nk_FileSelector(Inf, 'nifti', hdrstr, '.*\.nii$', [], pwd);
+            end
+
+            V_brainmask = spm_vol(char(brainmask));
+
+            VAtlas = spm_vol(Atlas);
+
+            YAtlas = [];
+            for mn = 1:size(VAtlas,1)
+                YAtlas(mn,:) = nk_ReturnSubSpaces_JuSpace(VAtlas(mn), V_brainmask, 1, 1, Thresh, 0);
+            end
+
+            AtlasROIs = cell(size(Atlas,1),1);
+            for sm = 1:size(YAtlas,1)
+                a = unique(YAtlas(sm,:));
+                a = a(a~=0);
+                AtlasROIs{sm,1} = a(~isnan(a));
+                [AtlasLabels{sm,1},AtlasLabels_Num] = read_atlas_labels(Atlas(sm,:));
+                if ~isempty(AtlasLabels{sm,1})
+                    ind_labels = ismember(cell2mat(AtlasLabels_Num),cell2mat(AtlasROIs)');
+                    AtlasLabels{sm,1} = AtlasLabels{sm,1}(ind_labels,1);
+                else
+                    AtlasLabels{sm,1} = cellstr([repmat('Label ',size(AtlasROIs{sm,1},2),1),num2str(AtlasROIs{sm}')]);
+                end
+            end
+
+            SPATIAL.ROIMEANS.atlas = Atlas;
+            SPATIAL.ROIMEANS.YAtlas = YAtlas;
+            SPATIAL.ROIMEANS.AtlasROIs = AtlasROIs;
+            SPATIAL.ROIMEANS.AtlasLabels = AtlasLabels;
+    end
+else
+    act = 0;
+end    
+
+if act, [ SPATIAL, PX ] = nk_Spatial_config(SPATIAL, PX, [], parentstr); end
+
+end
+
+function Atlas_folder = download_atlas_cat12(AtlasDir)
+
+fprintf('Preparing to download atlas files...\n');
+    
+api_url = 'https://api.github.com/repos/ChristianGaser/cat12/contents/templates_MNI152NLin2009cAsym?ref=main';
+
+data = webread(api_url);
+
+ind_atlas = contains({data.name}','.csv');
+
+data_atlas_csv = extractBefore({data(ind_atlas).name}','.csv');
+
+ind_atlas_all = contains({data.name}',data_atlas_csv);
+
+data = data(ind_atlas_all);
+
+Atlas_folder = fullfile(AtlasDir,'Atlas');
+if ~exist(Atlas_folder, 'dir')
+    mkdir(Atlas_folder);
+end
+
+for m = 1:length(data)
+    if strcmp(data(m).type, 'file')
+        file_name = data(m).name;
+
+        download_url = data(m).download_url;
+        
+        local_file = fullfile(Atlas_folder, file_name);
+        
+        websave(local_file, download_url);
+        
+        fprintf('Downloaded: %s\n', file_name);
+    else
+        fprintf('Error: Unable to fetch folder contents. Please download the files manually from the JuSpace Github page: https://github.com/juryxy/JuSpace": %s\n', data(i).name);
+    end
+end
+
+aa = dir(fullfile(Atlas_folder,'*.nii.gz'));
+files_to_unzip = fullfile({aa.folder}',{aa.name}');
+gunzip(files_to_unzip);
+end
+
+function [AtlasLabels,AtlasLabels_Num] = read_atlas_labels(atlas)
+
+descfile_xml  = spm_file(atlas,'ext','xml');
+if ~spm_existfile(descfile_xml)
+    [pathstr, name, ext] = fileparts(descfile_xml);
+    descfile_xml = fullfile(pathstr,['labels_',name,ext]);
+end
+descfile_csv = spm_file(atlas,'ext','csv');
+if ~spm_existfile(descfile_csv)
+    [pathstr, name, ext] = fileparts(descfile_csv);
+    descfile_csv = fullfile(pathstr,['labels_',name,ext]);
+end
+
+if spm_existfile(descfile_xml)
+    xA    = spm_atlas('load',descfile_xml);
+    AtlasLabels_Num = {xA.labels.index}';
+    AtlasLabels = {xA.labels.name}';
+elseif spm_existfile(descfile_csv)
+
+%   opt.delimiter       = ';';
+%   opt.komma           = '.'; 
+%   opt.linedelimiter   = '\n'; 
+%   opt.format          = '%0.4f';
+%   opt.finaldelimiter  = 0;  
+% 
+%   pos   = ''; 
+%   opt_csv = detectImportOptions(descfile_csv);
+%   opt.delimiter = opt_csv.Delimiter{1};
+%   if opt.delimiter == ',', opt.komma = ','; end
+%   xA = readcsv(descfile_csv,pos,opt);
+%   xA = cell2table(xA(2:end,:),'VariableNames',xA(1,:));
+
+  xA = readtable(descfile_csv,'Delimiter',';'); 
+
+  AtlasLabels = xA.ROIname;
+  if ~iscell(xA.ROIid)
+    AtlasLabels_Num = num2cell(xA.ROIid);
+  elseif ~isnumeric(xA.ROIid)
+    AtlasLabels_Num = {str2double(xA.ROIid)};
+  end
+else
+    AtlasLabels = [];
+    AtlasLabels_Num = [];
+end
+end
+
+function C = readcsv(filename,pos,opt)
+
+fid = fopen(filename);
+mv = version; mvi = strfind(mv,'R');
+
+C1  = textscan(fid,'%q','delimiter',opt.linedelimiter); C1=C1{1};
+fclose(fid);
+
+for j=1:size(C1,1)
+    Quote=strfind(C1{j},'"'); 
+    for qi=numel(Quote):-1:1
+        Delim=strfind(C1{j}(Quote(qi):end),opt.delimiter) + Quote(qi) - 1;
+        if ~isempty(Delim) && strcmp(C1{j}(1:Delim(1)-1),'"')
+            C1{j}=[C1{j}(1:Delim(1)-1) '"' C1{j}(Delim(1):end)];
+        end
+    end
+end
+
+C1  = strrep(C1,'Ã¤','ä');
+C1  = strrep(C1,'Ã¼','ü');
+C1  = strrep(C1,'Ã¶','ö');
+
+for j=1:size(C1,1)
+    try
+      if isempty(C1{j})
+        C2{j} = '';
+      else
+          C2{j}=textscan(C1{j},'%q','delimiter',opt.delimiter)'; C2{j}=C2{j}{1}';
+      end
+    catch
+      fprintf('WARNING:cat_io_csv:readcsv: Can''t read line %d!\n',j); C2{j}=cell(1,numel(C2{1}));
+    end
+end
+C3=cell(size(C2,2),max(cellfun('size',C2,1)));
+for j=1:size(C2,2)
+    for k=1:size(C2{j},2)
+      C3{j,k}=C2{j}{k};
+    end
+end
+
+if isempty(pos), C=C3; else C=readC(C3,pos); end
+
+for j=1:numel(C), if ~isnan(str2double(C{j})), id=strfind(C{j},','); C{j}(id)='.'; C{j} = str2double(C{j}); end; end
+
+end
+

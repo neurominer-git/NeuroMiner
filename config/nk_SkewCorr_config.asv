@@ -1,0 +1,277 @@
+function [SKW, act] = nk_SkewCorr_config(SKW, parentstr, defaultsfl)
+% =========================================================================
+% FORMAT:  [SKW, act] = nk_SkewCorr_config(SKW, parentstr, defaultsfl)
+% =========================================================================
+% CONFIGURATION function for skewness correction, following NeuroMiner style.
+% (Similar to nk_Standardize_config, but specifically for nk_SkewCorrObj.)
+%
+% NeuroMiner automatically decides whether to include or skip this module
+% in the pipeline (via nk_Preproc_config). This function no longer has a
+% doSkewCorr flag; if the user chooses to include skew correction in 
+% nk_Preproc_config, then this config is invoked to set details.
+%
+% I/O:
+%   SKW       : struct controlling skew correction parameters (fields updated)
+%   parentstr : string for menu navigation text
+%   defaultsfl: if true, set defaults without user interaction
+%   act       : user-chosen menu action
+%
+% Fields in SKW (set/updated here):
+%   .transformMethod  : 'log' | 'boxcox' | 'yeojohnson'  (default 'log')
+%   .SkewThr          : numeric scalar or vector (default 2)
+%                      => features with abs(skew) > any of these thresholds
+%                         will be considered for transformation
+%   .BoxCoxLambdaType : 'auto' | 'manual' (default 'auto')
+%   .BoxCoxLambdaVal  : numeric scalar or vector for manual lambdas
+%   .YJLambdaType     : 'auto' | 'manual' (default 'auto')
+%   .YJLambdaVal      : numeric scalar or vector for manual lambdas
+%
+%   .CALIBUSE         : for calibration usage (1 or 2)
+%   .PX               : parameter expansion struct for hyperparameter search
+%
+% (c) Example Implementation, 2025. Adapt as needed.
+% =========================================================================
+
+%% Global to check calibration availability
+global CALIBAVAIL
+
+% -------------------------------
+% Default parameters
+% -------------------------------
+transformMethod  = 'log';          % 'log','boxcox','yeojohnson'
+SkewThr          = 2;             % skewness threshold (scalar or vector)
+CALIBUSE         = 2;             % 1 => calibrate, 2 => no
+
+BoxCoxLambdaType = 'auto';        % 'auto' => MLE or pipeline approach
+BoxCoxLambdaVal  = 0;             % user-supplied lambda or array
+YJLambdaType     = 'auto';
+YJLambdaVal      = 0;
+
+% If global calibration is available, set default CALIBUSE=1
+if ~isempty(CALIBAVAIL) && CALIBAVAIL
+    CALIBUSE = 1;
+end
+
+% If user did not provide defaultsfl, treat it as false
+if ~exist('defaultsfl','var') || isempty(defaultsfl)
+    defaultsfl = false;
+end
+
+% -------------------------------
+% Load existing fields if present
+% -------------------------------
+if ~defaultsfl
+    if isfield(SKW, 'transformMethod'),  transformMethod  = SKW.transformMethod;  end
+    if isfield(SKW, 'SkewThr'),          SkewThr          = SKW.SkewThr;          end
+    if isfield(SKW, 'CALIBUSE'),         CALIBUSE         = SKW.CALIBUSE;         end
+    
+    if isfield(SKW, 'BoxCoxLambdaType'), BoxCoxLambdaType = SKW.BoxCoxLambdaType; end
+    if isfield(SKW, 'BoxCoxLambdaVal'),  BoxCoxLambdaVal  = SKW.BoxCoxLambdaVal;  end
+    if isfield(SKW, 'YJLambdaType'),     YJLambdaType     = SKW.YJLambdaType;     end
+    if isfield(SKW, 'YJLambdaVal'),      YJLambdaVal      = SKW.YJLambdaVal;      end
+end
+
+% -------------------------------
+% If defaultsfl == true, store & exit
+% -------------------------------
+if defaultsfl
+    act = 0;
+    SKW = storeConfig(SKW, transformMethod, SkewThr, ...
+                      BoxCoxLambdaType, BoxCoxLambdaVal, ...
+                      YJLambdaType,     YJLambdaVal, CALIBUSE);
+    SKW = updatePX(SKW);
+    return;
+end
+
+% -------------------------------
+% Build the configuration menu
+% -------------------------------
+switch lower(transformMethod)
+    case 'log'
+        methodStr = 'Log';
+    case 'boxcox'
+        methodStr = 'Box–Cox';
+    case 'yeojohnson'
+        methodStr = 'Yeo–Johnson';
+    otherwise
+        methodStr = 'Unknown';
+end
+
+% SkewThr might be vector => create display string
+skewThrStr = nk_ConcatParamstr(SkewThr, true);
+
+menustr = [ ...
+    'Choose transform method [ ' methodStr ' ]|' ...
+    'Set skewness threshold [ ' skewThrStr ' ]' ];
+
+menuact = [1, 2];
+
+% If boxcox or yeojohnson => add a line for lambda settings
+lambdaMenuStr = '';
+lambdaMenuIdx = [];
+if strcmpi(transformMethod, 'boxcox')
+    if strcmpi(BoxCoxLambdaType, 'auto')
+        lamStr = 'auto (MLE or pipeline)';
+    else
+        lamStr = ['manual [' nk_ConcatParamstr(BoxCoxLambdaVal,true) ']'];
+    end
+    lambdaMenuStr = ['Set Box–Cox lambda [ ' lamStr ' ]'];
+    lambdaMenuIdx = 3;
+elseif strcmpi(transformMethod, 'yeojohnson')
+    if strcmpi(YJLambdaType, 'auto')
+        lamStr = 'auto (MLE or pipeline)';
+    else
+        lamStr = ['manual [' nk_ConcatParamstr(YJLambdaVal,true) ']'];
+    end
+    lambdaMenuStr = ['Set Yeo–Johnson lambda [ ' lamStr ' ]'];
+    lambdaMenuIdx = 3;
+end
+
+% Append if needed
+if ~isempty(lambdaMenuStr)
+    menustr = [menustr '|' lambdaMenuStr];
+    menuact = [menuact lambdaMenuIdx];
+end
+
+% Add calibration usage
+[menustr, menuact] = nk_CheckCalibAvailMenu_config(menustr, menuact, CALIBUSE);
+
+% Display menu
+nk_PrintLogo;
+mestr = 'Skewness Correction Configuration';
+fprintf('\nYou are here: %s >>> ', parentstr); 
+act = nk_input(mestr, 0, 'mq', menustr, menuact);
+
+% -------------------------------
+% Handle user choice
+% -------------------------------
+switch act
+    case 1
+        % Transform method
+        % 1 => log, 2 => boxcox, 3 => yeojohnson
+        MSel = nk_input('Transform method', 0, 'm', ...
+            'Log transform|Box-Cox|Yeo-Johnson',[1 2 3],1);
+        switch MSel
+            case 1, transformMethod = 'log';
+            case 2, transformMethod = 'boxcox';
+            case 3, transformMethod = 'yeojohnson';
+        end
+
+    case 2
+        % Skewness threshold can be scalar or vector
+        prompt = sprintf(['Skewness threshold(s):\n' ...
+            'Enter a single value (e.g., 2) or a vector (e.g., [1 2 3]).\n' ...
+            'Features with abs(skew) > ANY threshold are considered for transform.']);
+        SkewThr = nk_input(prompt, 0, 'e', SkewThr);
+
+    case 3
+        % If user sees #3, it must be Box–Cox or Yeo–Johnson
+        if strcmpi(transformMethod,'boxcox')
+            [BoxCoxLambdaType, BoxCoxLambdaVal] = lambdaConfig('Box–Cox', BoxCoxLambdaType, BoxCoxLambdaVal);
+        elseif strcmpi(transformMethod,'yeojohnson')
+            [YJLambdaType, YJLambdaVal] = lambdaConfig('Yeo–Johnson', YJLambdaType, YJLambdaVal);
+        end
+
+    case 1000
+        CALIBUSE = nk_AskCalibUse_config(mestr, CALIBUSE);
+
+    otherwise
+        % user canceled or no action
+end
+
+% Store final config & update param expansions
+SKW = storeConfig(SKW, transformMethod, SkewThr, ...
+                  BoxCoxLambdaType, BoxCoxLambdaVal, ...
+                  YJLambdaType,     YJLambdaVal, CALIBUSE);
+SKW = updatePX(SKW);
+
+end % nk_SkewCorr_config
+% =========================================================================
+
+
+%% ======================== HELPER FUNCTIONS ==============================
+
+function [lambdaType, lambdaVal] = lambdaConfig(nameStr, currentType, currentVal)
+% Submenu to configure lambda selection: auto or manual
+% If manual, the user can enter multiple values => param range in NM
+
+fprintf('\n--- %s lambda configuration ---\n', nameStr);
+fprintf('1) Auto (MLE or pipeline approach)\n');
+fprintf('2) Manual numeric range\n');
+
+if strcmpi(currentType,'auto')
+    disp('Current setting = AUTO.');
+else
+    disp(['Current setting = MANUAL. Current values: ' nk_ConcatParamstr(currentVal,true)]);
+end
+
+methodSel = nk_input(['Set ' nameStr ' lambda'], 0, 'm',...
+    'Auto|Manual',[1 2], strcmpi(currentType,'manual')+1);
+
+if methodSel == 1
+    lambdaType = 'auto';
+    lambdaVal  = 0;
+else
+    lambdaType = 'manual';
+    prompt = sprintf('Enter one or more lambda values for %s', nameStr);
+    lambdaVal = nk_input(prompt, 0, 'e', currentVal);
+end
+
+end
+
+
+function SKW = storeConfig(SKW, transformMethod, SkewThr, ...
+                           BoxCoxLambdaType, BoxCoxLambdaVal, ...
+                           YJLambdaType, YJLambdaVal, CALIBUSE)
+% Writes the user-chosen settings into SKW
+
+SKW.transformMethod  = transformMethod;
+SKW.SkewThr          = SkewThr;
+SKW.BoxCoxLambdaType = BoxCoxLambdaType;
+SKW.BoxCoxLambdaVal  = BoxCoxLambdaVal;
+SKW.YJLambdaType     = YJLambdaType;
+SKW.YJLambdaVal      = YJLambdaVal;
+SKW.CALIBUSE         = CALIBUSE;
+
+end
+
+
+function SKW = updatePX(SKW)
+% Updates or creates the .PX substructure to reflect hyperparameter ranges
+%
+% We treat SkewThr, BoxCoxLambda, and YJLambda as possible hyperparameters.
+% If the user enters multiple values, NM sees them as a hyperparam dimension.
+
+if ~isfield(SKW,'PX') || isempty(SKW.PX)
+    PX = struct; 
+    PX.opt = [];
+else
+    PX = SKW.PX;
+end
+
+% 1) SkewThr as dimension #1
+PX = nk_AddParam(SKW.SkewThr, 'skewthr', 1, PX);
+
+% 2) BoxCoxLambda as dimension #2
+if strcmpi(SKW.transformMethod,'boxcox') && strcmpi(SKW.BoxCoxLambdaType,'manual')
+    PX = nk_AddParam(SKW.BoxCoxLambdaVal, 'boxcoxlambda', 2, PX);
+else
+    PX = nk_AddParam([], 'boxcoxlambda', 2, PX, 'reset');
+end
+
+% 3) Yeo–Johnson Lambda as dimension #3
+if strcmpi(SKW.transformMethod,'yeojohnson') && strcmpi(SKW.YJLambdaType,'manual')
+    PX = nk_AddParam(SKW.YJLambdaVal, 'yjlambda', 3, PX);
+else
+    PX = nk_AddParam([], 'yjlambda', 3, PX, 'reset');
+end
+
+% Build param combinations
+if isfield(PX, 'Px') && isfield(PX.Px, 'Params') && ~isempty(PX.Px.Params)
+    PX.opt = allcomb(PX.Px.Params, 'matlab');
+else
+    PX.opt = [];
+end
+
+SKW.PX = PX;
+end

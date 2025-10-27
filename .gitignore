@@ -1,0 +1,8 @@
+imaging_init.mat
+*.tmp
+atlas/rtemp.nii
+atlas/temp.nii
+*.bak
+gui/patch_overlay_nifti_gui.m
+gui/overlay_nifti_gui_bak.m
+gui/overlay_nifti_gui.txt
