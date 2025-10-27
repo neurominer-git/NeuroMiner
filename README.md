@@ -15,7 +15,7 @@ For further information on installation and configuration see the [installation 
 To get a detailed overview of the functionalities and how to use it, see [NeuroMiner's GitHub Pages](https://neurominer-git.github.io/NeuroMiner/1.0_introduction.html).  
 
 ## How to cite
-> N Koutsouleris, C. Vetter, A. Wiegand, L. Hahn and S. Mena (2024). Neurominer [Computer software]. Retrieved from https://github.com/neurominer-git/NeuroMiner
+> N Koutsouleris, C. Vetter, A. Wiegand, L. Hahn and S. Mena (2025). Neurominer [Computer software]. Retrieved from https://github.com/neurominer-git/NeuroMiner
 
 ## License
 NeuroMiner is copyright, distributed under the GNU General Public License.
