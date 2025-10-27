@@ -785,14 +785,14 @@ for f=1:ix % Loop through CV2 permutations
                                         end
                                     end
                                     
+                                    % Prepare boosting weights, if relevant
+                                    if isempty(Wkl), wu = 1; else, wu = Wkl(u); end
+                                    if ~isfinite(wu) || wu < 0, wu = 1; end  % harden
+
                                     if permfl || sigfl
                                         fprintf('\n\t%3g | OptModel =>', u);
                                         [perf_orig, I1.TS{h}(:,il(h)), I1.DS{h}(:,il(h))] = nk_GetTestPerf(modelTs, modelTsL, Find, MD{h}{m}{k,l}{u}, modelTr); 
                                         fprintf(' %1.2f',perf_orig)
-
-                                        % Prepare boosting weights, if relevant
-                                        if isempty(Wkl), wu = 1; else, wu = Wkl(u); end
-                                        if ~isfinite(wu) || wu < 0, wu = 1; end  % harden
     
                                         % Apply boosting weights if needed
                                         % (otherwise multiply with 1)
@@ -957,6 +957,8 @@ for f=1:ix % Loop through CV2 permutations
 
                                     % Apply boosting weights if needed
                                     % (otherwise multiply with 1)
+                                    
+                                
                                     Tx = nm_apply_scalar_weight(Tx, wu); 
 
                                     if compwise
