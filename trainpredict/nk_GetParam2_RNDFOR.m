@@ -174,10 +174,8 @@ switch MODEFL
         % set random state
         if boot
             randomstate = 42;
-            boot = true; 
         else
             randomstate = string(missing); %check if this is accepted as Python None
-            boot = false; 
         end
 
         model = py.sklearn.ensemble.RandomForestRegressor(n_estimators = n_est, ...

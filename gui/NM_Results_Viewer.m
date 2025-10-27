@@ -6914,7 +6914,9 @@ else
         if ~gui_Exported
             gui_hFigure = local_openfig(gui_State.gui_Name, 'reuse',gui_Visible);
         elseif ~isempty(gui_VisibleInput)
-            set(gui_hFigure,'Visible',gui_VisibleInput);
+            %set(gui_hFigure,'Visible',gui_VisibleInput); % CV
+            %(24/10/2025): I commented this out since it let the result
+            %viewer disappear (?)
         end
         if strcmpi(get(gui_hFigure, 'Visible'), 'on')
             figure(gui_hFigure);

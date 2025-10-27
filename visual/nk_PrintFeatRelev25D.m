@@ -1,5 +1,5 @@
 function [axes_handles, cb_ax] = nk_PrintFeatRelev25D(Features, ...
-                        Scores, ClassNames, ModelNames, ScoreName, FigureName, ...
+                        Scores, ClassNames, DomainNames, ScoreName, FigureName, ...
                         HoldOutRange, ColorbarRange, RGBposneg, RGBback, ...
                         SortBy, Order, RectangleHeightMode, MinAlpha)
 % nk_PrintFeatRelev25D - Visualizes feature relevance with scaled rectangles.
@@ -8,7 +8,7 @@ function [axes_handles, cb_ax] = nk_PrintFeatRelev25D(Features, ...
 %
 % Syntax:
 %  [axes_handles, cb_ax] = nk_PrintFeatRelev25D(Features, ...
-%                        Scores, ClassNames, ModelNames, ScoreName, FigureName, ...
+%                        Scores, ClassNames, DomainNames, ScoreName, FigureName, ...
 %                        HoldOutRange, ColorbarRange, RGBposneg, RGBback, ...
 %                        SortBy, Order, RectangleHeightMode, MinAlpha)
 %
@@ -16,7 +16,7 @@ function [axes_handles, cb_ax] = nk_PrintFeatRelev25D(Features, ...
 %   Features            - Cell array of feature name arrays.
 %   Scores              - Cell array of score arrays.
 %   ClassNames          - Cell array of class name pairs.
-%   ModelNames          - Cell array of model titles.
+%   DomainNames          - Cell array of model titles.
 %   ScoreName           - String representing the name of the score (e.g., 'Score').
 %   HoldOutRange        - Two-element vector specifying the transparent score range [min, max].
 %   FigureName          - (Optional) Name of the figure
@@ -81,16 +81,16 @@ end
 if ~iscell(Features); Features = {Features}; end
 if ~iscell(Scores); Scores = {Scores}; end
 if ~iscell(ClassNames); ClassNames = {ClassNames}; end
-if ~iscell(ModelNames); ModelNames = {ModelNames}; end
+if ~iscell(DomainNames); DomainNames = {DomainNames}; end
 
 numSets = length(Features);
 
-% Ensure that ClassNames, ModelNames, and Scores have the correct lengths
+% Ensure that ClassNames, DomainNames, and Scores have the correct lengths
 if length(ClassNames) ~= numSets
     error('The number of ClassNames entries must match the number of feature sets in Features and Scores.');
 end
-if length(ModelNames) ~= numSets
-    error('The number of ModelNames entries must match the number of feature sets in Features and Scores.');
+if length(DomainNames) ~= numSets
+    error('The number of DomainNames entries must match the number of feature sets in Features and Scores.');
 end
 if length(Scores) ~= numSets
     error('The number of Scores entries must match the number of feature sets in Features.');
@@ -101,7 +101,7 @@ max_nFeatures = max(cellfun(@length, Features));
 
 % Calculate font size based on the maximum number of features
 minFontSize = 7;
-maxFontSize = 14;
+maxFontSize = 12;
 maxFeaturesForScaling = 15;
 if max_nFeatures <= maxFeaturesForScaling
     fontSize = maxFontSize - ((max_nFeatures - 1) * (maxFontSize - minFontSize) / (maxFeaturesForScaling - 1));
@@ -156,8 +156,7 @@ for idx = 1:numSets
         text_extent = get(dummy_text, 'Extent');
         delete(dummy_text);
         text_width = text_extent(3);
-
-        x_position = Widths(i) + 0.2 + text_width;
+        x_position = Widths(i) + 0.05 + text_width;
         max_required_width = max(max_required_width, x_position + 0.5); % Extra padding
     end
 end
@@ -166,18 +165,10 @@ end
 delete(temp_ax);
 
 % Adjust axes positions and widths based on max_required_width
-total_width = 0.6; % Total width allocated for subplots
-subplot_spacing = 0.05; % Spacing between subplots
+total_width = 0.7; % Total width allocated for subplots
+subplot_spacing = 0.025; % Spacing between subplots
 main_ax_width = (total_width - (numSets - 1) * subplot_spacing) / numSets;
 axes_handles = cell(numSets, 1);
-
-% Generate x-axis ticks from 0 to maximum absolute score
-numTicks = ceil(max_abs_score) + 1; % Integer ticks from 0
-x_tick_values = 0:(numTicks - 1);
-x_tick_labels = arrayfun(@(x) sprintf('%d', x), x_tick_values, 'UniformOutput', false);
-
-% Map the x-tick values to positions in the plot
-x_tick_positions = x_tick_values * (ceil(max_abs_score) / max(x_tick_values));
 
 % Determine rectangle heights based on RectangleHeightMode
 if strcmp(RectangleHeightMode, 'constant')
@@ -214,7 +205,7 @@ for idx = 1:numSets
     FeaturesSet = Features{idx};
     ScoresSet = Scores{idx};
     ClassNamesSet = ClassNames{idx};
-    ModelNameSet = ModelNames{idx};
+    DomainNameset = DomainNames{idx};
 
     % Replace underscores with spaces in feature descriptions
     FeaturesSet = strrep(FeaturesSet, '_', ' ');
@@ -266,7 +257,7 @@ for idx = 1:numSets
     AlphaValues = zeros(size(ScoresSet));
     for i = 1:length(ScoresSet)
         score_abs = abs(ScoresSet(i));
-        if score_abs > HoldOutRange(2)
+        if score_abs >= HoldOutRange(2)
             AlphaValues(i) = min_alpha + (1 - min_alpha) * (score_abs - HoldOutRange(2)) / (max_abs_score - HoldOutRange(2));
         else
             AlphaValues(i) = 0; % Fully transparent if within HoldOutRange
@@ -285,54 +276,106 @@ for idx = 1:numSets
         y_positions = total_height - (1:numFeatures) * rect_height;
     end
 
-    % Draw the rectangles and feature descriptions
+    % 1) Set axis limits & lines before computing offsets
+    xlim(main_ax, [0, max_required_width]);
+    if HoldOutRange(2) > 0
+        xline(main_ax, HoldOutRange(2), ':', 'Color', 'k');
+    end
+    if strcmp(RectangleHeightMode, 'constant')
+        ylim(main_ax, [0, max_nFeatures * rect_height]);
+    else % 'proportional'
+        ylim(main_ax, [0, total_height]);
+    end
+
+    % 2) Compute a fixed pixel-based offset into data units
+    oldUnits = main_ax.Units;
+    main_ax.Units = 'pixels';
+    axPosPx = main_ax.Position;            % [x y width height] in px
+    main_ax.Units = oldUnits;
+    ppdu = axPosPx(3) / diff(main_ax.XLim); % px per data unit
+    offsetPx = 2;                          % 5 px constant gap
+    offsetData = offsetPx / ppdu;          % convert to data units
+
+    % Reference width for deciding inside vs outside text
+    refWidth = max_required_width * 0.5;
+
+    % 3) Draw rectangles and place text
+    textHandles = zeros(1,numFeatures);
     for idxFeature = 1:numFeatures
         y_position = y_positions(idxFeature);
         width = Widths(idxFeature);
+        if isnan(width), continue; end
         x_position = 0;
 
-        pos = [x_position, y_position, width, rect_height];
-        fc = FaceColors(idxFeature, :);
-        alpha = AlphaValues(idxFeature);
+        % Draw bar
+        rectangle(main_ax, 'Position', [x_position, y_position, width, rect_height], ...
+            'FaceColor', FaceColors(idxFeature,:), 'EdgeColor', [0.5,0.5,0.5], 'FaceAlpha', AlphaValues(idxFeature));
 
-        % Draw the rectangle
-        rectangle(main_ax, 'Position', pos, 'FaceColor', fc, 'EdgeColor', [0.5, 0.5, 0.5], 'FaceAlpha', alpha);
+        % Brightness for text color decision
+        FinalColor = AlphaValues(idxFeature)*FaceColors(idxFeature,:) + (1-AlphaValues(idxFeature))*[1,1,1];
+        Brightness = 0.299*FinalColor(1) + 0.587*FinalColor(2) + 0.114*FinalColor(3);
 
-        % Determine final color for brightness calculation
-        FinalColor = alpha * fc + (1 - alpha) * [1, 1, 1];
-        Brightness = 0.299 * FinalColor(1) + 0.587 * FinalColor(2) + 0.114 * FinalColor(3);
-
-        % Determine text placement
-        refWidth = max_required_width * 0.6; % Adjust as needed
+        % Determine text X based on fixed offset
         if width < refWidth
-            % Place text outside the rectangle
-            textX = x_position + width + 0.2;
-            alignment = 'left';
-            TextColor = [0, 0, 0];
+            textX = x_position + width + offsetData;
+            alignment = 'left'; TextColor = [0,0,0];
         else
-            % Place text inside the rectangle
-            textX = x_position + width - 0.2;
+            textX = x_position + width - offsetData;
             alignment = 'right';
-            % Decide text color based on rectangle brightness
-            if Brightness < 0.5
-                TextColor = [1, 1, 1];
-            else
-                TextColor = [0, 0, 0];
-            end
+            TextColor = (Brightness<0.5)*[1,1,1] + (Brightness>=0.5)*[0,0,0];
         end
 
-        % Add feature text with correct alignment and color
-        textY = y_position + rect_height / 2;
-        text(main_ax, textX, textY, FeaturesSet{idxFeature}, ...
-            'HorizontalAlignment', alignment, 'VerticalAlignment', 'middle', ...
-            'FontSize', fontSize, 'FontWeight', 'normal', 'Color', TextColor, 'Clipping', 'on');
+        % Place text at center vertically
+        textY = y_position + rect_height/2;
+        textHandles(idxFeature) = text(main_ax, textX, textY, strtrim(FeaturesSet{idxFeature}), ...
+            'Units','data','HorizontalAlignment',alignment,'VerticalAlignment','middle', ...
+            'FontSize',fontSize,'FontWeight','normal','Color',TextColor,'Clipping','on', 'Margin', 0.001);
     end
+    % extents    = arrayfun(@(h)get(h,'Extent'), textHandles, 'UniformOutput', false);
+    % maxLabelX  = max(cellfun(@(e)e(1)+e(3), extents));
+    % origBarMax = max(Widths);
+    % desiredMax = max_abs_score;
+    % 
+    % if maxLabelX <= desiredMax
+    %     newXmax = desiredMax;
+    %     % Apply final x-axis limits
+    %     xlim(main_ax, [0, newXmax]);
+    % else
+    %     % Allow bars to shrink
+    %     shrinkFloor = 0.8;
+    %     capX = origBarMax / shrinkFloor;
+    %     % Try extending to fit labels
+    %     newXmax = maxLabelX + 0.1;
+    %     % Apply final x-axis limits
+    %     xlim(main_ax, [0, newXmax]);
+    % 
+    %     if newXmax > capX
+    %         newXmax = capX;
+    %         % Truncate any labels that still overhang
+    %         for h = textHandles(:)'
+    %             ext = get(h,'Extent');
+    %             if ext(1) + ext(2) > newXmax
+    %                 strOrig = get(h,'String');
+    %                 avail   = newXmax - ext(1);
+    %                 fullW   = ext(3);
+    %                 % Estimate chars to fit, keep at least 3
+    %                 frac     = avail / fullW;
+    %                 minChars = min(3, numel(strOrig));
+    %                 estChars = max(floor(frac * numel(strOrig)), minChars);
+    %                 newStr   = [strOrig(1:estChars) '…'];
+    %                 set(h,'String', newStr);
+    %             end
+    %         end
+    %     end
+    % end
+    % 
+    % % Remove any x-ticks beyond the original max score
+    % xt = get(main_ax,'XTick');
+    % xt(xt>max_abs_score) = [];
+    % set(main_ax,'XTick',xt);
 
-    % Adjust axes
-    xlim(main_ax, [0, max_required_width]);
-    if HoldOutRange(2) >0
-        idxc = str2double(x_tick_labels) == HoldOutRange(2);
-        xline(x_tick_positions(idxc),':','Color','k');
+    if HoldOutRange(2) > 0
+        xline(main_ax, HoldOutRange(2), ':', 'Color', 'k');
     end
     if strcmp(RectangleHeightMode, 'constant')
         ylim(main_ax, [0, max_nFeatures * rect_height]);
@@ -345,10 +388,10 @@ for idx = 1:numSets
     set(main_ax, 'XAxisLocation', 'bottom');
     
     % Set x-axis ticks and labels
-    set(main_ax, 'XTick', x_tick_positions, 'XTickLabel', x_tick_labels, 'FontSize', fontSize);
+    set(main_ax, 'FontSize', fontSize);
 
     % Add title
-    title_handle = title(main_ax, ModelNameSet, 'FontSize', fontSize + 2);
+    title_handle = title(main_ax, DomainNameset, 'FontSize', fontSize + 2);
 
     % Set 'ActivePositionProperty' to prevent resizing
     set(main_ax, 'ActivePositionProperty', 'position');
@@ -413,9 +456,9 @@ for i = 1:n
         alpha = min_alpha + (1 - min_alpha) * (score_abs - HoldOutRange(2)) / (max_abs_score - HoldOutRange(2));
         alpha = max(0, min(1, alpha));
         if score >= 0
-            color = rgb_pos; % Red
+            color = rgb_pos; 
         else
-            color = rgb_neg; % Blue
+            color = rgb_neg; 
         end
     end
     colorbarImage(i, 1, :) = color;

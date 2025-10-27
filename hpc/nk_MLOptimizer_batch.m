@@ -41,6 +41,9 @@ if isdeployed
     for i=1:analind
         analind_i = i; 
         parentdir = NM.analysis{1,analind_i}.parentdir;
+        if parentdir(end) == '/'
+            parentdir = parentdir(1:end-1);
+        end
         NM.analysis{1,analind_i}.parentdir = jobdir;
         NM.analysis{1,analind_i}.rootdir = strrep(NM.analysis{1,analind_i}.rootdir,parentdir,jobdir);
         NM.analysis{1,analind_i}.logfile = strrep(NM.analysis{1,analind_i}.logfile,parentdir,jobdir);
@@ -58,13 +61,6 @@ fprintf('\nThe updated path of the NM structure root dir is: %s',NM.analysis{1,a
 fprintf('\n')
 
 % %%%%%%%%%%%%%%%%%%%%%%%%% INITIALIZE NeuroMiner %%%%%%%%%%%%%%%%%%%%%%%%%
-if ischar(preprocmaster) && exist(preprocmaster,'file')
-    preprocmat = load(preprocmaster); 
-    lfl = 2;
-else
-    preprocmat = []; lfl = 1;
-end
-
 action = struct('addrootpath',1, ...
                 'addDRpath',1, ...
                 'addMIpath',1, ...
@@ -76,8 +72,7 @@ action = struct('addrootpath',1, ...
 nk_Initialize(action)
 
 % %%%%%%%%%%%%%%%%%%%%%%%%% SETUP PARAMETERS %%%%%%%%%%%%%%%%%%%%%%%%
-inp = struct('analind',			analind, ...
-				'lfl',			lfl, ...
+inp = struct('analind',			analind,...
 				'gdmat',		[], ...
 				'gdanalmat', 	[], ...
 				'varstr', 		[], ...
@@ -87,9 +82,17 @@ inp = struct('analind',			analind, ...
                 'HideGridAct',  false, ...
                 'batchflag',    true);
 				
-inp.GridAct = nk_GenGridAct_batch(NM.analysis{analind}.params.cv, curCPU, numCPU, CV2x1, CV2x2, CV2y1, CV2y2);
-inp.preprocmat = preprocmat.featmat;                           
+inp.GridAct = nk_GenGridAct_batch(NM.analysis{analind}.params.cv, curCPU, numCPU, CV2x1, CV2x2, CV2y1, CV2y2);                       
+
 inp = nk_GetAnalModalInfo_config(NM, inp);
+
+if ischar(preprocmaster) && exist(preprocmaster,'file')
+    preprocmat = load(preprocmaster); 
+    inp.lfl = 2;
+    inp.preprocmat = preprocmat.featmat;
+else
+    inp.preprocmat = []; inp.lfl = 1;
+end
                                 
 nk_MLOptimizerPrep(7, inp, 'NM:HPC:MLOPTIMIZER');
             

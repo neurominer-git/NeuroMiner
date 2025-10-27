@@ -4060,83 +4060,46 @@ end
 
 function nii_reparent(viewer, newParent)
 
-    if ~isstruct(viewer) || ~isfield(viewer,'handles'), return; end
-
-    % 1) Reparent top-level containers explicitly (axes, group)
     H = viewer.handles;
 
-    safeSetParent(H, 'hAx',   newParent);
-    safeSetParent(H, 'h3DAx', newParent);
-    if isfield(H,'hViewGroup') && isgraphics(H.hViewGroup)
-        set(H.hViewGroup, 'Parent', newParent);
+    % Move axes first
+    if isgraphics(H.hAx,'axes')
+        set(H.hAx,'Parent', newParent);
     end
-    % Colorbar: leave it attached to hAx; we'll position it, but don't reparent
-    % if isa(H.hCbarAx,'matlab.graphics.illustration.ColorBar'), set(H.hCbarAx,'Location','manual'); end
 
-    % 2) Reparent ONLY those controls whose parent is neither the group nor already under the panel
-    toMove = [];
-    for h = H.all
-        if ~isgraphics(h) || ~isprop(h,'Parent'), continue; end
-        if isa(h,'matlab.graphics.illustration.ColorBar'), continue; end  % skip colorbar
-        par = get(h,'Parent');
-
-        % If a child of the uibuttongroup, leave it (the group was reparented)
-        if isgraphics(par) && strcmp(get(par,'Type'),'uibuttongroup')
-            continue;
-        end
-
-        % If already under the panel (or a descendant of it), leave it
-        if isDescendantOf(par, newParent)
-            continue;
-        end
-
-        % Otherwise, mark to move
-        toMove(end+1) = h; %#ok<AGROW>
+    % Colorbar is attached to axes; just ensure manual placement later
+    if isa(H.hCbarAx,'matlab.graphics.illustration.ColorBar')
+        set(H.hCbarAx,'Location','manual');  % we'll position in layout
     end
-    if ~isempty(toMove), set(toMove, 'Parent', newParent); end
 
-    % 3) Ensure normalized units ONLY for objects that are direct children of the panel
-    %    (don’t touch units of controls that live inside other containers)
-    try
-        panelKids = findall(newParent, '-depth', 1);
-        panelPix  = getpixelposition(newParent);
-        for h = panelKids(:).'
-            if ~isgraphics(h) || ~isprop(h,'Units'), continue; end
-            u = get(h,'Units');
-            if strcmpi(u,'pixels')
-                posPx = get(h,'Position');
-                posN  = [posPx(1)/panelPix(3), posPx(2)/panelPix(4), ...
-                         posPx(3)/panelPix(3), posPx(4)/panelPix(4)];
-                set(h, 'Units','normalized', 'Position', posN);
+    % Reparent any uicontrols
+    fields = fieldnames(H);
+    for k = 1:numel(fields)
+        h = H.(fields{k});
+        if all(ishghandle(h)) 
+            for j = 1:numel(h)
+                hj = h(j);
+                if isprop(hj,'Parent') && ~isequal(get(hj,'Parent'), newParent) ...
+                        && ~strcmp(get(hj,'Type'),'colorbar')
+                    try
+                        set(hj,'Parent', newParent);
+                    catch
+                    end
+                end
             end
         end
-    catch
     end
 
-    % 4) Let normalized children auto-resize with the panel
-    try set(newParent,'AutoResizeChildren','on'); catch, end
-end
-
-function tf = isDescendantOf(childParent, ancestorPanel)
-    tf = false;
-    try
-        h = childParent;
-        while isgraphics(h) && isprop(h,'Parent')
-            if isequal(h, ancestorPanel), tf = true; return; end
-            h = get(h,'Parent');
-            if isempty(h), break; end
-        end
-    catch
+    % Remember new parent
+    viewer.parent = newParent;
+    % Optional: normalize all Units so they scale with panel
+    kids = findall(newParent, '-property','Units');
+    for hj = transpose(kids)
+        try, set(hj,'Units','pixels'); catch, end   % we’ll place with layout()
     end
-end
 
-function safeSetParent(H, field, newParent)
-    if isfield(H, field)
-        h = H.(field);
-        if ~isempty(h) && all(isgraphics(h))
-            try, set(h, 'Parent', newParent); catch, end
-        end
-    end
+    % One pass of layout after reparenting
+    nii_layout(viewer);
 end
 
 function nii_enableAutoLayout(viewer)

@@ -101,6 +101,17 @@ read -p 'Server to use [any=1, jobs-cpu=2, jobs-cpu-long=3, jobs-matlab=4]: ' si
         echo "Enter a number between 1-4"
  fi
 
+
+read -p 'Define for which sample(s) to interpret the model [All=1, User-defined=2]: ' selectsamples
+
+ if [ "$selectsamples" = '1' ]; then
+        selectsamples = '1'
+ elif [ "$selectsamples" = '2' ]; then
+        read -p 'Specify sample ID(s) for which to interpret the model. Enter sample IDs as a cell array of strings (e.g. {'ID1','ID2'}) ' sampleIDs
+ else
+        echo "Enter number 1 or 2"
+ fi
+
 # for now use n per default
 read -p 'Submit jobs immediately [y]: ' todo
 # create the MCR cache directory
@@ -137,6 +148,8 @@ $CV2x1
 $CV2x2
 $CV2y1
 $CV2y2
+$selectsamples
+$sampleIDs
 EOF
 done
 SLURMFile=$JOB_DIR/NM_$ACTION'_A'$analind.slurm

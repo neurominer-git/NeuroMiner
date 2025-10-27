@@ -1,11 +1,11 @@
 #!/bin/bash
 
 echo '****************************************'
-echo '***          NeuroMiner              ***'
-echo '***   SLURM joblist manager CORE:    ***'
-echo '***    (c) 2023 N. Koutsouleris      ***'
+echo '*** NeuroMiner               ***'
+echo '*** SLURM joblist manager CORE:   ***'
+echo '*** (c) 2025 N. Koutsouleris     ***'
 echo '****************************************'
-echo '        VERSION 1.2 Feanor              '
+echo '        VERSION 1.4          '
 echo '****************************************'
 
 # compiled with matlab R2023b so MCR main is R2023b. Needs to change if different MCR is used.
@@ -15,28 +15,28 @@ NEUROMINER=/data/core-psy-pronia/opt/NM/NeuroMinerMCCMain_1.3_R2023b_core/for_te
 export ACTION=visualize
 read -e -p 'Path to NM structure: ' datpath
 if [ ! -f $datpath ]; then
- 	echo $datpath' not found.'
- 	exit 
+    echo $datpath' not found.'
+    exit
 fi
 
 read -e -p 'Path to job directory ['$JOB_DIR']: ' tJOB_DIR
 if [ "$tJOB_DIR" != '' ]; then
-	if [ -d $tJOB_DIR ]; then 
-		export JOB_DIR=$tJOB_DIR
-	else
-		echo $tJOB_DIR' not found.'
-		exit
-	fi
-fi 
+    if [ -d $tJOB_DIR ]; then
+        export JOB_DIR=$tJOB_DIR
+    else
+        echo $tJOB_DIR' not found.'
+        exit
+    fi
+fi
 
 read -e -p 'Change path to compiled NeuroMiner directory ['$NEUROMINER']: ' tNEUROMINER
-if [ "$tNEUROMINER" != '' ]; then     
-  if [ -d $tNEUROMINER ]; then  
+if [ "$tNEUROMINER" != '' ]; then
+  if [ -d $tNEUROMINER ]; then
     export NEUROMINER=$tNEUROMINER
   else
     echo $tNEUROMINER' not found.'
     exit
-  fi    
+  fi
 fi
 
 echo '-----------------------'
@@ -46,8 +46,8 @@ echo 'NeuroMiner directory: '$NEUROMINER
 echo '-----------------------'
 read -p 'Index to analysis container [NM.analysis{<index>}]: ' analind
 if [ "$analind" = '' ] ; then
-	echo 'An analysis index is mandatory! Exiting program.'
-	exit   
+    echo 'An analysis index is mandatory! Exiting program.'
+    exit
 fi
 read -p 'Is the selected analysis a multi-group analysis [ 1 = yes, 2 = no ]: ' MULTI
 if [ "$MULTI" = '1' ] ; then
@@ -57,8 +57,8 @@ else
 fi
 read -p 'Write CVR and sign-based significance maps for each CV2 partition [ 1 = yes, 2 = no ]: ' writeCV2flag
 read -p 'Overwrite existing VISdatamats [yes = 1 | no = 2]: ' ovrwrt
-export optmodelspath=NaN 
-export optparamspath=NaN 
+export optmodelspath=NaN
+export optparamspath=NaN
 read -p 'Save optimized preprocessing parameters and models to disk for future use [ 1 = yes, 2 = no ]: ' saveparam
 read -p 'Low memory modus [ 1 = yes, 2 = no ]: ' lowmemflag
 if [ "$saveparam" = '2' ] ; then
@@ -66,13 +66,13 @@ if [ "$saveparam" = '2' ] ; then
   if [ "$loadparam" = '1' ] ; then
     read -e -p 'Path to OptPreprocParam master file: ' optparamspath
     if [ ! -f $optparamspath ] ; then
-	    echo $optparamspath' not found.'
-	    exit
+        echo $optparamspath' not found.'
+        exit
     fi
     read -e -p 'Path to OptModels master file: ' optmodelspath
     if [ ! -f $optmodelspath ] ; then
-	    echo $optmodelspath' not found.'
-	    exit
+        echo $optmodelspath' not found.'
+        exit
     fi
   fi
 else
@@ -91,6 +91,27 @@ else
    imagingflag=0
    spacedefimg_path=NaN
 fi
+
+# <<< MODIFIED SECTION START
+read -p 'Back-project factorization components separately? [ 1 = yes, 2 = no ]: ' DecompMode
+if [ "$DecompMode" = '1' ] ; then
+    read -p 'Similarity cutoff for component realignment [0.3]: ' simCorrThresh
+    [ -z "$simCorrThresh" ] && simCorrThresh=0.3
+    read -p 'Similarity method (pearson/spearman/cosine) [pearson]: ' simCorrMethod
+    [ -z "$simCorrMethod" ] && simCorrMethod='pearson'
+    read -p 'Similarity cutoff for keeping components [0.3]: ' CorrCompCutOff
+    [ -z "$CorrCompCutOff" ] && CorrCompCutOff=0.3
+    read -p 'Presence (selection) cutoff for keeping components [0.2]: ' SelCompCutOff
+    [ -z "$SelCompCutOff" ] && SelCompCutOff=0.2
+else
+    DecompMode=2
+    simCorrThresh=0.3
+    simCorrMethod='pearson'
+    CorrCompCutOff=0.3
+    SelCompCutOff=0.2
+fi
+# <<< MODIFIED SECTION END
+
 read -p 'CV2 grid start row: ' CV2x1
 read -p 'CV2 grid end row: ' CV2x2
 read -p 'CV2 grid start column: ' CV2y1
@@ -103,10 +124,10 @@ read -p 'Server to use [any=1, jobs-cpu=2, jobs-cpu-long=3, jobs-matlab=4]: ' si
 
  if [ "$sind" = '1' ]; then
         SERVER_ID='jobs-matlab'
-	echo "WARNING: if it is a long job please use jobs-cpu-long"
+    echo "WARNING: if it is a long job please use jobs-cpu-long"
  elif [ "$sind" = '2' ]; then
         SERVER_ID='jobs-cpu'
-	echo "WARNING: if it is a long job please use jobs-cpu-long"
+    echo "WARNING: if it is a long job please use jobs-cpu-long"
  elif [ "$sind" = '3' ]; then
         SERVER_ID='jobs-cpu-long'
  elif [ "$sind" = '4' ]; then
@@ -134,6 +155,7 @@ mkdir $JOB_DIR/paramfiles
 fi
 mkdir $JOB_DIR/$pdir
 fi
+# <<< MODIFIED SECTION START
 # Generate parameter file
 cat > $ParamFile <<EOF
 $NEUROMINER
@@ -158,7 +180,13 @@ $CV2x1
 $CV2x2
 $CV2y1
 $CV2y2
+$DecompMode
+$simCorrThresh
+$simCorrMethod
+$CorrCompCutOff
+$SelCompCutOff
 EOF
+# <<< MODIFIED SECTION END
 done
 SLURMFile=$JOB_DIR/NM_$ACTION'_A'$analind.slurm
 tmp=$ACTION'_CPU'
@@ -184,7 +212,7 @@ cat > $SLURMFile <<EOF
 $PMODE
 export MCR_CACHE_ROOT=/data/core-psy-pronia/opt/temp/$USER
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH
-cd $NEUROMINER 
+cd $NEUROMINER
 ./NeuroMinerMCCMain $ACTION $JOB_DIR/$pdir/Param_NM_$tmp\${SLURM_ARRAY_TASK_ID}
 EOF
 chmod u+x $SLURMFile

@@ -131,11 +131,22 @@ switch FUSION.flag
                                         out.VI{k,l}{j} = cell(cntPXopt,1);
                                     end
                                 end
-                                % Check if parameter columns consist only one value
+                                % Check if parameter columns consist only of one value
                                 % and remove these columns
+                                need_fill = ( ~isfield(paramfl{i},'P') ) ...
+                                         || ( numel(paramfl{i}.P) < j ) ...
+                                         || isempty(paramfl{i}.P{j}) ...
+                                         || ~isfield(paramfl{i}.P{j},'opt') ...
+                                         || isempty(paramfl{i}.P{j}.opt);
+                                
+                                if need_fill
+                                    % Make P{j} a struct with an 'opt' field mirroring PXopt{j}
+                                    paramfl{i}.P{j} = struct('opt', paramfl{i}.PXopt{j});
+                                end
                                 if width(paramfl{i}.P{j}.opt) ~= width(paramfl{i}.PXopt{j})
-                                    idx_rem = all(diff(paramfl{i}.PXopt{j}) == 0, 1);
-                                    paramfl{i}.PXopt{j}(:,idx_rem) = [];
+                                    % drop columns that are constant across all rows in PXopt{j}
+                                    idx_rem = all(diff(paramfl{i}.PXopt{j}, 1, 1) == 0, 1);
+                                    paramfl{i}.PXopt{j}(:, idx_rem) = [];
                                 end
                                 shelf_ind = find(ismember(paramfl{i}.P{j}.opt,paramfl{i}.PXopt{j},'rows'));
                                 p_opt = paramfl{i}.P{j}.opt(shelf_ind,:);
