@@ -8,14 +8,14 @@ alt: neurominer logo
 ```
 ## Manual for NeuroMiner Version 1.4
 
-Software written by Nikolaos Koutsouleris, Clara Vetter & Ariane Wiegand
+Software written by Nikolaos Koutsouleris, Clara Vetter, Ariane Wiegand, Lisa Hahn & Sergio Mena
 
 
-Version release date: 24th September 2024
+Version release date: 27th October 2025
 
 ## How to cite NeuroMiner
 
-> Koutsouleris, N., Vetter, C., Wiegand, A., Hahn, L., & Mena, S. (2024). NeuroMiner (Version 1.3). GitHub. https://github.com/neurominer-git/NeuroMiner_1.3/
+> Koutsouleris, N., Vetter, C., Wiegand, A., Hahn, L., & Mena, S. (2025). NeuroMiner (Version 1.4). GitHub. https://github.com/neurominer-git/NeuroMiner/
 
 
 ## Machine learning for precision psychiatry
