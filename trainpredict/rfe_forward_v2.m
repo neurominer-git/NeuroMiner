@@ -113,6 +113,9 @@ switch r.WeightSort
     % CASE 1: Sorting by CV1 performance (train/test/average/combined)
     %------------------------------------------------------------------
     case 1 
+        
+        % Determine optimization sign
+        pen_sign = strcmp(r.optfunc,'descend') - strcmp(r.optfunc,'ascend'); % +1 (gain criterion) or -1 (loss criterion)
 
         while k > r.MinNum 
 
@@ -148,6 +151,7 @@ switch r.WeightSort
             % 2) Rank candidates by penalized score (if adaptive on)
             %    val_pen = val - lambda * rvec(current pool)
             %----------------------------------------------------------
+           
             if AD.Enable
                 rsub = rvec(Sind);
                 % ---------- Auto-λ: compute lambda_eff from gain scale ----------
@@ -158,14 +162,14 @@ switch r.WeightSort
                 else
                     AD.lambda_eff = AD.lambda;
                 end
-                val_pen = val - AD.lambda_eff * rsub;
+                val_pen  = val - pen_sign * AD.lambda_eff * rsub;
                 [~, ind] = sort(val_pen, r.optfunc);
             else
                 [~, ind] = sort(val, r.optfunc);
             end
             if VERBOSE
                 % ---- Default diag values for this iteration ----
-                raw_delta  = val - optparam;   % improvement vs current best (pre-accept)
+                raw_delta = pen_sign * (val - optparam);
                 TauUsed    = NaN;
                 infoNS     = struct('max_mprime', NaN, 'max_raw_delta', max(raw_delta), 'TauMAD', NaN);
                 lam_eff    = NaN;
@@ -179,7 +183,9 @@ switch r.WeightSort
             %    stop now (optionally with patience across iterations).
             %----------------------------------------------------------
             if AD.Enable && AD.Stop.Enable
-                [should_stop, TauUsed, infoNS] = rfe_natural_stop_test(val, optparam, rvec(Sind), AD.lambda_eff, AD.Stop);
+                val_ns      = pen_sign * val;
+                optparam_ns = pen_sign * optparam;
+                [should_stop, TauUsed, infoNS] = rfe_natural_stop_test(val_ns, optparam_ns, rvec(Sind), AD.lambda_eff, AD.Stop);
                 if should_stop
                     if VERBOSE
                         fprintf('\n[AdaptiveReg] Natural stop: max penalized gain=%.6g ≤ τ=%.6g (raw max Δ=%.6g, τMAD=%.6g).', ...
@@ -235,7 +241,7 @@ switch r.WeightSort
                 add_feat = Sind(add_inds);  % absolute feature indices (within r.FullInd)
 
                 % --- Bookkeeping: compute raw improvement BEFORE updating optparam
-                raw_impr = param - optparam;
+                raw_impr = pen_sign * (param - optparam);
 
                 % --- Commit the additions
                 S = [S add_feat]; 
@@ -472,7 +478,8 @@ switch r.WeightSort
                         [~, mtmp] = TRAINFUNC(tY_tmp, label, 1, Ps);
                         val_tmp(ii) = nk_GetTestPerf(T_tmp, r.L, [], mtmp, tY_tmp);
                     end
-                    [should_stop, TauUsed, infoNS] = rfe_natural_stop_test(val_tmp, optparam, rvec(Sind), AD.lambda_eff, AD.Stop);
+                    pen_sign2 = strcmp(r.optfunc,'descend') - strcmp(r.optfunc,'ascend');
+                    [should_stop, TauUsed, infoNS] = rfe_natural_stop_test(pen_sign2*val_tmp, optparam, rvec(Sind), AD.lambda_eff, AD.Stop);
                     if should_stop
                         if VERBOSE
                             fprintf('\n[AdaptiveReg] Natural stop (W-branch): max penalized gain=%.6g ≤ τ=%.6g (raw max Δ=%.6g, τMAD=%.6g).', ...
