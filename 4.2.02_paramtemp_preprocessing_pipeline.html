@@ -804,14 +804,16 @@ NeuroMiner performs imputation using either single-subject median replacement, f
 <blockquote>
 <div><p>1 | Median of non-NaN values in given case</p>
 <p>2 | Mean of non-NaN values in given feature</p>
-<p>3 | MANHATTAN distance-based nearest-neighbor search</p>
-<p>4 | EUCLIDEAN distance-based nearest-neighbor search</p>
+<p>3 | MANHATTAN distance-based nearest-neighbor search (Scale / Standardize first!)</p>
+<p>4 | EUCLIDEAN distance-based nearest-neighbor search (Scale / Standardize first!)</p>
 <p>5 | Sequential kNN-based imputation method (EUCLIDEAN)</p>
-<p>6 | SEUCLIDEAN distance-based nearest-neighbor search</p>
-<p>7 | COSINE similarity-based nearest-neighbor search</p>
-<p>8 | HAMMING distance-based nearest-neighbor search</p>
-<p>9 | JACCARD distance-based nearest-neighbor search</p>
-<p>10 | Nearest-neighbor imputation using hybrid method</p>
+<p>6 | Downshifted Gaussian imputation (for left-censored data)</p>
+<p>7 | SEUCLIDEAN distance-based nearest-neighbor search</p>
+<p>8 | COSINE similarity-based nearest-neighbor search</p>
+<p>9 | HAMMING distance-based nearest-neighbor search</p>
+<p>10 | JACCARD distance-based nearest-neighbor search</p>
+<p>11 | Downshifted Gaussian imputation (for left-censored data)</p>
+<p>12 | Nearest-neighbor imputation using hybrid method</p>
 </div></blockquote>
 <p>For median or mean replacement, values are imputed based on the data
 either across features for one subject or across subjects within the
@@ -873,6 +875,8 @@ specified.</p>
 <p class="admonition-title">Nominal Data</p>
 <p>It is important to remember that nominal data with more than two categories needs to be dummy-coded for the results to make sense (i.e., 0 or 1 coding). NeuroMiner does not recognize the types of a variable and therefore nominal data that is coded with more than three categories (e.g., 1=Depression; 2=Bipolar; 3=Schizophrenia) will be modeled as a variable with meaningful relationships between the numbers when differences are actually arbitrary.</p>
 </div>
+<p><strong>Downshifted Gaussian imputation (for left-censored data)</strong><br />
+Use this method only when missing values are Missing Not At Random (MNAR) and reflect low signal, such as in proteomics where low-abundance features often fall below the detection limit. For each feature independently, the method estimates the mean and standard deviation from the observed values, then replaces missing entries by random samples drawn from a Gaussian that is shifted toward lower intensities and scaled down in variance.</p>
 </div>
 <div class="section" id="select-features-for-imputation">
 <h3>2 | Select features for imputation<a class="headerlink" href="#select-features-for-imputation" title="Permalink to this heading">#</a></h3>
