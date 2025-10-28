@@ -8,7 +8,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ensemble generation strategies (NM 1.4) &#8212; NeuroMiner Manual</title>
+    <title>Ensemble generation strategies &#8212; NeuroMiner Manual</title>
   
   
   
@@ -193,7 +193,7 @@ const thebe_selector_output = ".output, .cell_output"
 <li class="toctree-l2"><a class="reference internal" href="4.2.02_paramtemp_preprocessing_pipeline.html">Preprocessing pipeline</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4.2.03_paramtemp_classification_algorithm.html">Classification algorithm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4.2.04_paramtemp_learning_algorithm_parameters.html">Learning algorithm parameters</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">Ensemble generation strategies (NM 1.4)</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Ensemble generation strategies</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4.2.06_paramtemp_visualization_options.html">Visualization Options</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4.2.07_paramtemp_interpretation_options.html">Prediction interpretation options</a></li>
 
@@ -421,7 +421,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Ensemble generation strategies (NM 1.4)</h1>
+    <h1>Ensemble generation strategies</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -463,8 +463,8 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article" role="main">
                   
-  <div class="tex2jax_ignore mathjax_ignore section" id="ensemble-generation-strategies-nm-1-4">
-<h1>Ensemble generation strategies (NM 1.4)<a class="headerlink" href="#ensemble-generation-strategies-nm-1-4" title="Permalink to this heading">#</a></h1>
+  <div class="tex2jax_ignore mathjax_ignore section" id="ensemble-generation-strategies">
+<h1>Ensemble generation strategies<a class="headerlink" href="#ensemble-generation-strategies" title="Permalink to this heading">#</a></h1>
 <p>NeuroMiner builds <strong>ensembles at the CV2 level</strong> by combining models learned inside the CV1 folds of a nested, repeated cross‑validation design (see <a class="reference internal" href="4.2.01_paramtemp_cv_settings.html#fig-3-2-01-nested-cv"><span class="std std-numref">Fig. 9</span></a>). Version <strong>1.4</strong> adds easy controls for <strong>diversity‑aware selection</strong>, <strong>probabilistic feature extraction (PFE)</strong>, <strong>boosting</strong> for both classification and regression, and <strong>adaptive wrappers with an automatic stopping rule</strong>.</p>
 <hr class="docutils" />
 <div class="section" id="filterbased-ensemble-generalization">
