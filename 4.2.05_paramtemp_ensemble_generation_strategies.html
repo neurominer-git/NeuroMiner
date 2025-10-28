@@ -432,28 +432,26 @@ document.write(`
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#filterbased-ensemble-generalization">Filter‑based ensemble generalization</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-enable">Where to enable</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prediction-metric-classification">Prediction metric (classification)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#multiclass-ranking-mode-classification">Multi‑class ranking mode (classification)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#turn-it-on">Turn it on</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prediction-type-classification">Prediction type (classification)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#multiclass-ranking-classification">Multi‑class ranking (classification)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#evaluation-mode">Evaluation mode</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#choose-a-filter-type-filter-type">Choose a <strong>filter type</strong> (<code class="docutils literal notranslate"><span class="pre">Filter.type</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#choose-a-filter-type">Choose a <strong>filter type</strong></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#minimum-number-of-features">Minimum number of features</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#subspace-optimization-strategy-posttraining-selection">Subspace optimization strategy (post‑training selection)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cost-selection-population">Cost/selection population</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#subspace-stepping">Subspace stepping</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#after-training-subspaces-how-to-keep-models">After training subspaces: how to keep models</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#wrapperbased-model-selection">Wrapper‑based model selection</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#activation-routing">Activation &amp; routing</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#choose-and-configure-a-wrapper">Choose and configure a wrapper</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#turn-it-on-route-subspaces">Turn it on &amp; route subspaces</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pick-a-wrapper-set-its-options">Pick a wrapper &amp; set its options</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data-used-for-wrapper-optimization">Data used for wrapper optimization</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#crosscv1-feature-selection-pfe-in-wrappers">Cross‑CV1 feature selection (PFE) in wrappers</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#crosscv1-feature-consolidation-pfe-inside-wrappers">Cross‑CV1 feature consolidation (PFE) inside wrappers</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-nm-1-4-adaptive-wrappers-with-automatic-stopping">New in NM 1.4 — Adaptive wrappers with automatic stopping</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#boosting-classification-regression">Boosting (classification &amp; regression)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cv2-prediction-aggregation">CV2 prediction &amp; aggregation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-nm-1-4-diversity-regularized-selection-how-to-configure">New in NM 1.4 — Diversity &amp; regularized selection (how to configure)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#boosting-module-classification-regression">Boosting module (classification &amp; regression)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#adaptive-naturalstopping-wrappers-greedy-forward-backward">Adaptive &amp; natural‑stopping wrappers (Greedy forward/backward)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quickstart-presets">Quick‑start presets</a></li>
 </ul>
             </nav>
         </div>
@@ -467,277 +465,297 @@ document.write(`
                   
   <div class="tex2jax_ignore mathjax_ignore section" id="ensemble-generation-strategies-nm-1-4">
 <h1>Ensemble generation strategies (NM 1.4)<a class="headerlink" href="#ensemble-generation-strategies-nm-1-4" title="Permalink to this heading">#</a></h1>
-<p>NeuroMiner trains <strong>ensembles at the CV2 level</strong> by pooling models learned inside the CV1 folds of a nested, repeated cross‑validation design (see <a class="reference internal" href="4.2.01_paramtemp_cv_settings.html#fig-3-2-01-nested-cv"><span class="std std-numref">Fig. 9</span></a>). Version <strong>1.4</strong> generalizes this engine with <strong>diversity‑aware optimization</strong>, <strong>probabilistic feature extraction (PFE)</strong>, <strong>boosting</strong> for classification and regression, and <strong>adaptive wrappers with a natural stopping rule</strong>.</p>
+<p>NeuroMiner builds <strong>ensembles at the CV2 level</strong> by combining models learned inside the CV1 folds of a nested, repeated cross‑validation design (see <a class="reference internal" href="4.2.01_paramtemp_cv_settings.html#fig-3-2-01-nested-cv"><span class="std std-numref">Fig. 9</span></a>). Version <strong>1.4</strong> adds easy controls for <strong>diversity‑aware selection</strong>, <strong>probabilistic feature extraction (PFE)</strong>, <strong>boosting</strong> for both classification and regression, and <strong>adaptive wrappers with an automatic stopping rule</strong>.</p>
 <hr class="docutils" />
 <div class="section" id="filterbased-ensemble-generalization">
 <h2>Filter‑based ensemble generalization<a class="headerlink" href="#filterbased-ensemble-generalization" title="Permalink to this heading">#</a></h2>
-<p>The <strong>Subspace Selection Strategy</strong> acts as a <em>filter</em>: you pre‑rank variables and form <strong>feature subspaces</strong>, train one base learner per subspace within CV1, then keep either the single best subspace or an <strong>ensemble</strong> of high‑performing subspaces for CV2 aggregation.</p>
+<p>The <strong>Subspace Selection Strategy</strong> acts as a <em>filter</em>: you rank features, form <strong>feature subspaces</strong>, train one model per subspace inside CV1, then keep either the single best subspace or an <strong>ensemble</strong> of the strongest subspaces for CV2 aggregation.</p>
 <div class="figure align-default" id="fig-nm-ensemble-filterbased">
-<img alt="Neurominer ensemble generalization filter based" src="_images/NM_ensemble_filterbased.png" />
+<img alt="NeuroMiner – filter‑based ensemble generalization" src="_images/NM_ensemble_filterbased.png" />
 </div>
-<div class="section" id="where-to-enable">
-<h3>Where to enable<a class="headerlink" href="#where-to-enable" title="Permalink to this heading">#</a></h3>
-<p><strong>Menu:</strong> <em>Filter‑based model selection setup</em> →
-<strong><code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">|</span> <span class="pre">Train</span> <span class="pre">filter</span> <span class="pre">methods</span> <span class="pre">on</span> <span class="pre">CV1</span> <span class="pre">partitions</span></code></strong> — toggles filter‑based subspace optimization (default <strong>off</strong>).</p>
+<div class="section" id="turn-it-on">
+<h3>Turn it on<a class="headerlink" href="#turn-it-on" title="Permalink to this heading">#</a></h3>
+<p><strong>Menu:</strong> <em>Filter‑based model selection setup</em> → <strong>Train filter methods on CV1 partitions</strong><br />
+Enables the feature‑filtering and subspace workflow.</p>
 </div>
-<div class="section" id="prediction-metric-classification">
-<h3>Prediction metric (classification)<a class="headerlink" href="#prediction-metric-classification" title="Permalink to this heading">#</a></h3>
-<p><strong><code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">|</span> <span class="pre">Use</span> <span class="pre">algorithm</span> <span class="pre">output</span> <span class="pre">scores</span> <span class="pre">or</span> <span class="pre">label</span> <span class="pre">predictions</span></code></strong></p>
+<div class="section" id="prediction-type-classification">
+<h3>Prediction type (classification)<a class="headerlink" href="#prediction-type-classification" title="Permalink to this heading">#</a></h3>
+<p><strong>Use algorithm output scores or label predictions</strong></p>
 <ul class="simple">
-<li><p><strong>Predicted labels (hard)</strong> → majority vote</p></li>
-<li><p><strong>Algorithm scores (soft)</strong> → mean of probabilities/scores</p></li>
+<li><p><strong>Hard voting</strong> (predicted labels)</p></li>
+<li><p><strong>Soft averaging</strong> (probabilities/scores)<br />
+<em>(Regression always uses scores.)</em></p></li>
 </ul>
-<p><em>(Regression uses scores automatically.)</em></p>
 </div>
-<div class="section" id="multiclass-ranking-mode-classification">
-<h3>Multi‑class ranking mode (classification)<a class="headerlink" href="#multiclass-ranking-mode-classification" title="Permalink to this heading">#</a></h3>
-<p>When multi‑class is enabled: <strong><code class="docutils literal notranslate"><span class="pre">Optimize</span> <span class="pre">for</span> <span class="pre">multi-class</span> <span class="pre">settings</span> <span class="pre">[</span> <span class="pre">binary</span> <span class="pre">|</span> <span class="pre">multi-group</span> <span class="pre">]</span></code></strong> — configures how ranks are computed across classes.</p>
+<div class="section" id="multiclass-ranking-classification">
+<h3>Multi‑class ranking (classification)<a class="headerlink" href="#multiclass-ranking-classification" title="Permalink to this heading">#</a></h3>
+<p>Choose <strong>binary</strong> or <strong>multi‑group</strong> ranking mode to control how features are ranked across classes.</p>
 </div>
 <div class="section" id="evaluation-mode">
 <h3>Evaluation mode<a class="headerlink" href="#evaluation-mode" title="Permalink to this heading">#</a></h3>
+<p>Choose how ranked features are used:</p>
 <ul class="simple">
-<li><p><strong>Subspace</strong> — build/evaluate blocks of ranked features and select one or more subspaces.</p></li>
-<li><p><strong>Ranking</strong> — keep the <strong>top‑percent</strong> of a single ranking (no subspace ensembles).</p>
+<li><p><strong>Subspace mode</strong> – build/evaluate <em>blocks</em> of ranked features (e.g., top‑10%, top‑20%, …) and keep one or more subspaces.</p></li>
+<li><p><strong>Ranking mode</strong> – keep the <strong>top‑percent</strong> of a single ranking (no subspace ensembles).</p>
 <ul>
-<li><p>If <em>Ranking</em> is chosen, set <strong><code class="docutils literal notranslate"><span class="pre">Define</span> <span class="pre">percentile</span> <span class="pre">cut-off</span> <span class="pre">threshold</span> <span class="pre">for</span> <span class="pre">ranked</span> <span class="pre">features</span></code></strong> (default <strong>95</strong>).</p></li>
+<li><p>If you pick <em>Ranking</em>, set the <strong>percentile cut‑off</strong> (e.g., keep top 5%).</p></li>
 </ul>
 </li>
 </ul>
 </div>
-<div class="section" id="choose-a-filter-type-filter-type">
-<h3>Choose a <strong>filter type</strong> (<code class="docutils literal notranslate"><span class="pre">Filter.type</span></code>)<a class="headerlink" href="#choose-a-filter-type-filter-type" title="Permalink to this heading">#</a></h3>
-<p>Classification filters:</p>
+<div class="section" id="choose-a-filter-type">
+<h3>Choose a <strong>filter type</strong><a class="headerlink" href="#choose-a-filter-type" title="Permalink to this heading">#</a></h3>
+<p><strong>Classification</strong></p>
 <ol class="arabic simple">
-<li><p><strong>Mutual information (FEAST toolbox)</strong></p></li>
-<li><p><strong>mRMR (Peng et al.)</strong></p></li>
-<li><p><strong>Pearson / Spearman correlation</strong></p></li>
-<li><p><strong>SIMBA (margin‑based)</strong></p></li>
-<li><p><strong>G‑flip (margin‑based)</strong> — with <strong>limit‑to‑selected‑features</strong> toggle</p></li>
-<li><p><strong>IMRelief (margin‑based)</strong></p></li>
-<li><p><strong>Increasing feature subspace cardinality</strong></p></li>
-<li><p><strong>Random subspace sampling</strong></p></li>
-<li><p><strong>Relief (classification)</strong> — set <strong>k</strong> nearest neighbors</p></li>
-<li><p><strong>F‑Score (ANOVA signal/noise)</strong></p></li>
-<li><p><strong>Bhattacharyya distance</strong></p></li>
+<li><p><strong>Mutual information (FEAST)</strong> – keeps features that share the most information with the label.</p></li>
+<li><p><strong>mRMR</strong> – balances relevance to the label with low redundancy between features.</p></li>
+<li><p><strong>Pearson / Spearman correlation</strong> – univariate correlation ranking.</p></li>
+<li><p><strong>SIMBA (margin‑based)</strong> – prefers features that widen class margins.</p></li>
+<li><p><strong>G‑flip (margin‑based)</strong> – finds discriminative subsets; option to <strong>restrict</strong> later steps to features found by G‑flip.</p></li>
+<li><p><strong>IMRelief (margin‑based)</strong> – Relief‑family method with instance‑level weighting.</p></li>
+<li><p><strong>Increasing feature subspace size</strong> – nested subspaces by adding top‑ranked features.</p></li>
+<li><p><strong>Random subspace sampling</strong> – random feature subsets to increase diversity.</p></li>
+<li><p><strong>Relief (classification)</strong> – neighbor‑based margin ranking; set the <strong>number of nearest neighbors</strong>.</p></li>
+<li><p><strong>F‑Score (ANOVA)</strong> – signal‑to‑noise ratio across classes.</p></li>
+<li><p><strong>Bhattacharyya distance</strong> – class‑distribution separability.</p></li>
 </ol>
-<p>Regression filters:</p>
+<p><strong>Regression</strong></p>
 <ol class="arabic simple">
 <li><p><strong>Mutual information (FEAST)</strong></p></li>
 <li><p><strong>mRMR</strong></p></li>
 <li><p><strong>Pearson / Spearman correlation</strong></p></li>
-<li><p><strong>RGS (regression ranker)</strong></p></li>
-<li><p><strong>Increasing feature subspace cardinality</strong></p></li>
+<li><p><strong>RGS</strong> – regression‑specific ranking.</p></li>
+<li><p><strong>Increasing feature subspace size</strong></p></li>
 <li><p><strong>Random subspace sampling</strong></p></li>
 <li><p><strong>Relief (regression / RReliefF)</strong></p></li>
 </ol>
 <blockquote>
-<div><p><strong>Defaults:</strong> classification → <strong>Pearson</strong> (<code class="docutils literal notranslate"><span class="pre">Filter.type=3</span></code>, <code class="docutils literal notranslate"><span class="pre">Filter.Pearson=1</span></code>); regression → <strong>mRMR</strong> (<code class="docutils literal notranslate"><span class="pre">Filter.type=2</span></code>). Minimum features default <strong>1</strong>.</p>
+<div><p><strong>Defaults:</strong><br />
+• Classification → correlation‑based ranking (Pearson) with subspaces enabled.<br />
+• Regression → mRMR.<br />
+• Minimum number of features → 1 (you can change this).</p>
 </div></blockquote>
 </div>
 <div class="section" id="minimum-number-of-features">
 <h3>Minimum number of features<a class="headerlink" href="#minimum-number-of-features" title="Permalink to this heading">#</a></h3>
-<p><strong><code class="docutils literal notranslate"><span class="pre">Define</span> <span class="pre">minimum</span> <span class="pre">#</span> <span class="pre">of</span> <span class="pre">features</span> <span class="pre">to</span> <span class="pre">be</span> <span class="pre">selected</span></code></strong> — lower bound for any candidate subspace.</p>
+<p><strong>Define minimum number of features to be selected</strong><br />
+Sets a lower bound for any candidate subspace.</p>
 </div>
-<div class="section" id="subspace-optimization-strategy-posttraining-selection">
-<h3>Subspace optimization strategy (post‑training selection)<a class="headerlink" href="#subspace-optimization-strategy-posttraining-selection" title="Permalink to this heading">#</a></h3>
-<p>After training one model per subspace, choose:</p>
+<div class="section" id="after-training-subspaces-how-to-keep-models">
+<h3>After training subspaces: how to keep models<a class="headerlink" href="#after-training-subspaces-how-to-keep-models" title="Permalink to this heading">#</a></h3>
+<p>Pick <strong>one</strong> of the following:</p>
 <ol class="arabic simple">
-<li><p><strong>Subspace with maximum argmax</strong> — winner‑takes‑all</p></li>
-<li><p><strong>Subspace ensemble with maximum argmax</strong> — keep the <strong>top‑X</strong> subspaces</p></li>
-<li><p><strong>Subspace ensemble with maximum argmax above a percentile</strong> — keep <strong>top X%</strong></p></li>
-<li><p><strong>All‑subspace ensemble</strong> — keep <strong>all</strong> subspaces</p></li>
+<li><p><strong>Select the single best subspace</strong> – “winner takes all”.</p></li>
+<li><p><strong>Ensemble: keep the top‑X subspaces</strong> – you choose X.</p></li>
+<li><p><strong>Ensemble: keep the top‑percent of subspaces</strong> – you choose the percentage.</p></li>
+<li><p><strong>Ensemble: keep all subspaces</strong>.</p></li>
 </ol>
-<p>If you pick an ensemble (2–4), configure <strong>how base learners are combined</strong>:</p>
+<p>If you choose an <strong>ensemble</strong>, configure <strong>how to combine</strong> the base models:</p>
 <div class="figure align-default" id="fig-nm-filter-subspace-ensemble-options">
-<img alt="NeuroMiner filters subspace-based ensemble optimization menu" src="_images/NM_filter_subspace_ensemble_options.png" />
+<img alt="NeuroMiner – subspace‑based ensemble options" src="_images/NM_filter_subspace_ensemble_options.png" />
 </div>
 <p><strong>Ensemble optimization methods</strong></p>
-<ol class="arabic">
-<li><p><strong>Simply aggregate all learners</strong> — bagging‑style averaging (hard/soft)</p></li>
-<li><p><strong>Backward base‑learner elimination</strong> — greedy <strong>backward</strong> search with criteria such as <strong>Entropy</strong>, <strong>Kappa</strong>, <strong>Q‑statistic</strong>, <strong>Double‑fault</strong>, <strong>Bias–Variance/Ambiguity</strong>, or <strong>Performance</strong>; optional <strong>inverse‑error weighting</strong>; set <strong>minimum # learners</strong></p>
-<div class="figure align-default" id="fig-nm-filter-backward-base-learner-elim">
-<img alt="NeuroMiner filters subspace-based ensemble optimization menu (backward elimination)" src="_images/NM_filter_backward_base_learner_elim.png" />
-</div>
+<ol class="arabic simple">
+<li><p><strong>Simple averaging</strong> — bagging‑style averaging (works with hard or soft predictions).</p></li>
+<li><p><strong>Backward elimination</strong> — start with all models; remove the least helpful ones.</p></li>
+<li><p><strong>Forward selection</strong> — start empty; add the most helpful models.</p>
+<ul class="simple">
+<li><p>For <strong>2 &amp; 3</strong>, you can optimize by <strong>performance</strong>, <strong>diversity</strong>, or <strong>both</strong>.</p></li>
+<li><p>Diversity choices include <strong>Vote entropy</strong>, <strong>Double‑fault</strong>, <strong>Yule’s Q</strong>, <strong>Fleiss’ Kappa</strong>, <strong>LoBag error diversity</strong>, and (for regression) <strong>prediction‑variance/ambiguity</strong>.</p></li>
+<li><p>Optional <strong>inverse‑error weighting</strong> and <strong>minimum number of models</strong> to keep.</p></li>
+</ul>
 </li>
-<li><p><strong>Forward base‑learner selection</strong> — greedy <strong>forward</strong> search (same criteria as 2)</p></li>
-<li><p><strong>Create a single classifier using probabilistic feature subspace construction (PFE)</strong> — build a <strong>consensus feature mask</strong> from CV1 subspaces (set an <strong>agreement threshold</strong>) and retrain one model</p></li>
-<li><p><strong>Use AdaBoost to determine optimal weighting of base learners</strong> — <strong>boosting</strong> with configurable <strong>loss</strong>, <strong>L2</strong>, and <strong>diversity</strong> terms (see “Boosting” below)</p></li>
-<li><p><strong>Define target population for computing optimization parameter</strong> — evaluate criteria on <strong>CV1 train</strong>, <strong>CV1 test</strong>, or <strong>both</strong> (recommended: <strong>train + test</strong>)</p></li>
-<li><p><strong>Define subspace stepping</strong> — form subspaces in blocks of <strong>X%</strong> of ranked features (e.g., 10%, 20%, …)</p></li>
+<li><p><strong>Probabilistic feature extraction (PFE)</strong> — build a <strong>consensus feature mask</strong>: set an <strong>agreement threshold</strong> (e.g., “keep features selected in ≥ 75% of high‑performing subspaces”), then retrain <strong>one</strong> model on that mask.</p></li>
+<li><p><strong>Boosting</strong> — learn <strong>weights</strong> for the base models to balance <strong>accuracy</strong>, <strong>simplicity</strong>, and <strong>diversity</strong> (see <em>Boosting</em> below).</p></li>
+<li><p><strong>Target population for the selection criterion</strong> — evaluate on <strong>CV1 train</strong>, <strong>CV1 test</strong>, or <strong>both</strong> (recommended: <strong>train + test</strong> for robustness).</p></li>
+<li><p><strong>Subspace stepping</strong> — define the <strong>step size</strong> for building cumulative subspaces (e.g., 10% steps → 10%, 20%, 30%, …).</p></li>
 </ol>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p>Once <strong>winning subspaces</strong> are fixed, the subspace features can be handed to a <strong>wrapper</strong> (below) for embedded optimization.</p>
+<p>After you have chosen the winning subspaces (or built a consensus mask with PFE), you can hand those features to a <strong>wrapper</strong> (next section) for deeper, embedded optimization if needed.</p>
 </div>
-</div>
-<div class="section" id="cost-selection-population">
-<h3>Cost/selection population<a class="headerlink" href="#cost-selection-population" title="Permalink to this heading">#</a></h3>
-<p><strong><code class="docutils literal notranslate"><span class="pre">Define</span> <span class="pre">target</span> <span class="pre">population</span> <span class="pre">for</span> <span class="pre">computing</span> <span class="pre">optimization</span> <span class="pre">parameter</span></code></strong> — pick <strong>CV1 train</strong>, <strong>CV1 test</strong>, or <strong>train + test</strong> for robust selection.</p>
-</div>
-<div class="section" id="subspace-stepping">
-<h3>Subspace stepping<a class="headerlink" href="#subspace-stepping" title="Permalink to this heading">#</a></h3>
-<p><strong><code class="docutils literal notranslate"><span class="pre">Define</span> <span class="pre">subspace</span> <span class="pre">stepping</span></code></strong> — enable and set the <strong>% block size</strong> used to create cumulative ranked subspaces.</p>
 </div>
 </div>
 <hr class="docutils" />
 <div class="section" id="wrapperbased-model-selection">
 <h2>Wrapper‑based model selection<a class="headerlink" href="#wrapperbased-model-selection" title="Permalink to this heading">#</a></h2>
-<p>Wrappers search <strong>feature subsets</strong> that maximize CV1 performance. NM supports <strong>Greedy</strong>, <strong>Simulated Annealing (SA)</strong>, <strong>Genetic Algorithm (GA)</strong>, <strong>Particle Swarm (PSO)</strong>, and <strong>Path Finder (PFA)</strong> wrappers.</p>
+<p>Wrappers search <strong>feature combinations</strong> that maximize performance inside CV1. You can run them on the <strong>full feature set</strong> or <strong>inside the subspaces</strong> created by the filter step.</p>
 <div class="figure align-default" id="fig-nm-ensemble-wrapperbased">
-<img alt="Neurominer ensemble generalization wrapper based" src="_images/NM_ensemble_wrapperbased.png" />
+<img alt="NeuroMiner – wrapper‑based ensemble generalization" src="_images/NM_ensemble_wrapperbased.png" />
 </div>
-<div class="section" id="activation-routing">
-<h3>Activation &amp; routing<a class="headerlink" href="#activation-routing" title="Permalink to this heading">#</a></h3>
+<div class="section" id="turn-it-on-route-subspaces">
+<h3>Turn it on &amp; route subspaces<a class="headerlink" href="#turn-it-on-route-subspaces" title="Permalink to this heading">#</a></h3>
 <ul class="simple">
-<li><p><strong>Activate / Deactivate wrapper methods</strong></p></li>
-<li><p>If a <strong>Filter with Subspaces</strong> ran first, enable <strong><code class="docutils literal notranslate"><span class="pre">Evaluate</span> <span class="pre">features</span> <span class="pre">within</span> <span class="pre">subspaces</span></code></strong> so the wrapper works <strong>inside</strong> each subspace; optional <strong>subspace stepping</strong> here as well</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">Learn</span> <span class="pre">wrapper</span> <span class="pre">model</span> <span class="pre">only</span> <span class="pre">at</span> <span class="pre">parameter</span> <span class="pre">optimum</span></code></strong> — restrict wrapper search to the <strong>best CV1 hyper‑parameters</strong> (when a grid exists)</p></li>
+<li><p><strong>Activate wrapper methods</strong>.</p></li>
+<li><p>If you previously built subspaces, enable <strong>evaluate features within subspaces</strong> so the wrapper operates <em>inside</em> each subspace.</p></li>
+<li><p><strong>Learn wrapper model only at parameter optimum</strong> (optional) – if you ran a hyper‑parameter grid, you can limit the wrapper search to the best settings to save time.</p></li>
 </ul>
 <div class="figure align-default" id="fig-nm-ensemble-wrappertypes">
-<img alt="Neurominer ensemble generalization wrapper types" src="_images/NM_ensemble_wrappertypes.png" />
+<img alt="NeuroMiner – wrapper types" src="_images/NM_ensemble_wrappertypes.png" />
 </div>
 </div>
-<div class="section" id="choose-and-configure-a-wrapper">
-<h3>Choose and configure a wrapper<a class="headerlink" href="#choose-and-configure-a-wrapper" title="Permalink to this heading">#</a></h3>
+<div class="section" id="pick-a-wrapper-set-its-options">
+<h3>Pick a wrapper &amp; set its options<a class="headerlink" href="#pick-a-wrapper-set-its-options" title="Permalink to this heading">#</a></h3>
 <ul>
-<li><p><strong>Greedy feature selection</strong> (forward/backward):</p>
+<li><p><strong>Greedy forward/backward selection</strong></p>
 <ul class="simple">
-<li><p><strong>Search direction</strong> (forward/backward)</p></li>
-<li><p><strong>Early stopping</strong> (e.g., stop at 50% of pool)</p></li>
-<li><p><strong>Feature stepping</strong> (single features vs. % blocks)</p></li>
-<li><p><strong>Knee‑point thresholding</strong> (optional)</p></li>
+<li><p><strong>Search direction:</strong> forward (add) or backward (remove).</p></li>
+<li><p><strong>Early stopping</strong> (optional): stop when a chosen fraction of the pool is reached.</p></li>
+<li><p><strong>Feature stepping:</strong> evaluate <strong>one‑by‑one</strong> or in <strong>small blocks</strong> (faster).</p></li>
+<li><p><strong>Knee‑point threshold</strong> (optional): stop where the gain curve flattens.</p></li>
 </ul>
 </li>
-<li><p><strong>Simulated Annealing</strong> — temperature, cooling, iterations</p>
+<li><p><strong>Simulated annealing</strong></p>
+<ul class="simple">
+<li><p>Temperature schedule, cooling, iterations.</p></li>
+</ul>
 <div class="figure align-default" id="fig-nm-ensemble-simulatedannealing">
-<img alt="Neurominer ensemble simulated annealing" src="_images/NM_wrapper_simulatedannealing.png" />
+<img alt="NeuroMiner – simulated annealing" src="_images/NM_wrapper_simulatedannealing.png" />
 </div>
 </li>
-<li><p><strong>Genetic Algorithm</strong> — population, crossover, mutation, elites, generations</p>
+<li><p><strong>Genetic algorithm</strong></p>
+<ul class="simple">
+<li><p>Population size, crossover, mutation rate, elites, generations.</p></li>
+</ul>
 <div class="figure align-default" id="fig-nm-ensemble-geneticalgorithms">
-<img alt="Neurominer ensemble genetic algorithms" src="_images/NM_wrapper_geneticalgorithms.png" />
+<img alt="NeuroMiner – genetic algorithm" src="_images/NM_wrapper_geneticalgorithms.png" />
 </div>
 </li>
-<li><p><strong>Particle Swarm Optimization</strong> — swarm size, inertia, cognitive/social terms</p>
+<li><p><strong>Particle swarm optimization</strong></p>
+<ul class="simple">
+<li><p>Swarm size, inertia, cognitive/social weights.</p></li>
+</ul>
 <div class="figure align-default" id="fig-nm-ensemble-particleswarm">
-<img alt="Neurominer ensemble particle swarm" src="_images/NM_wrapper_particleswarm.png" />
+<img alt="NeuroMiner – particle swarm optimization" src="_images/NM_wrapper_particleswarm.png" />
 </div>
 </li>
-<li><p><strong>Path Finder Algorithm</strong> — path‑based metaheuristic (NM internal)</p>
+<li><p><strong>Path finder algorithm</strong></p>
+<ul class="simple">
+<li><p>Path‑based metaheuristic with an accessible set of knobs.</p></li>
+</ul>
 <div class="figure align-default" id="fig-nm-ensemble-pathfinder">
-<img alt="Neurominer ensemble path finder" src="_images/NM_wrapper_pathfinder.png" />
+<img alt="NeuroMiner – path finder algorithm" src="_images/NM_wrapper_pathfinder.png" />
 </div>
 </li>
 </ul>
 </div>
 <div class="section" id="data-used-for-wrapper-optimization">
 <h3>Data used for wrapper optimization<a class="headerlink" href="#data-used-for-wrapper-optimization" title="Permalink to this heading">#</a></h3>
-<p><strong><code class="docutils literal notranslate"><span class="pre">CV1</span> <span class="pre">data</span> <span class="pre">partitions</span> <span class="pre">for</span> <span class="pre">optimization</span></code></strong> — choose <strong>CV1 training</strong>, <strong>CV1 test</strong>, <strong>CV1 full</strong>, or <strong>CV1 training + CV1 test</strong>.</p>
+<p>Choose whether the wrapper optimizes on <strong>CV1 training</strong>, <strong>CV1 test</strong>, <strong>both</strong>, or the <strong>full CV1 partition</strong>. Using <strong>train + test</strong> is usually the safest choice.</p>
 </div>
-<div class="section" id="crosscv1-feature-selection-pfe-in-wrappers">
-<h3>Cross‑CV1 feature selection (PFE) in wrappers<a class="headerlink" href="#crosscv1-feature-selection-pfe-in-wrappers" title="Permalink to this heading">#</a></h3>
-<p><strong><code class="docutils literal notranslate"><span class="pre">Cross-CV1</span> <span class="pre">feature</span> <span class="pre">selection</span></code></strong> opens a menu to consolidate features <strong>across CV1 folds</strong>:</p>
+<div class="section" id="crosscv1-feature-consolidation-pfe-inside-wrappers">
+<h3>Cross‑CV1 feature consolidation (PFE) inside wrappers<a class="headerlink" href="#crosscv1-feature-consolidation-pfe-inside-wrappers" title="Permalink to this heading">#</a></h3>
+<p><strong>Cross‑CV1 feature selection</strong> opens options to keep features that recur across folds:</p>
 <ul class="simple">
-<li><p><strong>Enable optimization across CV1</strong> (yes/no)</p></li>
-<li><p><strong>Extraction mode</strong>:</p>
-<ol class="arabic simple">
-<li><p><strong>Agreement with tolerance window</strong> — keep features appearing in ≥ <em>p</em>% of folds, with a fallback <strong>tolerance</strong> and a <strong>minimum # features</strong></p></li>
-<li><p><strong>Absolute top‑N</strong> most consistent</p></li>
-<li><p><strong>Top‑p%</strong> most consistent</p></li>
-</ol>
-</li>
-<li><p><strong>Apply consistency‑based ranking</strong>:</p>
-<ul>
-<li><p><strong>Retrain all CV1 models after pruning</strong> unselected features, or</p></li>
-<li><p><strong>Retrain all CV1 models using the same selected feature space</strong></p></li>
-</ul>
-</li>
+<li><p><strong>Agreement with tolerance</strong> — “keep features seen in at least <em>p</em>% of folds,” with a <strong>fallback tolerance</strong> and a <strong>minimum number of features</strong>.</p></li>
+<li><p><strong>Top‑N most consistent</strong> — select a fixed number from the top of the consistency list.</p></li>
+<li><p><strong>Top‑percent most consistent</strong> — select a fraction (e.g., top 10%).<br />
+After selection, choose to <strong>retrain each CV1 model after pruning</strong> <em>or</em> <strong>retrain all CV1 models on the same shared feature set</strong>.</p></li>
 </ul>
 </div>
+</div>
+<hr class="docutils" />
+<div class="section" id="new-in-nm-1-4-adaptive-wrappers-with-automatic-stopping">
+<h2>New in NM 1.4 — Adaptive wrappers with automatic stopping<a class="headerlink" href="#new-in-nm-1-4-adaptive-wrappers-with-automatic-stopping" title="Permalink to this heading">#</a></h2>
+<p>Greedy wrappers no longer depend on an arbitrary “stop at 50%” rule. The <strong>adaptive wrapper</strong>:</p>
+<ul class="simple">
+<li><p><strong>Discourages near‑duplicate features</strong> and <strong>encourages complementary ones</strong> using a smooth, data‑aware penalty.</p></li>
+<li><p><strong>Stops automatically</strong> when further gains fall within the range of normal noise (“natural stopping”).</p></li>
+<li><p>Works for <strong>binary, multi‑class, and regression</strong> problems.</p></li>
+</ul>
+<p><strong>What you can control (plain‑English names)</strong></p>
+<ul class="simple">
+<li><p><strong>Penalty memory</strong> — how quickly past decisions fade.</p></li>
+<li><p><strong>Baseline drift</strong> — a gentle tendency to become more selective over time.</p></li>
+<li><p><strong>Penalty strength</strong> — how strongly redundancy is discouraged.</p></li>
+<li><p><strong>Encourage‑complementarity zone</strong> — where <em>moderately similar</em> features are still considered helpful (you set the <strong>center</strong> and <strong>width</strong>).</p></li>
+<li><p><strong>Near‑duplicate barrier</strong> — how forcefully very similar features are penalized.</p></li>
+<li><p><strong>Smoothness</strong> — how gradually the penalty turns on/off.</p></li>
+<li><p><strong>Stopping sensitivity</strong> — a baseline tolerance and a noise factor that decide when improvements are “too small to matter.”</p></li>
+<li><p><strong>Expert view (optional)</strong> — a helper to <strong>visualize</strong> the penalty curve while tuning.</p></li>
+</ul>
+<blockquote>
+<div><p><strong>Tip:</strong> Leave these on their defaults to start. They are designed to “do the right thing” without additional tuning. Adjust only if you need tighter or looser selection.</p>
+</div></blockquote>
+</div>
+<hr class="docutils" />
+<div class="section" id="boosting-classification-regression">
+<h2>Boosting (classification &amp; regression)<a class="headerlink" href="#boosting-classification-regression" title="Permalink to this heading">#</a></h2>
+<p><strong>Boosting</strong> learns <strong>weights</strong> for your base models so the final ensemble balances:</p>
+<ul class="simple">
+<li><p><strong>Accuracy</strong> — fits the signal,</p></li>
+<li><p><strong>Simplicity</strong> — avoids over‑reliance on any one model,</p></li>
+<li><p><strong>Diversity</strong> — prefers models that <strong>disagree</strong> in useful ways.</p></li>
+</ul>
+<p><strong>What you can set</strong></p>
+<ul class="simple">
+<li><p><strong>Loss type (classification):</strong> <em>log‑loss</em>, <em>squared error</em>, or <em>AdaBoost‑style updates</em>.</p></li>
+<li><p><strong>Diversity strength:</strong> how strongly to reward disagreement between models (with an <strong>auto‑scale</strong> option that picks a reasonable value for you).</p></li>
+<li><p><strong>Iterations</strong> and <strong>learning rate</strong> (for AdaBoost‑style updates).</p></li>
+<li><p><strong>Regression diversity choices:</strong> measure diversity using <strong>residual covariance</strong>, <strong>residual correlation</strong>, or a <strong>residual‑graph</strong> penalty.</p></li>
+</ul>
+<blockquote>
+<div><p><strong>When to use:</strong> turn on Boosting if simple averaging underperforms or your subspace models look too similar.</p>
+</div></blockquote>
 </div>
 <hr class="docutils" />
 <div class="section" id="cv2-prediction-aggregation">
 <h2>CV2 prediction &amp; aggregation<a class="headerlink" href="#cv2-prediction-aggregation" title="Permalink to this heading">#</a></h2>
-<p>Top‑level (<em>More ensemble learning options</em>) controls how CV2 predictions are produced:</p>
+<p>After CV1 is complete, NeuroMiner produces predictions in CV2 using an <strong>ensemble</strong>:</p>
 <ul class="simple">
-<li><p><strong>Always use ensemble prediction</strong></p></li>
-<li><p><strong>Classification metric</strong>: <strong>Target matrix (majority voting)</strong> <em>(hard)</em> or <strong>Decision/Probability value matrix</strong> <em>(soft)</em>; <strong>Regression</strong> uses scores</p></li>
-<li><p><strong>Retrain classifiers with the full CV1 partition?</strong> — optional refit on all CV1 data before CV2</p></li>
-<li><p><strong>Aggregating predictions across CV2 permutations</strong>:</p>
+<li><p><strong>Prediction type</strong></p>
+<ul>
+<li><p><strong>Classification:</strong> choose <strong>hard voting</strong> (majority) or <strong>soft averaging</strong> (probabilities).</p></li>
+<li><p><strong>Regression:</strong> uses <strong>soft averaging</strong>.</p></li>
+</ul>
+</li>
+<li><p><strong>Retrain on full CV1?</strong> Optionally refit the base learners on the <strong>entire CV1 partition</strong> before CV2 to increase stability.</p></li>
+<li><p><strong>Aggregate across CV2 permutations</strong></p>
 <ol class="arabic simple">
-<li><p><strong>Mean ensemble prediction across permutations (grand mean)</strong> — average the CV2 ensembles from each permutation</p></li>
-<li><p><strong>Grand ensemble constructed across permutations</strong> — <strong>pool all base learners</strong> from all permutations into one larger ensemble</p></li>
+<li><p><strong>Grand mean</strong> — average the CV2 ensemble predictions from each permutation (simple and robust).</p></li>
+<li><p><strong>Grand ensemble</strong> — <strong>pool all base learners</strong> from all permutations into one larger ensemble (can help when models are diverse).</p></li>
 </ol>
 </li>
 </ul>
-</div>
-<hr class="docutils" />
-<div class="section" id="new-in-nm-1-4-diversity-regularized-selection-how-to-configure">
-<h2>New in NM 1.4 — Diversity &amp; regularized selection (how to configure)<a class="headerlink" href="#new-in-nm-1-4-diversity-regularized-selection-how-to-configure" title="Permalink to this heading">#</a></h2>
-<p><strong>Where</strong></p>
-<ul class="simple">
-<li><p><em>Filter‑based</em> → <strong>Optimize ensemble</strong> → <strong>Forward/Backward</strong> → set <strong>Optimization criterion</strong> to <em>Performance + Diversity</em> and enable <strong>Regularization</strong> (size penalty, diversity weight)</p></li>
-<li><p><em>Wrapper‑based</em> → chosen wrapper → enable <strong>Diversity‑aware objective</strong> and <strong>Min # base learners</strong> (subset size control)</p></li>
-</ul>
-<p><strong>What</strong></p>
-<ul class="simple">
-<li><p><strong>Joint objective (ensembles):</strong>
-[
-\text{Score} = \text{Perf} ;-; \lambda\cdot\text{Complexity} ;+; \mu\cdot\text{Diversity}
-]
-Works for <strong>binary</strong>, <strong>multi‑class</strong>, and <strong>regression</strong> ensembles with metrics including <strong>Vote Entropy</strong>, <strong>Kappa</strong>, <strong>Q‑statistic</strong>, <strong>Double‑fault</strong>, <strong>Bias–Variance/Ambiguity</strong>, and <strong>Regression variance</strong>.</p></li>
-</ul>
-</div>
-<hr class="docutils" />
-<div class="section" id="boosting-module-classification-regression">
-<h2>Boosting module (classification &amp; regression)<a class="headerlink" href="#boosting-module-classification-regression" title="Permalink to this heading">#</a></h2>
-<p>Within <em>Ensemble optimization</em> you can select <strong>Boosting</strong> to learn <strong>non‑negative weights</strong> for base learners under L2 and <strong>diversity</strong> regularization:</p>
-<p>[
-J(\mathbf{w}) ;=; L!\bigl(\mathbf{y},, H\mathbf{w}\bigr);+;\lambda|\mathbf{w}|_2^2;+;\alpha,\mathbf{w}^\top R,\mathbf{w},\quad
-\mathbf{w}\ge 0,;\mathbf{1}^\top\mathbf{w}=1.
-]</p>
-<ul class="simple">
-<li><p><strong>Classification losses:</strong> <code class="docutils literal notranslate"><span class="pre">logloss</span></code>, <code class="docutils literal notranslate"><span class="pre">ridge</span></code>, <code class="docutils literal notranslate"><span class="pre">expgrad</span></code> (AdaBoost‑style multiplicative updates)</p></li>
-<li><p><strong>Regression diversity kernels:</strong> <code class="docutils literal notranslate"><span class="pre">residual-cov</span></code>, <code class="docutils literal notranslate"><span class="pre">residual-corr</span></code>, <code class="docutils literal notranslate"><span class="pre">residual-lapl</span></code></p></li>
-<li><p><strong>Key parameters:</strong> <code class="docutils literal notranslate"><span class="pre">λ</span></code> (L2), <code class="docutils literal notranslate"><span class="pre">α</span></code> (diversity kernel weight), <strong>R</strong> (diversity kernel), <code class="docutils literal notranslate"><span class="pre">eta</span></code> (expgrad step), <code class="docutils literal notranslate"><span class="pre">T</span></code> (iterations), plus <code class="docutils literal notranslate"><span class="pre">diagMode</span></code>, <code class="docutils literal notranslate"><span class="pre">scaleTo</span></code>, <code class="docutils literal notranslate"><span class="pre">autoAlpha</span></code> to auto‑scale diversity weight to a target fraction of loss magnitude.</p></li>
-</ul>
 <blockquote>
-<div><p><strong>SubSpaceStrat mapping.</strong> Internally, <strong>ConstructMode</strong> values are: <strong>0 = Simple aggregation</strong>, <strong>4 = PFE</strong>, <strong>5 = Boosting</strong>.</p>
+<div><p><strong>Shortcut (appears only when nothing needs optimizing):</strong> you may be offered to <strong>skip the CV1 cycle</strong> and train directly on the combined CV1 training+test data. This is disabled automatically whenever an optimization step (filter or wrapper) is active.</p>
 </div></blockquote>
 </div>
 <hr class="docutils" />
-<div class="section" id="adaptive-naturalstopping-wrappers-greedy-forward-backward">
-<h2>Adaptive &amp; natural‑stopping wrappers (Greedy forward/backward)<a class="headerlink" href="#adaptive-naturalstopping-wrappers-greedy-forward-backward" title="Permalink to this heading">#</a></h2>
-<p>NM 1.4 replaces arbitrary early‑stop fractions with an <strong>adaptive, redundancy‑aware regularizer</strong> and a <strong>natural stopping rule</strong>. The wrapper maintains a per‑feature <strong>refusal vector</strong> (r) that discourages redundant additions; the <strong>effective weight</strong> (\lambda_{\text{eff}}) is set automatically from the <strong>MAD</strong> of recent gains (or fixed manually):</p>
+<div class="section" id="quickstart-presets">
+<h2>Quick‑start presets<a class="headerlink" href="#quickstart-presets" title="Permalink to this heading">#</a></h2>
 <ul class="simple">
-<li><p>Penalized score for candidate feature (j):
-[
-v^{\text{pen}}<em>j ;=; v_j ;-; \lambda</em>{\text{eff}}, r_j.
-]</p></li>
-<li><p>Update of refusal vector (schematic):
-[
-r \leftarrow \gamma r ;+; \eta_0 ;+; \eta_1 (1-w_t),\phi(s),
-]
-where (s) is similarity (e.g., (|\mathrm{corr}|)) to accepted features and (\phi) is a <strong>smooth, asymmetric redundancy penalty</strong>.</p></li>
-<li><p><strong>Natural stop:</strong> stop when the <strong>best</strong> penalized margin fails to exceed a <strong>noise‑aware tolerance</strong>
-[
-\tau ;=; \max!\bigl(\tau_{\text{abs}},, Z_{\text{mad}} \cdot 1.4826 \cdot \mathrm{MAD}(\Delta v)\bigr).
-]</p></li>
+<li><p><strong>Balanced default (classification)</strong></p>
+<ol class="arabic simple">
+<li><p>Filter: correlation ranking → <strong>subspaces</strong> in 10% steps.</p></li>
+<li><p>Keep <strong>top‑X subspaces</strong> with <strong>forward selection</strong> and <strong>performance + diversity</strong>.</p></li>
+<li><p>Use <strong>soft averaging</strong> at CV2; aggregate by <strong>grand mean</strong>.</p></li>
+</ol>
+</li>
+<li><p><strong>Faster run</strong></p>
+<ol class="arabic simple">
+<li><p>Filter: <strong>Ranking mode</strong> with a <strong>top‑5%</strong> cut‑off.</p></li>
+<li><p><strong>Simple averaging</strong> of subspace models.</p></li>
+<li><p>Skip wrappers.</p></li>
+</ol>
+</li>
+<li><p><strong>High interpretability</strong></p>
+<ol class="arabic simple">
+<li><p>Filter: <strong>PFE</strong> to build a <strong>consensus feature mask</strong>.</p></li>
+<li><p>Train a <strong>single model</strong> per fold on that mask.</p></li>
+<li><p>Use <strong>soft averaging</strong> at CV2.</p></li>
+</ol>
+</li>
+<li><p><strong>When accuracy stalls</strong><br />
+Turn on <strong>Boosting</strong> with <strong>auto‑scaled diversity</strong>, run a few <strong>extra iterations</strong>, and re‑evaluate.</p></li>
+<li><p><strong>Regression default</strong></p>
+<ol class="arabic simple">
+<li><p>Filter: <strong>mRMR</strong> → <strong>subspaces</strong>.</p></li>
+<li><p>Keep <strong>top‑percent subspaces</strong>, select by <strong>performance</strong> (optionally add <strong>prediction‑variance</strong> diversity).</p></li>
+<li><p>Aggregate by <strong>grand mean</strong>.</p></li>
+</ol>
+</li>
 </ul>
-<p><strong>Figure 1 on page 4</strong> of the wrapper white paper illustrates (\phi(s)): it <strong>encourages weak</strong> correlations (a shallow “well” around moderate (s)) and <strong>penalizes near‑duplicates</strong> sharply as (s\to 1); sliders <strong>(c,w,\beta_{\text{well}},\beta_{\text{hi}},\sigma_{\text{lo}},\sigma_{\text{hi}})</strong> control the well’s location/depth and transition smoothness. Expert mode includes a <strong>live plot</strong> helper.</p>
-<p><strong>Key tunables (expert mode)</strong> — typical effects/ranges are given in the white paper’s <strong>Table 1</strong>:</p>
-<ul class="simple">
-<li><p><strong>(\gamma)</strong> (decay of past refusals), <strong>(\eta_0)</strong> (global drift), <strong>(\eta_1)</strong> (penalty amplitude)</p></li>
-<li><p><strong>(\lambda_{\text{eff}})</strong> (auto from MAD or manual)</p></li>
-<li><p><strong>(c,w)</strong> (moderate‑redundancy band center/width)</p></li>
-<li><p><strong>(\beta_{\text{well}},\beta_{\text{hi}})</strong> (well depth / high‑similarity barrier)</p></li>
-<li><p><strong>(\sigma_{\text{lo}},\sigma_{\text{hi}})</strong> (transition softness)</p></li>
-<li><p><strong>(\tau_{\text{abs}}, Z_{\text{mad}})</strong> (baseline tolerance, MAD multiplier)</p></li>
-</ul>
-<blockquote>
-<div><p><strong>Multi‑class wrappers.</strong> Each class maintains its own subset and refusal vector; class‑wise refusals are <strong>aggregated</strong> via the <strong>median</strong> into a single penalty during selection; the same natural stop applies.</p>
-</div></blockquote>
-<hr class="docutils" />
 </div>
 </div>
 
@@ -809,28 +827,26 @@ where (s) is similarity (e.g., (|\mathrm{corr}|)) to accepted features and (\phi
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#filterbased-ensemble-generalization">Filter‑based ensemble generalization</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-enable">Where to enable</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prediction-metric-classification">Prediction metric (classification)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#multiclass-ranking-mode-classification">Multi‑class ranking mode (classification)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#turn-it-on">Turn it on</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prediction-type-classification">Prediction type (classification)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#multiclass-ranking-classification">Multi‑class ranking (classification)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#evaluation-mode">Evaluation mode</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#choose-a-filter-type-filter-type">Choose a <strong>filter type</strong> (<code class="docutils literal notranslate"><span class="pre">Filter.type</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#choose-a-filter-type">Choose a <strong>filter type</strong></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#minimum-number-of-features">Minimum number of features</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#subspace-optimization-strategy-posttraining-selection">Subspace optimization strategy (post‑training selection)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cost-selection-population">Cost/selection population</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#subspace-stepping">Subspace stepping</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#after-training-subspaces-how-to-keep-models">After training subspaces: how to keep models</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#wrapperbased-model-selection">Wrapper‑based model selection</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#activation-routing">Activation &amp; routing</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#choose-and-configure-a-wrapper">Choose and configure a wrapper</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#turn-it-on-route-subspaces">Turn it on &amp; route subspaces</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pick-a-wrapper-set-its-options">Pick a wrapper &amp; set its options</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data-used-for-wrapper-optimization">Data used for wrapper optimization</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#crosscv1-feature-selection-pfe-in-wrappers">Cross‑CV1 feature selection (PFE) in wrappers</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#crosscv1-feature-consolidation-pfe-inside-wrappers">Cross‑CV1 feature consolidation (PFE) inside wrappers</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-nm-1-4-adaptive-wrappers-with-automatic-stopping">New in NM 1.4 — Adaptive wrappers with automatic stopping</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#boosting-classification-regression">Boosting (classification &amp; regression)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cv2-prediction-aggregation">CV2 prediction &amp; aggregation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-nm-1-4-diversity-regularized-selection-how-to-configure">New in NM 1.4 — Diversity &amp; regularized selection (how to configure)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#boosting-module-classification-regression">Boosting module (classification &amp; regression)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#adaptive-naturalstopping-wrappers-greedy-forward-backward">Adaptive &amp; natural‑stopping wrappers (Greedy forward/backward)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quickstart-presets">Quick‑start presets</a></li>
 </ul>
   </nav></div>
 
