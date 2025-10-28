@@ -25,16 +25,16 @@ end
 meanPval = []; meanCorr=[]; selPct = [];
 if isInter
     if ~isempty(idx)
+        keptMask  = visData.CompKept{curclass}{idx};    
         meanPval = cmp{idx}.mean_p_cv2;
         meanCorr = cmp{idx}.mean_r_cv2;
-        selPct = cmp{idx}.coverage_cv1(:,1) *100 ./ cmp{idx}.coverage_cv1(:,2);
-        keptMask  = visData.CompKept{1}{idx};    
+        selPct =  visData.CompSelRat{curclass}(keptMask)*100;
     end
 else
+    keptMask  = visData.CompKept{curclass};
     meanPval = cmp.mean_p_cv2;
     meanCorr = cmp.mean_r_cv2;
-    selPct = cmp.coverage_cv1(:,1) *100 ./ cmp.coverage_cv1(:,2);
-    keptMask  = visData.CompKept{1};
+    selPct = visData.CompSelRat{curclass}(keptMask)*100;
 end
 
 if isempty(meanCorr) && isempty(meanPval)
