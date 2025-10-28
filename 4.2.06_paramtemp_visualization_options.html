@@ -75,7 +75,7 @@ const thebe_selector_output = ".output, .cell_output"
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Prediction interpretation options" href="4.2.07_paramtemp_interpretation_options.html" />
-    <link rel="prev" title="Ensemble generation strategies" href="4.2.05_paramtemp_ensemble_generation_strategies.html" />
+    <link rel="prev" title="Ensemble generation strategies (NM 1.4)" href="4.2.05_paramtemp_ensemble_generation_strategies.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -195,7 +195,7 @@ const thebe_selector_output = ".output, .cell_output"
 <li class="toctree-l2"><a class="reference internal" href="4.2.02_paramtemp_preprocessing_pipeline.html">Preprocessing pipeline</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4.2.03_paramtemp_classification_algorithm.html">Classification algorithm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4.2.04_paramtemp_learning_algorithm_parameters.html">Learning algorithm parameters</a></li>
-<li class="toctree-l2"><a class="reference internal" href="4.2.05_paramtemp_ensemble_generation_strategies.html">Ensemble generation strategies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4.2.05_paramtemp_ensemble_generation_strategies.html">Ensemble generation strategies (NM 1.4)</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">Visualization Options</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4.2.07_paramtemp_interpretation_options.html">Prediction interpretation options</a></li>
 
@@ -539,7 +539,7 @@ w^{(\mathrm{backproj})}_c = w_c\, v_c \quad\text{for selected } c
 <p class="rubric">2) Geometry &amp; implications</p>
 <p>With aggregation, cross‑component covariance can <strong>attenuate</strong> apparent signal (cancellation):
 $<span class="math notranslate nohighlight">\(
-\mathrm{Var}(w_{\mathrm{agg}})=\sum_c w_c^2 \mathrm{Var}(v_c) + 2\!\!\sum_{1\le c&lt;d\le C} \! w_c w_d\, \mathrm{Cov}(v_c, v_d).
+\mathrm{Var}(w_{\mathrm{agg}})=\sum_c w_c^2 \mathrm{Var}(v_c) + 2\!\!\sum_{1\leq c&lt;d\leq C} \! w_c w_d\, \mathrm{Cov}(v_c, v_d).
 \)</span>$</p>
 <p>This is why feature‑level permutation tests on <span class="math notranslate nohighlight">\(w_{\mathrm{agg}}\)</span> often show fewer significant features than the factor‑resolved tests on <span class="math notranslate nohighlight">\(w^{(\mathrm{backproj})}_c\)</span>.</p>
 <p><strong>At a glance</strong></p>
@@ -591,12 +591,12 @@ with a feature‑wise statistic \)</span>\phi(\cdot)<span class="math notranslat
 </ol>
 <ul class="simple">
 <li><p><strong>Rank‑matched top‑K</strong>: let <span class="math notranslate nohighlight">\(K=|\mathcal{C}_{\mathrm{sig}}|\)</span>, select the top‑<span class="math notranslate nohighlight">\(K\)</span> <span class="math notranslate nohighlight">\(S^{(p)}_c\)</span>.</p></li>
-<li><p><strong>Threshold‑matched</strong>: determine observed cutoff <span class="math notranslate nohighlight">\(t_{\mathrm{obs}}\)</span>; select all <span class="math notranslate nohighlight">\(c\)</span> with <span class="math notranslate nohighlight">\(S^{(p)}_c\ge t_{\mathrm{obs}}\)</span> (trim/pad to <span class="math notranslate nohighlight">\(K\)</span> if needed).</p></li>
+<li><p><strong>Threshold‑matched</strong>: determine observed cutoff <span class="math notranslate nohighlight">\(t_{\mathrm{obs}}\)</span>; select all <span class="math notranslate nohighlight">\(c\)</span> with <span class="math notranslate nohighlight">\(S^{(p)}_c \geq t_{\mathrm{obs}}\)</span> (trim/pad to <span class="math notranslate nohighlight">\(K\)</span> if needed).</p></li>
 </ul>
 <ol class="arabic simple" start="4">
 <li><p>For feature <span class="math notranslate nohighlight">\(f\)</span> in selected slot <span class="math notranslate nohighlight">\(c\)</span>, compute empirical p:
 $<span class="math notranslate nohighlight">\(
-\hat p_{f,c} = \frac{E_{f,c}+1}{|P_f|+1},\quad E_{f,c}=\sum_{p\in P_f}\mathbf{1}\!\left(\bigl|w^{(p)}_{f,c}\bigr|\ge \bigl|w_{f,c}\bigr|\right).
+\hat p_{f,c} = \frac{E_{f,c}+1}{|P_f|+1},\quad E_{f,c}=\sum_{p\in P_f}\mathbf{1}\!\left(\bigl|w^{(p)}_{f,c}\bigr| \geq \bigl|w_{f,c}\bigr|\right).
 \)</span>$
 Apply FDR <strong>within</strong> each component. When using Z‑scores, compute permutation mean/variance with <strong>valid counts</strong> to handle missingness.</p></li>
 </ol>
@@ -605,11 +605,11 @@ Apply FDR <strong>within</strong> each component. When using Z‑scores, compute
 <ul class="simple">
 <li><p><strong>Aggregated (modality‑level) share</strong> over components <span class="math notranslate nohighlight">\(\mathcal{C}\)</span>:
 $<span class="math notranslate nohighlight">\(
-L^{(m)}_p=\frac{\sum_{c\in\mathcal{C}}\bigl\|w^{(m)}_c\bigr\|_p}{\sum_{m'}\sum_{c\in\mathcal{C}}\bigl\|w^{(m')}_c\bigr\|_p}
+L^{(m)}_p=\frac{\sum_{c\in\mathcal{C}}\bigl\|w^{(m)}_c\bigr\|_p}{\sum_{m^{\prime}}\sum_{c\in\mathcal{C}}\bigl\|w^{(m^{\prime})}_c\bigr\|_p}
 \)</span>$</p></li>
 <li><p><strong>Component×modality share</strong> (factor‑resolved), for <span class="math notranslate nohighlight">\(c\in\mathcal{C}_{\mathrm{sig}}\)</span>:
 $<span class="math notranslate nohighlight">\(
-L^{(m)}_{p,c}=\frac{\bigl\|w^{(m)}_c\bigr\|_p}{\sum_{m'}\bigl\|w^{(m')}_c\bigr\|_p}.
+L^{(m)}_{p,c}=\frac{\bigl\|w^{(m)}_c\bigr\|_p}{\sum_{m^{\prime}}\bigl\|w^{(m^{\prime})}_c\bigr\|_p}.
 \)</span>$</p></li>
 </ul>
 <p>Use <span class="math notranslate nohighlight">\(\mathcal{C}=\)</span> all components in aggregated mode; use <span class="math notranslate nohighlight">\(\mathcal{C}_{\mathrm{sig}}\)</span> in component‑wise mode.</p>
@@ -670,7 +670,7 @@ L^{(m)}_{p,c}=\frac{\bigl\|w^{(m)}_c\bigr\|_p}{\sum_{m'}\bigl\|w^{(m')}_c\bigr\|
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Ensemble generation strategies</p>
+        <p class="prev-next-title">Ensemble generation strategies (NM 1.4)</p>
       </div>
     </a>
     <a class="right-next"
