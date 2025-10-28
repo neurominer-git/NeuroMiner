@@ -454,8 +454,6 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-nm-1-4-diversity-regularized-selection-how-to-configure">New in NM 1.4 — Diversity &amp; regularized selection (how to configure)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#boosting-module-classification-regression">Boosting module (classification &amp; regression)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#adaptive-naturalstopping-wrappers-greedy-forward-backward">Adaptive &amp; natural‑stopping wrappers (Greedy forward/backward)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optiontomenu-recap-from-the-ui-code">Option‑to‑menu recap (from the UI/code)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#notes-to-readers">Notes to readers</a></li>
 </ul>
             </nav>
         </div>
@@ -739,47 +737,6 @@ where (s) is similarity (e.g., (|\mathrm{corr}|)) to accepted features and (\phi
 <blockquote>
 <div><p><strong>Multi‑class wrappers.</strong> Each class maintains its own subset and refusal vector; class‑wise refusals are <strong>aggregated</strong> via the <strong>median</strong> into a single penalty during selection; the same natural stop applies.</p>
 </div></blockquote>
-</div>
-<hr class="docutils" />
-<div class="section" id="optiontomenu-recap-from-the-ui-code">
-<h2>Option‑to‑menu recap (from the UI/code)<a class="headerlink" href="#optiontomenu-recap-from-the-ui-code" title="Permalink to this heading">#</a></h2>
-<p><strong>Filter module</strong></p>
-<ul class="simple">
-<li><p><strong>Activate</strong> filter on CV1 partitions</p></li>
-<li><p><strong>Hard vs. soft</strong> ensemble (classification)</p></li>
-<li><p><strong>Binary vs. multi‑group</strong> ranking (classification)</p></li>
-<li><p><strong>Filter type</strong> (FEAST, mRMR, Pearson/Spearman, SIMBA, G‑flip, IMRelief, Increasing‑cardinality, Random‑subspace, Relief (class/reg), F‑Score, Bhattacharyya, RGS (reg)) + <strong>method parameters</strong> (e.g., <strong>k</strong> for Relief, <strong>limit</strong> for G‑flip, Pearson vs. Spearman)</p></li>
-<li><p><strong>Minimum # features</strong></p></li>
-<li><p><strong>Subspace selection</strong>: single best / top‑X / top‑X% / all</p></li>
-<li><p><strong>Ensemble optimizer</strong>: aggregate all; <strong>forward/backward</strong> with <strong>Entropy/Kappa/Q/Double‑fault/Bias–Variance/Performance</strong>, <strong>inverse‑error weighting</strong>, <strong>min # learners</strong>; <strong>PFE</strong>; <strong>Boosting</strong> (loss/L2/diversity); <strong>target population</strong> (train/test/both); <strong>subspace stepping</strong></p></li>
-<li><p><strong>Ranking mode threshold</strong> (if no subspaces)</p></li>
-</ul>
-<p><strong>Wrapper module</strong></p>
-<ul class="simple">
-<li><p><strong>Activate/Deactivate</strong>; <strong>optimize only at parameter optimum</strong></p></li>
-<li><p><strong>Evaluate within subspaces</strong> (if a filter with subspaces ran) + optional <strong>subspace stepping</strong></p></li>
-<li><p><strong>Wrapper type</strong>: <strong>Greedy</strong>, <strong>SA</strong>, <strong>GA</strong>, <strong>PSO</strong>, <strong>PFA</strong> (+ their configuration dialogs)</p></li>
-<li><p><strong>Optimization data:</strong> CV1 <strong>train/test/full/train+test</strong></p></li>
-<li><p><strong>Cross‑CV1 PFE</strong>: <em>agreement with tolerance &amp; min‑N</em>, <em>top‑N</em>, <em>top‑p%</em>; <strong>retrain after pruning</strong> vs <strong>retrain on shared space</strong></p></li>
-</ul>
-<p><strong>CV2 prediction &amp; aggregation</strong></p>
-<ul class="simple">
-<li><p><strong>Metric</strong> (classification hard/soft; regression uses scores)</p></li>
-<li><p><strong>Retrain on full CV1</strong> (yes/no)</p></li>
-<li><p><strong>Aggregation across permutations</strong>: <strong>grand mean</strong> vs <strong>grand ensemble</strong></p></li>
-</ul>
-<p><strong>RFE/Hub</strong></p>
-<ul class="simple">
-<li><p><strong>Immediate retrain (skip CV1)</strong> only when there is <strong>no</strong> grid search and <strong>no</strong> filter/wrapper optimization (otherwise disabled).</p></li>
-</ul>
-</div>
-<hr class="docutils" />
-<div class="section" id="notes-to-readers">
-<h2>Notes to readers<a class="headerlink" href="#notes-to-readers" title="Permalink to this heading">#</a></h2>
-<ul class="simple">
-<li><p><em>Ensemble‑based optimization</em> (SubSpaceStrat) unifies simple averaging, <strong>diversity‑driven forward/backward selection</strong>, <strong>PFE</strong>, and <strong>boosting</strong>; the <strong>joint objective</strong> allows trading accuracy, sparsity, and diversity; see the <strong>ensemble white paper</strong> for formulas and control parameters.</p></li>
-<li><p><em>Wrappers</em> now feature <strong>adaptive regularization</strong> and a <strong>natural, noise‑aware stopping rule</strong>; see the <strong>wrapper white paper</strong> for the penalty function, parameter roles, and multi‑class extension.</p></li>
-</ul>
 <hr class="docutils" />
 </div>
 </div>
@@ -874,8 +831,6 @@ where (s) is similarity (e.g., (|\mathrm{corr}|)) to accepted features and (\phi
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-nm-1-4-diversity-regularized-selection-how-to-configure">New in NM 1.4 — Diversity &amp; regularized selection (how to configure)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#boosting-module-classification-regression">Boosting module (classification &amp; regression)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#adaptive-naturalstopping-wrappers-greedy-forward-backward">Adaptive &amp; natural‑stopping wrappers (Greedy forward/backward)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optiontomenu-recap-from-the-ui-code">Option‑to‑menu recap (from the UI/code)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#notes-to-readers">Notes to readers</a></li>
 </ul>
   </nav></div>
 
