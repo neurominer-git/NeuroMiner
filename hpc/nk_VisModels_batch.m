@@ -35,11 +35,11 @@ CV2x1               = str2double(params{1}{19});      % Range param for CV2 grid
 CV2x2               = str2double(params{1}{20});      % Range param for CV2 grid definition: Perm end CV2
 CV2y1               = str2double(params{1}{21});      % Range param for CV2 grid definition: Fold start CV2
 CV2y2               = str2double(params{1}{22});      % Range param for CV2 grid definition: Fold end CV2
-DecompMode          = str2double(params{1}{23});      % Back-projection mode
-simCorrThresh       = str2double(params{1}{24});      % Similarity threshold for realignment
-simCorrMethod       = params{1}{25};                  % Similarity method
-CorrCompCutOff      = str2double(params{1}{26});      % Similarity cutoff for pruning
-SelCompCutOff       = str2double(params{1}{27});      % Presence cutoff for pruning
+DecompMode     = str2double(params{1}{23});   % Back-projection mode
+simCorrThresh    = str2double(params{1}{24});   % Similarity threshold for realignment
+simCorrMethod    = params{1}{25};         % Similarity method
+CorrCompCutOff   = str2double(params{1}{26});   % Similarity cutoff for pruning
+SelCompCutOff    = str2double(params{1}{27});   % Presence cutoff for pruning
 fdr_comp_search     = str2double(params{1}{28});     % 1 = back-project only FDR-sig components
 if ~isdeployed
     addpath(NMpath);
