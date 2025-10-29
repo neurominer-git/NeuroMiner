@@ -10,10 +10,10 @@ global NMinfo NM CALIBAVAIL OOCVAVAIL SPMAVAIL FSAVAIL JUAVAIL OCTAVE
 
 NMinfo.info.name    = 'NeuroMiner';
 if OCTAVE
-    NMinfo.info.ver     = sprintf('v1.4 (beta) | FINGOLFIN [OCTAVE %s]', OCTAVE_VERSION);
+    NMinfo.info.ver     = sprintf('v1.4 | FINGOLFIN [OCTAVE %s]', OCTAVE_VERSION);
 else
     matver = ver('matlab');
-    NMinfo.info.ver     = sprintf('v1.4 (beta) | FINGOLFIN [%s %s]', matver.Name, matver.Release);
+    NMinfo.info.ver     = sprintf('v1.4 | FINGOLFIN [%s %s]', matver.Name, matver.Release);
 end
 NMinfo.info.author  = 'N. Koutsouleris, C. Vetter, A. Wiegand, L. Hahn, S. Mena';
 NMinfo.info.affil   = 'Section for Precision Psychiatry / Artificial Intelligence in Mental Health (AIM)';
