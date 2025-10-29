@@ -326,7 +326,7 @@ for f=1:ix % Loop through CV2 permutations
                         [I, I1] = nk_VisXHelperC('accum', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
                         [I, I1] = nk_VisXHelperC('report', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
                         % if things are getting huge, prune to only keep “stable” components:
-                        if isMemoryTight(0.99)
+                        if ~isdeployed && isMemoryTight(0.99)
                             % require a component to have appeared in at least 50% of folds so far
                             I = nk_VisXHelperC('prune_memory', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
                         end
@@ -1426,7 +1426,7 @@ for f=1:ix % Loop through CV2 permutations
                 [I, I1] = nk_VisXHelperC('accum', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
                 [I, I1] = nk_VisXHelperC('report', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
                 % if things are getting huge, prune to only keep “stable” components:
-                if isMemoryTight(0.99)
+                if ~isdeployed && isMemoryTight(0.99)
                     % require a component to have appeared in at least 50% of folds so far
                     I = nk_VisXHelperC('prune_memory', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
                 end
@@ -1449,7 +1449,7 @@ for f=1:ix % Loop through CV2 permutations
                     [I, I1] = nk_VisXHelperC('accum', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
                     [I, I1] = nk_VisXHelperC('report', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
                     % if things are getting huge, prune to only keep “stable” components:
-                    if isMemoryTight(0.99) 
+                    if ~isdeployed && isMemoryTight(0.99)
                         % require a component to have appeared in at least 50% of folds so far
                         I = nk_VisXHelperC('prune_memory', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
                     end
