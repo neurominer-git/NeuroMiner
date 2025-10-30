@@ -1,4 +1,4 @@
-function overThreshold = isMemoryTight(thresh)
+function [overThreshold, avail] = isMemoryTight(thresh)
 % isMemoryTight  returns true when MATLAB has used more than thresh fraction of its max heap.
 %   thresh should be between 0 and 1 (e.g. 0.8 for 80%).
 %
