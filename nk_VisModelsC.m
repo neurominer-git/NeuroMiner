@@ -379,7 +379,11 @@ for f=1:ix % Loop through CV2 permutations
                 
                 % Determine max dimensionality of components
                 if any(decompfl) || compwise
-                    maxTrWidth = max(cellfun(@(x) width(x), mapY.Tr{1,1}{1}));
+                    if iscell(mapY.Tr{1,1})
+                        maxTrWidth = max(cellfun(@(x) width(x), mapY.Tr{1,1}));
+                    else
+                        maxTrWidth = max(cellfun(@(x) width(x), mapY.Tr{1,1}{1}));
+                    end
                 else
                     maxTrWidth = 1;
                 end
