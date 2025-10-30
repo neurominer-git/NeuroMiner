@@ -94,16 +94,16 @@ end
 
 %% ---------- p-values and correlations (component-level, modality-agnostic) ----------
 % p values
-p_src_sig = I1.VCV1WPERM{h}(Fadd & (Vind == currmodal), il(h)); % compressed (sig-only)
+p_src_sig = I1.VCV1WPERM{h}(Fadd & (Vind == currmodal), il); % compressed (sig-only)
 mask_ref   = assignmentVec > 0 & assignmentVec <= numel(p_src_sig);
 idx_pruned = assignmentVec(mask_ref);     % indices in p_src_sig
 p_ref = nan(numel(assignmentVec),1);
 p_ref(mask_ref) = p_src_sig(idx_pruned);
-VCV1WPERMREF(1:nRef_combined, il(h)) = p_ref;
+VCV1WPERMREF(1:nRef_combined, il) = p_ref;
 % correlations
 c = corrPerComp(:);
 oneTol = 1e-6; idx_nearOne = (c >= 1-oneTol) & (c <= 1+oneTol); c(idx_nearOne) = NaN;
-VCV1WCORRREF(1:nRef_combined, il(h)) = c;
+VCV1WCORRREF(1:nRef_combined, il) = c;
 
 %% ---------- L2 magnitudes (two views, depending on fusion mode) ----------
 % Tx_out is:
@@ -128,12 +128,12 @@ if ~isInter
     L2_ref_combined = sum(L2_ref_mod, 2, 'omitnan');   % [nRef_combined x 1]
 
     % (a) Global per-component stats
-    ModComp_L2n(1:nRef_combined, il(h)) = L2_ref_combined;
+    ModComp_L2n(1:nRef_combined, il) = L2_ref_combined;
 
     if nM > 1
         % (b) Per-modality cube (component x modality x fold)
         for n = 1:nM
-            ModComp_L2nCube(1:nRef_combined, n, il(h)) = L2_ref_mod(:, n);
+            ModComp_L2nCube(1:nRef_combined, n, il) = L2_ref_mod(:, n);
         end
     end
 else
@@ -147,7 +147,7 @@ else
     end
 
     % Store this modality’s per-component magnitudes
-    ModComp_L2n(1:nRef_combined, il(h)) = v;
+    ModComp_L2n(1:nRef_combined, il) = v;
 end
 
 %% ---------- Copy back containers to I1 -----------

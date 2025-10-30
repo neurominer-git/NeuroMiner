@@ -972,7 +972,7 @@ for f=1:ix % Loop through CV2 permutations
 
                                     if compwise
                                         %% ================= GLOBAL (CROSS-MODALITY) REALIGNMENT — nk_VisModelsC =================
-                                        [I, I1, Tx, Psel, Rx, SRx, PAx, assignmentVec, signCorrections ] = nk_VisXRealignComponents(I, I1, h, Tx, Psel, Rx, SRx, PAx, Fadd, Vind, il, inp, nM, ill);
+                                        [I, I1, Tx, Psel, Rx, SRx, PAx, assignmentVec, signCorrections ] = nk_VisXRealignComponents(I, I1, h, Tx, Psel, Rx, SRx, PAx, Fadd, Vind, il(h), inp, nM, ill);
                                     end
 
                                     % ===== per-modality aggregate share for aggregated pathways =====
@@ -1485,10 +1485,8 @@ if ~batchflag
         % user-definable thresholds with sensible defaults
         if ~isfield(inp, 'SelCompCutOff') || isempty(inp.SelCompCutOff), corrMin = 0.30; else, corrMin = inp.SelCompCutOff; end
         if ~isfield(inp, 'CorrCompCutOff')  || isempty(inp.CorrCompCutOff),  selMin  = 0.10; else, selMin  = inp.CorrCompCutOff;  end
-        denom = I.VCV2NMODEL;
-
         for h = 1:nclass
-            
+            denom = I.VCV2NMODEL(h);
             if inp.isInter
                 for n=1:nM
                     if ~decompfl(n), continue; end
