@@ -1689,13 +1689,20 @@ end
 
 % Callback definitions
 function onLoadAtlas(~,~, atlasFile)
-
+    
     % Prompt for NIfTI atlas
-    if isempty(atlasFile) || ~exist(atlasFile,'file')
-        [fn,pn] = uigetfile({'*.nii;*.nii.gz','NIfTI atlas files'}, 'Select Atlas');
-        if isequal(fn,0), return; end
-        % Full path
-        atlasFile = fullfile(pn,fn);
+    if ~exist('atlasFile','var') || isempty(atlasFile) || ~exist(atlasFile,'file')
+        atlasFile = fullfile(structDir, hAtlasPopup.String{hAtlasPopup.Value});
+        if ~exist(atlasFile,'file')
+            if ~strcmp(hAtlasPopup.String{hAtlasPopup.Value},'<none>')
+                [fn,pn] = uigetfile({'*.nii;*.nii.gz','NIfTI atlas files'}, 'Select Atlas');
+                if isequal(fn,0), return; end
+                % Full path
+                atlasFile = fullfile(pn,fn);
+            else
+                return
+            end
+        end
     end
 
     % Load atlas volume

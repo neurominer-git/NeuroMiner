@@ -573,20 +573,17 @@ end
 % H is your input struct of handles
 % e.g., H.button = uicontrol(...); H.text = uicontrol(...);
 
-if verLessThan('matlab', '9.14')
-    % --- Code for versions BEFORE R2023a ---
-    % 'struct2array' does not exist, use the workaround
+% 'struct2array' does not exist, use a workaround
+try
+    set(struct2array(H), 'Units', 'pixels');
+catch
     try
         % Convert struct fields to a cell array, then to a table, then to an array
         handlesArray = table2array(struct2table(H));
         set(handlesArray, 'Units', 'pixels');
     catch ME
-        warning('Failed to convert struct to array for setting units: %s', ME.message);
+        warning(ME.identifier, 'Failed to convert struct to array for setting units: %s', ME.message);
     end
-else
-    % --- Code for R2023a and NEWER ---
-    % 'struct2array' is available
-    set(struct2array(H), 'Units', 'pixels');
 end
 % ---- figure size ----
 fp = getpixelposition(fig);  W = fp(3); Hh = fp(4);
