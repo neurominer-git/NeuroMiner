@@ -314,7 +314,7 @@ for curlabel = 1:nl
 
         if VERBOSE
             % Display visited indices analysis plots
-            DISP.vizHandles = nk_VisVisitedIdx(DISP.vizHandles, DISP.visited , Ps{1}, Params_desc{1});
+            DISP.vizHandles = nk_VisVisitedIdx(DISP.vizHandles, DISP.visited , Params_desc{1});
             % Update display message.
             currentHP = mat2str(Ps{1}(next_idx,:));
             bestHP = mat2str(Ps{1}(best_index,:));
