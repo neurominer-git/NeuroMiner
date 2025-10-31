@@ -96,7 +96,9 @@ switch IN.method
         stY = SeqkNNv2(stY, IN.k, tX);
     
     case 'downshift'
-        stY = lp_DownshiftGaussImp(stY);
+        rng(42,'twister');   
+        RNG_STREAM = RandStream('mt19937ar','Seed', 42);
+        stY = lp_DownshiftGaussImp(stY, [],[], RNG_STREAM);
 
     case {'euclidean','cityblock','seuclidean','cosine','mahalanobis','jaccard','hamming','hybrid'}
         tX = IN.X(:,IN.blockind);
@@ -164,7 +166,6 @@ switch IN.method
                     case 'mahalanobis'
                         D = pdist2(Xj, tY(i,indi_Yi), 'mahalanobis')';
                     case 'hybrid'
-                        indNomi = indNom(ind_c(idx_c));
                         % Identify nominal features using predefined
                         % variable. Compute distances in nominal features
                         indNomi = indNom(ind_c(idx_c));
