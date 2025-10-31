@@ -73,9 +73,10 @@ function vizHandles = nk_VisVisitedIdx(visited, candidateMatrix, hpNames)
             set(hb(2), 'YData', y2(:));
     end
 
-    sgtitle(fig, 'Visited Indices Analysis');
-    drawnow limitrate;
-
+    if ~isdeployed
+        sgtitle(fig, 'Visited Indices Analysis');
+        drawnow limitrate;
+    end
     vizHandles = H; % for convenience
 end
 
