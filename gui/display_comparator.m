@@ -46,7 +46,21 @@ switch ActionMode
             end
         end
         
-        win_wdth = sz(3)/2; win_hght = sz(4)/2; win_x = sz(3)/2 - win_wdth/2; win_y = sz(4)/2 - win_hght/2;
+        % === Screen size adjustment for MATLAB Online ===
+        isMatlabOnline = strcmp(getenv('MW_DDUX_APP_NAME'), 'MATLAB_ONLINE');
+        if isMatlabOnline
+            % Manually set a fixed size and center the window for MATLAB Online
+            win_wdth = 1200;
+            win_hght = 800;
+            win_x = max( (sz(3) - win_wdth) / 2, 1);
+            win_y = max( (sz(4) - win_hght) / 2, 1);
+        else
+            % Original desktop logic
+            win_wdth = sz(3)/2; win_hght = sz(4)/2; win_x = sz(3)/2 - win_wdth/2; win_y = sz(4)/2 - win_hght/2;
+        end
+
+        fig_pos = [win_x win_y win_wdth win_hght];
+        
         handles.PerfTab.Win = uifigure('NumberTitle','off', ...
                 'Name','NM Statistical Performance Comparator', ...
                 'Tag' ,WinTag, ...

@@ -4,14 +4,28 @@ function display_dcacurve(y_true, y_probs, y_true_oocv, y_probs_oocv, titlestr)
     initialMaxProb = findInitialMaxProbability(y_true, y_probs);
 
     screenSize = get(0, 'ScreenSize');
-    figWidth = screenSize(3) / 2;
-    figHeight = screenSize(4) / 2;
-    figX = (screenSize(3) - figWidth) / 2;
-    figY = (screenSize(4) - figHeight) / 2;
+    
+    % === Screen size adjustment for MATLAB Online ===
+    isMatlabOnline = strcmp(getenv('MW_DDUX_APP_NAME'), 'MATLAB_ONLINE');
+    if isMatlabOnline
+        % Manually set a fixed size and center the window for MATLAB Online
+        figWidth = 1200;
+        figHeight = 800;
+        figX = max( (screenSize(3) - figWidth) / 2, 1);
+        figY = max( (screenSize(4) - figHeight) / 2, 1);
+    else
+        % Original desktop logic
+        figWidth = screenSize(3) / 2;
+        figHeight = screenSize(4) / 2;
+        figX = (screenSize(3) - figWidth) / 2;
+        figY = (screenSize(4) - figHeight) / 2;
+    end
+    fig_pos = [figX, figY, figWidth, figHeight];
+    % === End of adjustment ===
 
     % Create figure
     f = figure('Name', 'Interactive Decision Curve Analysis', 'NumberTitle', 'off',...
-               'Units', 'pixels', 'Position', [figX, figY, figWidth, figHeight]);
+             'Units', 'pixels', 'Position', fig_pos); % Use adjusted position
 
     % Control panel
     controlPanel = uipanel(f, 'Units', 'normalized', 'Position', [0.05 0.02 0.9 0.1]);
@@ -19,15 +33,15 @@ function display_dcacurve(y_true, y_probs, y_true_oocv, y_probs_oocv, titlestr)
                              'Position', [0.02, 0.26, 0.2, 0.35],...
                              'String', sprintf('Max Prob: %.2f', initialMaxProb), 'HorizontalAlignment','left');
     hMaxProb = uicontrol(controlPanel, 'Style', 'slider', 'Units', 'normalized',...
-                         'Position', [0.2, 0.25, 0.25, 0.47],...
-                         'Min', 0.1, 'Max', 1, 'Value', initialMaxProb, 'Callback', @(es,ed) updatePlot());
+                             'Position', [0.2, 0.25, 0.25, 0.47],...
+                             'Min', 0.1, 'Max', 1, 'Value', initialMaxProb, 'Callback', @(es,ed) updatePlot());
     stepSizeInitial = 0.05;
     hStepSizeText = uicontrol(controlPanel, 'Style', 'text', 'Units', 'normalized',...
                               'Position', [0.52, 0.26, 0.15, 0.35],...
                               'String', sprintf('Step Size: %.2f', stepSizeInitial), 'HorizontalAlignment','left');
     hStepSize = uicontrol(controlPanel, 'Style', 'slider', 'Units', 'normalized',...
-                          'Position', [0.70, 0.25, 0.25, 0.47],...
-                          'Min', 0.01, 'Max', 0.1, 'Value', stepSizeInitial, 'Callback', @(es,ed) updatePlot());
+                              'Position', [0.70, 0.25, 0.25, 0.47],...
+                              'Min', 0.01, 'Max', 0.1, 'Value', stepSizeInitial, 'Callback', @(es,ed) updatePlot());
 
     % Axes for plot
     ax = axes(f, 'Units', 'normalized', 'Position', [0.1 0.25 0.85 0.7]);

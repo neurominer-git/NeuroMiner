@@ -23,7 +23,19 @@ function Mx = display_classcomparison_matrix(pvals, ticklabels, mw_all, sw_all, 
 % (c) Nikolaos Koutsouleris, 06/2020
 
 sz = get(0,'ScreenSize');
-win_wdth = sz(3)/2; win_hght = sz(4)*0.8; win_x = sz(3)/2 - win_wdth/2; win_y = sz(4)/2 - win_hght/2;
+% === Screen size adjustment for MATLAB Online ===
+isMatlabOnline = strcmp(getenv('MW_DDUX_APP_NAME'), 'MATLAB_ONLINE');
+if isMatlabOnline
+    % Manually set a fixed size and center the window for MATLAB Online
+    win_wdth = 1200;
+    win_hght = 800;
+    win_x = max( (sz(3) - win_wdth) / 2, 1);
+    win_y = max( (sz(4) - win_hght) / 2, 1);
+else
+    % Original desktop logic
+    win_wdth = sz(3)/2; win_hght = sz(4)*0.8; win_x = sz(3)/2 - win_wdth/2; win_y = sz(4)/2 - win_hght/2;
+end
+fig_pos = [win_x win_y win_wdth win_hght];
 if ~exist('T','var') || isempty(T)
     T = -log10([0.05 0.01 0.001 0.0001 0.00001 0.000001 0.0000001 realmin]) ;
 end
