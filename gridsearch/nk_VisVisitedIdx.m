@@ -3,7 +3,11 @@ function vizHandles = nk_VisVisitedIdx(visited, candidateMatrix, hpNames)
 % Stores/retrieves all handles via figure appdata ('VisitedIndicesVizHandles').
 
     if nargin < 3, hpNames = []; end
-    if isempty(visited), warning('No visited candidate indices to visualize.'); vizHandles = struct(); return; end
+    if isempty(visited)
+        warning('No visited candidate indices to visualize.');
+        vizHandles = struct();
+        return;
+    end
 
     % Unpack (CV1=cost, CV2 present always per your constraint)
     visitedIndices = [visited.index];
@@ -15,75 +19,92 @@ function vizHandles = nk_VisVisitedIdx(visited, candidateMatrix, hpNames)
     qualHP = find(arrayfun(@(i) numel(unique(candidateMatrix(:,i))) > 1, 1:nTotal));
     mode = 1 + (numel(qualHP) >= 5);  % 1 if <5, else 2
 
-    % Find or create figure
-    figTag = 'VisitedIndicesViz';
-    fig = findall(0,'Type','figure','Tag',figTag);
-    if isempty(fig) || ~isvalid(fig(1))
-        fig = figure('Tag', figTag, 'Name','Visited Indices Analysis', 'NumberTitle','off');
-        H = buildOnce(fig, mode, qualHP, hpNames, candidateMatrix);
-        setappdata(fig,'VisitedIndicesVizHandles', H);
-    else
-        fig = fig(1);
-        H = getappdata(fig,'VisitedIndicesVizHandles');
-        % If layout no longer matches (mode/HPs), rebuild ONCE (still no clf/cla on update path).
-        if isempty(H) || ~isstruct(H) || H.mode ~= mode || (mode==1 && ~isequal(H.hpIdx, qualHP))
-            close(fig); % safest to avoid orphaned handles; we re-create fully once
+    % --- Detect if graphics are available ---
+    hasGraphics = usejava('jvm') && feature('ShowFigureWindows');
+
+    % --- Only create or update figures if graphics are available ---
+    if hasGraphics
+        figTag = 'VisitedIndicesViz';
+        fig = findall(0,'Type','figure','Tag',figTag);
+
+        if isempty(fig) || ~isvalid(fig(1))
             fig = figure('Tag', figTag, 'Name','Visited Indices Analysis', 'NumberTitle','off');
             H = buildOnce(fig, mode, qualHP, hpNames, candidateMatrix);
             setappdata(fig,'VisitedIndicesVizHandles', H);
+        else
+            fig = fig(1);
+            H = getappdata(fig,'VisitedIndicesVizHandles');
+            if isempty(H) || ~isstruct(H) || H.mode ~= mode || (mode==1 && ~isequal(H.hpIdx, qualHP))
+                close(fig); % safest to avoid orphaned handles; we re-create fully once
+                fig = figure('Tag', figTag, 'Name','Visited Indices Analysis', 'NumberTitle','off');
+                H = buildOnce(fig, mode, qualHP, hpNames, candidateMatrix);
+                setappdata(fig,'VisitedIndicesVizHandles', H);
+            end
         end
+    else
+        % Headless mode (no GUI)
+        fig = [];
+        H = struct();
+        warning('Graphics not available (no JVM). Skipping visualization.');
     end
 
-    % --- Update data only (no deletions) ---
-    switch H.mode
-        case 1
-            for j = 1:numel(H.hpIdx)
-                col     = H.hpIdx(j);
-                edges   = H.binEdges{j};
-                centers = H.binCenters{j};
+    % --- Update data (only if figure was built) ---
+    if ~isempty(fieldnames(H))
+        switch H.mode
+            case 1
+                for j = 1:numel(H.hpIdx)
+                    col     = H.hpIdx(j);
+                    edges   = H.binEdges{j};
+                    centers = H.binCenters{j};
 
-                hpVals  = candidateMatrix(visitedIndices, col);
-                counts  = histcounts(hpVals, edges);
-                [~,~,binIdx] = histcounts(hpVals, edges);
+                    hpVals  = candidateMatrix(visitedIndices, col);
+                    counts  = histcounts(hpVals, edges);
+                    [~,~,binIdx] = histcounts(hpVals, edges);
+
+                    y1 = binMean(CV1, binIdx, numel(centers));
+                    y2 = binMean(CV2, binIdx, numel(centers));
+
+                    % Top histogram
+                    set(H.hHist{j}, 'XData', centers, 'YData', counts);
+
+                    % Bottom grouped bars
+                    hb = H.hBar{j};
+                    set(hb(1), 'YData', y1(:));
+                    set(hb(2), 'YData', y2(:));
+                end
+
+            case 2
+                centers = H.binCenters; edges = H.binEdges;
+                counts  = histcounts(visitedIndices, edges);
+                [~,~,binIdx] = histcounts(visitedIndices, edges);
 
                 y1 = binMean(CV1, binIdx, numel(centers));
                 y2 = binMean(CV2, binIdx, numel(centers));
 
-                % Top histogram
-                set(H.hHist{j}, 'XData', centers, 'YData', counts);
-
-                % Bottom grouped bars: update series YData only
-                hb = H.hBar{j};   % 1x2 Bar array
+                set(H.hLeft, 'XData', centers, 'YData', counts);
+                hb = H.hRight;
                 set(hb(1), 'YData', y1(:));
                 set(hb(2), 'YData', y2(:));
-            end
+        end
 
-        case 2
-            centers = H.binCenters; edges = H.binEdges;
-            counts  = histcounts(visitedIndices, edges);
-            [~,~,binIdx] = histcounts(visitedIndices, edges);
-
-            y1 = binMean(CV1, binIdx, numel(centers));
-            y2 = binMean(CV2, binIdx, numel(centers));
-
-            set(H.hLeft, 'XData', centers, 'YData', counts);
-
-            hb = H.hRight; % 1x2 Bar array
-            set(hb(1), 'YData', y1(:));
-            set(hb(2), 'YData', y2(:));
+        % Safe sgtitle and drawnow
+        if hasGraphics
+            sgtitle(fig, 'Visited Indices Analysis');
+            drawnow limitrate;
+        end
     end
 
-    if ~isdeployed
-        sgtitle(fig, 'Visited Indices Analysis');
-        drawnow limitrate;
-    end
-    vizHandles = H; % for convenience
+    vizHandles = H;
 end
 
 % ===== helpers =====
 
 function H = buildOnce(fig, mode, qualHP, hpNames, candidateMatrix)
-% Create axes, fixed bins, and handles exactly once. Always create grouped bars with 2 series.
+    % Skip figure building if headless
+    if ~usejava('jvm') || ~feature('ShowFigureWindows')
+        H = struct();
+        return;
+    end
 
     H = struct(); H.mode = mode; H.hpIdx = qualHP;
 
@@ -105,14 +126,15 @@ function H = buildOnce(fig, mode, qualHP, hpNames, candidateMatrix)
             numBins = 10;
             minVal = min(dataAll); maxVal = max(dataAll);
             if minVal == maxVal
-                pad = max(1, max(1e-12, abs(minVal))*0.01); minVal = minVal - pad; maxVal = maxVal + pad;
+                pad = max(1, max(1e-12, abs(minVal))*0.01);
+                minVal = minVal - pad; maxVal = maxVal + pad;
             end
             edges   = linspace(minVal, maxVal, numBins+1);
             centers = edges(1:end-1) + diff(edges)/2;
             H.binEdges{j}   = edges;
             H.binCenters{j} = centers;
 
-            % Top histogram (start at zeros)
+            % Top histogram
             axH = subplot(2,n,j,'Parent',fig);
             H.axHist{j} = axH;
             H.hHist{j}  = bar(axH, centers, zeros(size(centers)), 'Tag',sprintf('Hist_HP%d',col));
@@ -120,7 +142,7 @@ function H = buildOnce(fig, mode, qualHP, hpNames, candidateMatrix)
             title(axH, sprintf('%s: Visited', label));
             xlim(axH,[minVal maxVal]);
 
-            % Bottom grouped bars (2 series fixed)
+            % Bottom grouped bars
             axB = subplot(2,n,n+j,'Parent',fig);
             H.axBar{j} = axB;
             YY = zeros(numel(centers),2);
@@ -132,7 +154,6 @@ function H = buildOnce(fig, mode, qualHP, hpNames, candidateMatrix)
             title(axB, sprintf('%s: Avg Cost (CV1) & CV2', label));
             xlim(axB,[minVal maxVal]);
         end
-
     else
         nCandidates = size(candidateMatrix,1);
         numBins = min(10, max(1, nCandidates));
@@ -147,7 +168,7 @@ function H = buildOnce(fig, mode, qualHP, hpNames, candidateMatrix)
         title(H.axLeft,'Visited Candidate Indices');
         xlim(H.axLeft,[min(centers) max(centers)]);
 
-        % Right grouped bars (2 series fixed)
+        % Right grouped bars
         H.axRight = subplot(1,2,2,'Parent',fig);
         YY = zeros(numel(centers),2);
         hb = bar(H.axRight, centers, YY, 'grouped');
@@ -160,10 +181,15 @@ function H = buildOnce(fig, mode, qualHP, hpNames, candidateMatrix)
 end
 
 function m = binMean(values, binIdx, K)
-% NaN-robust per-bin mean; empty/all-NaN -> 0
     m = zeros(K,1);
     for k = 1:K
         v = values(binIdx==k);
-        if isempty(v), m(k)=0; else, mk = mean(v,'omitnan'); if isnan(mk), mk=0; end; m(k)=mk; end
+        if isempty(v)
+            m(k)=0;
+        else
+            mk = mean(v,'omitnan');
+            if isnan(mk), mk=0; end
+            m(k)=mk;
+        end
     end
 end

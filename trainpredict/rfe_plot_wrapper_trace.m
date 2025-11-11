@@ -11,6 +11,13 @@ p.parse(varargin{:});
 figName = char(p.Results.FigureName);
 s_last  = p.Results.SimToLast;
 pos     = p.Results.Position;
+% -------- Safe graphics check --------
+if ~usejava('jvm') || ~feature('ShowFigureWindows')
+    warning('rfe_plot_wrapper_trace:NoGraphics', ...
+        ['MATLAB is running without JVM or graphics support (-nojvm mode). ' ...
+         'Skipping all figure and plot creation.']);
+    return;
+end
 
 figTag     = 'AdapWrapTracer';
 handlesKey = 'TraceHandles';

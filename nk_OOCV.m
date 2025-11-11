@@ -824,7 +824,19 @@ for f=1:ix % Loop through CV2 permutations
                     hu = findobj('Tag','OOCV');
                     if isempty(hu)
                         sz = get(0,'ScreenSize');
-                        win_wdth = sz(3)/1.5; win_hght = sz(4)/1.25; win_x = sz(3)/2 - win_wdth/2; win_y = sz(4)/2 - win_hght/2;
+                        % === Screen size adjustment for MATLAB Online ===
+                        isMatlabOnline = strcmp(getenv('MW_DDUX_APP_NAME'), 'MATLAB_ONLINE');
+                        if isMatlabOnline
+                            % Manually set a fixed size and center the window for MATLAB Online
+                            win_wdth = 1200;
+                            win_hght = 800;
+                            win_x = max( (sz(3) - win_wdth) / 2, 1);
+                            win_y = max( (sz(4) - win_hght) / 2, 1);
+                        else
+                            % Original desktop logic
+                            win_wdth = sz(3)/1.5; win_hght = sz(4)/1.25; win_x = sz(3)/2 - win_wdth/2; win_y = sz(4)/2 - win_hght/2;
+                        end
+                        
                         hu = figure('Tag','OOCV', ...
                             'NumberTitle','off', ...
                              'MenuBar','none', ...
@@ -840,15 +852,26 @@ for f=1:ix % Loop through CV2 permutations
                     % --- 1) Resize figure window proportionally to number of columns ---
                     nCols = nsubgroups;
                     screenSz = get(0,'ScreenSize');  % [left bottom width height]
-                    % Compute desired width: base + extra per subplot, cap at 90% screen
-                    baseW = 300;                    % pixels for 1 col
-                    perW  = 200;                    % extra per additional col
-                    figW  = min(screenSz(3)*0.9, baseW + perW*(nCols-1));
-                    % Height fixed fraction of screen
-                    figH  = screenSz(4)*0.6;
-                    % Center the figure
-                    figX  = (screenSz(3) - figW)/2;
-                    figY  = (screenSz(4) - figH)/2;
+                    % === Screen size adjustment for MATLAB Online ===
+                    isMatlabOnline = strcmp(getenv('MW_DDUX_APP_NAME'), 'MATLAB_ONLINE');
+                    if isMatlabOnline
+                        % Manually set a fixed size and center the window for MATLAB Online
+                        figW = 1200;
+                        figH = 800;
+                        figX = max( (screenSz(3) - figW) / 2, 1);
+                        figY = max( (screenSz(4) - figH) / 2, 1);
+                    else
+                        % Original desktop logic
+                        % Compute desired width: base + extra per subplot, cap at 90% screen
+                        baseW = 300;                    % pixels for 1 col
+                        perW  = 200;                    % extra per additional col
+                        figW  = min(screenSz(3)*0.9, baseW + perW*(nCols-1));
+                        % Height fixed fraction of screen
+                        figH  = screenSz(4)*0.6;
+                        % Center the figure
+                        figX  = (screenSz(3) - figW)/2;
+                        figY  = (screenSz(4) - figH)/2;
+                    end
                     set(hu, 'Position', [figX, figY, figW, figH]);
                     
                     % --- 2) Compute margins and gaps for tight_subplot ---
