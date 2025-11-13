@@ -222,6 +222,7 @@ const thebe_selector_output = ".output, .cell_output"
 
 
 
+
 <li class="toctree-l2"><a class="reference internal" href="4.7.02_mainmenu_display_interpretation_results.html">ML Interpreter (MLI) results</a></li>
 </ul>
 </li>
@@ -441,7 +442,10 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#combat-on-previously-unseen-batches-nm-1-4">ComBat on previously unseen batches (NM 1.4)</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#disparate-impact-remover-options">Disparate Impact Remover options</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#disparate-impact-remover-options">Disparate Impact Remover options</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#handling-unseen-covariate-groups">Handling unseen covariate groups</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#apply-dimensionality-reduction-method-to-data">Apply dimensionality reduction method to data</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#extracting-subspaces">Extracting Subspaces</a></li>
 </ul>
@@ -463,7 +467,7 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#correct-for-skewness">Correct for Skewness</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#extract-variance-components-from-data">Extract variance components from data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#measure-deviation-from-normative-data">Measure deviation from normative data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#correlation-with-neurotransmitter-systems">Correlation with neurotransmitter systems</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spatial-correlations-with-molecular-and-cellular-brain-maps">Spatial correlations with molecular and cellular brain maps</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#region-of-interest-mean-value-computation">Region-of-interest mean value computation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#regression-mode-target-scaling-transformation">Regression mode: Target scaling &amp; transformation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multiclass-mode-one-vs-one-one-vs-all-modus">Multiclass mode: One vs. One, One vs. All Modus</a></li>
@@ -501,7 +505,7 @@ document.write(`
 <div class="figure align-default" id="fig-3-2-02-nm-preproc-pipe">
 <img alt="neurominer preprocessing pipeline" src="_images/NM_preproc_pipe.png" />
 </div>
-<p>You can see that now there is a line stating CV-PREPROCESSING SEQUENCE containing ”Step 3: Dimensionality reduction”. The ”Preprocessing sequence generator” indicates that the step is selected for further operations as indicated 3/3 (one out of a total of three) steps and this selection is also highlighted by the arrow symbols (&gt;&gt;). If an option requires a suboption (e.g., <a class="reference internal" href="#preproc-dim-red"><span class="std std-ref">dimensionality reduction</span></a>) then the suboption will be listed underneath the parent option and this can be selected using the arrows as well.</p>
+<p>You can see that now there is a line stating CV-PREPROCESSING SEQUENCE containing ”Step 3: Dimensionality reduction”. The ”Preprocessing sequence generator” indicates that the step is selected for further operations as indicated 3/3 (one out of a total of three) steps and this selection is also highlighted by the arrow symbols (&gt;&gt;). If an option requires a suboption (e.g., <span class="xref myst">dimensionality reduction</span>) then the suboption will be listed underneath the parent option and this can be selected using the arrows as well.</p>
 <p>As such, you can now perform other operations within this menu, including removing the selected preprocessing step, inserting another preprocessing step at the same location, replacing the current preprocessing step with another one, or modifying the current preprocessing step. If you have added a spatial preprocessing step, then this will appear above this menu because it is conducted prior to the preprocessing sequence across the entire dataset.</p>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
@@ -530,8 +534,8 @@ document.write(`
 <p>The variance of the 27 neighbors surrounding each voxel is calculated and then the intensity of the target voxel is multiplied by the inverse of this variance.</p>
 <p><strong>4 | Gaussian smoothing (=<span class="math notranslate nohighlight">\(&gt;\)</span>FWHM)</strong></p>
 <p>This is regular Gaussian smoothing as used in most neuroimaging toolboxes. The advantage of doing this in NeuroMiner is that you can specify multiple different smoothing kernels (e.g., [6 8 10]) and then these will be used as hyperparameters during optimization. That is, during learning in CV1 folds, the best combination of smoothing, other preprocessing steps, and learning parameters will be determined and applied to the held-out CV2 fold.</p>
-<p><strong>5 | Neurotransmitter correlations</strong></p>
-<p>This functionality allows users to combine brain imaging data with spatial maps of neurotransmitter systems in order to link neuroimaging patterns with underlying neurobiological mechanisms. We use the JuSpace toolbox (<a class="github reference external" href="https://github.com/juryxy/JuSpace">juryxy/JuSpace</a>) to compute cross-modal correlations between the imaging data and a set of user-selected PET maps. Thus the imaging data of of each participant is mapped to a vector for correlation coefficients that express the associations between the respective imaging metrisc and PET atlases.</p>
+<p><strong>5 | Spatial correlations with molecular and cellular brain maps</strong></p>
+<p>This functionality allows users to combine brain imaging data with molecular and cellular brain maps from a healthy volunteer population in order to link neuroimaging patterns with underlying neurobiological mechanisms. We adapted the JuSpace toolbox (<a class="github reference external" href="https://github.com/juryxy/JuSpace">juryxy/JuSpace</a>) to compute cross-modal correlations between the imaging data and a set of user-selected brain maps. Thus the imaging data of of each participant is mapped to a vector for correlation coefficients that express the associations between the respective imaging metric and the molecular or cellular brain maps. See more at Spatial correlations with molecular and cellular brain maps below.</p>
 <p><strong>6 | ROI means computations</strong></p>
 <p>The user has the option to map the voxel-level imaging data to a neuroanatomical atlas which results in each case’s data being replaced with mean ROI values.</p>
 </div>
@@ -612,10 +616,16 @@ changed during previous preprocessing steps.</p>
 2015</a> and <a class="reference external" href="https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0022193">Dukart et al.,
 2016</a>). This function is useful when the user does not want to remove variance that may interact with the target of interest.</p>
 <p>When this option is selected, you will see that another option <strong>6 | Provide index to training cases</strong> is added to the menu. Select it to define a logical vector consisting of TRUE and FALSE corresponding to the participants in the study; e.g., [0 0 0 0 1 1 1 1]. A FALSE value (i.e., a zero) indicates that they will not be used in the calculation of the distributions. A TRUE value (i.e., a 1) indicates that they will be used in the calculation. Logical vectors can be created from normal double vectors by simply typing ”logical(yourvector)” on the command line (“0”s and “1”s will automatically treated as logical values as well).</p>
-<hr class="docutils" />
+<div class="section" id="handling-unseen-covariate-groups">
+<h3>Handling unseen covariate groups<a class="headerlink" href="#handling-unseen-covariate-groups" title="Permalink to this heading">#</a></h3>
+<p>If new data contains covariate groups not observed during training, DIR handles them as follows:</p>
+<ul class="simple">
+<li><p><strong>Global pooled distribution:</strong> Unseen groups are corrected using the median or mean distribution pooled across all covariate groups seen during training. This ensures that all data points, including unseen groups, are adjusted toward the overall “ideal” distribution.</p></li>
+</ul>
+</div>
 </div>
 <div class="section" id="apply-dimensionality-reduction-method-to-data">
-<span id="preproc-dim-red"></span><h2>Apply dimensionality reduction method to data<a class="headerlink" href="#apply-dimensionality-reduction-method-to-data" title="Permalink to this heading">#</a></h2>
+<h2>Apply dimensionality reduction method to data<a class="headerlink" href="#apply-dimensionality-reduction-method-to-data" title="Permalink to this heading">#</a></h2>
 <p>A common need in machine learning analysis is to reduce the dimensionality of the data within the cross-validation framework (e.g., with structural neuroimages containing about 50,000 voxels). NeuroMiner allows the user to do this using a number of different methods.
 When the option to reduce dimensionality is selected, the user will be shown the following menu:</p>
 <div class="figure align-default" id="fig-3-2-02-nm-preproc-dimred">
@@ -1092,33 +1102,38 @@ PLS first extracts a set of latent factors that explain as much of the covarianc
 </div>
 </div>
 <hr class="docutils" />
-<div class="section" id="correlation-with-neurotransmitter-systems">
-<h2>Correlation with neurotransmitter systems<a class="headerlink" href="#correlation-with-neurotransmitter-systems" title="Permalink to this heading">#</a></h2>
-<p>This function calculates whole-brain correlations between sample-dependent imaging (e.g., structural or functional imgaging) and neurotransmitter average density maps from a healthy volunteer population. An atlas is used to derive mean values per atlas region in both modalities and these values are use for the calculation of the correlation coefficients. The functionality was adapted from the JuSpace toolbox: <a class="github reference external" href="https://github.com/juryxy/JuSpace">juryxy/JuSpace</a>. For detailed information about the methods, please refer to the JuSpace publication (see below).</p>
-<p>There is an option to download atlases and neurotransmitter maps. Please cite the respective software in your publication:</p>
+<div class="section" id="spatial-correlations-with-molecular-and-cellular-brain-maps">
+<h2>Spatial correlations with molecular and cellular brain maps<a class="headerlink" href="#spatial-correlations-with-molecular-and-cellular-brain-maps" title="Permalink to this heading">#</a></h2>
+<p>This function calculates whole-brain correlations between sample-dependent imaging (e.g., structural or functional imgaging) and molecular (e.g., neurotransmitter average density) and cellular brain maps from a healthy volunteer population. An atlas is used to derive mean values per atlas region in both modalities and these values are use for the calculation of the correlation coefficients. The functionality was adapted from the JuSpace toolbox: <a class="github reference external" href="https://github.com/juryxy/JuSpace">juryxy/JuSpace</a>. For detailed information about the methods, please refer to the JuSpace publication (see below).</p>
+<p>There is an option to download atlases and brain maps. Please cite the respective software in your publication:</p>
 <p><strong>JuSpace</strong> (<a class="github reference external" href="https://github.com/juryxy/JuSpace">juryxy/JuSpace</a>):
 Dukart, J., Holiga, S., Rullmann, M., Lanzenberger, R., Hawkins, P. C., Mehta, M. A., … &amp; Eickhoff, S. B. (2021). JuSpace: A tool for spatial correlation analyses of magnetic resonance imaging data with nuclear imaging derived neurotransmitter maps. Human brain mapping, 42(3), 555-566.</p>
 <p><strong>neuromaps</strong> (<a class="github reference external" href="https://github.com/netneurolab/neuromaps">netneurolab/neuromaps</a>):
 Markello, R. D., Hansen, J. Y., Liu, Z. Q., Bazinet, V., Shafiei, G., Suárez, L. E., … &amp; Misic, B. (2022). Neuromaps: structural and functional interpretation of brain maps. Nature Methods, 19(11), 1472-1479.</p>
+<p>This function has been updated to allow feature-ranking within the preprocessing pipeline. As this modification is not backward-compatible with NeuroMiner 1.3, users are required to re-import atlases and brain maps for analyses conducted in NeuroMiner 1.4 and subsequent versions.</p>
 <div class="figure align-default" id="fig-3-2-02-nm-preproc-juspace-method">
-<img alt="neurominer preprocessing JuSpace methods" src="_images/NM_preproc_JuSpace.png" />
+<img alt="neurominer preprocessing JuSpace methods" src="Images/BrainMapsSetup.png" />
 </div>
 <p><strong>1 | Download atlases from JuSpace</strong></p>
 <p>Indicate whether you would like to download atlases from the JuSpace toolbox. Select a directory for saving the atlases.</p>
-<p><strong>2 | Download neurotransmitter maps from JuSpace or neuromaps</strong></p>
-<p>Indicate whether you would like to download or use existing neurotransmitter maps from the JuSpace (MATLAB-based) or neuromaps (Python-based) toolbox. Download from neuromaps will only be available if Python is configured in MATLAB. Select a directory for saving the neurotransmitter maps or provide a path to already downloaded maps. It is also possible to use your own neurotransmitter maps. For this, you can select your own neurotransmitter maps directory in step 6.</p>
-<p><strong>3 | Atlas</strong></p>
+<p><strong>2 | Download brain maps from JuSpace or neuromaps</strong></p>
+<p>Indicate whether you would like to download or use existing brain maps from the JuSpace (MATLAB-based) or neuromaps (Python-based) toolbox. Download from neuromaps will only be available if Python is configured in MATLAB. Select a directory for saving the brain maps or provide a path to already downloaded maps. It is also possible to use your own brain maps. For this, you can select your own brain maps directory in step 6.</p>
+<p><strong>3 | Atlas selection</strong></p>
 <p>Select an atlas file (*.nii) containing the regions-of-interest for the calculation of mean values.</p>
-<p><strong>4 | Correlation type</strong></p>
+<p><strong>4 | Alternative name(s) for atlas(es)</strong></p>
+<p>Provide an alternative (e.g., shorter) name for the selected atlas. The default will use the atlas filename without the file extension (e.g., for feature naming in the visualization module). This step will only become available if an atlas was selected.</p>
+<p><strong>5 | Correlation type</strong></p>
 <p>Choose between Spearman (recommended) or Pearson correlation coefficients.</p>
-<p><strong>5 | Adjust for spatial autocorrelations</strong></p>
+<p><strong>6 | Adjust for spatial autocorrelations</strong></p>
 <p>Choose between correcting for spatial autocorrelations (recommended) or not.</p>
-<p><strong>6 | Neurotransmitter maps directory</strong></p>
-<p>Select the neurotransmitter directory containing *.nii neurotransmitter maps. Note: this</p>
-<p><strong>7 | Neurotransmitter selection</strong></p>
-<p>Choose the neurotransmitter maps you would like to use in your analysis. This step will only become available if a neurotransmitter maps directory has been selected.</p>
-<p><strong>8 | Import neurotransmitter maps and atlas</strong></p>
-<p>Import neurotransmitter map and atlas information. This step is important to complete the setup and will only become available if steps 3 to 7 are defined.</p>
+<p><strong>7 | Brain maps directory</strong></p>
+<p>Select the brain maps directory containing *.nii brain maps. Note: this</p>
+<p><strong>8 | Brain maps selection</strong></p>
+<p>Choose the brain maps you would like to use in your analysis. This step will only become available if a brain maps directory has been selected.</p>
+<p><strong>9 | Alternative names for brain maps</strong></p>
+<p>Provide an alternative (e.g., shorter) name for the selected brain maps. The default will use the brain maps filenames without the file extension (e.g., for feature naming in the visualization module). This step will only become available if brain maps were selected.</p>
+<p><strong>10 | Import brain maps and atlas(es)</strong></p>
+<p>Import brain map and atlas information. This step is important to complete the setup and will only become available if steps 3 to 9 are defined.</p>
 </div>
 <hr class="docutils" />
 <div class="section" id="region-of-interest-mean-value-computation">
@@ -1223,7 +1238,10 @@ Markello, R. D., Hansen, J. Y., Liu, Z. Q., Bazinet, V., Shafiei, G., Suárez, L
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#combat-on-previously-unseen-batches-nm-1-4">ComBat on previously unseen batches (NM 1.4)</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#disparate-impact-remover-options">Disparate Impact Remover options</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#disparate-impact-remover-options">Disparate Impact Remover options</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#handling-unseen-covariate-groups">Handling unseen covariate groups</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#apply-dimensionality-reduction-method-to-data">Apply dimensionality reduction method to data</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#extracting-subspaces">Extracting Subspaces</a></li>
 </ul>
@@ -1245,7 +1263,7 @@ Markello, R. D., Hansen, J. Y., Liu, Z. Q., Bazinet, V., Shafiei, G., Suárez, L
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#correct-for-skewness">Correct for Skewness</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#extract-variance-components-from-data">Extract variance components from data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#measure-deviation-from-normative-data">Measure deviation from normative data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#correlation-with-neurotransmitter-systems">Correlation with neurotransmitter systems</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spatial-correlations-with-molecular-and-cellular-brain-maps">Spatial correlations with molecular and cellular brain maps</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#region-of-interest-mean-value-computation">Region-of-interest mean value computation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#regression-mode-target-scaling-transformation">Regression mode: Target scaling &amp; transformation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multiclass-mode-one-vs-one-one-vs-all-modus">Multiclass mode: One vs. One, One vs. All Modus</a></li>
