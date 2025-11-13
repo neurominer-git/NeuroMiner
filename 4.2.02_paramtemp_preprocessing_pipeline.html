@@ -544,7 +544,7 @@ document.write(`
 <h2>Regress out nuisance covariates<a class="headerlink" href="#regress-out-nuisance-covariates" title="Permalink to this heading">#</a></h2>
 <p>If covariates have been entered alongside the <a class="reference internal" href="4.1_mainmenu_input_data.html#input-data"><span class="std std-ref">data</span></a>, you can apply covariate correction using this step. This option is designed to remove the variance associated with a nuisance variable (e.g., age, sex, study center) from the data within each CV fold. When chosen it will reveal the following options:</p>
 <div class="figure align-default" id="fig-nm-preproc-residualization">
-<img alt="neurominer residualization Options" src="_images/NM_preproc_residualization.png" />
+<img alt="neurominer residualization Options" src="_images/NM_preproc_brainmaps.png" />
 </div>
 <p><strong>1 | Select method</strong></p>
 <p>The first option gives you three possible methods to regress out the covariates: Partial Correlations, ComBat and Disparate Impact Remover (DIR). The partial correlations method computes the coefficients that generate the chosen covariate effects in the data with a general linear model. In addition to the partial correlations method, ComBat also scales the variance estimators. It allows to separate the label (e.g., disease) effects and the covariate effects in the data to some degree. For more detailed information about the ComBat method please check <a class="reference external" href="https://academic.oup.com/biostatistics/article/8/1/118/252073">Johnson et al.,
