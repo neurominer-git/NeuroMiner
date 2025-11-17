@@ -1,6 +1,6 @@
 function [JUSPACE, act, menuact, menustr] = JuSpace_config(JUSPACE, brainmask, Thresh, parentstr, act, returnmenu)
 
-if ~exist('parentstr','var') || isempty(parentstr), parentstr = 'Neuromaps co-localization'; end
+if ~exist('parentstr','var') || isempty(parentstr), parentstr = 'Brain maps co-localization'; end
 if ~exist('returnmenu','var') || isempty(returnmenu), returnmenu = false; end
 
 Atlas = []; AtlasDir = []; AtlasNames = [];
@@ -117,24 +117,24 @@ python_available = pyenv;
 
 if ~isempty(python_available.Version)
     menustr = ['Download atlases from JuSpace                                              |' ...
-               'Download or use existing neuromaps from JuSpace or neuromaps   |' ...
-               'Atlas                                                                       [' ATLASSTR ']|' ...
+               'Download or use existing brain maps from JuSpace or neuromaps   |' ...
+               'Atlas selection                                                             [' ATLASSTR ']|' ...
                'Correlation type                                                            [' CORTYPESTR ']|' ...
                'Adjust for spatial autocorrelations                                         [' AUTOCORCORRECTSTR ']|' ...
-               'Neuromaps directory                                             [' NTDIRSTR ']|'];
+               'Brain maps directory                                                        [' NTDIRSTR ']|'];
 else
     menustr = ['Download atlases from JuSpace                                  |' ...
-               'Download or use existing neuromaps from JuSpace    |' ...
-               'Atlas                                                           [' ATLASSTR ']|' ...
+               'Download or use existing brain maps from JuSpace    |' ...
+               'Atlas selection                                                 [' ATLASSTR ']|' ...
                'Correlation type                                                [' CORTYPESTR ']|' ...
                'Adjust for spatial autocorrelations                             [' AUTOCORCORRECTSTR ']|' ...
-               'Neuromaps directory                                 [' NTDIRSTR ']|'];
+               'Brain maps directory                                            [' NTDIRSTR ']|'];
 end
 
 menuact = [1 2 3 5 6 7];
 
 if AtlasDef == 1
-    mn = sprintf('Alternative atlas name                                    [%s]', ATLASLISTSTR);
+    mn = sprintf('Alternative name(s) for atlas(es)                                    [%s]', ATLASLISTSTR);
     parts = strsplit(menustr,'|');
     parts = [parts(1:3), {mn}, parts(4:end)];
     menustr = strjoin(parts,'|');
@@ -142,30 +142,30 @@ if AtlasDef == 1
 end
 
 if NTDirDef == 1
-    menustr = [menustr sprintf('Neuromaps selection                                [%s]|', NTLISTSTR)];
+    menustr = [menustr sprintf('Brain maps selection                                [%s]|', NTLISTSTR)];
     menuact = [menuact 8];
 end
 
 if NTListDef == 1
-    menustr = [menustr sprintf('Alternative neuromap names                         [%s]|', NTLISTNAME)];
+    menustr = [menustr sprintf('Alternative names for brain maps                         [%s]|', NTLISTNAME)];
     menuact = [menuact 9];
 end
 
 if ~disallow
-    menustr = [menustr '|Import neuromaps and atlas'];
+    menustr = [menustr '|Import brain maps and atlas(es)'];
     menuact = [menuact 10];
 end
 
 if ~returnmenu
     nk_PrintLogo
     if ~disallow
-        fprintf('\n'); mestr = 'Neuromaps co-localization setup';
+        fprintf('\n'); mestr = 'Brain maps co-localization setup';
         navistr = [parentstr ' >>> ' mestr];
         fprintf('\nYou are here: %s >>> ',parentstr);
         act = char(nk_input(mestr,0,'mq', menustr, menuact));
         completeflag = true;
     else
-        mestr = 'Neuromaps co-localization step setup';
+        mestr = 'Brain maps co-localization step setup';
         navistr = [parentstr ' >>> ' mestr];
         fprintf('\nYou are here: %s >>> ',parentstr);
         act = nk_input(mestr,0,'mq', menustr, menuact);
@@ -186,11 +186,11 @@ switch act
 
     case 2 % Download/use NT maps (JuSpace or neuromaps)
         if ~isempty(python_available.Version)
-            NTDownloadFlag = nk_input('Do you want to download or use existing neuromaps from JuSpace or neuromaps?',0,'mq',...
+            NTDownloadFlag = nk_input('Do you want to download or use existing brain maps from JuSpace or neuromaps?',0,'mq',...
                 ['Download from JuSpace (MATLAB-based toolbox)|',...
-                 'Download from neuromaps (Python-based toolbox, provides more neuromaps)|',...
+                 'Download from neuromaps (Python-based toolbox, provides more brain maps)|',...
                  'Use existing from JuSpace (MATLAB-based toolbox)|',...
-                 'Use existing from neuromaps (Python-based toolbox, provides more neuromaps)'], 1:4, 0);
+                 'Use existing from neuromaps (Python-based toolbox, provides brain maps)'], 1:4, 0);
             if     NTDownloadFlag == 1, JuSpaceDownloadFlag = 1; UseExistingFlag = 0; neuromapsDownloadFlag = 0;
             elseif NTDownloadFlag == 2, neuromapsDownloadFlag = 1; UseExistingFlag = 0; JuSpaceDownloadFlag = 0;
             elseif NTDownloadFlag == 3, JuSpaceDownloadFlag = 1; UseExistingFlag = 1; neuromapsDownloadFlag = 0;
@@ -199,18 +199,18 @@ switch act
             end
         else
             neuromapsDownloadFlag = 0;
-            J = nk_input('Do you want to download or use existing neuromaps from JuSpace?',0,'mq',...
+            J = nk_input('Do you want to download or use existing brain maps from JuSpace?',0,'mq',...
                 ['Download from JuSpace (MATLAB-based)|','Use existing from JuSpace (MATLAB-based)'],1:2, 0);
             JuSpaceDownloadFlag = any(J == [1,2]); UseExistingFlag = (J == 2);
         end
 
         SPMAVAIL = logical(exist('spm_select','file'));
         if (JuSpaceDownloadFlag || neuromapsDownloadFlag) && ~UseExistingFlag
-            if SPMAVAIL, SaveDir = spm_select(1,'dir','Select directory for saving neuromaps');
-            else,        SaveDir = uigetdir(pwd,'Select directory for saving neuromaps'); end
+            if SPMAVAIL, SaveDir = spm_select(1,'dir','Select directory for saving brain maps');
+            else,        SaveDir = uigetdir(pwd,'Select directory for saving brain maps'); end
         elseif UseExistingFlag && (JuSpaceDownloadFlag || neuromapsDownloadFlag)
-            if SPMAVAIL, SaveDir = spm_select(1,'dir','Select existing neuromaps directory');
-            else,        SaveDir = uigetdir(pwd,'Select existing neuromaps directory'); end
+            if SPMAVAIL, SaveDir = spm_select(1,'dir','Select existing brain maps directory');
+            else,        SaveDir = uigetdir(pwd,'Select existing brain maps directory'); end
         end
 
         if JuSpaceDownloadFlag
@@ -246,7 +246,7 @@ switch act
         end
 
     case 7 % NT maps directory
-        hdrstr = 'Select neuromaps directory';
+        hdrstr = 'Select brain maps directory';
         SPMAVAIL = logical(exist('spm_select','file'));
         if SPMAVAIL, NTDir = spm_select(1,'dir',hdrstr);
         else,        NTDir = uigetdir(pwd,hdrstr); end
@@ -256,7 +256,7 @@ switch act
         [NTind,NTList] = print_NTmaps_quickselector(M_NT,NTDir);
 
     case 9 % Alternative neurotransmitter name(s)
-        NTNames = nk_input('Provide alternative names for neuromaps',0,'e',[],[numel(NTList),1]);
+        NTNames = nk_input('Provide alternative names for brain maps',0,'e',[],[numel(NTList),1]);
 
     case 10 % Import atlas/NT (+TPM)
         disp('Importing atlas and neuromap data.');
@@ -469,7 +469,7 @@ if isempty(M_NT) && ~isempty(NTDir)
             fprintf('\n\t** [ %2g ]: NT : %s', i, neurotransmitter{i}.id);
         end
         fprintf('\n');
-        NTind = nk_input('Type sequence of neuromaps to include (1d-vector)',0,'e');
+        NTind = nk_input('Type sequence of brian maps to include (1d-vector)',0,'e');
     
         zeroIDX = NTind == 0; 
         NTind = NTind(~zeroIDX);
@@ -484,7 +484,7 @@ if isempty(M_NT) && ~isempty(NTDir)
             NTnames{i} = neurotransmitter{NTind(i)}.id;
         end
     else
-        fprintf(['\n\nWARNING: The directory ',NTDir,' does not contain any neuromaps.\n        n Please select the folder directly including the images.']);
+        fprintf(['\n\nWARNING: The directory ',NTDir,' does not contain any brain maps.\n        n Please select the folder directly including the images.']);
         nk_input('Press any key to return',0,'sq')
         NTind = [];
         neurotransmitterSel = [];
@@ -504,7 +504,7 @@ elseif ~isempty(M_NT)
             i, neurotransmitter{i}.NT, neurotransmitter{i}.Tracer, neurotransmitter{i}.N, neurotransmitter{i}.Source);
     end
     fprintf('\n');
-    NTind = nk_input('Type sequence of neuromaps to include (1d-vector)',0,'e');
+    NTind = nk_input('Type sequence of brain maps to include (1d-vector)',0,'e');
 
     % remove invalid numbers
     zeroIDX = NTind == 0; 

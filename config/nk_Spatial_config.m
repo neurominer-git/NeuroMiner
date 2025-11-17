@@ -30,7 +30,7 @@ if ~defaultsfl
             cubetypestr = 'Gaussian smoothing';
             cubefwhmstr = nk_ConcatParamstr(cubefwhm);
         case 5
-            cubetypestr = 'Neurotransmitter correlations';
+            cubetypestr = 'Spatial correlations with molecular and cellular brain maps';
         case 6
             cubetypestr = 'Resampling';
             cubevoxresstr = nk_ConcatParamstr(cubevoxres);
