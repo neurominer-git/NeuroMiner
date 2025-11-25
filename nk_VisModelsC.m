@@ -1367,7 +1367,7 @@ for f=1:ix % Loop through CV2 permutations
                                                 % Store the values in the third dimension (components) of I1.VCV1{h,n}.
                                                 % This requires that I1.VCV1{h,n} has been preallocated appropriately.
                                                 if inp.isInter
-                                                    if ~isempty(Dx{n})
+                                                    if ~isempty(Dx) && ~isempty(Dx{n})
                                                         nSubj     = size(Dx{n},1);
                                                         nComp_new = size(Tx{n},2);        % components in this fold
                                                         if il(h) == 1 && (numel(I1.Dx) < h || numel(I1.Dx{h}) < n || isempty(I1.Dx{h}{n}))
@@ -1407,7 +1407,7 @@ for f=1:ix % Loop through CV2 permutations
                                                 for comp = 1:size(Tx{n},2)
                                                     I1.VCV1{h,n}(badcoords, il(h), comp) = Tx{n}(badcoords, comp);
                                                     if inp.isInter
-                                                        if ~isempty(Dx{n}), I1.Dx{h}{n}(:, il(h), comp) = Dx{n}(:, comp); end
+                                                        if ~isempty(Dx) && ~isempty(Dx{n}), I1.Dx{h}{n}(:, il(h), comp) = Dx{n}(:, comp); end
                                                     elseif inp.isEarly && n==1
                                                         if ~isempty(Dx) && ~isempty(Dx{1}), I1.Dx{h}(:, il(h), comp) = Dx{1}(:, comp); end
                                                     end
@@ -1479,9 +1479,9 @@ for f=1:ix % Loop through CV2 permutations
                     end
                     clear Tx tmp V Ymodel modelTr modelTrL F Fkl dum 
                 end
-                %pthtmp = sprintf('I1_orig_fresh_CV%g.%g.mat',CVPOS.CV2p, CVPOS.CV2f); save(pthtmp,'I1');
+              
                 [~, I1] = nk_VisXHelperC('prune', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);  
-                %pthtmp = sprintf('I1_pruned_fresh_CV%g.%g.mat',CVPOS.CV2p, CVPOS.CV2f); save(pthtmp,'I1');
+           
                 fprintf('\nSaving %s', oVISpath); 
                 if OCTAVE
                     save(oVISpath,'I1','sPs','operm','ofold');
@@ -1516,14 +1516,6 @@ end
     % ----------------------------------------------------------------------------------------------------------------------------------------------
     function [I, I1, filefound] = CV2wrapUp(I, I1)
         [I, I1, filefound] = nk_VisXHelperC('align', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise, ill);
-        %pthtmp = sprintf('I1_aligned_%s_CV%g.%g.mat', modus, CVPOS.CV2p, CVPOS.CV2f); save(pthtmp,'I1');
-        % if strcmp(modus,'loaded')
-        %     pth_fresh_aligned = sprintf('I1_aligned_fresh_CV%g.%g.mat', CVPOS.CV2p, CVPOS.CV2f);
-        %     I1_fresh_aligned = load(pth_fresh_aligned);
-        %     if ~isequaln(I1_fresh_aligned.I1.Dx{1}, I1.Dx{1})
-        %         error('mismatch between fresh aligned and loaded aligned found.')
-        %     end
-        % end
         if filefound
             [I, I1] = nk_VisXHelperC('prune_memory', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
             try

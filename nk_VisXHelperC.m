@@ -1116,7 +1116,7 @@ switch act
             end
             if nM>1 % modality shares
                 % ----- aggregate modality shares (always available) -----
-                if ~isempty(I1.ModAgg_L2nShare{h})
+                if isfield(I1,'ModAgg_L2nShare') && ~isempty(I1.ModAgg_L2nShare) && ~isempty(I1.ModAgg_L2nShare{h})
                     cv2Col = mean(I1.ModAgg_L2nShare{h}, 2, 'omitnan');   % [nM×1]
                     if isempty(I2.ModAgg_L2nShare{h})
                         I2.ModAgg_L2nShare{h} = cv2Col;
