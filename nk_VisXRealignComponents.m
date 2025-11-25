@@ -1,5 +1,5 @@
-function [I, I1, Tx, Psel, Rx, SRx, PAx, assignmentVec, signCorrections] = ...
-    nk_VisXRealignComponents(I, I1, h, Tx, Psel, Rx, SRx, PAx, Fadd, Vind, il, inp, nM, ill)
+function [I, I1, Tx, Psel, Rx, SRx, PAx, assignmentVec, signCorrections, Dx] = ...
+    nk_VisXRealignComponents(I, I1, h, Tx, Dx, Psel, Rx, SRx, PAx, Fadd, Vind, il, inp, nM, ill)
 % nk_VisXRealignComponents
 % Helper extracted from nk_VisModelsC.m — GLOBAL (CROSS-MODALITY) REALIGNMENT
 %
@@ -31,7 +31,6 @@ function [I, I1, Tx, Psel, Rx, SRx, PAx, assignmentVec, signCorrections] = ...
         nz               = any((Tx{n}~=0) & isfinite(Tx{n}), 1);
         nonZeroMasks{n}  = nz;
         Tx{n}            = Tx{n}(:, nz);
-    
         % keep siblings pruned the same way if they exist
         if exist('Psel','var') && ~isempty(Psel) && ~isempty(Psel{n}), Psel{n} = Psel{n}(:, nz); end
         if exist('Rx','var')   && ~isempty(Rx)   && ~isempty(Rx{n}),   Rx{n}   = Rx{n}(:,   nz); end
@@ -46,13 +45,14 @@ function [I, I1, Tx, Psel, Rx, SRx, PAx, assignmentVec, signCorrections] = ...
             if ~modMask(n), fprintf('\n\t\t\tNo dimensionality reduction involved in the processing of modality #%g', n); continue; end
             haveRef = isfield(I,'VCV1REF') && numel(I.VCV1REF) >= h && numel(I.VCV1REF{h}) >=n && ~isempty(I.VCV1REF{h}{n});
             % Ensure the cached ref cell exists and is length nM (placeholders for inactive)
-            if ~haveRef, I.VCV1REF{h}{n} = {[]}; end
-            [I1, Tx{n}, ~, assignmentVec{n}, signCorrections{n}, I.VCV1REF{h}{n}] = nk_VisXRealignComponentsHelper(I1, inp, haveRef, Tx{n}, I.VCV1REF{h}{n}, nM, il, ill, n, h, Fadd, Vind);
+            if ~haveRef 
+                I.VCV1REF{h}{n} = []; I.VCV1REFCNT{h}{n} = []; 
+            end
+            [I1, Tx{n}, ~, Dx{n}, assignmentVec{n}, signCorrections{n}, I.VCV1REF{h}{n}, I.VCV1REFCNT{h}{n}] = nk_VisXRealignComponentsHelper(I1, inp, haveRef, Tx{n}, Dx{n}, I.VCV1REF{h}{n}, I.VCV1REFCNT{h}{n}, nM, il, ill, n, h, Fadd, Vind);        
         end
     else
         haveRef = isfield(I,'VCV1REF') && numel(I.VCV1REF) >= h && ~isempty(I.VCV1REF{h});    
-        if ~haveRef, I.VCV1REF{h} = []; end
-        [I1, Tx, ~, assignmentVec, signCorrections, I.VCV1REF{h}] = nk_VisXRealignComponentsHelper(I1, inp, haveRef, Tx, I.VCV1REF{h}, nM, il, ill, [], h, Fadd, Vind);
+        if ~haveRef, I.VCV1REF{h} = []; I.VCV1REFCNT{h} = []; end
+        [I1, Tx, ~, Dx, assignmentVec, signCorrections, I.VCV1REF{h}, I.VCV1REFCNT{h}] = nk_VisXRealignComponentsHelper(I1, inp, haveRef, Tx, Dx, I.VCV1REF{h}, I.VCV1REFCNT{h}, nM, il, ill, [], h, Fadd, Vind);
     end
-
 end

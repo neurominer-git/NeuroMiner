@@ -424,9 +424,10 @@ switch meas{measind}
     case 'Model P value histogram'
          cb = findobj(handles.axes33.Parent, 'Type', 'ColorBar', 'Axes', handles.axes33);
          delete(cb)
-         n         = numel(y);
-         sigma     = nm_nanstd(y);
-         iqrValue  = prctile(y,75) - prctile(y,25);
+         yh = y(handles.curclass,:);
+         n         = numel(yh);
+         sigma     = nm_nanstd(yh);
+         iqrValue  = prctile(yh,75) - prctile(yh,25);
          hs        = 0.9 * min(sigma, iqrValue/1.34) * n^(-1/5);   % Silverman’s rule
          binWidth  = 2 * iqrValue / n^(1/3);                       % Freedman–Diaconis
          handles.pn3DView.Visible = 'off'; 
@@ -442,13 +443,13 @@ switch meas{measind}
          % write it back
          handles.axes33.Position = pos;
 
-         ah = histogram(handles.axes33, y, ...
+         ah = histogram(handles.axes33, yh, ...
                             'Normalization','probability', ...
                             'BinWidth', binWidth, ...
                             'EdgeColor','none', ...
                             'FaceColor',cl_face); 
          maxah= nm_nanmax(ah.Values); ylim([0 (maxah + maxah*0.2)]); 
-         [f, xi] = ksdensity(y, ...
+         [f, xi] = ksdensity(yh, ...
                                 'Function','pdf', ...
                                 'Bandwidth', hs, ...
                                 'NumPoints', 200 );
@@ -459,17 +460,19 @@ switch meas{measind}
          handles.axes33.YTick = 0:maxah/10:(maxah+maxah*0.2);
          yticklabels(handles.axes33,'auto')
          [~,xlb]=nk_GetScaleYAxisLabel(handles.NM.analysis{handles.curranal}.params.TrainParam.SVM);
-         rg = range(y)*0.15; xl = [ min(y)-rg max(y)+rg ]; if vp>=xl(2), xl(2) = vp + rg; elseif vp<=xl(1), xl(1) = vp +rg; end
+         rg = range(yh)*0.15; xl = [ min(yh)-rg max(yh)+rg ]; if vp>=xl(2), xl(2) = vp + rg; elseif vp<=xl(1), xl(1) = vp +rg; end
          xlim(xl); 
          xlabel(['Optimization criterion: ' xlb]);
          ylabel('Probability');
          hold on;
          Pval = sum(ve)/size(ve,2);
-         xp = [ vp vp ]; yp = [ 0 maxah + maxah*0.2 ];
+         vph = vp(handles.curclass); 
+         if vph > xl(end), xlim([xl(1) vph+0.05*vph]); end
+         xp = [ vph vph ]; yp = [ 0 maxah + maxah*0.2 ];
          if Pval ~= 0
-            Pvalstr = sprintf('OOT %s=%1.2f\nOOT Significance: P=%g', xlb, vp, Pval);
+            Pvalstr = sprintf('OOT %s=%1.2f\nOOT Significance: P=%g', xlb, vph, Pval);
          else
-            Pvalstr = sprintf('OOT %s=%1.2f\nOOT Significance: P<%g', xlb, vp, 1/perms);
+            Pvalstr = sprintf('OOT %s=%1.2f\nOOT Significance: P<%g', xlb, vph, 1/perms);
          end
          if exist("vp_cv2","var")
             xp_cv2 = [ vp_cv2 vp_cv2 ];

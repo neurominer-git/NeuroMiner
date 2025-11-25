@@ -62,7 +62,7 @@ if isfield( uPREPROC,'SPATIAL') && uPREPROC.SPATIAL.cubetype>1
             if any(I)
                 Ix = find(I);
                 for qx = 1:numel(Ix)
-                    if isfield(uPREPROC.ACTPARAM{Ix(qx)}.RANK,'EXTERN')
+                    if strcmpi(uPREPROC.ACTPARAM{Ix(qx)}.RANK.algostr,'extern') && isfield(uPREPROC.ACTPARAM{Ix(qx)}.RANK,'EXTERN')
                         fprintf('\nSmoothing the weighting map found in preprocessing chain (preprocessing step #%g).', qx)
                         if exist('curclass','var') 
                             if ~exist("paramfl","var") || isempty(paramfl)

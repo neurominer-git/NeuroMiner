@@ -289,10 +289,6 @@ for i=1:IN.nperms % loop through CV1 permutations
                         tF{i,j,curclass}            = kIndN; 
                         tWeights{i,j,curclass}      = wfull(kIndN);
                         tModels{i,j,curclass}       = OUT.mdl{i,j,curclass}(kIndN);
-                        OUT.CVHD{i,j,curclass}      = OUT.CVHD{i,j,curclass}(:,kIndN); 
-                        OUT.CVHT{i,j,curclass}      = OUT.CVHT{i,j,curclass}(:,kIndN);
-                        OUT.TrHD{i,j,curclass}      = OUT.TrHD{i,j,curclass}(:,kIndN); 
-                        OUT.TrHT{i,j,curclass}      = OUT.TrHT{i,j,curclass}(:,kIndN);
                         if W2AVAIL
                             tW2{i,j,curclass}       = OUT.w2{i,j,curclass}(kIndN);
                             tMd{i,j,curclass}       = OUT.Md{i,j,curclass}(kIndN);

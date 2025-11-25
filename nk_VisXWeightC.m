@@ -1,22 +1,127 @@
-function [ mW, mP, mR, mSR, mC, W, mPA ] = nk_VisXWeightC(inp, MD, Y, L, varind, P, F, VI, decompfl, memprob, procfl, compwise, Fadd, for_share)
+function [ mW, mP, mR, mSR, mC, W, mPA, mD ] = nk_VisXWeightC(inp, MD, Y, L, varind, P, F, VI, decompfl, memprob, procfl, compwise, Fadd, for_share, Yts)
 % =========================================================================
 % [mW, mP, mR, mSR, mC, W, mPA ] = nk_VisXWeightC(inp, MD, Y, L, varind, ...
 %                                          P, F, VI, decompfl, memprob, procfl, Fadd)
 % =========================================================================
-% Core visualization module that retrieves a weight vector and maps it back
-% to the input space of features by reversing processing steps as much as
-% possible and meaningfully.
+%   Prepare model weights for visualisation by:
+%     - Splitting the global weight vector W into modality-specific
+%       sub-vectors.
+%     - Optionally reversing preprocessing / DR steps (back-projection)
+%       to obtain aggregated or component-wise maps in input space.
+%     - Computing *fractionated decision scores* mD in DR space:
+%       per-subject × per-component decision contributions for CV2
+%       subjects, aligned with the current discriminative PCA / DR space.
 %
-% In this modified version, if a dimensionality reduction technique (e.g., PCA)
-% is used, the back-projection is performed separately for each component so
-% that opposing effects do not cancel each other out. The component‐wise 
-% outputs are stored as matrices (with one column per component) rather than 
-% cell arrays.
+%   This function is used by the vis pipeline (nk_Vis* functions) for
+%   early and intermediate fusion. For DR-based models, the modality-
+%   specific eigenscores (modelTs) from the CV2 test set are used to
+%   decompose the model decision into component-specific contributions.
 %
-% Additionally, reversal steps such as scaling and feature re-introduction
-% (elimzero/extfeat/extdim) are applied in a component-wise (matrix) fashion.
+% SYNTAX:
+%   [mW, mP, mR, mSR, mC, W, mPA, mD] = nk_VisXWeightC( ...
+%       inp, MD, Y, L, varind, P, F, VI, decompfl, memprob, procfl, ...
+%       compwise, Fadd, for_share, modelTs )
+%
+% INPUT:
+%   inp        : main input/option struct for the current analysis.
+%   MD         : model descriptor for the current classifier (one
+%                dichotomizer / repetition / CV2 partition), including
+%                preprocessing and DR (e.g. PCA) information.
+%   Y          : label vector (training + test) used in this model.
+%   L          : logical index / partition labels corresponding to Y.
+%   varind     : index of the current parameter combination / model.
+%   P          : parameter struct for the current model (e.g. PCA params).
+%   F          : logical vector marking active reduced-space dimensions
+%                (features actually used by the model) in the global DR
+%                space.
+%   VI         : integer vector assigning each reduced-space dimension to a
+%                modality (same length as F). Used to split W into
+%                modality-specific weight vectors.
+%   decompfl   : 1×nM logical array; decompfl(n) indicates that DR
+%                (e.g. PCA) is active for modality n and that component-
+%                wise back-projection / decomposition should be performed.
+%   memprob    : memory / precision settings used by the vis pipeline.
+%   procfl     : (optional) flag controlling whether full reversal of
+%                preprocessing (back-projection to input space) is
+%                attempted. When false, only reduced-space quantities are
+%                prepared. (Semantics unchanged from previous versions.)
+%   compwise   : flag for component-wise vis mode (one map per component),
+%                as opposed to a single aggregate weight map.
+%   Fadd       : additional feature mask to be combined with F for vis
+%                purposes (e.g. to include previously dropped components).
+%   for_share  : flag indicating whether the result is prepared for
+%                sharing across CV folds (global reference space).
+%   Yts        : CV2 test data features in model space (currently only DR) 
+%                for the current classifier:
+%                  - rows: CV2 test subjects used in this vis run
+%                  - cols: active reduced-space dimensions (matching F)
+%                For early fusion, this is typically a single matrix with
+%                all DR components. For intermediate fusion, it may be a
+%                single matrix (to be split by VI) or already a cell array
+%                per modality. If empty, no fractionated decision scores
+%                are computed and Dx = [].
+%
+% OUTPUT:
+%   mW   : 1×nM cell array; mW{n} is a [F_n × K_n] matrix of modality-
+%          specific component maps (weights) after reversing preprocessing
+%          as far as requested (e.g. back-projected to input/voxel space
+%          in DR-based models when procfl/compwise allow it).
+%
+%   mP   : 1×nM cell array; mP{n} encodes the component indices / mapping
+%          used when constructing mW{n} from the original reduced-space
+%          dimensions (selection / ordering information). 
+%
+%   mR   : 1×nM cell array; modality-specific correlation / redundancy
+%          statistics for components (used for pruning / reporting in the
+%          vis pipeline). 
+%
+%   mSR  : 1×nM cell array; summary statistics for mR (e.g. mean/median
+%          redundancy). 
+%
+%   mC   : 1×nM cell array; additional component-level metrics (e.g.
+%          component-wise performance / contribution) prepared for
+%          downstream vis. 
+%
+%   W    : full weight vector in the *current* processed (reduced) space,
+%          extended to all active reduced-space dimensions (matching F).
+%          This is the same W used to derive mW and Dx.
+%
+%   mPA  : 1×nM cell array; modality-specific pattern-related information
+%          (e.g. PCA loadings, projection matrices) as required by the vis
+%          and back-projection routines. 
+%
+%   mD   : 1×nM cell array of fractionated decision scores for CV2
+%          subjects in DR/model space:
+%             Dx{n} is [nSubj_cv2 × K_n], where
+%               - rows are CV2 subjects (same order as modelTs rows),
+%               - columns are modality-specific DR components used by the
+%                 model (matching the component indexing in mW{n} / mP{n}).
+%
+%          Each entry Dx{n}(s,k) represents the *per-component* contribution
+%          of component k in modality n to the decision score of subject s:
+%
+%               Dx{n}(s,k) = modelTs(s,k_mod) * w_mod(k_mod)
+%
+%          where w_mod are the modality-specific model weights in DR space.
+%          Summing Dx over all components and modalities (plus the model
+%          bias) reconstructs the usual decision score:
+%
+%               DS(s) ≈ sum_n sum_k Dx{n}(s,k) + bias
+%
+%          For non-DR models (decompfl(n) == false) or when modelTs is
+%          empty, Dx{n} is returned as [] for that modality.
+%
+% NOTES:
+%   - mD is intended to be passed into nk_VisXRealignComponents in parallel
+%     to mW (Tx), where the same alignment and sign-correction derived from
+%     the component maps is applied to mD (Dx), yielding globally aligned,
+%     per-subject fractionated decision scores ready for aggregation across
+%     CV2 partitions.
+%
+% See also: nk_VisXRealignComponents, nk_AlignCompAndSignCorrect,
+%           nk_VisModelsC, nk_GetTestPerf.
 % =========================================================================
-% (c) Nikolaos Koutsouleris, 08/2025
+% (c) Nikolaos Koutsouleris, 11/2025
 
 global SVM 
 if ~exist('memprob','var') || isempty(memprob), memprob = false; end
@@ -24,6 +129,8 @@ if ~exist('procfl','var') || isempty(procfl), procfl = true; end
 if ~exist('compwise','var') || isempty(compwise), compwise = false; end
 if ~exist('Fadd','var') || isempty(Fadd), Fadd = true(size(F)); end
 if ~exist('for_share','var') || isempty(for_share), for_share = false; end
+computeFracDecScores = true; 
+if ~exist('Yts', 'var') || isempty(Yts), Yts = []; computeFracDecScores = false; end
 mPA = []; PA = []; warning off
 
 % Get weight vector in the processed (possibly reduced) space.
@@ -43,13 +150,17 @@ Fu = F & Fadd;
 nM = numel(inp.PREPROC);
 mM = numel(inp.tF);
 
+% Normalize weight vector for SVM (per Gaonkar et al. 2015). The default is
+% no normalization because this interferes with permutation-based testing
+% and results in unfair comparisons between observed and permuted weights
 if inp.norm == 1 && any(strcmp({'LIBSVM','LIBLIN'},SVM.prog))
-    % Normalize weight vector for SVM (per Gaonkar et al. 2015).
     W = W/(norm(W,2));
 end
 
 % Preallocate outputs for fusion.
-mW = cell(1,mM);
+mW = cell(1,mM); mD = []; 
+if computeFracDecScores, if inp.isInter, mD = cell(1,mM); end; end
+
 if ~isempty(PA)
     mPA = cell(1,mM);
 end
@@ -60,6 +171,10 @@ end
 
 % Loop through modalities.
 for n = 1:nM    
+
+    %-----------------------------------------------------------
+    % Get preprocessing params for current modality
+    %-----------------------------------------------------------
     if iscell(inp.PREPROC)
         nPREPROC = inp.PREPROC{n};
         nPX      = P{n};
@@ -68,6 +183,9 @@ for n = 1:nM
         nPX      = P;
     end
     
+    %-----------------------------------------------------------
+    % Get correct masks according to fusion mode
+    %-----------------------------------------------------------
     if nM > 1
         % For intermediate fusion (concatenated feature spaces).
         lVI = VI == n;  
@@ -75,13 +193,51 @@ for n = 1:nM
         % For early fusion.
         lVI = true(size(Fu)); 
     end
-    
     lFuVI = find(Fu(lVI)); 
     fVI = find(lVI); 
     nmP = Fu(fVI);
-    % Aggregated weight vector for this modality:
+
+    %-----------------------------------------------------------
+    % Aggregated weight vector for this modality
+    %-----------------------------------------------------------
     nmW = zeros(numel(fVI),1); 
     nmW(nmP) = W(fVI(lFuVI));
+
+    %-----------------------------------------------------------
+    % FRACTIONATED DECISION SCORES (subjects x features)
+    %-----------------------------------------------------------
+    if decompfl(n) && ~isempty(Yts)
+        % We only do this currently for DR-based models (decompfl(n)=true)
+        % and when CV2 test subjects' factor scores (Yts) were provided.
+
+        % All active reduced-space dims in the model
+        cols_all = find(Fu);             % e.g. size = [K_totalDR x 1]
+
+        % Reduced dims for THIS modality n that are active
+        idx_mod = find(Fu & lVI);        % indices in full reduced-space index
+
+        if isempty(idx_mod)
+            mD{n} = [];  % no DR dims assigned to this modality
+        else
+            % Map idx_mod to column positions in modelTs.
+            % Assumption: modelTs columns are ordered like cols_all = find(Fu).
+            [~, colpos] = ismember(idx_mod, cols_all);
+            colpos = colpos(colpos > 0);     % safety
+
+            % DR scores for CV2 subjects, this modality only
+            Zmod = Yts(:, colpos);       % [nSubj_cv2 x nModDRdims]
+
+            % Corresponding weights (same dims)
+            w_mod = W(idx_mod);              % [nModDRdims x 1]
+
+            % Fractionated decision scores: D(s,k) = Zmod(s,k) * w_mod(k)
+            mD{n} = bsxfun(@times, Zmod, w_mod(:).');   % [nSubj_cv2 x nModDRdims]
+        end
+    end
+    
+    %-----------------------------------------------------------
+    % Get trained preprocessing parameters for current modality
+    %-----------------------------------------------------------
     if ~isempty(PA)
          nmPA = nan(numel(fVI),1); 
          nmPA(nmP) = PA(lFuVI);
@@ -89,7 +245,7 @@ for n = 1:nM
     corr_mask = Fu(fVI);
 
     %-----------------------------------------------------------
-    % PROCESS DATA BACK TO INPUT SPACE
+    % MAP DATA BACK TO INPUT SPACE
     %-----------------------------------------------------------
     if procfl 
         if isfield(nPREPROC,'ACTPARAM')
@@ -128,7 +284,6 @@ for n = 1:nM
                     
                     % === Compute the forward slope a for each feature ===
                     % DO NOT use the "revert" path (that adds +min and multiplies by (max-min) for DATA).
-                    
                     % IN.ise in your scaler flags zero-variance features; emulate that:
                     if ~isfield(naPX,'ise')
                         naPX.ise = ~(naPX.minY == naPX.maxY);

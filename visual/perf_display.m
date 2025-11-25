@@ -89,7 +89,7 @@ load_popupmenu1(handles)
 load_selModelMeasures(handles)
 % Set drop down list of the parameter selector in the optimization view
 % panel
-load_selSubParams(handles)
+handles = load_selSubParams(handles);
 
 % Define the contents of the visualization view panel controls
 if ~isempty(visdata)

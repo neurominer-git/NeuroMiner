@@ -164,7 +164,6 @@ Xl = cell(nP,1);
 for i=1:nP
     if fromData
         sC = sprintf('C: %g/%g', i, size(P,1));
-        Xl = sC;
     else
         if numel(IN.NFeats)>1,       sF = sprintf('F: %g', P(i,1)); else, sF= ''; end
         if numel(IN.NMarkers)>1,     sM = sprintf(' M: %g', P(i,2)); else, sM= ''; end
@@ -179,6 +178,11 @@ for i=1:nP
         Xl{i} = sprintf('%s%s%s%s%s%s%s%s%s%s',sF, sM, sC, sE, sAU, sAL, sB, sBP, sCm, sFm);
     end
 end
+
+% In the main (caller) BEFORE calling compute_perf(IN):
+IN.Nmax     = max(IN.NCases);       % the global max over ALL Ns you plan to simulate
+IN.seed     = 1337;                 % base seed (keep fixed across runs)
+
 for i=1:nP % Loop through hyperparameter combinations
     fprintf('\nWorking on parameter combination %g/%g: %s', i, nP, Xl{i});
     % Do the magic
@@ -188,6 +192,9 @@ for i=1:nP % Loop through hyperparameter combinations
     else
         IN.this_P = P(i,:);
     end
+
+    IN.runIdx   = find(IN.NCases==P(i,3), 1);% index of this N in your grid (for CRN across runs)
+
     [R(i), R95CI(:,i), detailed_R{i}, simulated_data{i}] = compute_perf(IN);
     % Update the simulation plot
     if exist("ax","var") && isfield(IN, 'plot_flag') && IN.plot_flag && i>2
@@ -201,17 +208,12 @@ for i=1:nP % Loop through hyperparameter combinations
         ax.YAxis.Limits = CritRange;
         legend({'Mean','95%-CI'});
         drawnow
-    else if exist("ax","var") && isfield(IN, 'plot_flag') && IN.plot_flag && i==2
-        plot(ax,1:i,R(1:i),'b-','LineWidth',2);
-        ax.XTick = 1:i;
-        ax.XTickLabel = Xl(1:i);
-        ax.XTickLabelRotation = 90;
-        ax.XAxis.Label.String = 'Parameter combinations'; ax.XAxis.Label.FontWeight='bold';
-        ax.YAxis.Label.String = Crit; ax.YAxis.Label.FontWeight='bold';
-        ax.YAxis.Limits = CritRange;
-        legend({'Mean'});
-        drawnow
     end
+end
+if IN.GridParam == 7 % GridParam is AUC
+    % Compute effect size (Cohen's), power and AUC + CI95 (Wald method),
+    % return table with inference results.
+    performance_results.T = auc_to_effect_and_power(IN.NCases, R, 'Prev', IN.EventProb);
 end
 performance_results.R = R;
 performance_results.R95CI = R95CI';
@@ -220,25 +222,25 @@ performance_results.Params = P;
 
 if isfield(IN, 'save_performance_flag') && IN.save_performance_flag
     uid = datestr(datetime('now'), 'yyyymmdd_HHMMSS');
-    resfilename = [resdir, '/', uid, '_samplesize_simulation_performance_results_NCases', sprintf('_%d', IN.NCases) , '.mat']; 
+    resfilename = [resdir, '/', uid, '_samplesize_sim_results_NCases', sprintf('_min-%d', min(IN.NCases)), sprintf('_max-%d', max(IN.NCases)), '.mat']; 
     save(resfilename, 'performance_results', '-v7.3');
 end
 
 if isfield(IN, 'save_simdata_flag') && IN.save_simdata_flag
     uid = datestr(datetime('now'), 'yyyymmdd_HHMMSS');
-    simdatafilename = [resdir, '/', uid, '_samplesize_simulated_data_NCases', sprintf('_%d', IN.NCases) , '.mat']; 
+    simdatafilename = [resdir, '/', uid, '_samplesize_sim_data_NCases', sprintf('_min-%d', min(IN.NCases)), sprintf('_max-%d', max(IN.NCases)), '.mat']; 
     save(simdatafilename, 'simulated_data', '-v7.3');
 end
 
 if isfield(IN, 'plot_flag') && IN.plot_flag
-    resplotfilename_png = [resdir, '/', uid, '_plot_simulation_results_NCases', sprintf('_%d', IN.NCases) , '.png'];
-    resplotfilename_fig = [resdir, '/', uid, '_plot_simulation_results_NCases', sprintf('_%d', IN.NCases) , '.fig'];
+    resplotfilename_png = [resdir, '/', uid, '_plot_sim_results_NCases', sprintf('_min-%d', min(IN.NCases)), sprintf('_max-%d', max(IN.NCases)), '.png'];
+    resplotfilename_fig = [resdir, '/', uid, '_plot_sim_results_NCases', sprintf('_min-%d', min(IN.NCases)), sprintf('_max-%d', max(IN.NCases)), '.fig'];
     exportgraphics(ax, resplotfilename_png);
     savefig(f, resplotfilename_fig);
     performance_results.resplotfilename_fig = resplotfilename_fig;
 end
 
-if exist('ax')
+if exist('ax','var')
     close(f);
 end
 
@@ -438,8 +440,6 @@ if fromData
                     [M, L, ~] = nk_SynthDistkNN( Y, labels, [], IN); % covars are already added before, consider moving here (depending on how other additional vectors are treated by the other synthetic data tool)
 
                 end
-                %             case 2
-                %                 [M, L,~, ~] = nk_PerfADASYN( Y, labels, [], IN, true);
             case 2
                 if condIdx >= 0
                     IN_g = IN;
@@ -543,6 +543,7 @@ if fromData
     simulated_data.cv = xNM.cv;
     simulated_data.NM = xNM;
 else
+    nmax = IN.Nmax;
     nf = IN.this_P(1,1);
     mr = IN.this_P(1,2);
     nc = IN.this_P(1,3);
@@ -628,11 +629,17 @@ else
     % (if the Parallel Computation toolbox is available!)
     %%
     xfromData = fromData;
-
+    % BEFORE parfor
+    seed = 1337;
+    streams = parallel.pool.Constant(@() RandStream('Threefry','Seed', seed));
+    constM = parallel.pool.Constant(M);   % broadcast M to workers
+    
     parfor k=1:NReps
-        %for k = 1:NReps
-
-        Ystar = M;
+    
+        Tr_Ystar = []; Ts_Ystar = []; 
+        s = streams.Value; s.Substream = k; 
+        Ystar = constM.Value;
+        
         auc_ystar=zeros(1,nmr);
 
         fprintf(['\n\nRepetition %g:\nWorking on new feature matrix:' ...
@@ -647,14 +654,35 @@ else
             '\n\t%1.2f\tratio of cases with missings', ...
             '\n\t%1.2f\tratio of features with missing per case\n'], ...
             k, nc, nf, er, nmr, auc_max, auc_min, nb, bp, ncm, nfm);
+        
+        % ----- CRN POOLS (do this ONCE per repetition) -----
+        n1_max = floor(p_pos * Nmax);
+        n2_max = Nmax - n1_max;
+        
+        z1_pool = randn(s, n1_max, 1);  % class +1 noise pool
+        z2_pool = randn(s, n2_max, 1);  % class -1 noise pool
+        % ----------------------------------------------------
+
 
         % CREATE ARTIFICIAL DATA
         if ~xfromData
+            % compute class counts at THIS N
+            n1 = floor(p_pos * N); 
+            n2 = N - n1;
+            
+            % slice the common pools (CRN)
+            z1 = z1_pool(1:n1);
+            z2 = z2_pool(1:n2);
+            
+            % labels for this N
+            Labels = [ones(n1,1); -ones(n2,1)];
+
             switch featmode
                 case 'simple'
                     for u=1:nmr
                         fprintf('.')
-                        Ystar(:,u) = nk_CreatPredFeat(auc_max, auc_min, L, false);
+                        % call a version that accepts fixed noise:
+                        Ystar(:,u) = nk_CreatPredFeat(auc_max, auc_min, Labels, false, s, z1, z2);
                     end
                 case 'exponential'
                     gran = 5;
@@ -665,53 +693,45 @@ else
                         sepvec2(featvec(u):featvec(u+1),:) = repmat([sepvec(gran-u) sepvec(gran-u+1)], featvec(u+1)-featvec(u)+1,1);
                     end
                     sepvec2(end,:) = [sepvec(gran-u) sepvec(gran-u+1)];
+                    
                     if verbose, fprintf('\nRunning exponential decay function.\n'); end
                     for u=1:nmr
                         fprintf('.')
-                        Ystar(:,u) = nk_CreatPredFeat(sepvec2(u,2), sepvec2(u,1), L, false);
+                        Ystar(:,u) = nk_CreatPredFeat(sepvec2(u,2), sepvec2(u,1), Labels, false, s, z1, z2);
                     end
             end
 
             % ADD BATCH EFFECTS
             if nb
                 if verbose, fprintf('\nAdding batch effects to matrix.'); end
-                % Create exponential batch vector and offsets
-                batchvec = floor(nk_ExpVec(1, nc, nb));
-                %rng
-                batchoff = rescale(rand(nb,1), -bp, bp);
-                % Create batch matrix
-                Ybatch = zeros(nc, nf);
-                for u=1:nb-1
-                    Ybatch(batchvec(u):batchvec(u+1),:) = rand(batchvec(u+1)-batchvec(u)+1,nf)*batchoff(u);
+            
+                % (a) Assign batch membership (roughly equal sizes)
+                edges = round(linspace(1, nc+1, nb+1));
+                b = repelem(1:nb, diff(edges))'; 
+                b = b(randperm(s, nc));               % permute subjects w/ stream
+            
+                % (b) One offset per batch (uniform in [-bp,bp] or normal)
+                batchOff = -bp + (2*bp).*rand(s, nb, 1);
+            
+                % (c) Add offsets
+                for bb = 1:nb
+                    idx = (b==bb);
+                    if any(idx)
+                        Ystar(idx,:) = Ystar(idx,:) + batchOff(bb);
+                    end
                 end
-                Ystar = nk_PerfScaleObj(Ystar);
-                % Make sure that the order of subjects is permuted before batch
-                % effects are added to the matrix
-                Iperm = randperm(nc);
-                % add batch effects
-                Ystar = Ystar + Ybatch(Iperm,:);
-                Lk = L;
-            else
-                Lk = L;
             end
 
             % ADD MISSINGS
 
             if ncm
                 if verbose, fprintf('\nInserting missings to matrix.'); end
-                % creating boolean vector
-                b_cm = false(nc,1);
-                Ib_cm = randperm(nc,ceil(ncm*nc));
-                b_cm(Ib_cm) = true;
-                nbcm = numel(Ib_cm);
-                Ymiss = zeros(nbcm,nf);
-                for u=1:nbcm
-                    b_fm = false(1,nf);
-                    Ib_fm = randperm(nf,ceil(nfm*nf));
-                    b_fm(Ib_fm) = true;
-                    Ymiss(u,b_fm) = NaN;
-                end
-                Ystar(b_cm,:) = Ystar(b_cm,:) + Ymiss;
+                n_rows_miss = ceil(ncm*nc);
+                rows = randsample(s, nc, n_rows_miss);          % with stream
+                p = nfm;                                        % per-row fraction
+                M = false(n_rows_miss, nf);
+                M(:) = rand(s, numel(M), 1) < p;                % Bernoulli mask
+                Ystar(rows, :) = Ystar(rows, :) + double(M)*NaN; % sets NaNs where M=1
             end
         end
         Lk = L;

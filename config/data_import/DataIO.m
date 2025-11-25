@@ -954,12 +954,12 @@ switch act
         end
         
     case 'sel_img'
-
-        if varind > 1 && ~any(isinf(IO.n_subjects)), t_n_samples = 1; else, t_n_samples = n_samples; end
+        %if varind > 1 && ~any(isinf(IO.n_subjects)), t_n_samples = 1; else, t_n_samples = n_samples; end
+        if varind > 1 && ~(numel(IO.n_subjects) > 1), t_n_samples = 1; else, t_n_samples = n_samples; end
         IO.PP = []; t_n_subjects = nan(1, t_n_samples);
         for i=1:t_n_samples
             if ~oocvflag
-                if varind > 1
+                if varind > 1 && t_n_samples == 1
                     hdrstr = sprintf('Select %s images', IO.datasource);
                 else
                     hdrstr = sprintf('Select %s images for sample %g: %s', IO.datasource, i, desc_groups{i});

@@ -247,17 +247,19 @@ switch action
                                     end
                                 end
                             elseif isfield(params.ACTPARAM{i},'METHOD') && params.ACTPARAM{i}.METHOD == 2
-                                if ~isempty(params.ACTPARAM{i}.COVAR) 
-                                      preprocact{i} = ['ComBat batch effect correction [ batch vector: ' res.covnames{params.ACTPARAM{i}.COVAR} ];
+                                if isfield(params.ACTPARAM{i},'MBATCHUSE') && ~isempty(params.ACTPARAM{i}.MBATCHUSE) && params.ACTPARAM{i}.MBATCHUSE == 1 && ~isempty(params.ACTPARAM{i}.MBATCH) 
+                                    preprocact{i} = ['ComBat batch effect correction [ batch vector: ' res.covnames{params.ACTPARAM{i}.MBATCH} ];
+                                elseif isfield(params.ACTPARAM{i},'MBATCHUSE') && ~isempty(params.ACTPARAM{i}.MBATCHUSE) && params.ACTPARAM{i}.MBATCHUSE > 1 || isempty(params.ACTPARAM{i}.MBATCH) && ~isempty(params.ACTPARAM{i}.MCOVARREM)
+                                     preprocact{i} = 'ComBat covariate effect correction';
                                 end
                                 if params.ACTPARAM{i}.MCOVARUSE
                                     if ~isempty(params.ACTPARAM{i}.MCOVAR)
-                                        preprocact{i} = [ preprocact{i} ', variance retainment for covariates ' strjoin( res.covnames(params.ACTPARAM{i}.MCOVAR),', ') ];
+                                        preprocact{i} = [ preprocact{i} '; covariates: ' strjoin( res.covnames(params.ACTPARAM{i}.MCOVAR),', ') ];
                                     end
                                     if params.ACTPARAM{i}.MCOVARLABEL == 1
-                                        preprocact{i} = [ preprocact{i} ', label variance retainment' ];
+                                        preprocact{i} = [ preprocact{i} '; label: variance retained' ];
                                     else
-                                        preprocact{i} = [ preprocact{i} ', no label variance retainment' ];
+                                        preprocact{i} = [ preprocact{i} '; label: variance not included' ];
                                     end
                                 end
                             elseif isfield(params.ACTPARAM{i},'METHOD') && params.ACTPARAM{i}.METHOD == 3
@@ -476,7 +478,7 @@ switch action
                                 case 'fscore'
                                     weightstr = 'no class weighting'; bootstr = 'no bootstrapping'; fscoretypestr = 'mean(SD) approach';
                                     if isfield( params.ACTPARAM{i}.RANK,'B') && params.ACTPARAM{i}.RANK.B > 0 
-                                        bootstr = sprintf(', bootstrapping with %g iters',params.ACTPARAM{i}.RANK.B); 
+                                        bootstr = sprintf('bootstrapping with %g iters',params.ACTPARAM{i}.RANK.B); 
                                     end
                                     if isfield( params.ACTPARAM{i}.RANK,'WeightMode') && strcmp(params.ACTPARAM{i}.RANK.WeightMode,'auto')
                                         weightstr = 'class weighting active';
@@ -773,7 +775,7 @@ switch action
                 case 2
                     vargout.FeatFlt = 'MRMR';
                 case 3
-                    if isfield(params.Filter,'Pearson'),
+                    if isfield(params.Filter,'Pearson')
                         switch params.Filter.Pearson
                             case 1
                                 vargout.FeatFlt = 'Pearson';

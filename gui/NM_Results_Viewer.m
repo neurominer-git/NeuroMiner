@@ -276,7 +276,7 @@ else
     handles.multilabel = false;
     handles.curlabel = 1;
 end
-
+handles.twoAxesMode = false;
 handles.oocvview = false;
 handles.lbStartup.String = 'Retrieve OOCV results if available ...';
 handles.OOCVinfo = nk_GetOOCVInfo(handles.NM,'analysis');
@@ -309,6 +309,8 @@ handles.axes37.YAxis.Label.Rotation=90;
 handles.axes17.YAxis.Label.Rotation=90;
 handles.axes35.Title.FontWeight = "bold";
 handles.axes37.Title.FontWeight = "bold";
+
+
 set(handles.figure1,'Visible','on'); % show whole UI
 
 % --- Outputs from this function are returned to the command line.
@@ -832,11 +834,11 @@ if hObject.Value == 1 && strcmp(hObject.String{1}, '↗ Inspect modality statist
 elseif strcmp(hObject.String{1}, '↗ Inspect modality statistics…')
     handles.curmodal = hObject.Value-1;
     load_selVisMeasDropDown(handles);
-    load_selComponents(handles.selComponent, handles.visdata{handles.curmodal}, handles.curclass);
+    load_selComponents(handles.selComponent, handles.visdata{handles.curmodal}, handles.curclass, handles.curmodal);
     handles = display_visual(handles);
 else
     load_selVisMeasDropDown(handles);
-    load_selComponents(handles.selComponent, handles.visdata{handles.curmodal}, handles.curclass);
+    load_selComponents(handles.selComponent, handles.visdata{handles.curmodal}, handles.curclass, handles.curmodal);
     handles.curmodal = hObject.Value;
     handles = display_visual(handles);
 end
@@ -1390,6 +1392,7 @@ function selSubParam_Callback(hObject, eventdata, handles)
 
 if handles.curmodal <= numel(handles.params.TrainParam.FUSION.M)
     handles = display_SubParam(handles);
+    %handles = display_modelperf(handles);
     guidata(handles.figure1,handles);
 end
 

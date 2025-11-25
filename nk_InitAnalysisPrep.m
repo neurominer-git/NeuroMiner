@@ -84,7 +84,7 @@ switch act
         t_act = 1; brief = 1; while t_act>0, [t_act, analdim, NM, ~, brief ]= nk_SelectAnalysis(NM, 0, 'MAIN >>> Select Analysis', analdim, 0,0,[],brief); end
         if ~isempty(analdim)
             A.analdim = analdim;
-            if numel(analdim)==1
+            if isscalar(analdim)
                 A.id = NM.analysis{A.analdim}.id ;
                 A.desc = NM.analysis{A.analdim}.desc;             
                 A.parentdir = NM.analysis{A.analdim}.parentdir;

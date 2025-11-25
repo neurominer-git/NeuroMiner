@@ -17,15 +17,15 @@ end
 cmp = visData.Report{curclass}.components;
 if iscell(cmp) 
     isInter = true;
-    idx = visData.Report{curclass}.components_idxs == curmod;
+    if find(visData.Report{curclass}.components_idxs==curmod), idx = curmod; else, idx=[]; end
 else
     isInter = false;
     idx =[];
 end
 meanPval = []; meanCorr=[]; selPct = [];
 if isInter
-    if ~isempty(idx)
-        keptMask  = visData.CompKept{curclass}{idx};    
+    if ~isempty(idx) 
+        keptMask  = visData.CompKept{curclass};    
         meanPval = cmp{idx}.mean_p_cv2;
         meanCorr = cmp{idx}.mean_r_cv2;
         selPct =  visData.CompSelRat{curclass}(keptMask)*100;

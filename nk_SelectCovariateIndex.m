@@ -11,7 +11,7 @@ else
     fprintf('\n*****    COVARIATE(S)    *****')  
     fprintf('\n******************************')
 
-    for i=1: nD
+    for i = 1: nD
         fprintf('\n(%g)\t%s',i,dat.covnames{i});
     end
 

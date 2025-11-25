@@ -9,7 +9,7 @@ function R = bicor_matrix(refMaps, currentMaps, c)
 
 if nargin<3, c = 4.685; end
 
-[kF, k]  = size(refMaps);
+[~, k]  = size(refMaps);
 [~,   k2] = size(currentMaps);
 
 R = nan(k,k2);
@@ -56,11 +56,9 @@ function r = bicor_pair(x,y,c)
   wx = (abs(u)<1) .* (1 - u.^2).^2;
   wy = (abs(v)<1) .* (1 - v.^2).^2;
 
-  w = wx .* wy;            % combined weight
-
   % weighted, centered vectors
-  xw = (x - mx) .* w;
-  yw = (y - my) .* w;
+  xw = (x - mx) .* wx;
+  yw = (y - my) .* wy;
 
   num = sum( xw .* yw );
   den = sqrt( sum(xw.^2) * sum(yw.^2) );

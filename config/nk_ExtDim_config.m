@@ -135,7 +135,7 @@ if ~defaultsfl
                     if numel(params) < 3, params = [def_min def_max def_N]; end
                     mnv = params(1); mxv = params(2); N = max(1, round(params(3)));
         
-                    if StepMode == 3
+                    if StepMode == 4
                         alpha = nk_input('Enter power exponent ''alpha'' (>1 faster growth; default 2):',0,'e',2);
                         if isempty(alpha); alpha = 2; end
                     else

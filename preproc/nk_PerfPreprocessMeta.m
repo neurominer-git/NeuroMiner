@@ -168,7 +168,15 @@ for am = 1:nA
              error('CVdatamat is missing for:\tAnalysis %g (%s),\n\tModality %g,\n\tCV2 [%g, %g].\nMake sure you have computed it before running the stacked analysis.', ...
                  am, inp.analyses{am}.id, jm, inp.f, inp.d);
          end
-         fprintf('\n%s: ', analid(am,:)); [~,nam]= fileparts(CVpath); fprintf('Loading %s', nam); load(CVpath,'GD'); 
+         fprintf('\n%s: ', analid(am,:)); [~,nam]= fileparts(CVpath); fprintf('Loading %s', nam); 
+         load(CVpath,'GD'); 
+         % --- Auto-recognize and decode GD_enc -> GD (triplet format) ---
+         if exist('GD_enc','var')
+            fprintf('\nDetected GD_enc (triplet). Decoding to full GD ...');
+            GD = nm_decode_nan_triplets(GD_enc);  % idempotent decoder
+            clear GD_enc
+            fprintf(' done.');
+         end
          GDD(cnt).GD = GD; clear GD;
          
          if oocvflag

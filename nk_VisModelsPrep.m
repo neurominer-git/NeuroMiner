@@ -22,8 +22,6 @@ function [act, inp] = nk_VisModelsPrep(act, inp, parentstr)
 %                 writeCV2   – 1=write CV2 maps, 2=do not write
 %                 CVRnorm    – 1=use SD, 2=use SEM for CVR
 %                 DecompMode – 1=back‐project components, 2=standard
-%                 FDRcompSearch – 1=back‐project only components that reach
-%                               FDR-corrected significance 
 %                 HideGridAct– true=hide CV grid selector, false=show
 %                 batchflag  – 1=batch mode, 2=interactive mode
 %                 lowmem     – 1=low memory mode, 2=standard mode
@@ -46,7 +44,7 @@ function [act, inp] = nk_VisModelsPrep(act, inp, parentstr)
 % SEE ALSO:
 %   nk_GetAnalysisStatus, nk_Input, nk_VisModels, nk_VisModelsC
 % =========================================================================
-% (c) Nikolaos Koutsouleris, 05/2025
+% (c) Nikolaos Koutsouleris, 11/2025
 
 global MULTI CV NM
 
@@ -64,11 +62,12 @@ if ~exist('inp','var') || isempty(inp)
                     'writeCV2', 2, ...              % 1 = write-out CVR and SignBasedConsistency-Maps (FDR) and resp. masked CVR to disk
                     'CVRnorm', 1, ...               % 1 = use standard deviation to compute CVR, 2 = use SEM to compute CVR
                     'DecompMode', 2, ...            % 1 = back-project factorization components (e.g. principal components of a PCA-based model) separately to input space
-                    'fdr_comp_search', 2, ...       % 1 = only back-project components that are significant at q <= alpha threshold (0.05).
-                    'simCorrThresh', 0.3, ...       % if DecompMode = 1, threshold for similarity-based realignment of components
-                    'simCorrMethod', 'pearson', ... % if DecompMode = 1, similarity computation method
+                    'simCorrThresh', 0.5, ...       % if DecompMode = 1, threshold for similarity-based realignment of components
+                    'simCorrMethod', 'spearman', ... % if DecompMode = 1, similarity computation method
                     'CorrCompCutOff', 0.3, ...      % if DecompMode = 1, similarity cutoff for dropping componentsat low-memory problems or at the final pruning step in nk_VisModelsC
-                    'SelCompCutOff', 0.2, ...       % if DecompMode = 1, Cross-CV2 selection probability of components 
+                    'SelCompCutOff', 0.1, ...       % if DecompMode = 1, Cross-CV2 selection probability of components 
+                    'PruneMode', 'fraction', ...    % if DecompMode = 1, Component pruning mode ('ram'|'fraction')
+                    'PruneFraction', 0.30, ...      % if DecompMode = 1, Pruning fraction of least contributing components
                     'HideGridAct', false, ...
                     'batchflag', 2, ...
                     'lowmem', 2);
@@ -78,10 +77,12 @@ na_str = '?'; inp.datatype = 'VISdatamat';
 if ~isfield(inp,'extraL') , inp.extraL=[]; end
 OverWriteStr = []; GridSelectStr = []; LoadModelsStr = []; LoadParamsStr = []; LoadStr = []; 
 SaveStr = []; ExtraLStr = []; CV1OpStr = []; WriteCV2str = []; DecompModeStr = []; LowMemStr = []; 
-simCorrThreshStr = []; simCorrMethodStr = []; CorrCompCutOffStr = []; SelCompCutOffStr = [];
+simCorrThreshStr = []; simCorrMethodStr = []; CorrCompCutOffStr = []; SelCompCutOffStr = []; 
+PruneModeStr = []; PruneFracStr = [];
 OverWriteAct = []; GridSelectAct = []; LoadModelsAct = []; LoadParamsAct = []; LoadAct = []; 
 SaveAct = []; ExtraLAct = []; CV1OpAct = []; WriteCV2Act = []; DecompModeAct= []; LowMemAct = [];
-simCorrThreshAct = []; simCorrMethodAct = []; CorrCompCutOffAct = []; SelCompCutOffAct = [];
+simCorrThreshAct = []; simCorrMethodAct = []; CorrCompCutOffAct = []; SelCompCutOffAct = []; 
+PruneModeAct = []; PruneFracAct = [];
 
 %% Configure menu
 if numel(NM.analysis)>1
@@ -211,8 +212,10 @@ if ~isempty(analysis)
         if inp.DecompMode == 1
              simCorrThreshStr = sprintf('Define similarity cutoff (0-1) for factorization component realignment [ %g ]|', inp.simCorrThresh); simCorrThreshAct = 17;
              simCorrMethodStr = sprintf('Define similarity computation method for factorization component realignment [ %s ]|', inp.simCorrMethod); simCorrMethodAct = 18;
-             CorrCompCutOffStr = sprintf('Define similarity cutoff (0-1) for keeping factorization components [ %g ]|', inp.CorrCompCutOff); CorrCompCutOffAct = 19;
-             SelCompCutOffStr = sprintf('Define presence cutoff (0-1) for keeping factorization components [ %g ]|', inp.SelCompCutOff); SelCompCutOffAct = 20;
+             CorrCompCutOffStr = sprintf('Define similarity cutoff (0-1) for keeping factorization components at completion [ %g ]|', inp.CorrCompCutOff); CorrCompCutOffAct = 19;
+             SelCompCutOffStr = sprintf('Define presence cutoff (0-1) for keeping factorization components at completion [ %g ]|', inp.SelCompCutOff); SelCompCutOffAct = 20;
+             PruneModeStr = sprintf('Select component pruning mode [ %s ]|', inp.PruneMode); PruneModeAct = 21;
+             PruneFracStr = sprintf('Define component pruning fraction [ %g of least contributing ]|', inp.PruneFraction); PruneFracAct = 22;
         end
     end
         
@@ -241,6 +244,8 @@ menustr = [ AnalSelectStr ...
            simCorrThreshStr ...
            CorrCompCutOffStr ...
            SelCompCutOffStr ...
+           PruneModeStr ...
+           PruneFracStr ...
            LowMemStr ...
            CVRnormStr ];
 
@@ -260,6 +265,8 @@ menuact = [ AnalSelectAct ...
             simCorrThreshAct ...
             CorrCompCutOffAct ...
             SelCompCutOffAct ...
+            PruneModeAct ...
+            PruneFracAct ...
             LowMemAct ...
             CVRnormAct ];       
 
@@ -358,13 +365,21 @@ switch act
     case 17
        inp.simCorrThresh = nk_input('Define similarity cutoff for component realignment',0,'e',inp.simCorrThresh);
     case 18
-        sim_methods = {'euclidean','pearson','spearman','cosine','bicor'};
-        sim_methods_def = find(contains(sim_methods, inp.simCorrMethod));
+        sim_methods = {'euclidean','pearson','pearson_dice','spearman','cosine','bicor'};
+        sim_methods_def = find(strcmp(sim_methods, inp.simCorrMethod));
         inp.simCorrMethod = char(nk_input('Define similarity method for component realignment',0, 'm', strjoin(sim_methods,'|'), sim_methods, sim_methods_def ));
     case 19
         inp.CorrCompCutOff = nk_input('Define similarity cutoff (0-1) for dropping/pruning factorization components',0,'e',inp.CorrCompCutOff );
     case 20
         inp.SelCompCutOff = nk_input('Define presence cutoff (0-1) for keeping factorization components',0,'e',inp.SelCompCutOff );
+    case 21
+        prune_methods = {'ram','fraction'};
+        prune_methods_def = find(strcmp(prune_methods, inp.PruneMode));
+        inp.PruneMode = char(nk_input('Select mode for pruning components from reference space', 0, 'm', strjoin(prune_methods,'|'), prune_methods_def));
+    case 22
+        prune_methods = {'ram','fraction'}; prune_methods_explain = {'at RAM overflow', 'at each CV2 fold'};
+        prune_methods_def = strcmp(prune_methods, inp.PruneMode);
+        inp.PruneFraction = nk_input(sprintf( 'Define fraction of least contributing components to be pruned %s', prune_methods_explain{prune_methods_def}), 0, 'e', inp.PruneFraction);
     case 99
         if MULTI.flag && MULTI.train && ~MULTI.BinBind, inp.multiflag = 1; else, inp.multiflag = 2; end
         nA = 1; if numel(inp.analind)>1, nA = numel(inp.analind); end

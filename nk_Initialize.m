@@ -4,16 +4,16 @@ function nk_Initialize(action)
 % =========================================================================
 % startup script for NeuroMiner
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, 05/2025
+% (c) Nikolaos Koutsouleris, 10/2025
 
 global NMinfo NM CALIBAVAIL OOCVAVAIL SPMAVAIL FSAVAIL JUAVAIL OCTAVE
 
 NMinfo.info.name    = 'NeuroMiner';
 if OCTAVE
-    NMinfo.info.ver     = sprintf('v1.4 | FINGOLFIN [OCTAVE %s]', OCTAVE_VERSION);
+    NMinfo.info.ver     = sprintf('v1.5 (alpha) | OLORIN [OCTAVE %s]', OCTAVE_VERSION);
 else
     matver = ver('matlab');
-    NMinfo.info.ver     = sprintf('v1.4 | FINGOLFIN [%s %s]', matver.Name, matver.Release);
+    NMinfo.info.ver     = sprintf('v1.5 (alpha) | OLORIN [%s %s]', matver.Name, matver.Release);
 end
 NMinfo.info.author  = 'N. Koutsouleris, C. Vetter, A. Wiegand, L. Hahn, S. Mena';
 NMinfo.info.affil   = 'Section for Precision Psychiatry / Artificial Intelligence in Mental Health (AIM)';
@@ -34,21 +34,17 @@ clc
 fprintf('>>> Initializing NeuroMiner\n')
 matpaths = path;
 
-%if ~isdeployed
-    if isunix, sep = ':'; else, sep = ';'; end
-    try
-      matpaths = nk_strsplit(sep,matpaths);
-    catch
-      matpaths = nk_strsplit(matpaths, sep);
-    end
-    if exist(which('nm.m'),'file')
-        neurominerpath = fileparts(which('nm.m'));
-    else
-        neurominerpath = fileparts(which('nm.p'));
-    end
-%else
-    %neurominerpath = ctfroot;
-%end
+if isunix, sep = ':'; else, sep = ';'; end
+try
+  matpaths = nk_strsplit(sep,matpaths);
+catch
+  matpaths = nk_strsplit(matpaths, sep);
+end
+if exist(which('nm.m'),'file')
+    neurominerpath = fileparts(which('nm.m'));
+else
+    neurominerpath = fileparts(which('nm.p'));
+end
 
 if nargin < 2
 	action.all=1;
@@ -99,8 +95,6 @@ if ~checkpaths(matpaths,fullfile(defs.path,'cfiles'))
 end
 
 if action.all
-
-    %if ~isdeployed
 
         % Configuration subdirectory
         if ~checkpaths(matpaths,fullfile(defs.path,'config'))
@@ -202,75 +196,62 @@ end
 
 if action.addDRpath || action.all
 
-    %if ~isdeployed
-        % Preprocessing subdirectory
+    % Preprocessing subdirectory
 
-        % Path of dimensionality reduction toolbox
-        if ~checkpaths(matpaths,fullfile(defs.path,'preproc/drtoolbox'))
-            addpath(fullfile(defs.path,'preproc/drtoolbox'));
-            addpath(fullfile(defs.path,['preproc/drtoolbox' filesep 'techniques'])); fprintf('.');
-        end
+    % Path of dimensionality reduction toolbox
+    if ~checkpaths(matpaths,fullfile(defs.path,'preproc/drtoolbox'))
+        addpath(fullfile(defs.path,'preproc/drtoolbox'));
+        addpath(fullfile(defs.path,['preproc/drtoolbox' filesep 'techniques'])); fprintf('.');
+    end
 
-        if ~checkpaths(matpaths,fullfile(defs.path,'preproc/drtools'))
-            addpath(fullfile(defs.path,'preproc/drtools')); fprintf('.');
-        end
+    if ~checkpaths(matpaths,fullfile(defs.path,'preproc/drtools'))
+        addpath(fullfile(defs.path,'preproc/drtools')); fprintf('.');
+    end
 
-        if ~checkpaths(matpaths,fullfile(defs.path,'preproc/drrobust'))
-            addpath(fullfile(defs.path,'preproc/drrobust')); fprintf('.');
-        end
+    if ~checkpaths(matpaths,fullfile(defs.path,'preproc/drrobust'))
+        addpath(fullfile(defs.path,'preproc/drrobust')); fprintf('.');
+    end
 
-        % Path of dimensionality reduction toolbox
-        if ~checkpaths(matpaths,fullfile(defs.path,'preproc/nmfv1_4'))
-            addpath(fullfile(defs.path,'preproc/nmfv1_4')); fprintf('.');
-        end
-
-    %end
+    % Path of dimensionality reduction toolbox
+    if ~checkpaths(matpaths,fullfile(defs.path,'preproc/nmfv1_4'))
+        addpath(fullfile(defs.path,'preproc/nmfv1_4')); fprintf('.');
+    end
 
 end
 
 if action.addMIpath
-    %if ~isdeployed
-        if ~checkpaths(matpaths,fullfile(defs.path,'preproc/mi'))
-            addpath(fullfile(defs.path,'preproc/mi')); fprintf('.');
-        end
-    %end
+   
+    if ~checkpaths(matpaths,fullfile(defs.path,'preproc/mi'))
+        addpath(fullfile(defs.path,'preproc/mi')); fprintf('.');
+    end
+  
 end
 
 if action.addLIBSVMpath
 
-    %if ~isdeployed
-        if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/libsvm-weights-3.12/matlab'))
-            addpath(fullfile(defs.path,'trainpredict/libsvm-weights-3.12/matlab')); fprintf('.');
-        end
-    %end
-
-    %if ~isdeployed
-        if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/libsvm-mat-2.9-1'))
-            addpath(fullfile(defs.path,'trainpredict/libsvm-mat-2.9-1'));fprintf('.');
-        end
-    %end
-
-    %if ~isdeployed
-        if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/LIBSVM-Plus-2.89'))
-            addpath(fullfile(defs.path,'trainpredict/LIBSVM-Plus-2.89'));fprintf('.');
-        end
-    %end
-
+    if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/libsvm-weights-3.12/matlab'))
+        addpath(fullfile(defs.path,'trainpredict/libsvm-weights-3.12/matlab')); fprintf('.');
+    end
+    if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/libsvm-mat-2.9-1'))
+        addpath(fullfile(defs.path,'trainpredict/libsvm-mat-2.9-1'));fprintf('.');
+    end
+    if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/LIBSVM-Plus-2.89'))
+        addpath(fullfile(defs.path,'trainpredict/LIBSVM-Plus-2.89'));fprintf('.');
+    end
 end
+
 if action.addLIBLINpath
-    %if ~isdeployed
-        if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/liblinear-2.1/matlab'))
-           addpath(fullfile(defs.path,'trainpredict/liblinear-2.1/matlab')); fprintf('.');
-        end
-    %end
+   
+    if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/liblinear-2.1/matlab'))
+       addpath(fullfile(defs.path,'trainpredict/liblinear-2.1/matlab')); fprintf('.');
+    end
 end
 
 if action.addMikeRVMpath
-    %if ~isdeployed
-        if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/SB2_Release_200'))
-            addpath(fullfile(defs.path,'trainpredict/SB2_Release_200'));fprintf('.');
-        end
-    %end
+   
+    if ~checkpaths(matpaths,fullfile(defs.path,'trainpredict/SB2_Release_200'))
+        addpath(fullfile(defs.path,'trainpredict/SB2_Release_200'));fprintf('.');
+    end
 end
 
 if ~isempty(NM) && ~isstruct(NM)

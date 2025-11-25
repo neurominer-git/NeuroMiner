@@ -70,18 +70,37 @@ for covarIdx = 1:numCovars
         % Calculating the number of quantiles, maximum of 100.
         numQuantiles = min(min(groupCounts), 100);
 
-        %Obtain distributions.
-        oDist = zeros(numQuantiles, numFeatures, numGroups, 'like', repairedData);
-        for groupIdx = 1:numGroups
-            logicalGroup = (uniqueGroups(groupIdx) == covar) & subgroup;
-            oDist(:,:,groupIdx) = quantile(repairedData(logicalGroup, :), numQuantiles, 1);
+        %Obtain distributions for each group in covar.
+        for g = 1:numGroups
+            logicalGroup = (covar == uniqueGroups(g)) & subgroup;
+            oDist(:,:,g) = quantile(repairedData(logicalGroup, :), numQuantiles, 1);
         end
-        %Store it for testing correction.
-        distributions{covarIdx} = oDist;
+        
+        % ===== NEW: compute global distribution using all training samples =====
+        allSamples = repairedData(subgroup==1, :);  % combine all training samples
+        globalMeanDist = quantile(allSamples, numQuantiles, 1);  % quantiles across all samples
+        
+        % Store training distributions AND their corresponding group labels
+        distributions{covarIdx} = struct( ...
+            'uniqueGroups', uniqueGroups, ...
+            'oDist', oDist, ...
+            'groupCounts', groupCounts, ...
+            'globalMeanDist', globalMeanDist ...
+        );
+
+        % Assign the unique groups to the training groups. 
+        trainGroups = uniqueGroups;
 
     else
+        % ===== TESTING MODE =====
         %Load it for testing correction.
-        oDist = distributions{covarIdx};
+        distStruct = distributions{covarIdx};
+        trainGroups = distStruct.uniqueGroups;
+        oDist = distStruct.oDist;
+
+        % Load global mean distribution from training
+        globalMeanDist = distStruct.globalMeanDist;
+
     end
     
     % Calculate the correction distribution based on the specified type.
@@ -90,33 +109,54 @@ for covarIdx = 1:numCovars
     elseif corrType == 2
         mDist = mean(oDist, 3, 'omitnan');
     end
-    
+
+
     % Perform the correction for each feature.
     for featureIdx = 1:numFeatures
-        % Extract feature. 
+        % Extract feature.
         x = repairedData(:, featureIdx);
         isNotNaN = ~isnan(x);
+
         % For each covariate group and feature selected, apply the correction. 
-        for groupIdx = 1:numGroups
+        for g = 1:numGroups
+            groupLabel = uniqueGroups(g);
+            % Find index of this group in training distributions
+            trainGroupIdx = find(trainGroups == groupLabel, 1);
+
+            % If this group wasn't seen in training, use training-only global fallback
+            if isempty(trainGroupIdx)
+                % Use global mean (prevalence-weighted) edges
+                edges = globalMeanDist(:, featureIdx);
+            else
+                % Get edges of histogram distribution.
+                edges = oDist(:, featureIdx, trainGroupIdx);
+            end
+
             % Get indexes in x that belong to group.
-            isGroupK = covar == groupIdx;
+            isGroupK = covar == groupLabel;
+
             % Extract x of the group.
             xGroupK = x(isGroupK);
             isNotNaNK = isNotNaN(isGroupK);
-            % Get edges of histogram distribution.
-            edges = oDist(:, featureIdx, groupIdx);
+
             % Get the indices (bin) for each value for the correction. 
             indices = discretize(xGroupK, [-inf; edges; inf]);
-            %Matlab convention: select the values on the left. 
+
+            % Matlab convention: select the values on the left.
             indices(indices ~= 1) = indices(indices ~= 1) - 1;
+
+            % Clamp indices to valid range
+            indices(indices < 1) = 1;
+            indices(indices > size(mDist,1)) = size(mDist,1);
+
             %Perform the repair with a level of lambda.
             repairedData(isGroupK & isNotNaN, featureIdx) = ...
-                (1 - lambda) * xGroupK(isNotNaNK) + lambda * mDist(indices(isNotNaNK), featureIdx);
+                (1 - lambda) * xGroupK(isNotNaNK) + ...
+                lambda * mDist(indices(isNotNaNK), featureIdx);
         end
     end
 
 end
 
 end
-
 %========================================================================

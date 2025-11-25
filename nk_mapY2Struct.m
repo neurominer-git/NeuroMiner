@@ -115,59 +115,96 @@ switch FUSION.flag
                                 TS = mapY{i}.Ts{k,l}{j};
                                 nZo = size(out.Tr{k,l}{j},1);
                             end
-                            % Create mixtures of data shelves if modality concatenation is activated
-                            if isfield(paramfl{i},'PXfull') && ~isempty(paramfl{i}.PXopt{j})
-                                cntPXopt = height(paramfl{i}.PXopt{j});
-                                if i==1
-                                    if multiproc
-                                        out.Tr{k,l} = cell(cntPXopt,1);
-                                        out.CV{k,l} = cell(cntPXopt,1);
-                                        out.Ts{k,l} = cell(cntPXopt,1);
-                                        out.VI{k,l} = cell(cntPXopt,1);
-                                    else
-                                        out.Tr{k,l}{j} = cell(cntPXopt,1);
-                                        out.CV{k,l}{j} = cell(cntPXopt,1);
-                                        out.Ts{k,l}{j} = cell(cntPXopt,1);
-                                        out.VI{k,l}{j} = cell(cntPXopt,1);
-                                    end
-                                end
-                                % Check if parameter columns consist only of one value
-                                % and remove these columns
-                                need_fill = ( ~isfield(paramfl{i},'P') ) ...
-                                         || ( numel(paramfl{i}.P) < j ) ...
-                                         || isempty(paramfl{i}.P{j}) ...
-                                         || ~isfield(paramfl{i}.P{j},'opt') ...
-                                         || isempty(paramfl{i}.P{j}.opt);
-                                
-                                if need_fill
-                                    % Make P{j} a struct with an 'opt' field mirroring PXopt{j}
-                                    paramfl{i}.P{j} = struct('opt', paramfl{i}.PXopt{j});
-                                end
-                                if width(paramfl{i}.P{j}.opt) ~= width(paramfl{i}.PXopt{j})
-                                    % drop columns that are constant across all rows in PXopt{j}
-                                    idx_rem = all(diff(paramfl{i}.PXopt{j}, 1, 1) == 0, 1);
-                                    paramfl{i}.PXopt{j}(:, idx_rem) = [];
-                                end
-                                shelf_ind = find(ismember(paramfl{i}.P{j}.opt,paramfl{i}.PXopt{j},'rows'));
-                                p_opt = paramfl{i}.P{j}.opt(shelf_ind,:);
-                                cnt_p_opt = height(p_opt);
-                                for zq = 1 : cnt_p_opt
-                                    shelf_ind_zq = ismember(paramfl{i}.PXopt{j},p_opt(zq,:),'rows');
-                                    if multiproc
-                                        out.Tr{k,l}(shelf_ind_zq) = cellmat_mergecols(out.Tr{k,l}(shelf_ind_zq), repmat(TR(shelf_ind(zq)),numel(shelf_ind_zq),1) );
-                                        out.CV{k,l}(shelf_ind_zq) = cellmat_mergecols(out.CV{k,l}(shelf_ind_zq), repmat(CV(shelf_ind(zq)),numel(shelf_ind_zq),1) );
-                                        out.Ts{k,l}(shelf_ind_zq) = cellmat_mergecols(out.Ts{k,l}(shelf_ind_zq), repmat(TS(shelf_ind(zq)),numel(shelf_ind_zq),1) );
-                                        out.VI{k,l}(shelf_ind_zq) = cellmat_mergerows(out.VI{k,l}(shelf_ind_zq), repmat({i*ones(size(TR{shelf_ind(zq)},2),1)},numel(shelf_ind_zq),1));
 
-                                    else
-                                        out.Tr{k,l}{j}(shelf_ind_zq) = cellmat_mergecols(out.Tr{k,l}{j}(shelf_ind_zq), repmat(TR(shelf_ind(zq)),numel(shelf_ind_zq),1) );
-                                        out.CV{k,l}{j}(shelf_ind_zq) = cellmat_mergecols(out.CV{k,l}{j}(shelf_ind_zq), repmat(CV(shelf_ind(zq)),numel(shelf_ind_zq),1) );
-                                        out.Ts{k,l}{j}(shelf_ind_zq) = cellmat_mergecols(out.Ts{k,l}{j}(shelf_ind_zq), repmat(TS(shelf_ind(zq)),numel(shelf_ind_zq),1) );
-                                        out.VI{k,l}{j}(shelf_ind_zq) = cellmat_mergerows(out.VI{k,l}{j}(shelf_ind_zq), repmat({i*ones(size(TR{shelf_ind(zq)},2),1)},numel(shelf_ind_zq),1));
+                            % Create node-wise mixtures of data shelves if modality concatenation is activated
+                            if isfield(paramfl{i},'PXfull') && ~isempty(paramfl{i}.PXopt{j})
+                            
+                                % ----- 1) Get per-node shelf indices from Param -----
+                                % Param{i}(k,l,j).data_ind must be a column vector of length nNodes
+                                par_ijk = Param{i}(k,l,j);
+                                if ~isfield(par_ijk,'data_ind') || isempty(par_ijk.data_ind)
+                                    error('nk_mapY2Struct:MissingDataInd', ...
+                                        'Modality %d: Param{%d}(%d,%d,%d).data_ind is missing or empty.', ...
+                                        i, i, k, l, j);
+                                end
+                                data_ind = par_ijk.data_ind(:);          % nNodes x 1 (rows in PXopt)
+                                nNodes   = numel(data_ind);              % number of optimized parameter nodes
+                            
+                                % ----- 2) Sanity checks on shelves vs data_ind -----
+                                nShelves = numel(TR);
+                                if any(data_ind < 1) || any(data_ind > nShelves)
+                                    error('nk_mapY2Struct:DataIndOutOfRange', ...
+                                        ['Modality %d: data_ind contains indices outside [1..%d]. ', ...
+                                         'Check consistency between Param{%d}.data_ind and mapY{%d}.Tr.'], ...
+                                         i, nShelves, i, i);
+                                end
+                            
+                                % Optional: check against PXopt row count (if present)
+                                if isfield(paramfl{i},'PXopt') && numel(paramfl{i}.PXopt) >= j ...
+                                        && ~isempty(paramfl{i}.PXopt{j})
+                                    nPX = height(paramfl{i}.PXopt{j});
+                                    if nPX ~= nNodes
+                                        error('nk_mapY2Struct:PXoptNodeMismatch', ...
+                                            ['Modality %d: length(data_ind) = %d but PXopt{%d} has %d rows.\n', ...
+                                             'These must match: one data_ind entry per optimized node.'], ...
+                                             i, nNodes, j, nPX);
                                     end
                                 end
-                                Param{i}(k,l,j).data_ind = (1:cntPXopt)';
+                            
+                                % ----- 3) Initialize out.* for node-wise fused shelves on first modality -----
+                                if i == 1
+                                    if multiproc
+                                        % multiproc: out.Tr{k,l} is a cell array of length nNodes
+                                        out.Tr{k,l} = cell(nNodes,1);
+                                        out.CV{k,l} = cell(nNodes,1);
+                                        out.Ts{k,l} = cell(nNodes,1);
+                                        out.VI{k,l} = cell(nNodes,1);
+                                    else
+                                        % binary: out.Tr{k,l}{j} is a cell array of length nNodes
+                                        out.Tr{k,l}{j} = cell(nNodes,1);
+                                        out.CV{k,l}{j} = cell(nNodes,1);
+                                        out.Ts{k,l}{j} = cell(nNodes,1);
+                                        out.VI{k,l}{j} = cell(nNodes,1);
+                                    end
+                                end
+                            
+                                % ----- 4) For each optimized node z, pick the correct shelf and concatenate -----
+                                for z = 1:nNodes
+                                    s = data_ind(z);   % shelf index in this modality for node z
+                            
+                                    if multiproc
+                                        if i == 1
+                                            % First modality: just assign the shelf
+                                            out.Tr{k,l}{z} = TR{s};
+                                            out.CV{k,l}{z} = CV{s};
+                                            out.Ts{k,l}{z} = TS{s};
+                                            out.VI{k,l}{z} = i * ones(size(TR{s},2),1);
+                                        else
+                                            % Subsequent modalities: concatenate horizontally + update VI
+                                            out.Tr{k,l}{z} = [ out.Tr{k,l}{z}, TR{s} ];
+                                            out.CV{k,l}{z} = [ out.CV{k,l}{z}, CV{s} ];
+                                            out.Ts{k,l}{z} = [ out.Ts{k,l}{z}, TS{s} ];
+                                            out.VI{k,l}{z} = [ out.VI{k,l}{z}; i * ones(size(TR{s},2),1) ];
+                                        end
+                                    else
+                                        if i == 1
+                                            % First modality (binary preprocessing)
+                                            out.Tr{k,l}{j}{z} = TR{s};
+                                            out.CV{k,l}{j}{z} = CV{s};
+                                            out.Ts{k,l}{j}{z} = TS{s};
+                                            out.VI{k,l}{j}{z} = i * ones(size(TR{s},2),1);
+                                        else
+                                            % Subsequent modalities: concatenate horizontally + update VI
+                                            out.Tr{k,l}{j}{z} = [ out.Tr{k,l}{j}{z}, TR{s} ];
+                                            out.CV{k,l}{j}{z} = [ out.CV{k,l}{j}{z}, CV{s} ];
+                                            out.Ts{k,l}{j}{z} = [ out.Ts{k,l}{j}{z}, TS{s} ];
+                                            out.VI{k,l}{j}{z} = [ out.VI{k,l}{j}{z}; i * ones(size(TR{s},2),1) ];
+                                        end
+                                    end
+                                end
+                            
                             else
+                                % ---- Fallback: original cross-product logic for non-PXfull cases ----
                                 if i>1
                                     cnt = 1;
                                     nZp = size(TR,1);
@@ -222,6 +259,7 @@ switch FUSION.flag
                                     end
                                 end
                             end
+
                         end   
                     end
                  end

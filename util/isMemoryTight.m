@@ -13,6 +13,5 @@ function [overThreshold, avail] = isMemoryTight(thresh)
         used  = rt.totalMemory() - rt.freeMemory();
         avail = rt.maxMemory();
     end
-
     overThreshold = (double(used) / double(avail)) > thresh;
 end

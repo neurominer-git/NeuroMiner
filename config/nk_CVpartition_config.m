@@ -527,7 +527,7 @@ if ~defaultsfl
             if NM.TrainParam.RAND.ConstrainedCV == 1, NM.TrainParam.RAND.ConstrainedCV = 2; else, NM.TrainParam.RAND.ConstrainedCV = 1 ; end
         case 22
             NM.TrainParam.RAND.ConstrainedGroupIndex = ...
-                                 nk_input('Define index vector for constrained, stratified CV',0,'i',[],[numel(NM.cases),1]);
+                                 nk_input('Define index vector for constrained, stratified CV', 0, 'i', [], [numel(NM.cases),1]);
         case 23
             if NM.TrainParam.RAND.CVOnlyGroup.flag == 1, NM.TrainParam.RAND.CVOnlyGroup.flag = 2; else, NM.TrainParam.RAND.CVOnlyGroup.flag = 1; end
         case 24

@@ -1,41 +1,17 @@
-function [sortedMaps, unmatchedComponents, assignmentVec, corrPerComp, signCorrections, similarityMatrix, refMapsUpdated, groupsPerRef] = ...
-         nk_AlignCompAndSignCorrect(refMaps, currentMaps, cutoff, metric, collapseManyToOne)
-% nk_AlignCompAndSignCorrect
+function [sortedMaps, unmatchedComponents, assignmentVec, corrPerComp, signCorrections, similarityMatrix, refMapsUpdated, groupsPerRef, sign_pair] = ...
+         nk_AlignCompAndSignCorrect(refMaps, currentMaps, cutoff, metric, collapseManyToOne, unitnorm)
+% nk_AlignCompAndSignCorrect — drop-in replacement (output-identical, faster)
 % Align & sign-correct currentMaps columns to refMaps (single or multi-modality).
-%
-% Usage:
-%   [S,U,A,C,SGN,Sim]                        = nk_AlignCompAndSignCorrect(R, C)
-%   [S,U,A,C,SGN,Sim]                        = nk_AlignCompAndSignCorrect(R, C, cutoff)
-%   [S,U,A,C,SGN,Sim]                        = nk_AlignCompAndSignCorrect(R, C, cutoff, metric)
-%   [S,U,A,C,SGN,Sim,Rupd,groupsPerRef]      = nk_AlignCompAndSignCorrect(R, C, cutoff, metric, collapseManyToOne)
-%
-% Inputs:
-%   refMaps, currentMaps  : [F×k] or cell{nM} per-modality matrices.
-%   cutoff                : absolute-similarity threshold (default 0.3).
-%   metric                : 'pearson' | 'spearman' | 'cosine' | 'bicor' | 'euclidean' (default 'pearson').
-%   collapseManyToOne     : logical flag; if true, collapse all sources with |sim|>=cutoff into the ref by mean.
-%                           DEFAULT = false (old policy: "winner takes all").
-%
-% Outputs:
-%   sortedMaps       : maps in ref order (winner-only or collapsed mean depending on flag), sign-corrected.
-%   unmatchedComponents : still-unmatched source columns (per modality) after growth & final align.
-%   assignmentVec    : shared source index chosen by Hungarian for each ref (0 if unmatched below cutoff).
-%   corrPerComp      : non-negative similarity per ref vs signed (winner or collapsed) source vector.
-%   signCorrections  : sign of aggregated signed similarity for the Hungarian winner (legacy / diagnostic).
-%   similarityMatrix : final-pass signed aggregated similarity (ref × shared source index).
-%   refMapsUpdated   : possibly grown reference (per-modality cells or single matrix).
-%   groupsPerRef     : 1×nRef cell of shared indices used for each ref.
-%                      If collapseManyToOne=false → winner only ([j] or []).
-%
-% Policy notes:
-% - Inputs are assumed already "significant"; ANY shared source column left unmatched after cutoff
-%   is appended to the reference, then we re-align once.
-% - When collapseManyToOne=false (default): behavior matches the classic "winner takes all" policy.
-
+global CVPOS
 if nargin < 3 || isempty(cutoff), cutoff = 0.3; end
 if nargin < 4 || isempty(metric), metric  = 'pearson'; end
 if nargin < 5 || isempty(collapseManyToOne), collapseManyToOne = false; end
-metric = validatestring(lower(metric), {'euclidean','pearson','cosine','spearman','bicor'});
+if nargin < 6 || isempty(unitnorm), unitnorm = true; end
+metric = validatestring(lower(metric), {'euclidean','pearson','pearson_dice','cosine','spearman','bicor'});
+%refpath = sprintf('RefData_%s_CV2-%g-%g_CV1-%g-%g.mat',CVPOS.mode, CVPOS.CV2p, CVPOS.CV2f, CVPOS.CV1p, CVPOS.CV1f);
+%if isfield(CVPOS,'mode') && strcmp(CVPOS.mode,'loaded'); debug = true; else, debug = false; end
+%debug = false; freshdata = [];
+%freshdata = compare_fresh_vs_load(freshdata, 'line 14');
 
 % -------- normalize to cell arrays --------
 isMulti = iscell(refMaps) || iscell(currentMaps);
@@ -54,6 +30,7 @@ else
     end
 end
 nM = numel(refCells);
+%compare_fresh_vs_load(freshdata, 'line 33');
 
 % -------- sizes & unify reference width across modalities --------
 k_ref_mod = zeros(1,nM);
@@ -68,7 +45,7 @@ if any(k_ref_mod ~= k_ref_mod(1))
     Ktgt = max(k_ref_mod);
     for m = 1:nM
         if k_ref_mod(m) < Ktgt
-            refCells{m} = [refCells{m}, sparse(size(refCells{m},1), Ktgt - k_ref_mod(m))];
+            refCells{m} = [refCells{m}, nan(size(refCells{m},1), Ktgt - k_ref_mod(m))];
             k_ref_mod(m) = Ktgt;
         end
     end
@@ -76,105 +53,226 @@ end
 K_ref     = k_ref_mod(1);
 K_src_max = max(k_src_mod);
 
+%compare_fresh_vs_load(freshdata,'line 56');
+
 % equal weights over modalities
 w = ones(1, nM); w = w / sum(w);
 
 % ========= PASS 1: similarities & Hungarian (with cutoff) =========
-[S_signed, S_abs] = aggregate_similarity(refCells, curCells, metric, w, K_ref, K_src_max);
+[S_signed, S_abs] = aggregate_similarity(refCells, curCells, metric, w, K_ref, K_src_max, unitnorm);
 [assignmentVec, signCorrections] = hungarian_with_cutoff(S_signed, S_abs, cutoff);
+
+%compare_fresh_vs_load(freshdata, 'line 65');
 
 % unmatched shared source indices (by shared j)
 used = false(1, K_src_max);
 used(assignmentVec(assignmentVec>0)) = true;
-unmatched_shared = find(~used);
+has_viable = any(isfinite(S_abs) & (S_abs >= cutoff), 1);  % 1×K_src_max
+unmatched_shared = find(~used & ~has_viable);
 
 % ========= Growth policy: append ALL unmatched shared source columns =========
 refMapsUpdated = refCells;
 if ~isempty(unmatched_shared)
     for idx = 1:numel(unmatched_shared)
         j = unmatched_shared(idx);
+        % assert all modalities have column j
         for m = 1:nM
-            Cm = curCells{m};
-            if j <= size(Cm,2)
-                refMapsUpdated{m} = [refMapsUpdated{m}, Cm(:, j)];
-            else
-                refMapsUpdated{m} = [refMapsUpdated{m}, sparse(size(refMapsUpdated{m},1),1)];
-            end
+            assert(j <= size(curCells{m},2), 'Invariant violated: modality #%g missing column %d.', m, j);
+            refMapsUpdated{m} = [refMapsUpdated{m}, curCells{m}(:, j)];
         end
     end
-    % sizes change
     K_ref = size(refMapsUpdated{1},2);
+    %compare_fresh_vs_load(freshdata, 'line 85');
     fprintf('\n\t\t\t[Aligner] Added %d unmatched component%s from source (%g components) to reference (now %d total in reference). Method=%s, cutoff=%.3g', ...
         numel(unmatched_shared), char('s'*(numel(unmatched_shared)~=1)), K_src_max, K_ref, upper(metric), cutoff);
 
     % ========= PASS 2: similarities & Hungarian after growth =========
-    [S_signed, S_abs] = aggregate_similarity(refMapsUpdated, curCells, metric, w, K_ref, K_src_max);
+    [S_signed, S_abs] = aggregate_similarity(refMapsUpdated, curCells, metric, w, K_ref, K_src_max, unitnorm);
     [assignmentVec, signCorrections] = hungarian_with_cutoff(S_signed, S_abs, cutoff);
+    %compare_fresh_vs_load(freshdata, 'line 92');
 end
 similarityMatrix = S_signed;  % final pass (signed, aggregated)
 
-% ========= groups per ref =========
+% ========= groups per ref (winner-only or collapsed list) =========
 groupsPerRef = cell(1, K_ref);
+j_winner = zeros(1, K_src_max);
+for i = 1:K_ref
+    j = assignmentVec(i);
+    if j > 0, j_winner(j) = i; end
+end
 if collapseManyToOne
-    % collapse all sources with |sim| >= cutoff
-    for i = 1:K_ref
-        js = find(isfinite(S_abs(i,:)) & (S_abs(i,:) >= cutoff));
-        groupsPerRef{i} = js(:)';
+    for j = 1:K_src_max
+        col = S_abs(:, j);
+        if ~any(isfinite(col)) || max(col) < cutoff, continue; end
+        i_star = j_winner(j);
+        if i_star == 0
+            [~, i_star] = max(col);
+        end
+        groupsPerRef{i_star} = [groupsPerRef{i_star}, j];
     end
 else
-    % old policy: winner only
     for i = 1:K_ref
         j = assignmentVec(i);
-        if j > 0, groupsPerRef{i} = j; else, groupsPerRef{i} = []; end
+        groupsPerRef{i} = (j > 0) * j;
+        if j == 0, groupsPerRef{i} = []; end
     end
 end
+%compare_fresh_vs_load(freshdata, 'line 120');
 
-% ========= Per-pair robust sign on COMBINED vectors =========
-sign_pair = zeros(K_ref, K_src_max); % -1, 0, +1
-for i = 1:K_ref
-    ref_vec = combine_vec(refMapsUpdated, i);
-    for j = 1:K_src_max
-        src_vec = combine_vec(curCells, j);
-        if isempty(src_vec), sign_pair(i,j) = 0; continue; end
-        sim_ij = combined_similarity(ref_vec, src_vec, metric);
-        if isfinite(sim_ij) && sim_ij ~= 0
-            sign_pair(i,j) = sign(sim_ij);
-        else
-            sign_pair(i,j) = 0;
-        end
-    end
-end
-
-% ========= Build sorted maps (winner-only or collapsed mean), using per-pair sign =========
-sortedMaps = refMapsUpdated;  % retain per-modality shape
+% ========= Per-pair sign on concatenated vectors (exactly matches old combine_vec loop) =========
+% Build concatenated matrices (sum of feature rows) with NaN padding to mimic combine_vec.
+sumF = 0; Fmods = zeros(1,nM);
+for m = 1:nM, Fmods(m) = size(refMapsUpdated{m},1); sumF = sumF + Fmods(m); end
+RefAll = nan(sumF, K_ref);
+CurAll = nan(sumF, K_src_max);
+r0 = 0;
 for m = 1:nM
-    Fm = size(refMapsUpdated{m},1);
-    Cm = curCells{m};
-    out = nan(Fm, K_ref);
-    for i = 1:K_ref
-        js = groupsPerRef{i};
-        if isempty(js), continue; end
-        if ~collapseManyToOne
-            % winner-only, single signed column
+    Fm = Fmods(m);
+    if ~isempty(refMapsUpdated{m})
+        RefAll(r0+(1:Fm), 1:size(refMapsUpdated{m},2)) = refMapsUpdated{m};
+    end
+    if ~isempty(curCells{m})
+        CurAll(r0+(1:Fm), 1:size(curCells{m},2)) = curCells{m};
+    end
+    r0 = r0 + Fm;
+end
+S_sign_concat = similarity_kernel(RefAll, CurAll, metric, unitnorm);  % K_ref x K_src_max
+sign_pair = zeros(size(S_sign_concat));
+mask_fin = isfinite(S_sign_concat) & (S_sign_concat ~= 0);
+sign_pair(mask_fin) = sign(S_sign_concat(mask_fin));  % -1/0/+1 exactly as before
+
+% ========= Build sorted maps (winner-only or collapsed mean), output-identical =========
+sortedMaps = refMapsUpdated;
+
+if ~collapseManyToOne
+    % ---- Winner-only: keep exact NaN structure of the chosen source column
+    for m = 1:nM
+        Fm = size(refMapsUpdated{m},1);
+        Cm = curCells{m};
+        out = nan(Fm, K_ref, 'like', refMapsUpdated{m});
+        for i = 1:K_ref
+            js = groupsPerRef{i};
+            if isempty(js), continue; end
             j = js(1);
             if j <= size(Cm,2) && sign_pair(i,j) ~= 0
                 out(:, i) = sign_pair(i,j) .* Cm(:, j);
-            else
-                out(:, i) = NaN;
             end
-        else
-            % collapse mean over multiple signed columns
-            cols = nan(Fm, numel(js));
-            for t = 1:numel(js)
-                j = js(t);
-                if j <= size(Cm,2) && sign_pair(i,j) ~= 0
-                    cols(:,t) = sign_pair(i,j) .* Cm(:, j);
+        end
+        sortedMaps{m} = out;
+    end
+else
+    % ---- Collapsed mean: exactly reproduce near-1 clamp, valid-mask, gamma, L1 norm, fallbacks, NaN handling.
+    gamma = 1.5;      % keep original
+    oneTol = 1e-4;    % near-1 clamp tolerance (identical to your code)
+
+    for m = 1:nM
+        Cm = curCells{m};                  % (F_m x K_src_max)
+        Fm = size(refMapsUpdated{m},1);
+        
+        % Pre-count nonzeros to avoid sparse growth; then build I/J/V once
+        nnz_total = 0;
+        for i = 1:K_ref
+            nnz_total = nnz_total + numel(groupsPerRef{i});
+        end
+        I = zeros(nnz_total,1);
+        J = zeros(nnz_total,1);
+        V = zeros(nnz_total,1);
+        p = 1;
+
+        refs_no_valid = false(1, K_ref);
+
+        for i = 1:K_ref
+            js = groupsPerRef{i};
+            if isempty(js), continue; end
+
+            s = sign_pair(i, js);
+            viable = (s ~= 0);
+            js = js(viable); s = s(viable);
+            if isempty(js), continue; end
+
+            % near-1 clamp on S_abs row (exactly as before)
+            c_row = S_abs(i, :);
+            idx_nearOne = (c_row >= 1-oneTol) & (c_row <= 1+oneTol);
+            c_row(idx_nearOne) = 0;
+            wj = c_row(js);
+
+            % per-modality valid: at least one finite entry in this modality
+            if ~isempty(Cm)
+                valid = any(isfinite(Cm(:, js)), 1);
+            else
+                valid = false(size(js));
+            end
+
+            % identical masking & weighting semantics
+            wj(~isfinite(wj) | wj < 0) = 0;
+            wj = wj .* valid;
+
+            wj = wj .^ gamma;
+            sw = sum(wj);
+
+            if sw > 0
+                wj = wj / sw;
+                k = numel(js);
+                idx = p:(p+k-1);
+                I(idx) = js(:);
+                J(idx) = i;
+                V(idx) = s(:) .* wj(:);
+                p = p + k;
+            else
+                % fallback: equal weights over valid columns
+                if any(valid)
+                    js_valid = js(valid);
+                    s_valid  = s(valid);
+                    k = numel(js_valid);
+                    eq = (1/k) * ones(k,1, 'like', V);
+                    idx = p:(p+k-1);
+                    I(idx) = js_valid(:);
+                    J(idx) = i;
+                    V(idx) = s_valid(:) .* eq;
+                    p = p + k;
+                else
+                    % no valid columns in this modality for this ref: keep out(:,i)=NaN
+                    refs_no_valid(i) = true;
                 end
             end
-            out(:, i) = mean(cols, 2, 'omitnan');
         end
+
+         % build sparse once
+        I = I(1:p-1); J = J(1:p-1); V = V(1:p-1);
+        if ~isempty(I)
+            A_m = sparse(I, J, V, K_src_max, K_ref);
+        
+            if ~isempty(Cm)
+                % NaN-safe sum under globally normalized weights: NaNs -> 0 for the product
+                Cm_0 = Cm;
+                Cm_0(~isfinite(Cm_0)) = 0;
+        
+                % ---- dense × dense multiply as before ----
+                A_full = full(A_m);
+                A_full = cast(A_full, 'like', Cm_0);
+                prod = Cm_0 * A_full;              % candidate result (F_m x K_ref)
+            else
+                prod = nan(Fm, K_ref, 'like', refMapsUpdated{m});
+            end
+        else
+            prod = nan(Fm, K_ref, 'like', refMapsUpdated{m});
+        end
+        
+        % ---- reconstruct original NaN semantics ----
+        % Start with all-NaN output
+        out = nan(Fm, K_ref, 'like', refMapsUpdated{m});
+        
+        % refs with at least one assigned source
+        has_group = ~cellfun(@isempty, groupsPerRef);   % 1 x K_ref logical
+        
+        % valid in this modality (not flagged as "no valid columns")
+        valid_cols = has_group & ~refs_no_valid;        % 1 x K_ref
+        
+        % Only these columns should get numbers; others remain NaN
+        out(:, valid_cols) = prod(:, valid_cols);
+        
+        sortedMaps{m} = out;
     end
-    sortedMaps{m} = out;
 end
 
 % ========= Correlation per ref vs signed (winner/collapsed) source (non-negative) =========
@@ -182,11 +280,12 @@ corrPerComp = nan(1, K_ref);
 for i = 1:K_ref
     ref_vec = combine_vec(refMapsUpdated, i);
     src_vec = combine_vec(sortedMaps, i);
-    sim = combined_similarity(ref_vec, src_vec, metric);
+    if ~nnz(isfinite(src_vec)), continue; end
+    sim = similarity_kernel(ref_vec, src_vec, metric, unitnorm);
     if isfinite(sim), corrPerComp(i) = abs(sim); end
 end
 
-% ========= unmatchedComponents output (w.r.t. final assignment) =========
+% ========= unmatchedComponents output (unchanged semantics: based on Hungarian winners) =========
 used_final = false(1, K_src_max);
 used_final(assignmentVec(assignmentVec>0)) = true;
 unmatched_shared_final = find(~used_final);
@@ -208,127 +307,95 @@ if ~isMulti
     refMapsUpdated      = refMapsUpdated{1};
 end
 
+% Save critical inputs and outputs of alignment procedure
+% if isfield(CVPOS,'mode') && strcmp(CVPOS.mode,'fresh')
+%     save(refpath,"refMaps", "refMapsUpdated", "currentMaps", "sortedMaps", "S_abs", "S_signed", "assignmentVec", "unmatchedComponents", "groupsPerRef", "sign_pair");
+% end
+
+    % function [fresh, mismatch] = compare_fresh_vs_load(fresh, position)
+    %     mismatch = [];
+    %     if strcmp(CVPOS.mode,'loaded') && debug 
+    %         refpath_fresh = sprintf('RefData_fresh_CV2-%g-%g_CV1-%g-%g.mat', CVPOS.CV2p, CVPOS.CV2f, CVPOS.CV1p, CVPOS.CV1f);
+    %         if isempty(fresh), fresh = load(refpath_fresh); end
+    %         if ~isequaln(single(fresh.refMaps{1}), refMaps{1}), mismatch.RefMaps_have_mismatch = true; end
+    %         if ~isequaln(single(fresh.currentMaps{1}), currentMaps{1}), mismatch.currentMap_have_mismatch = true; end
+    %         if exist("refMapsUpdated","var") && ~isequaln(single(fresh.refMapsUpdated{1}), refMapsUpdated{1}), mismatch.RefMapsUpdated_have_mismatch = true; end
+    %         if exist("sortedMaps","var") && ~isequaln(fresh.sortedMaps{1}, sortedMaps{1}), mismatch.sortedMaps_have_mismatch = true; end
+    %         if exist("S_abs","var") && ~isequaln(fresh.S_abs, S_abs), mismatch.S_abs_have_mismatch = true; end
+    %         if exist("S_signed","var") && ~isequaln(fresh.S_signed, S_signed), mismatch.S_signed_have_mismatch = true; end
+    %         if exist("assignmentVec","var") && ~isequaln(fresh.assignmentVec, assignmentVec), mismatch.assignmentVec_have_mismatch = true; end
+    %         if exist("unmatchedComponents","var") && ~isequaln(fresh.unmatchedComponents, unmatchedComponents{1}), mismatch.unmatchedComponents_have_mismatch = true; end
+    %         if exist("groupsPerRef","var") && ~isequaln(fresh.groupsPerRef, groupsPerRef{1}), mismatch.groupsPerRef_have_mismatch = true; end
+    %         if ~isempty(mismatch)
+    %             mismatchstr = sprintf('\nWe have a problem with at %s ...:', position);
+    %             f = fieldnames(fresh); nf = numel(f);
+    %             for ff = 1:nf
+    %                 if mismatch.(f{ff})
+    %                     mismatchstr = sprintf('\n\t%s',ff{f});
+    %                 end
+    %             end
+    %             disp(mismatchstr);
+    %             error('Mismatch detected!!!')
+    %         end
+    %     end
+    % end
+
 end % ===== end main =====
 
-
-% ============================ helpers ============================
-function [S_signed, S_abs] = aggregate_similarity(refCells, curCells, metric, w, K_ref, K_src_max)
-% Aggregated per-ref×shared-j similarity (signed and abs), synchronized across modalities.
-nM = numel(refCells);
-S_signed = nan(K_ref, K_src_max);
-S_abs    = nan(K_ref, K_src_max);
-for j = 1:K_src_max
-    avail = false(1,nM);
+% ============================ helpers (unchanged behavior) ============================
+function [S_signed, S_abs] = aggregate_similarity(refCells, curCells, metric, w, K_ref, K_src, unitnorm)
+    nM = numel(refCells);
+    S_signed = zeros(K_ref, K_src);
+    S_abs    = zeros(K_ref, K_src);
     for m = 1:nM
-        avail(m) = (j <= size(curCells{m},2));
+        Sm = similarity_kernel(refCells{m}, curCells{m}, metric, unitnorm); % [K_ref x K_src]
+        S_signed = S_signed + w(m) * Sm;
+        S_abs    = S_abs    + w(m) * abs(Sm);
     end
-    idx = find(avail);
-    if isempty(idx), continue; end
-    s_signed = zeros(K_ref,1);
-    s_abs    = zeros(K_ref,1);
-    wsum     = 0;
-    for t = 1:numel(idx)
-        m = idx(t);
-        Sm = local_similarity(refCells{m}, curCells{m}, metric); % [K_ref x K_src_m]
-        wm = w(m);
-        col = Sm(:, j);
-        s_signed = s_signed + wm * col;
-        s_abs    = s_abs    + wm * abs(col);
-        wsum     = wsum + wm;
-    end
-    if wsum > 0
-        S_signed(:, j) = s_signed / wsum;
-        S_abs(:, j)    = s_abs    / wsum;
-    end
-end
 end
 
 function [assignmentVec, signCorrections] = hungarian_with_cutoff(S_signed, S_abs, cutoff)
-% Hungarian on negative abs-sim; apply cutoff to accept match.
-K_ref = size(S_abs,1);
-C = -S_abs;
-C(~isfinite(C)) = +1e6;
-[assignLog, ~] = munkres(C);
-assignmentVec   = zeros(1, K_ref);
-signCorrections = zeros(1, K_ref);
-for i = 1:K_ref
-    j = find(assignLog(i,:), 1, 'first');
-    if ~isempty(j) && isfinite(S_abs(i,j)) && S_abs(i,j) >= cutoff
-        assignmentVec(i)   = j;
-        sgn = S_signed(i,j);
-        if isfinite(sgn) && sgn ~= 0
-            signCorrections(i) = sign(sgn);
+
+    K_ref = size(S_abs,1);
+
+    % Build cost matrix: we want to maximize |similarity| -> minimize negative |similarity|
+    C = -S_abs;
+    C(~isfinite(C)) = +1e6;   % large positive cost for invalid entries (as before)
+
+    % munkres now returns a vector, not a logical matrix
+    [assignRow, ~] = munkres(C);   % 1 x K_ref, assignRow(i)=j or 0
+
+    assignmentVec   = zeros(1, K_ref);
+    signCorrections = zeros(1, K_ref);
+
+    for i = 1:K_ref
+        j = assignRow(i);         % column assigned to row i (or 0 if none)
+
+        if j > 0 && isfinite(S_abs(i,j)) && S_abs(i,j) >= cutoff
+            assignmentVec(i) = j;
+            sgn = S_signed(i,j);
+            if isfinite(sgn) && sgn ~= 0
+                signCorrections(i) = sign(sgn);
+            else
+                signCorrections(i) = 0;
+            end
         else
-            signCorrections(i) = 0;
+            % below cutoff or unassigned → keep as 0
+            % assignmentVec(i) = 0; signCorrections(i) = 0;  % already zero-initialized
         end
     end
 end
-end
 
-function S = local_similarity(A, B, metric)
-% Per-modality similarity between columns of A (ref) and B (current): [R x S]
-if isempty(A) || isempty(B)
-    S = zeros(size(A,2), size(B,2));
-    return
-end
-switch metric
-    case 'euclidean'
-        Au = A ./ max(vecnorm(A,2,1), eps);
-        Bu = B ./ max(vecnorm(B,2,1), eps);
-        D  = pdist2(Au', Bu', 'euclidean');  % [R x S]
-        S  = 1 - D/2;
-    case 'pearson'
-        mx = mean(A,'omitnan'); my = mean(B,'omitnan');
-        Ac = A - mx; Bc = B - my;
-        Ma = isfinite(Ac); Ac(~Ma) = 0;
-        Mb = isfinite(Bc); Bc(~Mb) = 0;
-        num = Ac' * Bc;
-        sx2 = sum(Ac.^2,1); sy2 = sum(Bc.^2,1);
-        den = sqrt(sx2') * sqrt(sy2);
-        cnt = double(Ma)' * double(Mb);
-        S   = zeros(size(num));
-        vld = (cnt > 1) & (den > eps);
-        S(vld) = num(vld) ./ den(vld);
-    case 'spearman'
-        S = corr(A, B, 'Type','Spearman', 'Rows','complete');
-    case 'cosine'
-        A0 = A; B0 = B; A0(~isfinite(A0)) = 0; B0(~isfinite(B0)) = 0;
-        S = (A0' * B0) ./ (sqrt(sum(A0.^2))' * sqrt(sum(B0.^2)));
-    case 'bicor'
-        S = bicor_matrix(A, B, 12);
-end
-S(~isfinite(S)) = 0;
-end
 
 function v = combine_vec(cells, col)
-% Concatenate column 'col' across modalities (NaN padded where absent).
-nM = numel(cells);
-v = [];
-for m = 1:nM
-    M = cells{m};
-    if isempty(M) || col > size(M,2)
-        v = [v; nan(size(M,1),1)];
-    else
-        v = [v; M(:, col)];
+    nM = numel(cells);
+    v = [];
+    for m = 1:nM
+        M = cells{m};
+        if isempty(M) || col > size(M,2)
+            v = [v; nan(size(M,1),1)];
+        else
+            v = [v; M(:, col)];
+        end
     end
-end
-end
-
-function sim = combined_similarity(ref_vec, src_vec, metric)
-% Similarity on concatenated vectors; NaN-safe.
-switch metric
-    case 'euclidean'
-        a = ref_vec ./ max(norm(ref_vec,2), eps);
-        b = src_vec ./ max(norm(src_vec,2), eps);
-        sim = 1 - norm(a-b)/2;
-    case 'pearson'
-        sim = corr(ref_vec, src_vec, 'Type','Pearson', 'Rows','complete');
-    case 'spearman'
-        sim = corr(ref_vec, src_vec, 'Type','Spearman', 'Rows','complete');
-    case 'cosine'
-        a = ref_vec; b = src_vec; a(~isfinite(a))=0; b(~isfinite(b))=0;
-        sim = dot(a,b) / (sqrt(dot(a,a))*sqrt(dot(b,b)) + eps);
-    case 'bicor'
-        sim = bicor_matrix(ref_vec, src_vec, 12);
-end
 end

@@ -104,8 +104,6 @@ else
     setup.posthoc.DataLabel= NM.label;
     setup.posthoc.NFeats = size(setup.posthoc.Data,2);
     
-    
-    
     setup.posthoc.outputdir = setup.output.outputdir; 
     if isfield(setup.output, 'save_performance_flag')
         setup.posthoc.save_performance_flag = setup.output.save_performance_flag;
@@ -118,6 +116,7 @@ else
     end
 
     [perf_results, simulated_data] = nk_SimulateML(setup.posthoc);
+    
     perf_results.settings = setup.posthoc; 
 end
 perf_results.mode = setup.mode;

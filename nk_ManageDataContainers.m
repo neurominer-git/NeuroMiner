@@ -28,29 +28,37 @@ if act < 10
     for i=1:inp.nummodal
         availstr = 'available';
 
-        if ~isfield(datacontainer,'Y')  || (ischar(datacontainer.Y) && i>1) || (iscell(datacontainer.Y) && isempty(datacontainer.Y{i}))
-            availstr = 'not loaded';
-        elseif isfield(datacontainer,'Y') 
-            if iscell(datacontainer.Y) 
-                if ischar(datacontainer.Y{i})
-                    containerpth = datacontainer.Y{i};
-                    availstr = 'linked';
-                elseif isnumeric(datacontainer.Y{i})
-                    availstr = 'loaded';
-                else
-                    availstr = 'not loaded';
-                end
-            else 
-                if ischar(datacontainer.Y) 
-                    containerpth = datacontainer.Y;
-                    availstr = 'linked';
-                elseif isnumeric(datacontainer.Y)
-                    availstr = 'loaded';
-                else
-                    availstr = 'not loaded';
-                end
+if ~isfield(datacontainer, 'Y') || ...
+   (ischar(datacontainer.Y) && i > 1) || ...
+   (iscell(datacontainer.Y) && (numel(datacontainer.Y) < i || isempty(datacontainer.Y{i})))
+
+    availstr = 'not loaded';
+
+elseif isfield(datacontainer, 'Y')
+    if iscell(datacontainer.Y)
+        if numel(datacontainer.Y) >= i
+            if ischar(datacontainer.Y{i})
+                containerpth = datacontainer.Y{i};
+                availstr = 'linked';
+            elseif isnumeric(datacontainer.Y{i})
+                availstr = 'loaded';
+            else
+                availstr = 'not loaded';
             end
+        else
+            availstr = 'not loaded';
         end
+    else
+        if ischar(datacontainer.Y)
+            containerpth = datacontainer.Y;
+            availstr = 'linked';
+        elseif isnumeric(datacontainer.Y)
+            availstr = 'loaded';
+        else
+            availstr = 'not loaded';
+        end
+    end
+end
         str = sprintf('Modality %g [ %s ]: ', i, inp.datadescriptor{i}.desc);
         fprintf('\n'); 
         if i==inp.currmodal
@@ -153,17 +161,6 @@ switch act
         % new labels have to be input for the validation data too 
         datacontainer.altlabels = nk_DataLabel_config(datacontainer.n_subjects_all, altlabels);
     case {9, 19}
-        if isfield(datacontainer,'groups')
-            groups = datacontainer.groups;
-        else
-            groups = [];
-        end
-        datacontainer.groups = nk_input('Specify logical subgroup matrix (Each column indicates one subgroup)', 0, 'e', [], [datacontainer.n_subjects_all, inf]);
-        if isfield(datacontainer,'grpnames') && numel(datacontainer.grpnames) == size(datacontainer.groups,2)
-            grpnames = datacontainer.grpnames;
-        else
-            grpnames = [];
-        end
         datacontainer.grpnames = nk_input('Provide subgroup names', 0, 'e', [], size(datacontainer.groups,2));
         if strcmp(inp.modeflag,'classification')
             if isfield(datacontainer,'refgroup')

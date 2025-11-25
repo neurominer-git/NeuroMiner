@@ -11,14 +11,14 @@ h_list          = get(handles.selModelMeasures,'String');
 h_val           = get(handles.selModelMeasures,'Value');
 grd             = handles.grid;
 meastype        = h_list{h_val};
-[~,yl]          = nk_GetScaleYAxisLabel(handles.params.TrainParam.SVM); 
+
 if strcmpi(predstr{predind},'Multi-group classifier')
     h=1; multfl=true;
     switch meastype
         case 'Multi-class cross-validation performance'
             pardesc = nk_GetParamDescription2([],handles.params.TrainParam,'GridParam'); 
             P = [ grd.MultiCVPerf grd.MultiTSPerf ]; SEM = [ grd.seMultiCVPerf grd.seMultiTSPerf ];
-            if strcmpi(pardesc.GridParam,'BAC'); perfstr = 'Average Binary BAC [%]'; else perfstr = 'Multi-class Accuracy [%]'; end
+            if strcmpi(pardesc.GridParam,'BAC'); perfstr = 'Average Binary BAC [%]'; else, perfstr = 'Multi-class Accuracy [%]'; end
             ylb = ['Multi-class CV1/CV2-test performance [' perfstr ' ]'];
             lgstr{1} = 'Multi-class CV1 test performance';
             lgstr{2} = 'Multi-class CV2 test performance';
@@ -114,17 +114,6 @@ if ~contfl, return; end
 
 Ps              = handles.MLparams.ParamCombs;
 Ps_desc         = handles.MLparams.ParamDesc;
-%NumParamDims    = handles.MLparams.NumParamDims;
-
-if isfield(handles,'BinClass') || isfield(handles,'MultiClass')
-    if multfl 
-        groupdesc = 'Multi-group classification model';
-    else
-        groupdesc = ['Classification model (' handles.BinClass{h}.description '):'];
-    end
-elseif isfield(handles,'Regr')
-    groupdesc = 'Regression model';
-end
 
 [lPi,nPi] = size(P);
 if nPi > 1
@@ -242,9 +231,6 @@ switch meastype
         end
         
 end
-
-% Plot markers
-%plot(x, y, 'k.', 'MarkerSize', 1
 
 % Scale axes
 if numel(unique(x)) > 1

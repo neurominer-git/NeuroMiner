@@ -49,8 +49,12 @@ switch act
                     end
                 end
                 if isfield(v, 'FeatProb')
+                    try
                     VTBL.tbl(curclass).array = [VTBL.tbl(curclass).array  v.FeatProb{1}(ind,curclass)];
                     VTBL.tbl(curclass).colnames = [VTBL.tbl(curclass).colnames, 'FeatSelProb'];
+                    catch
+                        fprintf('problem')
+                    end
                 end
                 if isfield(v, 'PermZ_CV2')
                     VTBL.tbl(curclass).array = [VTBL.tbl(curclass).array  v.PermZ_CV2{curclass}(ind)];

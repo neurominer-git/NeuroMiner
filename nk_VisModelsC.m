@@ -129,12 +129,29 @@ sigPthr         = 0.05;
 sigPfdr         = 1;
 memorytested    = false;
 memoryprob      = false;
-fdr_comp_search = inp.fdr_comp_search;
 compwisefls     = {true,false}; 
 compwise        = compwisefls{inp.DecompMode}; % global flag
-inp.isEarly      = FUSION.flag == 1;
-inp.isInter      = FUSION.flag == 2;
-inp.isLate       = FUSION.flag == 3;
+inp.isEarly     = FUSION.flag == 1 || FUSION.flag == 0;
+inp.isInter     = FUSION.flag == 2;
+inp.isLate      = FUSION.flag == 3;
+
+if compwise
+   inp.useRefMerge = true;
+   inp.mergeThr = 0.5;
+   inp.mergeStepCap = Inf;
+   inp.safetyFloor  = 5; % never reduce ref below 5 columns per modality/class
+end
+
+try
+    inp.tightThresh = getfield_or(inp,'MemTightThresh', 0.85);  % e.g., 85%
+    inp.memFrac     = getfield_or(inp,'CV2MemFrac',     0.80);  % we’ll allow up to 80% of what is available
+    [~, availBytes] = isMemoryTight(inp.tightThresh);       % avail in BYTES (Windows: physical avail; Linux/Mac: JVM max)
+        % be conservative: leave headroom (5%) to avoid spikes; clamp sane bounds
+    inp.CV2MemCapBytes = max( 5e8, min( inp.memFrac * double(availBytes), 0.95 * double(availBytes) ) ); % ≥0.5 GB, ≤95% of avail
+catch
+    % Fallback if Java not available / function not in path
+    inp.CV2MemCapBytes = [];
+end
 
 % Modify compwise according to whether current modality (see
 % nk_VisModelPrep loop) contains a DR step
@@ -167,12 +184,6 @@ if isfield(RAND,'Decompose') && RAND.Decompose == 2
     BINMOD = 0;
 end
 
-if fdr_comp_search
-    alpha_str = 'FDR-corrected';
-else
-    alpha_str = 'uncorrected';
-end
-
 clc
 fprintf('***************************\n')
 fprintf('**  MODEL VISUALIZATION  **\n')
@@ -195,10 +206,8 @@ for i = 1 : nM
     % Activate preprocessing params of current modality
     switch FUSION.flag
         case 2
-            iPREPROC = inp.PREPROC{i}; 
             iVis = inp.VIS{i};
         otherwise
-            iPREPROC = inp.PREPROC;
             iVis = inp.VIS;
     end
 
@@ -208,6 +217,7 @@ for i = 1 : nM
         sigfl = iVis.PERM.sigflag;
         if sigfl
             sigPthr = iVis.PERM.sigPthresh;
+            sigPfdr = iVis.PERM.sigPfdr;
             nperms = iVis.PERM.nperms;
             inp.PERM.nperms = nperms;
             sigflfound = true;
@@ -235,6 +245,9 @@ for i = 1 : nM
     end       
 end
 
+alpha_str = 'at uncorrected alpha';
+if sigfl && sigPfdr == 1, alpha_str = 'at FDR-corrected q'; end
+
 % Set comparator function depending on the type of optimization criterion
 % chosen if permfl or sigfl are true
 if permfl || sigfl, compfun = nk_ReturnEvalOperator(SVM.GridParam); end
@@ -246,7 +259,7 @@ if permfl || sigfl, compfun = nk_ReturnEvalOperator(SVM.GridParam); end
 templateflag = nk_DetIfTemplPreproc(inp);
 
 % Initialize CV2 data containers
-I = nk_VisXHelperC('init', nM, nclass, decompfl, permfl, sigfl, ix, jx, [], [], [], [], [], compwise);
+I = nk_VisXHelperC('init', nM, nclass, decompfl, permfl, sigfl, ix, jx, [], inp, [], [], [], compwise);
 if permfl || sigfl
     I.VCV2MPERM_S = cell(lx,nclass,nperms); 
     I.VCV2MORIG_S = cell(lx,nclass); 
@@ -306,6 +319,8 @@ for f=1:ix % Loop through CV2 permutations
         [iy, jy] = size(CV.cvin{f,d}.TrainInd); % No. of Perms / Folds at CV1 level
         CVPOS.CV2p = f;
         CVPOS.CV2f = d;
+        CVPOS.CV1p = 1;
+        CVPOS.CV1f = 1;
         operm = f; ofold = d;
         oVISpath = nk_GenerateNMFilePath(inp.rootdir, SAV.matname, inp.datatype, multlabelstr, strout, id, operm, ofold);
         OptModelPath = nk_GenerateNMFilePath( inp.saveoptdir, SAV.matname, 'OptModel', [], inp.varstr, inp.id, operm, ofold);
@@ -320,23 +335,11 @@ for f=1:ix % Loop through CV2 permutations
                     
                     [~, onam] = fileparts(oVISpath);
                     fprintf('\nVISdatamat found for CV2 partition [%g,%g]:',f,d)
-                    fprintf('\nLoading visualization data: %s,', onam);
-                    [I, I1, filefound] = nk_VisXHelperC('align', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, oVISpath, compwise);
+                    fprintf('\nLoading visualization data: %s', onam);
+                    CVPOS.mode = 'loaded';
+                    ill= []; [I, I1, filefound] = CV2wrapUp(I, oVISpath);
                     if filefound
-                        [I, I1] = nk_VisXHelperC('accum', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
-                        [I, I1] = nk_VisXHelperC('report', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
-                        % if things are getting huge, prune to only keep “stable” components:
-                        if ~isdeployed && isMemoryTight(0.99)
-                            % require a component to have appeared in at least 50% of folds so far
-                            I = nk_VisXHelperC('prune_memory', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
-                        end
-                        WriteCV2Data(inp, nM, FUSION, SAV, operm, ofold, I1);    
                         if isfield(I1,'PCV1SUM'), PCV1SUMflag=true; else, PCV1SUMflag = false; end
-                        if permfl || sigfl
-                            I = ComputeObsPermPerf(inp, I, I1, CV, f, d, ll, ...
-                                                                nclass, ngroups, nperms, ...
-                                                                operm, ofold, MODEFL, RFE, compfun);
-                        end
                         ll=ll+1;
                         ind0(ll) = true;
                         ol=ol+1; continue
@@ -353,6 +356,7 @@ for f=1:ix % Loop through CV2 permutations
                     continue
 
                 end
+                CVPOS.mode = 'fresh';
 
                 %%%%%%%%% GET PREPROCESSING PARAMETERS FOR CUR. CV2 PART. %%%%%%%%%
                 % First generate parameter array for preprocessing based on
@@ -379,10 +383,10 @@ for f=1:ix % Loop through CV2 permutations
                 
                 % Determine max dimensionality of components
                 if any(decompfl) || compwise
-                    if iscell(mapY.Tr{1,1})
-                        maxTrWidth = max(cellfun(@(x) width(x), mapY.Tr{1,1}));
-                    else
+                    if iscell(mapY.Tr{1,1}) && iscell(mapY.Tr{1,1}{1})
                         maxTrWidth = max(cellfun(@(x) width(x), mapY.Tr{1,1}{1}));
+                    else
+                        maxTrWidth = max(cellfun(@(x) width(x), mapY.Tr{1,1}));
                     end
                 else
                     maxTrWidth = 1;
@@ -396,7 +400,7 @@ for f=1:ix % Loop through CV2 permutations
                 % weight vector relevance metrics
                 % =========================================================
                 ol                             = ol+1;
-                [~, I1] = nk_VisXHelperC('initI1', nM, nclass, decompfl, permfl, sigfl, [], [], [], [], [], [], [], compwise);
+                [~, I1] = nk_VisXHelperC('initI1', nM, nclass, decompfl, permfl, sigfl, [], [], [], inp, [], [], [], compwise);
                 GDFEAT                         = GD.FEAT; 
                 GDVI                           = GD.VI; 
                 if inp.stacking
@@ -494,7 +498,7 @@ for f=1:ix % Loop through CV2 permutations
                                 I1.VCV1{h,n}        = nan(D, ill, maxTrWidth, 'single'); 
                             end
                         else
-                            if ~decompfl || ~compwise % no DR in actual modality (e.g. intermediate fusion) or component-wise processing
+                            if ~decompfl(n) || ~compwise % no DR in actual modality (e.g. intermediate fusion) or component-wise processing
                                 I1.VCV1{h,n}        = nan(D, ill, 'single'); 
                             else % DR involved
                                 I1.VCV1{h,n}        = nan(D, ill, 0, 'single'); 
@@ -699,15 +703,22 @@ for f=1:ix % Loop through CV2 permutations
                                 %%%%%% RECOMPUTE ORIGINAL MODEL %%%%%%
                                 % get CV1 training and test data
                                 if BINMOD, hix = h; else, hix =1; end
-                                [ modelTr , modelCV, modelTs] = nk_ReturnAtOptPos(mapY.Tr{k,l}{hix},  mapY.CV{k,l}{hix}, mapY.Ts{k,l}{hix}, [], Param{1}(k,l,hix), pnt); 
-                                switch FUSION.flag
-                                    case 2
-                                        ParamX = cell(n,1);
-                                        for n=1:nM
-                                            [~,~,~,~, ParamX{n} ] = nk_ReturnAtOptPos(mapY.Tr{k,l}{hix},  mapY.CV{k,l}{hix}, mapY.Ts{k,l}{hix}, [], Param{n}(k,l,hix), pnt); 
-                                        end
-                                    otherwise
-                                        [~,~,~,~, ParamX ] = nk_ReturnAtOptPos(mapY.Tr{k,l}{hix},  mapY.CV{k,l}{hix}, mapY.Ts{k,l}{hix}, [], Param{1}(k,l,hix), pnt); 
+                                if inp.isInter
+                                    % In intermediate fusion, mapY.Tr/CV/Ts already contain node-wise fused
+                                    % data (across modalities) with data_ind applied in nk_mapY2Struct.
+                                    % Therefore we MUST NOT call nk_ReturnAtOptPos for the data matrices,
+                                    % otherwise data_ind would be applied twice and shelves would be wrong.
+                                    % We only use nk_ReturnAtOptPos here to retrieve the correct TrainedParam
+                                    % per modality via train_ind.
+                                    modelTr = mapY.Tr{k,l}{hix}{pnt}; modelCV = mapY.CV{k,l}{hix}{pnt}; modelTs = mapY.Ts{k,l}{hix}{pnt};
+                                    ParamX = cell(n,1);
+                                    for n=1:nM
+                                        [~,~,~,~, ParamX{n} ] = nk_ReturnAtOptPos(mapY.Tr{k,l}{hix},  mapY.CV{k,l}{hix}, mapY.Ts{k,l}{hix}, [], Param{n}(k,l,hix), pnt, [], true); 
+                                    end
+                                else
+                                    [ modelTr , modelCV, modelTs] = nk_ReturnAtOptPos(mapY.Tr{k,l}{hix},  mapY.CV{k,l}{hix}, mapY.Ts{k,l}{hix}, [], Param{n}(k,l,hix), pnt); 
+                                    [~,~,~,~, ParamX ] = nk_ReturnAtOptPos(mapY.Tr{k,l}{hix},  mapY.CV{k,l}{hix}, mapY.Ts{k,l}{hix}, [], Param{1}(k,l,hix), pnt); 
+
                                 end
 
                                 % Get label info
@@ -758,7 +769,11 @@ for f=1:ix % Loop through CV2 permutations
                                 for u=1:ul
                                      
                                     % Extract features according to mask
-                                    Ymodel = nk_ExtractFeatures(modelTr, F, [], u);
+                                    try
+                                        Ymodel = nk_ExtractFeatures(modelTr, F, [], u);
+                                    catch
+                                        fprintf('problem')
+                                    end
                                     Find = F(:,u);
 
                                     % If permutation mode expects feature
@@ -788,10 +803,6 @@ for f=1:ix % Loop through CV2 permutations
                                             vec_mj = [vec_mj; mj*ones(mChnl(mj),1)];
                                         end
                                     end
-									
-									% Prepare boosting weights, if relevant
-                                    if isempty(Wkl), wu = 1; else, wu = Wkl(u); end
-                                    if ~isfinite(wu) || wu < 0, wu = 1; end  % harden
                                     
                                     % Prepare boosting weights, if relevant
                                     if isempty(Wkl), wu = 1; else, wu = Wkl(u); end
@@ -799,10 +810,13 @@ for f=1:ix % Loop through CV2 permutations
 
                                     if permfl || sigfl
                                         fprintf('\n\t%3g | OptModel =>', u);
+                                        try
                                         [perf_orig, I1.TS{h}(:,il(h)), I1.DS{h}(:,il(h))] = nk_GetTestPerf(modelTs, modelTsL, Find, MD{h}{m}{k,l}{u}, modelTr); 
-
+                                        catch
+                                            fprintf('\nproblem')
+                                        end
                                         fprintf(' %1.2f',perf_orig)
-
+    
                                         % Apply boosting weights if needed
                                         % (otherwise multiply with 1)
                                         I1.DS{h}(:,il(h)) = nm_apply_scalar_weight(I1.DS{h}(:,il(h)), wu);  
@@ -902,7 +916,7 @@ for f=1:ix % Loop through CV2 permutations
                                         VxV_uncorr = (K + 1) ./ (nperms + 1);
                                         VxV_uncorr = VxV_uncorr(:);
                                         
-                                        % Apply FDR correction on the uncorrected p-values.
+                                        % Apply FDR correction to the uncorrected p-values.
                                         if sigPfdr == 1
                                             if inp.isInter
                                                 uVals = unique(Vind(:)).';
@@ -916,7 +930,7 @@ for f=1:ix % Loop through CV2 permutations
                                             end
                                             % Store the FDR-adjusted p-values.
                                             I1.VCV1WPERM{h}(1:nComp,il(h)) = VxV_FDR;
-                                        else
+                                        else % Stay with the uncorrected P values
                                             I1.VCV1WPERM{h}(1:nComp,il(h)) = VxV_uncorr;
                                         end
                                         clear VxV_uncorr VxV_FDR
@@ -933,9 +947,9 @@ for f=1:ix % Loop through CV2 permutations
                                                     minP = min(I1.VCV1WPERM{h}(idx_Vx,il(h)));
                                                     fFadd = I1.VCV1WPERM{h}(idx_Vx,il(h)) == minP;
                                                     Fadd(idx_Vx(fFadd)) = true;
-                                                    fprintf('\n\t\t\t=> Mod #%g: No feature survives %s alpha = %g => relaxing to min P = %g [%g feature(s)].', nv, alpha_str, sigPthr, minP, nnz(fFadd) );
+                                                    fprintf('\n\t\t\t=> Mod #%g: No feature survives %s = %g => relaxing to min P = %g [%g feature(s)].', nv, alpha_str, sigPthr, minP, nnz(fFadd) );
                                                 else
-                                                    fprintf('\n\t\t\t=> Mod #%g: %g / %g feature(s) significant at %s alpha = %g.', nv, nnz(Fadd(idx_Vx)), numel(idx_Vx), alpha_str, sigPthr);
+                                                    fprintf('\n\t\t\t=> Mod #%g: %g / %g feature(s) significant %s = %g.', nv, nnz(Fadd(idx_Vx)), numel(idx_Vx), alpha_str, sigPthr);
 
                                                 end
                                              end
@@ -944,9 +958,9 @@ for f=1:ix % Loop through CV2 permutations
                                                 minP = min(I1.VCV1WPERM{h}(1:nComp,il(h)));
                                                 fFadd = I1.VCV1WPERM{h}(1:nComp,il(h)) == minP;
                                                 Fadd = false(nComp,1); Fadd(fFadd) = true;
-                                                fprintf('| No feature survives %s alpha = %g => relaxing to min P = %g (%g features).', alpha_str, sigPthr, minP, nnz(Fadd) );
+                                                fprintf('| No feature survives %s = %g => relaxing to min P = %g (%g features).', alpha_str, sigPthr, minP, nnz(Fadd) );
                                             else
-                                                fprintf('| %g / %g features significant at %s alpha = %g.', sum(Fadd), numel(Fadd), alpha_str, sigPthr);
+                                                fprintf('| %g / %g features significant %s = %g.', sum(Fadd), numel(Fadd), alpha_str, sigPthr);
                                             end
                                         end
                                         I1.Fadd{h,il(h)} = Fadd;
@@ -962,17 +976,20 @@ for f=1:ix % Loop through CV2 permutations
                                     
                                     % Compute original weight map in input
                                     % space without re-scaling for L2 share computations
-                                    [ Tx, Psel, Rx, SRx, Cx, ~, PAx ] = nk_VisXWeightC(inp, MD{h}{m}{k,l}{u}, Ymodel, modelTrL, varind, ParamX, Find, Vind, decompfl, memoryprob, [], compwise, Fadd, true);
+                                    [ Tx, Psel, Rx, SRx, Cx, ~, PAx, Dx ] = nk_VisXWeightC(inp, MD{h}{m}{k,l}{u}, Ymodel, modelTrL, varind, ParamX, Find, Vind, decompfl, memoryprob, [], compwise, Fadd, true, modelTs);
 
                                     % Apply boosting weights if needed
                                     % (otherwise multiply with 1)
                                     
-                                
+                                    % Prepare boosting weights, if relevant
+                                        if isempty(Wkl), wu = 1; else, wu = Wkl(u); end
+                                        if ~isfinite(wu) || wu < 0, wu = 1; end  % harden
+
                                     Tx = nm_apply_scalar_weight(Tx, wu); 
 
                                     if compwise
                                         %% ================= GLOBAL (CROSS-MODALITY) REALIGNMENT — nk_VisModelsC =================
-                                        [I, I1, Tx, Psel, Rx, SRx, PAx, assignmentVec, signCorrections ] = nk_VisXRealignComponents(I, I1, h, Tx, Psel, Rx, SRx, PAx, Fadd, Vind, il(h), inp, nM, ill);
+                                        [I, I1, Tx, Psel, Rx, SRx, PAx, assignmentVec, signCorrections, Dx ] = nk_VisXRealignComponents(I, I1, h, Tx, Dx, Psel, Rx, SRx, PAx, Fadd, Vind, il(h), inp, nM, ill);
                                     end
 
                                     % ===== per-modality aggregate share for aggregated pathways =====
@@ -1343,14 +1360,58 @@ for f=1:ix % Loop through CV2 permutations
                                             % original space of modality
                                             [ ~, ~, ~, badcoords] = getD(FUSION.flag, inp, n); badcoords = ~badcoords;
 
-                                            if ~any(decompfl)
+                                            if ~decompfl(n)
                                                 I1.VCV1{h,n}(badcoords, il(h)) = Tx{n};
                                             else
                                                 % Tx{n} is a matrix [nFeatures x numComponents].
                                                 % Store the values in the third dimension (components) of I1.VCV1{h,n}.
                                                 % This requires that I1.VCV1{h,n} has been preallocated appropriately.
+                                                if inp.isInter
+                                                    if ~isempty(Dx{n})
+                                                        nSubj     = size(Dx{n},1);
+                                                        nComp_new = size(Tx{n},2);        % components in this fold
+                                                        if il(h) == 1 && (numel(I1.Dx) < h || numel(I1.Dx{h}) < n || isempty(I1.Dx{h}{n}))
+                                                            % First time: full preallocation with NaNs
+                                                            I1.Dx{h}{n} = nan(nSubj, jy, nComp_new, 'like', Dx{n});
+                                                        else
+                                                            % Ensure enough folds dimension (2nd dim) – extend with NaNs if needed
+                                                            if size(I1.Dx{h}{n},2) < jy
+                                                                I1.Dx{h}{n}(:, size(I1.Dx{h}{n},2)+1:jy, :) = NaN;
+                                                            end
+                                                            % Ensure enough components (3rd dim) – **NaN sheets** for new components
+                                                            curK = size(I1.Dx{h}{n},3);
+                                                            if curK < nComp_new
+                                                                I1.Dx{h}{n}(:,:,curK+1:nComp_new) = NaN;
+                                                            end
+                                                        end
+                                                    end
+                                                elseif inp.isEarly
+                                                    if ~isempty(Dx) && ~isempty(Dx{1})
+                                                        nSubj     = size(Dx{1},1);
+                                                        nComp_new = size(Tx{1},2);
+                                                        
+                                                        if il(h) == 1 && (numel(I1.Dx) < h || isempty(I1.Dx{h}))
+                                                            I1.Dx{h} = nan(nSubj, jy, nComp_new, 'like', Dx{1});
+                                                        else
+                                                            if size(I1.Dx{h},2) < jy
+                                                                I1.Dx{h}(:, size(I1.Dx{h},2)+1:jy, :) = NaN;
+                                                            end
+                                                            curK = size(I1.Dx{h},3);
+                                                            if curK < nComp_new
+                                                                I1.Dx{h}(:,:,curK+1:nComp_new) = NaN;
+                                                            end
+                                                        end
+                                                    end
+                                                end
+                                                
                                                 for comp = 1:size(Tx{n},2)
                                                     I1.VCV1{h,n}(badcoords, il(h), comp) = Tx{n}(badcoords, comp);
+                                                    if inp.isInter
+                                                        if ~isempty(Dx{n}), I1.Dx{h}{n}(:, il(h), comp) = Dx{n}(:, comp); end
+                                                    elseif inp.isEarly && n==1
+                                                        if ~isempty(Dx) && ~isempty(Dx{1}), I1.Dx{h}(:, il(h), comp) = Dx{1}(:, comp); end
+                                                    end
+                                                    
                                                 end
                                             end
 
@@ -1418,23 +1479,16 @@ for f=1:ix % Loop through CV2 permutations
                     end
                     clear Tx tmp V Ymodel modelTr modelTrL F Fkl dum 
                 end
-                %
+                %pthtmp = sprintf('I1_orig_fresh_CV%g.%g.mat',CVPOS.CV2p, CVPOS.CV2f); save(pthtmp,'I1');
                 [~, I1] = nk_VisXHelperC('prune', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);  
+                %pthtmp = sprintf('I1_pruned_fresh_CV%g.%g.mat',CVPOS.CV2p, CVPOS.CV2f); save(pthtmp,'I1');
                 fprintf('\nSaving %s', oVISpath); 
                 if OCTAVE
                     save(oVISpath,'I1','sPs','operm','ofold');
                 else
                     save(oVISpath,'-v7.3','I1','sPs','operm','ofold');
                 end
-                [I, I1] = nk_VisXHelperC('align', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise, ill);
-                [I, I1] = nk_VisXHelperC('accum', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
-                [I, I1] = nk_VisXHelperC('report', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
-                % if things are getting huge, prune to only keep “stable” components:
-                if ~isdeployed && isMemoryTight(0.99)
-                    % require a component to have appeared in at least 50% of folds so far
-                    I = nk_VisXHelperC('prune_memory', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
-                end
-                WriteCV2Data(inp, nM, FUSION, SAV, operm, ofold, I1);
+                [I,I1] = CV2wrapUp(I,I1);
                 if saveparam, fprintf('\nSaving %s', OptModelPath); save(OptModelPath, 'MD', 'ofold','operm', '-v7.3'); end
                 if isfield(I1,'PCV1SUM'), PCV1SUMflag=true; else, PCV1SUMflag = false; end
                 clear Param MD
@@ -1446,32 +1500,59 @@ for f=1:ix % Loop through CV2 permutations
                 if isempty(vpth) || ~exist(vpth,'file')
                     warning(['No valid VISdata-MAT detected for CV2 partition ' '[' num2str(f) ', ' num2str(d) ']!']);
                 else
+                    CVPOS.mode = 'loaded';
                     [~,vnam] = fileparts(vpth);
                     ind0(ll) = true; 
-                    fprintf('\nLoading visualization data: %s.', vnam);
-                    [I, I1] = nk_VisXHelperC('align', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, vpth, compwise);
-                    [I, I1] = nk_VisXHelperC('accum', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
-                    [I, I1] = nk_VisXHelperC('report', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
-                    % if things are getting huge, prune to only keep “stable” components:
-                    if ~isdeployed && isMemoryTight(0.99)
-                        % require a component to have appeared in at least 50% of folds so far
-                        I = nk_VisXHelperC('prune_memory', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
-                    end
-                    WriteCV2Data(inp, nM, FUSION, SAV, operm, ofold, I1);
+                    fprintf('\nLoading visualization data: %s.', vnam); ill=[];
+                    [I,I1] = CV2wrapUp(I,vpth);
                     ol=ol+1;
                 end
                 if isfield(I1,'PCV1SUM'), PCV1SUMflag=true; else, PCV1SUMflag = false; end
-        end
-
-        % Assemble observed and permuted model predictions of current CV2
-        % partition into overall prediction matrix
-        if permfl || sigfl
-            I = ComputeObsPermPerf(inp, I, I1, CV, f, d, ll, nclass, ngroups, nperms, operm, ofold, MODEFL, RFE, compfun);
         end
         ll=ll+1; clear GDFEAT
         clear I1 
     end
 end
+    % ----------------------------------------------------------------------------------------------------------------------------------------------
+    function [I, I1, filefound] = CV2wrapUp(I, I1)
+        [I, I1, filefound] = nk_VisXHelperC('align', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise, ill);
+        %pthtmp = sprintf('I1_aligned_%s_CV%g.%g.mat', modus, CVPOS.CV2p, CVPOS.CV2f); save(pthtmp,'I1');
+        % if strcmp(modus,'loaded')
+        %     pth_fresh_aligned = sprintf('I1_aligned_fresh_CV%g.%g.mat', CVPOS.CV2p, CVPOS.CV2f);
+        %     I1_fresh_aligned = load(pth_fresh_aligned);
+        %     if ~isequaln(I1_fresh_aligned.I1.Dx{1}, I1.Dx{1})
+        %         error('mismatch between fresh aligned and loaded aligned found.')
+        %     end
+        % end
+        if filefound
+            [I, I1] = nk_VisXHelperC('prune_memory', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
+            try
+                [I, I1] = nk_VisXHelperC('accum', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
+            catch
+                [I, I1] = nk_VisXHelperC('prune_memory', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
+                [I, I1] = nk_VisXHelperC('accum', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
+            end
+            try
+                [I, I1] = nk_VisXHelperC('merge_and_prune', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
+            catch
+                [I, I1] = nk_VisXHelperC('prune_memory', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
+                [I, I1] = nk_VisXHelperC('merge_and_prune', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
+            end
+            [I, I1] = nk_VisXHelperC('report', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
+            if VERBOSE
+                for curclass = 1:nclass
+                    nk_plot_VCV2CorrRef(I.VCV2WCORRREF, curclass, VERBOSE, sprintf('Model [%g]: Component correlations and contributions',curclass))
+                end
+            end
+            WriteCV2Data(inp, nM, FUSION, SAV, operm, ofold, I1);
+            % Assemble observed and permuted model predictions of current CV2
+            % partition into overall prediction matrix
+            if permfl || sigfl
+                I = ComputeObsPermPerf(inp, I, I1, CV, f, d, ll, nclass, ngroups, nperms, operm, ofold, MODEFL, RFE, compfun);
+            end
+        end
+    end
+    % ------------------------------------------------------------------------------------------------------------------------------------------------ 
 
 %% PERFORM POST-PROCESSING VISUALIZATION PROCEDURES ON THE ENTIRE DATA 
 if ~batchflag
@@ -1483,8 +1564,9 @@ if ~batchflag
     % ——— Compute CV2 averages of the back‐projected metrics ———
     if any(decompfl) && compwise
         % user-definable thresholds with sensible defaults
-        if ~isfield(inp, 'SelCompCutOff') || isempty(inp.SelCompCutOff), corrMin = 0.30; else, corrMin = inp.SelCompCutOff; end
-        if ~isfield(inp, 'CorrCompCutOff')  || isempty(inp.CorrCompCutOff),  selMin  = 0.10; else, selMin  = inp.CorrCompCutOff;  end
+        if ~isfield(inp, 'SelCompCutOff') || isempty(inp.SelCompCutOff), selMin = 0.20; else, selMin = inp.SelCompCutOff; end
+        if ~isfield(inp, 'CorrCompCutOff')  || isempty(inp.CorrCompCutOff), corrMin  = 0.30; else, corrMin  = inp.CorrCompCutOff;  end
+
         for h = 1:nclass
             denom = I.VCV2NMODEL(h);
             if inp.isInter
@@ -1493,6 +1575,11 @@ if ~batchflag
                     % Selection matrix across CV2 folds:
                     % rows = reference components, cols = CV2 models/folds
                     W = I.VCV2WPERMREF{h}{n};         % size: [nComp x nModelsCV2]
+                    
+                    % Correct p values globally if user chose this option
+                    if sigPfdr == 2
+                        I.VCV2WPERMREF_GLOBAL_FDR{h}{n} = correct_p_values_across_cv(W);
+                    end
                     nComp   = size(W, 1);
                     
                     % Selection likelihood across CV2 folds
@@ -1524,11 +1611,18 @@ if ~batchflag
                     % Store outputs (and keep selProp for diagnostics)
                     I.PRES{h}{n}      = selProp;   % selection likelihood across CV2
                     I.KEEP{h}{n}      = keep;      % final mask
+
                 end
             else
                 % Selection matrix across CV2 folds:
                 % rows = reference components, cols = CV2 models/folds
                 W = I.VCV2WPERMREF{h};         % size: [nComp x nModelsCV2]
+
+                % Correct p values globally if user chose this option
+                if sigPfdr==2
+                    I.VCV2WPERMREF_GLOBAL_FDR{h} = correct_p_values_across_cv(W);
+                end
+
                 nComp   = size(W, 1);
                 
                 % Selection likelihood across CV2 folds
@@ -1857,18 +1951,18 @@ if ~batchflag
             
                 %  First, build a 2-column cell array: { data, tag }
                 metrics = {
-                    I.VCV2{h,n},                'Mean';
-                    I.VCV2rat{h,n},             'CVratio';
-                    I.VCV2SE{h,n},              'SE';
-                    I.VCV2MEAN_CV1{h,n},        'Mean-GrM';
-                    I.VCV2SE_CV1{h,n},          'SE-GrM';
-                    I.VCV2MEANthreshSE_CV1{h,n},'Mean-thrSE-GrM';
-                    I.VCV2PROB{h,n},            'Prob95CI-GrM';
-                    I.VCV2signconst{h,n},       'SignBased';
-                    I.VCV2signconst_z{h,n},     'SignBased_Z';
-                    I.VCV2signconst_p{h,n},     'SignBased_p_uncorr';
-                    I.VCV2signconst_pfdr{h,n},  'SignBased_p_FDR';
-                    };
+                            I.VCV2{h,n},                'Mean';
+                            I.VCV2rat{h,n},             'CVratio';
+                            I.VCV2SE{h,n},              'SE';
+                            I.VCV2MEAN_CV1{h,n},        'Mean-GrM';
+                            I.VCV2SE_CV1{h,n},          'SE-GrM';
+                            I.VCV2MEANthreshSE_CV1{h,n},'Mean-thrSE-GrM';
+                            I.VCV2PROB{h,n},            'Prob95CI-GrM';
+                            I.VCV2signconst{h,n},       'SignBased';
+                            I.VCV2signconst_z{h,n},     'SignBased_Z';
+                            I.VCV2signconst_p{h,n},     'SignBased_p_uncorr';
+                            I.VCV2signconst_pfdr{h,n},  'SignBased_p_FDR';
+                        };
             
                 % append univariate only if aggregated (not decompfl)
                 if ~decompfl(n)
@@ -1975,8 +2069,6 @@ if ~batchflag
         visdata{n}.MEAN                = I.VCV2(:,n);
         visdata{n}.SE                  = I.VCV2SE(:,n);
         visdata{n}.CVRatio             = I.VCV2rat(:,n);
-        if isfield(I,'PCV2') 
-            visdata{n}.FeatProb        = {I.PCV2}; end
         visdata{n}.MEAN_CV2            = I.VCV2MEAN_CV1(:,n);
         visdata{n}.SE_CV2              = I.VCV2SE_CV1(:,n);
         visdata{n}.Prob_CV2            = I.VCV2PROB(:,n);
@@ -1986,6 +2078,9 @@ if ~batchflag
         visdata{n}.SignBased_CV2_z     = I.VCV2signconst_z(:,n);
         
         if ~decompfl(n)
+            if isfield(I,'PCV2')
+                visdata{n}.FeatProb        = {I.PCV2}; 
+            end
             visdata{n}.Pearson_CV2              = I.VCV2PEARSON(:,n);
             visdata{n}.Spearman_CV2             = I.VCV2SPEARMAN(:,n);
             visdata{n}.Pearson_CV2_p_uncorr     = I.VCV2PEARSON_UNCORR_PVAL(:,n);
@@ -2014,13 +2109,54 @@ if ~batchflag
             end
         elseif compwise
             % expose the CV2‐averaged back‐projection matrices
-            visdata{n}.CompRefSpace      = I.VCV1REF;
-            visdata{n}.PermPValRef_CV2   = I.VCV2WPERMREF;
-            visdata{n}.CorrRef_CV2       = I.VCV2WCORRREF;
-            visdata{n}.CompSelRat        = I.PRES;
-            visdata{n}.CompKept          = I.KEEP;
-            visdata{n}.ModComp_L2nShare  = I.ModComp_L2n;
-            visdata{n}.ModComp_L2nShare_Summary = I.ModComp_L2n_SUMMARY{h};
+            if inp.isInter
+                visdata{n}.CompRefSpace{h}              = I.VCV1REF{h}{n};
+                visdata{n}.PermPValRef_CV2{h}           = I.VCV2WPERMREF{h}{n};
+                if isfield(I,'VCV2WPERMREF_GLOBAL_FDR')
+                    visdata{n}.PermPValRef_Global_FDR   = I.VCV2WPERMREF_GLOBAL_FDR{h}{n};
+                end
+                visdata{n}.CorrRef_CV2{h}               = I.VCV2WCORRREF{h}{n};
+                visdata{n}.CompSelRat{h}                = I.PRES{h}{n};
+                visdata{n}.CompKept{h}                  = I.KEEP{h}{n};
+                visdata{n}.ModComp_L2nShare{h}          = I.ModComp_L2n{h}{n};
+                visdata{n}.ModComp_L2nShare_Summary{h}  = I.ModComp_L2n_SUMMARY{h};
+            else
+                visdata{n}.CompRefSpace                 = I.VCV1REF;
+                visdata{n}.PermPValRef_CV2              = I.VCV2WPERMREF;
+                if isfield(I,'VCV2WPERMREF_GLOBAL_FDR')
+                    visdata{n}.PermPValRef_Global_FDR   = I.VCV2WPERMREF_GLOBAL_FDR;
+                end
+                visdata{n}.CorrRef_CV2                  = I.VCV2WCORRREF;
+                visdata{n}.CompSelRat                   = I.PRES;
+                visdata{n}.CompKept                     = I.KEEP;
+                visdata{n}.ModComp_L2nShare             = I.ModComp_L2n;
+                visdata{n}.ModComp_L2nShare_Summary{h}  = I.ModComp_L2n_SUMMARY{h};
+            end
+            if inp.isEarly
+                num = I.DxSUM{h};
+                sumx2  = I.DxSQSUM{h};
+                den = I.DxN{h};
+            else
+                num = I.DxSUM{h}{n};
+                sumx2  = I.DxSQSUM{h}{n};
+                den = I.DxN{h}{n};
+            end
+            mask = den > 0 & isfinite(den);
+            % Compute Means
+            Frac = nan(size(num), 'like', num);   % prefill with NaN
+            Frac(mask) = num(mask) ./ den(mask);
+            % Compute SEs
+            SE = nan(size(num), 'like', num);   % prefill with NaN
+            SD = nan(size(num), 'like', num);   % prefill with NaN
+            VAR = nan(size(num), 'like', num);   % prefill with NaN
+            VAR(mask) = sumx2(mask) ./ den(mask) - Frac(mask).^2;
+            VAR(mask & VAR<0) = 0;
+            SD(mask) = sqrt(VAR(mask));
+            SE(mask) = SD(mask) ./ sqrt(den(mask));
+            % Assign
+            visdata{n}.FracDec_CV2_mean{h} = Frac;
+            visdata{n}.FracDec_CV2_se{h} = SE;
+            visdata{n}.FracDec_CV2_sd{h} = SD;
         end
         if isfield(I,'ModAgg_L2nShare')
             visdata{n}.ModAgg_L2nShare   = I.ModAgg_L2nShare;
@@ -2059,7 +2195,6 @@ if ~batchflag
 end
 
 end
-
 % _________________________________________________________________________
 function WriteCV2Data(inp, nM, FUSION, SAV, operm, ofold, I1)
 
@@ -2257,4 +2392,11 @@ function y = nm_weighted_vote_multiclass(TS, w, classes)
         [~,kmax] = max(tally);
         y(i) = classes(kmax);
     end
+end
+
+function [pvals_corr, pvals_comb] = correct_p_values_across_cv(pvals)
+    
+    pvals_comb = nm_nanmean(pvals, 2);
+    [~,~,~, pvals_corr] = fdr_bh(pvals_comb, 0.05, 'pdep'); % correct
+
 end

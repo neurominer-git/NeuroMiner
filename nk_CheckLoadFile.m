@@ -35,6 +35,13 @@ for i=1:nvar
             fprintf(loadstr);
             try
                 load(px);
+                % --- Auto-recognize and decode GD_enc -> GD (triplet format) ---
+                if exist('GD_enc','var')
+                    fprintf('\nCompressed GD detected. Decoding to full GD ...');
+                    GD = nm_decode_nan_triplets(GD_enc);  % idempotent decoder
+                    clear GD_enc
+                    fprintf(' done.');
+                end
             catch
                 fprintf('\nCould not open file. May be corrupt. Recompute CV2 partition [%g,%g].',f,d);
                 fnd = false;

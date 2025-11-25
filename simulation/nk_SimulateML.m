@@ -178,6 +178,11 @@ for i=1:nP
         Xl{i} = sprintf('%s%s%s%s%s%s%s%s%s%s',sF, sM, sC, sE, sAU, sAL, sB, sBP, sCm, sFm);
     end
 end
+
+% In the main (caller) BEFORE calling compute_perf(IN):
+IN.Nmax     = max(IN.NCases);       % the global max over ALL Ns you plan to simulate
+IN.seed     = 1337;                 % base seed (keep fixed across runs)
+
 for i=1:nP % Loop through hyperparameter combinations
     fprintf('\nWorking on parameter combination %g/%g: %s', i, nP, Xl{i});
     % Do the magic
@@ -187,6 +192,9 @@ for i=1:nP % Loop through hyperparameter combinations
     else
         IN.this_P = P(i,:);
     end
+
+    IN.runIdx   = find(IN.NCases==P(i,3), 1);% index of this N in your grid (for CRN across runs)
+
     [R(i), R95CI(:,i), detailed_R{i}, simulated_data{i}] = compute_perf(IN);
     % Update the simulation plot
     if exist("ax","var") && isfield(IN, 'plot_flag') && IN.plot_flag && i>2
@@ -201,6 +209,11 @@ for i=1:nP % Loop through hyperparameter combinations
         legend({'Mean','95%-CI'});
         drawnow
     end
+end
+if IN.GridParam == 7 % GridParam is AUC
+    % Compute effect size (Cohen's), power and AUC + CI95 (Wald method),
+    % return table with inference results.
+    performance_results.T = auc_to_effect_and_power(IN.NCases, R, 'Prev', IN.EventProb);
 end
 performance_results.R = R;
 performance_results.R95CI = R95CI';
@@ -227,7 +240,7 @@ if isfield(IN, 'plot_flag') && IN.plot_flag
     performance_results.resplotfilename_fig = resplotfilename_fig;
 end
 
-if exist('ax')
+if exist('ax','var')
     close(f);
 end
 
@@ -427,8 +440,6 @@ if fromData
                     [M, L, ~] = nk_SynthDistkNN( Y, labels, [], IN); % covars are already added before, consider moving here (depending on how other additional vectors are treated by the other synthetic data tool)
 
                 end
-                %             case 2
-                %                 [M, L,~, ~] = nk_PerfADASYN( Y, labels, [], IN, true);
             case 2
                 if condIdx >= 0
                     IN_g = IN;
@@ -532,6 +543,7 @@ if fromData
     simulated_data.cv = xNM.cv;
     simulated_data.NM = xNM;
 else
+    
     nf = IN.this_P(1,1);
     mr = IN.this_P(1,2);
     nc = IN.this_P(1,3);
@@ -617,9 +629,15 @@ else
     % (if the Parallel Computation toolbox is available!)
     %%
     xfromData = fromData;
-
+    % BEFORE parfor
+    
+    seed = 1337;
+    streams = parallel.pool.Constant(@() RandStream('Threefry','Seed',seed));
+    %constM = parallel.pool.Constant(M);   % broadcast M to workers
     parfor k=1:NReps
-        %for k = 1:NReps
+        
+        s = streams.Value; s.Substream = k;   
+        Tr_Ystar = []; Ts_Ystar = [];
 
         Ystar = M;
         auc_ystar=zeros(1,nmr);
@@ -643,7 +661,7 @@ else
                 case 'simple'
                     for u=1:nmr
                         fprintf('.')
-                        Ystar(:,u) = nk_CreatPredFeat(auc_max, auc_min, L, false);
+                        Ystar(:,u) = nk_CreatPredFeat(auc_max, auc_min, L, false, s);
                     end
                 case 'exponential'
                     gran = 5;
@@ -657,7 +675,7 @@ else
                     if verbose, fprintf('\nRunning exponential decay function.\n'); end
                     for u=1:nmr
                         fprintf('.')
-                        Ystar(:,u) = nk_CreatPredFeat(sepvec2(u,2), sepvec2(u,1), L, false);
+                        Ystar(:,u) = nk_CreatPredFeat(sepvec2(u,2), sepvec2(u,1), L, false, s);
                     end
             end
 
@@ -679,9 +697,6 @@ else
                 Iperm = randperm(nc);
                 % add batch effects
                 Ystar = Ystar + Ybatch(Iperm,:);
-                Lk = L;
-            else
-                Lk = L;
             end
 
             % ADD MISSINGS

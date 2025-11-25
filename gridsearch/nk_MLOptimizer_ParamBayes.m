@@ -51,6 +51,10 @@ global VERBOSE GRD SVM MULTILABEL CV CVPOS
 CVPOS.CV2p = f;
 CVPOS.CV2f = d;
 
+BayesAcq = getfield_or(GRD.OptMode.Bayes,'mode','ei');
+kappa = getfield_or(GRD.OptMode.Bayes,'LCBkappa',2);
+jitter = getfield_or(GRD.OptMode.Bayes,'EIjitter',1e-6);
+
 % Number of candidate combinations.
 nPs = size(Ps{1},1);
 if npreml > -1
@@ -62,8 +66,7 @@ if npreml > -1
 end
 
 % Determine evaluation operator and optimization direction.
-[~, ~, ~, ~, ~, minmaxfl, evalop_str] = nk_ReturnEvalOperator(SVM.GridParam);
-evalop = str2func(evalop_str);
+[~, ~, ~, ~, ~, minmaxfl] = nk_ReturnEvalOperator(SVM.GridParam);
 if minmaxfl == 1
     dir = 1;  % Maximization (e.g., Balanced Accuracy)
 else
@@ -205,19 +208,7 @@ for curlabel = 1:nl
         DISP.P{curclass} = Ps{curclass}(best_index,:);
         best_cPs{curclass} = nk_PrepMLParams(Ps{curclass}, Params_desc{curclass}, best_index);
     end
-    if npreml > -1
-        if combcell
-            preproc = cell2mat(Ps{1}(best_index, end-npreml:end));
-        else
-            preproc = Ps{1}(best_index, end-npreml:end);
-        end
-        [~, preproc_index] = ismember(preproc, pp, 'rows');
-    else
-        preproc_index = 1;
-    end
-    best_mapYi = nk_MLOptimizer_ExtractDimMat(mapY, preproc_index, best_cPs);
-    best_FilterSubsets = nk_CreateSubSets(mapYi);
-
+    
     % Bayesian Optimization Iterations.
     for iter = 1:max_iter_bayes
 
@@ -233,30 +224,77 @@ for curlabel = 1:nl
         gpModel = fitrgp(X, y_vec, 'BasisFunction','constant',...
                           'KernelFunction',GRD.OptMode.Bayes.kernel_function,...
                           'Standardize',true);
+
         % Compute Expected Improvement (EI) for each candidate in valid_indices.
         notVisited = setdiff(valid_indices, evaluated_idx);
+        
+        % Predict on remaining candidates
         [mu, sigma] = predict(gpModel, Xgrid(notVisited,:));  % Vectorized prediction
-        if any(sigma < 1e-6)
-            sigma(sigma < 1e-6) = 1e-6;
-        end
-
-        improvement = (dir==1) * (mu - best_cost) + (dir==-1) * (best_cost - mu);
-        Z = improvement ./ sigma;
-        EI_vec = max(0, improvement) .* normcdf(Z) + sigma .* normpdf(Z);
-        EI = zeros(nPs,1);
-        EI(notVisited) = EI_vec;
-
-         % Check if maximum EI is below threshold => abort.
-        if max(EI) < min_EI_threshold
-            fprintf('\nAborting Bayesian optimization: maximum EI (%.6f) below threshold.\n', max(EI));
-            break;
-        end
+        % Guard!
+        if any(sigma < 1e-6), sigma(sigma < 1e-6) = 1e-6; end
         
-        [max_EI, next_idx] = max(EI);
-        if max_EI == 0 || isempty(next_idx)
-            next_idx = valid_indices(randi(numel(valid_indices)));
-        end
+        % ---- Acquisition (EI or LCB) ----
+        switch lower(BayesAcq)
+            case 'ei'
+                % Expected Improvement (supports max/min via dir)
+                improvement = (dir==1) * (mu - best_cost) + (dir==-1) * (best_cost - mu);
+                improvement = improvement + jitter ;
+                sigma(sigma<1e-9)=1e-9;
+                Z = improvement ./ sigma;
+                EI_vec = max(0, improvement) .* normcdf(Z) + sigma .* normpdf(Z);
         
+                EI = zeros(nPs,1);
+                EI(notVisited) = EI_vec;
+        
+                % Abort if EI too small
+                if max(EI) < min_EI_threshold
+                    fprintf('\nAborting Bayesian optimization: maximum EI (%.6f) below threshold.\n', max(EI));
+                    break;
+                end
+        
+                [~, next_rel] = max(EI(notVisited));
+                next_idx = notVisited(next_rel);   % <-- correct mapping
+        
+            case 'lcb'
+                % Lower/Upper Confidence Bound with optional early stop on optimistic bound
+                % kappa already read above
+                sigma(sigma < 1e-9) = 1e-9; % numeric guard
+        
+                % Scores to select next candidate (always pick max(score))
+                if dir == 1
+                    % MAXIMIZATION: conservative score = mu - kappa*sigma
+                    score = mu - kappa.*sigma;
+                else
+                    % MINIMIZATION: use negative of UCB so we can still take max()
+                    score = -(mu + kappa.*sigma);
+                end
+        
+                % Optional early stop based on optimistic bound (consistent with LCB)
+                lcb_eps = getfield_or(GRD.OptMode.Bayes,'lcb_eps',0);  % improvement margin (default 0)
+                if dir == 1
+                    optimistic = max(mu + kappa.*sigma);               % best-case UCB
+                    if (optimistic - best_cost) <= lcb_eps
+                        fprintf('\n[BO] Early stop (LCB): optimistic bound (%.6g) cannot beat incumbent (%.6g) by eps=%.6g.\n', ...
+                                optimistic, best_cost, lcb_eps);
+                        break;
+                    end
+                else
+                    optimistic = min(mu - kappa.*sigma);               % best-case LCB for minimization
+                    if (best_cost - optimistic) <= lcb_eps
+                        fprintf('\n[BO] Early stop (LCB): optimistic bound (%.6g) cannot beat incumbent (%.6g) by eps=%.6g.\n', ...
+                                optimistic, best_cost, lcb_eps);
+                        break;
+                    end
+                end
+        
+                % Pick next point
+                [~, next_rel] = max(score);
+                next_idx = notVisited(next_rel);   % <-- correct mapping
+        
+            otherwise
+                error('Unknown acquisition "%s". Use "ei" or "lcb".', BayesAcq);
+        end
+       
         next_cPs = cell(nclass,1);
         for curclass = 1:nclass
             DISP.P{curclass} = Ps{curclass}(next_idx,:);

@@ -1,0 +1,19 @@
+function reset_axes_for_singleparam(ax)
+if nargin<1 || ~ishghandle(ax) || ~strcmp(get(ax,'Type'),'axes'), return; end
+% Clear any previous image/heatmap state
+cla(ax);
+set(ax, 'YDir','normal', ...        % undo 'ij' from imagesc
+        'XLimMode','auto', ...
+        'YLimMode','auto', ...
+        'ZLimMode','auto', ...
+        'CLimMode','auto', ...      % detach colormap scaling
+        'XScale','linear', ...
+        'YScale','linear', ...
+        'XTickMode','auto', ...
+        'YTickMode','auto');
+try
+    % Some releases have these; ignore if not
+    set(ax, 'XAxisLocation','bottom', 'YAxisLocation','left');
+catch, end
+box(ax,'on'); grid(ax,'off'); view(ax,2); % 2D view
+end

@@ -17,6 +17,8 @@ end
 
 normfl = false; if any(strcmp({'LIBSVM','LIBLIN'}, NM.TrainParam.SVM.prog)), normfl = true; end
 normdef = 2; if ~isfield(VIS,'norm'), VIS.norm = normdef; end 
+permmodestropts = {'labels', 'features', 'labels and features'};
+correctopts = {'FDR before back-projection (each model separately)', 'FDR after cross-validation (globally)', 'no correction'};
 
 if ~defaultsfl
     
@@ -60,19 +62,20 @@ if ~defaultsfl
         else
             sigstr = 'no';
         end
-        menustr = sprintf('%sPerform model permutation test in model space and back-project only signif. components [ %s ]', ...
+        menustr = sprintf('%sPerform permutations in model space and back-project only significant components [ %s ]', ...
             menustr, sigstr ); menuact = [menuact 7];
 
         if PERM.sigflag     
             menustr = sprintf('%s|Define no. of permutations [ %g ]', menustr, VIS.PERM.nperms); menuact = [menuact 4];
-            permmodestropts = {'labels', 'features', 'labels and features'};
             if ~isfield(PERM,'mode'), PERM.mode = 1; end
             permmodestr = permmodestropts{PERM.mode};
             menustr = sprintf('%s|Define permutation mode [ %s ]', menustr, permmodestr ); menuact = [menuact 5];
-            menustr = sprintf('%s|Define back-projection significance threshold [ %g ]', ...
-                menustr, PERM.sigPthresh ); menuact = [menuact 9];
-            menustr = sprintf('%s|Correct component P values for multiple comparisons using FDR [ %s ]', ...
-                menustr, yesno_str{PERM.sigPfdr} ); menuact = [menuact 10];
+            menustr = sprintf('%s|Choose how to correct component P values [ %s ]', menustr, correctopts{ PERM.sigPfdr } ); menuact = [menuact 8];
+            if PERM.sigPfdr == 1
+                menustr = sprintf('%s|Define q threshold for back-projection (P value cutoff) [ %g ]', menustr, PERM.sigPthresh ); menuact = [menuact 9];
+            else
+                menustr = sprintf('%s|Define α threshold for back-projection (P value cutoff) [ %g ]', menustr, PERM.sigPthresh ); menuact = [menuact 9];
+            end
             menustr = sprintf('%s|Perform additional permutation test of feature significance in input-space [ %s ]', menustr, permstr); menuact = [menuact 3];
         end
     end
@@ -101,9 +104,10 @@ if ~defaultsfl
         case 7
             PERM.sigflag = ~VIS.PERM.sigflag;
         case 8
-            PERM.sigPthresh = nk_input('Define alpha threshold for determining component significance',0,'e', PERM.sigPthresh);
+            PERM.sigPfdr = nk_input('Choose how to correct components'' significance for multiple comparisons',0,'m', strjoin(correctopts,'|'), 1:3, PERM.sigPfdr);
         case 9
-            PERM.sigPfdr = nk_input('Correcting components'' permutation-based significance using FDR',0,'e', [1,2], PERM.sigPfdr);
+            if  PERM.sigPfdr == 1, statstr = 'q'; else, statstr = 'α'; end
+            PERM.sigPthresh = nk_input(sprintf('Define %s threshold for determining component significance', statstr), 0,'e', PERM.sigPthresh);
     end
     VIS.PERM = PERM;
 else

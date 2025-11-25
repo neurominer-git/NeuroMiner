@@ -1,5 +1,5 @@
 function [I2, I1, filefound] = nk_VisXHelperC(act, nM, nclass, decompfl, permfl, sigfl, ix, jx, I2, inp, ll, nperms, I1, compwise, ill)
-global FUSION SVM
+global FUSION SVM CV CVPOS
 
 linsvmfl = determine_linsvm_flag(SVM);
 filefound = false;
@@ -20,8 +20,8 @@ switch act
         end
         if nM>1, I2.ModAgg_L2nShare = cell(nclass,1); end            % [nM × nCV2_models]            
         if any(~decompfl)
-            I2.VCV2PEARSON              = cell(nclass,nM);                  % Container for feature spaces' univariate pearson correlation coefficients
-            I2.VCV2SPEARMAN             = cell(nclass,nM);                  % Container for feature spaces' univariate spearman correlation coefficients
+            I2.VCV2PEARSON              = cell(nclass,nM);           % Container for feature spaces' univariate pearson correlation coefficients
+            I2.VCV2SPEARMAN             = cell(nclass,nM);           % Container for feature spaces' univariate spearman correlation coefficients
             I2.VCV2PEARSON_UNCORR_PVAL  = cell(nclass,nM);
             I2.VCV2SPEARMAN_UNCORR_PVAL = cell(nclass,nM);
             I2.VCV2PEARSON_FDR_PVAL     = cell(nclass,nM);
@@ -33,30 +33,41 @@ switch act
             I2.VCV2CORRMAT              = cell(nclass,nM);
             I2.VCV2CORRMAT_UNCORR_PVAL  = cell(nclass,nM);
             I2.VCV2CORRMAT_FDR_PVAL     = cell(nclass,nM);
-        elseif compwise
-            I2.VCV1ENTRY                = cell(nclass,1);
-            I2.VCV1REF                  = cell(nclass,1);  
+        end
+        if compwise
+            I2.VCV1REF                  = cell(nclass,1); 
+            I2.VCV1REFCNT               = cell(nclass,1);
             I2.VCV2WPERMREF             = cell(nclass,1);   
             I2.VCV2WCORRREF             = cell(nclass,1);
             % ----- CV2-level L2 contribution containers (combined reference) -----
             if nM > 1
                 % Per-modality aggregate shares across combined reference
                 % {h}: [nM × nCV2_models]
-                I2.ModAgg_L2nShare = cell(nclass,1);
+                I2.ModAgg_L2nShare      = cell(nclass,1);
                 if compwise
                     % Per-component × modality cube in combined space
                     % {h}: [nRef_combined × nM × nCV2_models]
-                    I2.ModComp_L2nCube = cell(nclass,1);
+                    I2.ModComp_L2nCube  = cell(nclass,1);
                 end
             end
+            % Global per-component L2 in combined space
+            % {h}: [nRef_combined × nCV2_models]
+            I2.ModComp_L2n              = cell(nclass,1);
+            % --- CV2-level fractionated decision scores (per class × modality) ---
+            % store sums + counts (handles different #components per classifier)
             if compwise
-                % Global per-component L2 in combined space
-                % {h}: [nRef_combined × nCV2_models]
-                I2.ModComp_L2n = cell(nclass,1);
+                I2.DxSUM                    = cell(nclass, 1);   % sums over CV2 models
+                I2.DxSQSUM                    = cell(nclass, 1);   % sums of squares over CV2 models
+                I2.DxN                      = cell(nclass, 1);   % counts per subject × component
+                if inp.isInter
+                    for h = 1:nclass 
+                        I2.DxSUM{h}  = cell(1, nM); 
+                        I2.DxSQSUM{h}  = cell(1, nM); 
+                        I2.DxN{h} = cell(1, nM); 
+                    end
+                end
             end
-            
         end
-        %I2.VCV2VCV1         = cell(nclass,nM);                 % Container for concatenation of CV1 feature spaces' 
         I2.SignPosCount     = cell(nclass,nM);
         I2.SignNegCount     = cell(nclass,nM);
         I2.VCV2SUM          = cell(nclass,nM);                  % Container for feature spaces' sum values of CV-generated feature weights
@@ -110,7 +121,8 @@ switch act
                 % Later mapped into VCV1WPERMREF via assignment.
                 I1.VCV1WPERM = cell(nclass, 1);
             end
-            % Optional: place to store meta or max-perm stats per fold (kept from original)
+            % Optional: place to store meta or max-perm stats per fold
+            % (kept from original)
             I1.VCV1MPERM = cell(nclass, 1);
         end
         
@@ -120,6 +132,15 @@ switch act
         I1.VCV1WPERMREF   = cell(nclass, 1);  % [nRef_combined × nFolds]
         I1.VCV1WCORRREF   = cell(nclass, 1);  % [nRef_combined × nFolds]
         
+        % --- Fractionated decision scores (CV1-level; already aligned to ref) ---
+        % Dx{h,n} will be [nSubj_fold × nRef_mod] for that CV2 file
+        if compwise
+            I1.Dx = cell(nclass, 1); 
+            if inp.isInter
+                for h = 1:nclass, I1.Dx{h} = cell(1, nM); end
+            end
+        end
+
         % --- Modality contribution containers (combined reference; per CV2 fold) ---
         % Defined in combined component space; only meaningful for multi-modality.
         if nM > 1
@@ -136,7 +157,7 @@ switch act
         % Per-component global L2 in combined space
         % {h}: [nRef_combined × nCV1_models]
         I1.ModComp_L2n = cell(nclass, 1);
-        
+
         % --- Reset I2 (per-run scratch / global ref cache holder) ---
         I2 = [];
 
@@ -174,20 +195,36 @@ switch act
             end
         end
 
-        % ---- NEW: prune CV2-level, component-indexed containers ----
         for h = 1:nclass
+            keep = I2.KEEP{h};
+            if ~iscell(keep)
+                keep = repmat({keep},nM,1); 
+            end
             if inp.isInter
                 for n=1:nM
                     % 1) L2n magnitudes per component (nRef × ll)
-                    if isfield(I2,'ModComp_L2n') && numel(I2.ModComp_L2n) >= h && numel(I2.ModComp_L2n{h}) <=n &&~isempty(I2.ModComp_L2n{h}{n})
-                        I2.ModComp_L2n{h}{n} = I2.ModComp_L2n{h}{n}(keep, :);
+                    if isfield(I2,'ModComp_L2n') && numel(I2.ModComp_L2n) >= h && numel(I2.ModComp_L2n{h}) >=n &&~isempty(I2.ModComp_L2n{h}{n})
+                        I2.ModComp_L2n{h}{n} = I2.ModComp_L2n{h}{n}(keep{n}, :);
                     end
                     % 3) CV2-level mapped permutation p-values and correlations in REF order (nRef × ll)
-                    if isfield(I2,'VCV2WPERMREF') && numel(I2.VCV2WPERMREF) >= h && numel(I2.VCV2WPERMREF{h}) <= n && ~isempty(I2.VCV2WPERMREF{h}{n})
-                        I2.VCV2WPERMREF{h}{n} = I2.VCV2WPERMREF{h}{n}(keep, :);
+                    if isfield(I2,'VCV2WPERMREF') && numel(I2.VCV2WPERMREF) >= h && numel(I2.VCV2WPERMREF{h}) >= n && ~isempty(I2.VCV2WPERMREF{h}{n})
+                        I2.VCV2WPERMREF{h}{n} = I2.VCV2WPERMREF{h}{n}(keep{n}, :);
                     end
-                    if isfield(I2,'VCV2WCORRREF') && numel(I2.VCV2WCORRREF) >= h && numel(I2.VCV2WCORRREF{h}) <= n && ~isempty(I2.VCV2WCORRREF{h}{n})
-                        I2.VCV2WCORRREF{h}{n} = I2.VCV2WCORRREF{h}{n}(keep, :);
+                    if isfield(I2,'VCV2WCORRREF') && numel(I2.VCV2WCORRREF) >= h && numel(I2.VCV2WCORRREF{h}) >= n && ~isempty(I2.VCV2WCORRREF{h}{n})
+                        I2.VCV2WCORRREF{h}{n} = I2.VCV2WCORRREF{h}{n}(keep{n}, :);
+                    end
+                    if isfield(I2,'DxSUM') 
+                        if ~decompfl(n), continue; end
+                        if ~isempty(I2.DxSUM{h}{n})
+                            keepCols = keep{n};
+                            nComp = size(I2.DxSUM{h}{n},2);
+                            if numel(keepCols) > nComp
+                                keepCols = keepCols(1:nComp);
+                            end
+                            I2.DxSUM{h}{n}  = I2.DxSUM{h}{n}(:, keepCols);
+                            I2.DxSQSUM{h}{n}  = I2.DxSQSUM{h}{n}(:, keepCols);
+                            I2.DxN{h}{n} = I2.DxN{h}{n}(:, keepCols);
+                        end
                     end
                 end
             else
@@ -207,8 +244,327 @@ switch act
                 if isfield(I2,'VCV2WCORRREF') && numel(I2.VCV2WCORRREF) >= h && ~isempty(I2.VCV2WCORRREF{h})
                     I2.VCV2WCORRREF{h} = I2.VCV2WCORRREF{h}(keep{1}, :);
                 end
+                % ----- Prune Dx / DxN after merge+prune (intermediate) -----
+                if isfield(I2,'DxSUM') 
+                    if ~isempty(I2.DxSUM{h})
+                        keepCols = keep{1};
+                        nComp = size(I2.DxSUM{h},2);
+                        if numel(keepCols) > nComp
+                            keepCols = keepCols(1:nComp);
+                        end
+                        I2.DxSUM{h}  = I2.DxSUM{h}(:, keepCols);
+                        I2.DxSQSUM{h}  = I2.DxSQSUM{h}(:, keepCols);
+                        I2.DxN{h} = I2.DxN{h}(:, keepCols);
+                    end
+                end
             end
             % NOTE: Do NOT prune ModAgg_L2nShare{h} (nM × ll) – no component dimension.
+        end
+
+    case 'merge_and_prune'
+
+        % ====================== MEMORY-AWARE MERGE/PRUNE (CV2) ======================
+        if ~compwise
+            % Nothing to prune: we’re collapsing components into one signature.
+            % Ensure VCV1/VCV2 arrays are treated as 2-D everywhere else.
+            return
+        end
+        fprintf('\nChecking memory used by CV2-level container and compacting reference space as required...')
+        useMerge      = getfield_or(inp,'useRefMerge', true);
+        mergeStepCap  = getfield_or(inp,'mergeStepCap', Inf);
+        safetyFloor   = getfield_or(inp,'safetyFloor', 5); % never reduce ref below 5 columns per modality/class
+        pruneMode     = getfield_or(inp,'PruneMode', 'fraction'); 
+        pruneFrac     = getfield_or(inp,'PruneFraction', 0.10); 
+        [~, availBytes] = isMemoryTight(inp.tightThresh);       % avail in BYTES (Windows: physical avail; Linux/Mac: JVM max)
+        % be conservative: leave headroom (15%) to avoid spikes; clamp sane bounds
+        memCapBytes = max( 5e8, min( inp.memFrac * double(availBytes), 0.85 * double(availBytes) ) ); % ≥0.5 GB, ≤85% of avail
+
+        % ---- per-class compact ----
+        for h = 1:nclass
+        
+            Ref = I2.VCV1REF{h};        % 1×1 cell, [nFeat × nRef]
+            nRef = size(Ref{1}, 2);
+            if nRef <= safetyFloor, continue; end
+
+            % =======================================================================
+            % 1) MERGE before pruning (mode-aware)
+            % =======================================================================
+            if useMerge && nRef > safetyFloor
+                if ~inp.isInter
+                    % ---------- EARLY FUSION: one joint merge across modalities ----------
+                    % Build joint ref cell (1×nM) and a single presence vector cnt_vec
+                    RefJoint = I2.VCV1REF{h};      % 1×nM cells, each [nFeat × nRef]
+                    RefcntJoint = I2.VCV1REFCNT{h}; % 1×nRef
+                    
+                    mopts = struct('thr', inp.simCorrThresh+0.05, 'metric',inp.simCorrMethod, 'unitnorm', true, ...
+                                   'maxMerges', mergeStepCap, 'modWeights', ones(1,numel(RefJoint)), ...
+                                   'verbose', false);
+                    
+                    [Ref_new, Refcnt_new, mg] = nk_MergeRefColumns(RefJoint, RefcntJoint, mopts);
+                    if mg.newN < mg.oldN
+                        
+                        P_old = I2.VCV2WPERMREF{h};
+                        w_old = sum(isfinite(P_old), 2).';
+                        fprintf('\n\t\t\t[Merger]: condensed %g to %g components (METHOD=%s, cutoff: %g, unitnorm=%g)', mg.oldN, mg.newN, mopts.metric, mopts.thr, mopts.unitnorm);
+                        % Apply the same mapping to ALL modalities and ALL CV2 containers (rows/cols/3rd-dim)
+                        I2.VCV1REF{h} = Ref_new;                % refs (all modalities simultaneously)
+                        I2.VCV1REFCNT{h} = Refcnt_new;
+                        map_old2new = mg.map_old2new;
+            
+                        % ------- remap CV2 containers (EARLY) -------
+                        % columns == components
+                        I2.VCV2SUM{h,1}      = apply_map_colwise(I2.VCV2SUM{h,1},      map_old2new, w_old, 'mean');
+                        I2.VCV2SQ{h,1}       = apply_map_colwise(I2.VCV2SQ{h,1},       map_old2new, w_old, 'mean');
+                        I2.VCV2SEL{h,1}      = apply_map_colwise(I2.VCV2SEL{h,1},      map_old2new, w_old, 'mean');
+                        I2.VCV2PROB{h,1}     = apply_map_colwise(I2.VCV2PROB{h,1},     map_old2new, w_old, 'mean');
+                        I2.SignPosCount{h,1} = apply_map_colwise(I2.SignPosCount{h,1}, map_old2new, w_old, 'mean');
+                        I2.SignNegCount{h,1} = apply_map_colwise(I2.SignNegCount{h,1}, map_old2new, w_old, 'mean');
+                        if permfl
+                            % columns == components for per-fold uncorrected stuff
+                            I2.VCV2PERM{h,1}   = apply_map_colwise(I2.VCV2PERM{h,1},   map_old2new, w_old, 'min');
+                            % rows = components for *_REF stats gathered over folds
+                            % p-values rowwise: conservative combine (min) or Fisher
+                            I2.VCV2PERM_FDR{h} = apply_map_colwise(I2.VCV2PERM_FDR{h}, map_old2new, w_old, 'min');       
+                            % z-scores rowwise: Stouffer z
+                            I2.VCV2ZSCORE{h}   = apply_map_colwise(I2.VCV2ZSCORE{h},   map_old2new, w_old, 'zmean');
+                        end
+                        % 3D cube where components are along dim-3 in your CV2 aggregates
+                        I2.GCV2SUM{h,1}  = apply_map_3dthird(I2.GCV2SUM{h,1},  map_old2new, w_old, 'mean');
+                        I2.VCV2STD{h,1}  = apply_map_3dthird(I2.VCV2STD{h,1},  map_old2new, w_old, 'mean');
+                        I2.VCV2MEAN{h,1} = apply_map_3dthird(I2.VCV2MEAN{h,1}, map_old2new, w_old, 'mean');
+            
+                        % REF-order matrices (rows = components), per early-fusion storage
+                        I2.VCV2WPERMREF{h} = apply_map_rowwise(I2.VCV2WPERMREF{h}, map_old2new, w_old, 'min');
+                        I2.VCV2WCORRREF{h} = apply_map_rowwise(I2.VCV2WCORRREF{h}, map_old2new, w_old, 'zmean');
+                        I2.ModComp_L2n{h}  = apply_map_rowwise(I2.ModComp_L2n{h},  map_old2new, w_old, 'mean');
+                        if nM>1 && isfield(I2,'ModComp_L2nCube') && numel(I2.ModComp_L2nCube)>=h && ~isempty(I2.ModComp_L2nCube{h})
+                            % In your early-fusion cube, components are along dim-2 — adjust if different
+                            I2.ModComp_L2nCube{h} = apply_map_3dfirst(I2.ModComp_L2nCube{h}, map_old2new, w_old, 'mean');
+                        end
+                        % ----- Remap Dx and DxN (subject × component) -----
+                        if isfield(I2,'DxSUM') && ~isempty(I2.DxSUM{h}) 
+                            % map columns (components) with same grouping as WPERMREF
+                            I2.DxSUM{h} = apply_map_colwise(I2.DxSUM{h},  map_old2new, w_old, 'sum');
+                            I2.DxSQSUM{h} = apply_map_colwise(I2.DxSQSUM{h},  map_old2new, w_old, 'sum');
+                            % counts: sum over grouped old components
+                            I2.DxN{h} = apply_map_colwise(I2.DxN{h}, map_old2new, w_old, 'sum');
+                        end
+                    end
+            
+                else
+                    % ---------- INTERMEDIATE FUSION: merge per modality ----------
+                    for n = 1:nM
+                        if ~decompfl(n), continue; end
+                        
+                        Ref   = I2.VCV1REF{h}{n};      % [nFeat × nRef_n]
+                        RefCnt = I2.VCV1REFCNT{h}{n};      
+                        nRef  = size(Ref, 2);
+                        if nRef <= safetyFloor, continue; end
+            
+                        mopts = struct('thr', inp.simCorrThresh+0.05, 'metric',inp.simCorrMethod, 'unitnorm', true, ...
+                                       'maxMerges', mergeStepCap, 'modWeights', 1, 'verbose', false);
+
+                        [Ref_m, Refcnt_m, mg_n] = nk_MergeRefColumns({Ref}, RefCnt, mopts);
+                        
+                        if mg_n.newN < mg_n.oldN
+
+                            fprintf('\n\t\t\t[Merger -> Modality #%g]: condensed %g to %g components (METHOD=%s, cutoff: %g, unitnorm=%g)', n, mg_n.oldN, mg_n.newN, mopts.metric, mopts.thr, mopts.unitnorm);
+                            map_old2newn = mg_n.map_old2new;
+                            P_old = I2.VCV2WPERMREF{h}{n};
+                            w_old = sum(isfinite(P_old), 2).';
+                        
+                            % refs
+                            I2.VCV1REF{h}{n} = Ref_m{1};
+                            I2.VCV1REFCNT{h}{n} = Refcnt_m{1};
+                            
+                            % ---- remap this modality’s CV2 containers only (INTER) ----
+                            I2.VCV2SUM{h,n}      = apply_map_colwise(I2.VCV2SUM{h,n},      map_old2newn, w_old, 'mean');
+                            I2.VCV2SQ{h,n}       = apply_map_colwise(I2.VCV2SQ{h,n},       map_old2newn, w_old, 'mean');
+                            I2.VCV2SEL{h,n}      = apply_map_colwise(I2.VCV2SEL{h,n},      map_old2newn, w_old, 'mean');
+                            I2.VCV2PROB{h,n}     = apply_map_colwise(I2.VCV2PROB{h,n},     map_old2newn, w_old, 'mean');
+                            I2.SignPosCount{h,n} = apply_map_colwise(I2.SignPosCount{h,n}, map_old2newn, w_old, 'mean');
+                            I2.SignNegCount{h,n} = apply_map_colwise(I2.SignNegCount{h,n}, map_old2newn, w_old, 'mean');
+                            if permfl
+                                I2.VCV2PERM{h,n}      = apply_map_colwise(I2.VCV2PERM{h,n},      map_old2newn, w_old, 'min');
+                                I2.VCV2PERM_FDR{h,n}  = apply_map_colwise(I2.VCV2PERM_FDR{h,n},  map_old2newn, w_old, 'min'); 
+                                I2.VCV2ZSCORE{h,n}    = apply_map_colwise(I2.VCV2ZSCORE{h,n},    map_old2newn, w_old, 'zmean');
+                            end
+                            % 3D: components on dim-3
+                            I2.GCV2SUM{h,n}  = apply_map_3dthird(I2.GCV2SUM{h,n},  map_old2newn, w_old, 'mean');
+                            I2.VCV2STD{h,n}  = apply_map_3dthird(I2.VCV2STD{h,n},  map_old2newn, w_old, 'mean');
+                            I2.VCV2MEAN{h,n} = apply_map_3dthird(I2.VCV2MEAN{h,n}, map_old2newn, w_old, 'mean');
+            
+                            % REF-order rows per modality
+                            I2.VCV2WPERMREF{h}{n} = apply_map_rowwise(I2.VCV2WPERMREF{h}{n}, map_old2newn, w_old, 'min');
+                            I2.VCV2WCORRREF{h}{n} = apply_map_rowwise(I2.VCV2WCORRREF{h}{n}, map_old2newn, w_old, 'zmean');
+                            I2.ModComp_L2n{h}{n}  = apply_map_rowwise(I2.ModComp_L2n{h}{n},  map_old2newn, w_old, 'mean');
+
+                            % ----- Remap Dx and DxN (subject × component) -----
+                            if isfield(I2,'DxSUM') && ~isempty(I2.DxSUM{h}{n}) && numel(I2.DxSUM{h}) >= n && ~isempty(I2.DxSUM{h}{n})
+                                % map columns (components) with same grouping as WPERMREF
+                                I2.DxSUM{h}{n}  = apply_map_colwise(I2.DxSUM{h}{n},  map_old2newn, w_old, 'sum');
+                                I2.DxSQSUM{h}{n}  = apply_map_colwise(I2.DxSQSUM{h}{n},  map_old2newn, w_old, 'sum');
+                                % counts: sum over grouped old components
+                                I2.DxN{h}{n} = apply_map_colwise(I2.DxN{h}{n}, map_old2newn, w_old, 'sum');
+                            end
+                        end
+                    end
+                end
+            end
+        
+            % =======================================================================
+            % 2) PRUNE (depending on prune mode): keep most consistent columns
+            % =======================================================================
+            switch pruneMode
+                case 'ram'
+                     % ---------- estimate memory ----------
+                    memNow = nk_EstimateRefMem(Ref, I2, h, inp.isInter, nM);
+                    runPrune = memNow > memCapBytes;
+                    if ~runPrune
+                        if nclass>1
+                            fprintf('\n[Model %d] OK: current mem %.1f MB ≤ cap %.1f MB', h, memNow/2^20, memCapBytes/2^20);
+                        else
+                            fprintf('\nOK: current mem %.1f MB ≤ cap %.1f MB', memNow/2^20, memCapBytes/2^20);
+                        end
+                        return
+                    else
+                        if nclass>1
+                            fprintf('\n[Model %d] Over cap: mem %.1f MB > cap %.1f MB → compacting...', h, memNow/2^20, memCapBytes/2^20);
+                        else
+                            fprintf('\nOver cap: mem %.1f MB > cap %.1f MB → compacting...', memNow/2^20, memCapBytes/2^20);
+                        end
+                    end
+                case 'fraction'
+                    runPrune = true;
+                    fprintf('\nFixed fractional prune is ON.')
+            end
+
+            if runPrune
+                if inp.isInter
+                    keep = cell(nM,1);
+                    for n=1:nM
+                        % count how many folds survived (not NaN) for each component
+                        nBefore     = size(I2.VCV2WPERMREF{h}{n}, 1);
+                        pres        = sum(~isnan(I2.VCV2WPERMREF{h}{n}), 2);  
+                        % fractional prune settings
+                        minKeepAbs  = safetyFloor;                   % always keep at least safetyFloor components
+                        nDrop       = floor(pruneFrac * nBefore);
+                        nDrop       = max(0, min(nDrop, nBefore - minKeepAbs));
+                        if nDrop == 0
+                            % nothing to prune for this class
+                            keep{n} = true(nBefore,1);
+                        else
+                            % drop the nDrop lowest 'pres' (tie-broken deterministically)
+                            [~, asc] = sort(pres, 'ascend');         % weakest first
+                            dropIdx  = asc(1:nDrop);
+                            keep{n}     = true(nBefore,1);
+                            keep{n}(dropIdx) = false;
+                            nAfter = sum(keep{n});
+                            if nclass>1
+                                fprintf('\nFractional prune (%1.1f%%): [ Model %d, Modality #%g ] %d → %d (dropped %d least-selected)', pruneFrac*100, h, n, nBefore, nAfter, nDrop);
+                            else
+                                fprintf('\nFractional prune (%1.1f%%): [ Modality #%g ] %d → %d (dropped %d least-selected)', pruneFrac*100, n, nBefore, nAfter, nDrop);
+                            end
+                        end
+                    end
+                else
+                    % count how many folds survived (not NaN) for each component
+                    nBefore = size(I2.VCV2WPERMREF{h}, 1);
+                    pres    = sum(~isnan(I2.VCV2WPERMREF{h}), 2);  % [nRef x 1], selection count per component
+                    % fractional prune settings
+                    minKeepAbs  = 3;                             % always keep at least 3 components
+                    nDrop       = floor(pruneFrac * nBefore);
+                    nDrop       = max(0, min(nDrop, nBefore - minKeepAbs));
+                    
+                    if nDrop == 0
+                        % nothing to prune for this class
+                        keep = true(nBefore,1);
+                    else
+                        % drop the nDrop lowest 'pres' (tie-broken deterministically)
+                        [~, asc] = sort(pres, 'ascend');         % weakest first
+                        dropIdx  = asc(1:nDrop);
+                        keep     = true(nBefore,1);
+                        keep(dropIdx) = false;
+                        nAfter = sum(keep);
+                        if nclass>1
+                            fprintf('\nFractional prune (%1.1f%%): [ Model %d ] %d → %d (dropped %d least-selected)', pruneFrac*100, h, nBefore, nAfter, nDrop);
+                        else
+                            fprintf('\nFractional prune (%1.1f%%): %d → %d (dropped %d least-selected)', pruneFrac*100, nBefore, nAfter, nDrop);
+                        end
+                    end
+                    keep = repmat({keep},nM,1);
+                end
+        
+                % ---- apply pruning to references and accumulators ----
+                for n = 1:nM
+                    if ~decompfl(n), continue; end
+                    % reference space
+                    I2.VCV1REF{h}{n} = I2.VCV1REF{h}{n}(:,keep{n});
+                    if inp.isInter
+                        I2.VCV1REFCNT{h}{n} = I2.VCV1REFCNT{h}{n}(keep{n});
+                    else
+                        if n==1, I2.VCV1REFCNT{h} = I2.VCV1REFCNT{h}(keep{n}); end
+                    end
+                    % 2D accumulators (columns=components)
+                    I2.VCV2SUM{h,n}      = I2.VCV2SUM{h,n}(:, keep{n});
+                    I2.VCV2SQ{h,n}       = I2.VCV2SQ{h,n}(:, keep{n});
+                    I2.VCV2SEL{h,n}      = I2.VCV2SEL{h,n}(:, keep{n});
+                    I2.VCV2PROB{h,n}     = I2.VCV2PROB{h,n}(:, keep{n});
+                    I2.SignPosCount{h,n} = I2.SignPosCount{h,n}(:, keep{n});
+                    I2.SignNegCount{h,n} = I2.SignNegCount{h,n}(:, keep{n});
+                    if permfl
+                        I2.VCV2PERM{h,n}      = I2.VCV2PERM{h,n}(:, keep{n});
+                        % row-wise 2D:
+                        I2.VCV2PERM_FDR{h,n}  = I2.VCV2PERM_FDR{h,n}(:, keep{n});
+                        I2.VCV2ZSCORE{h,n}    = I2.VCV2ZSCORE{h,n}(:, keep{n});
+                    end
+                    % 3D cubes (third dimension = components)
+                    I2.GCV2SUM{h,n}  = I2.GCV2SUM{h,n}(:, :, keep{n});
+                    I2.VCV2STD{h,n}  = I2.VCV2STD{h,n}(:, :, keep{n});
+                    I2.VCV2MEAN{h,n} = I2.VCV2MEAN{h,n}(:, :, keep{n});
+                end
+        
+                if inp.isInter
+                    for n=1:nM
+                        if ~decompfl(n), continue; end
+                        I2.VCV2WPERMREF{h}{n} = I2.VCV2WPERMREF{h}{n}(keep{n}, :);
+                        I2.VCV2WCORRREF{h}{n} = I2.VCV2WCORRREF{h}{n}(keep{n}, :);
+                        I2.ModComp_L2n{h}{n}  = I2.ModComp_L2n{h}{n}(keep{n}, :);
+                        % ----- Prune Dx / DxN after merge+prune (intermediate) -----
+                        if isfield(I2,'DxSUM') 
+                            if ~decompfl(n), continue; end
+                            if ~isempty(I2.DxSUM{h}{n})
+                                keepCols = keep{n};
+                                nComp = size(I2.DxSUM{h}{n},2);
+                                if numel(keepCols) > nComp
+                                    keepCols = keepCols(1:nComp);
+                                end
+                                I2.DxSUM{h}{n}  = I2.DxSUM{h}{n}(:, keepCols);
+                                I2.DxSQSUM{h}{n}  = I2.DxSQSUM{h}{n}(:, keepCols);
+                                I2.DxN{h}{n} = I2.DxN{h}{n}(:, keepCols);
+                            end
+                        end
+                    end
+                else
+                    I2.VCV2WPERMREF{h} = I2.VCV2WPERMREF{h}(keep{1}, :);
+                    I2.VCV2WCORRREF{h} = I2.VCV2WCORRREF{h}(keep{1}, :);
+                    I2.ModComp_L2n{h}  = I2.ModComp_L2n{h}(keep{1}, :);
+                    if nM>1, I2.ModComp_L2nCube{h} = I2.ModComp_L2nCube{h}(keep{1}, :, :); end
+                    % ----- Prune Dx / DxN after merge+prune (intermediate) -----
+                    if isfield(I2,'DxSUM') 
+                        if ~isempty(I2.DxSUM{h})
+                            keepCols = keep{1};
+                            nComp = size(I2.DxSUM{h},2);
+                            if numel(keepCols) > nComp
+                                keepCols = keepCols(1:nComp);
+                            end
+                            I2.DxSUM{h}  = I2.DxSUM{h}(:, keepCols);
+                            I2.DxSQSUM{h}  = I2.DxSQSUM{h}(:, keepCols);
+                            I2.DxN{h} = I2.DxN{h}(:, keepCols);
+                        end
+                    end
+                end
+            end
         end
 
     case 'prune_memory'
@@ -219,65 +575,91 @@ switch act
             return
         end
         fprintf('\nChecking memory used by CV2-level container and dropping components as required (potentially adjust your settings!).')
+        [~, availBytes] = isMemoryTight(inp.tightThresh); % avail in BYTES (Windows: physical avail; Linux/Mac: JVM max)
+        memCapBytes = max( 5e8, min( inp.memFrac * double(availBytes), 0.85 * double(availBytes) ) ); % ≥0.5 GB, ≤85% of avail
+        memNow = 0;
+        for curclass = 1:nclass
+            memNow = memNow + nk_EstimateRefMem(I2.VCV1REF, I2, curclass, inp.isInter, nM);
+        end
+        if memNow < memCapBytes
+            if nclass>1
+                for h=1:nclass
+                    fprintf('\n[Model %d] OK: current mem %.1f MB ≤ cap %.1f MB', h, memNow/2^20, memCapBytes/2^20);
+                end
+            else
+                fprintf('\nOK: current mem %.1f MB ≤ cap %.1f MB', memNow/2^20, memCapBytes/2^20);
+            end
+            return
+        else
+
+        end
         % prune every per‑modality container that has component dimension
+        pruneFrac     = getfield_or(inp,'PruneFraction', 0.10);
+        safetyFloor   = getfield_or(inp,'safetyFloor', 5); % never reduce ref below 5 columns per modality/class
         for h=1:nclass
             if inp.isInter
                 keep = cell(nM,1);
                 for n=1:nM
                     % count how many folds survived (not NaN) for each component
                     nBefore = size(I2.VCV2WPERMREF{h}{n}, 1);
-                    minFolds = round(inp.SelCompCutOff * size(I2.VCV2WPERMREF{h}{n},2));
-                    pres     = sum(~isnan(I2.VCV2WPERMREF{h}{n}),2);
-                    keep{n}  = pres >= minFolds;
-                     % how many after?
-                    if ~any(keep{n})
-                       [~, sortedIdx] = sort(pres, 'descend');
-                        nKeep = min(3, numel(sortedIdx));      % up to three or fewer
-                        keep{n}(sortedIdx(1:nKeep)) = true;
-                        fprintf('\nNo components passed selection cutoff=%.2f; ', inp.SelCompCutOff);
-                        fprintf('Falling back to best-%d components (fold counts: %s)\n', ...
-                                nKeep, mat2str(pres(sortedIdx(1:nKeep))) );
-                    end
-                    nAfter = sum(keep{n});
-                    if nclass>1
-                        fprintf('\nOut-of-memory prevention: Pruned reference components [ Modality #%g, Classifier %d ] %d → %d', n, h, nBefore, nAfter);
+                    pres    = sum(~isnan(I2.VCV2WPERMREF{h}{n}), 2);  
+                    % fractional prune settings
+                    nDrop       = floor(pruneFrac * nBefore);
+                    nDrop       = max(0, min(nDrop, nBefore - safetyFloor));
+                    
+                    if nDrop == 0
+                        % nothing to prune for this class
+                        keep{n} = true(nBefore,1);
                     else
-                        fprintf('\nOut-of-memory prevention: Pruned reference components [ Modality #%g ] %d → %d', n, nBefore, nAfter);
+                        % drop the nDrop lowest 'pres' (tie-broken deterministically)
+                        [~, asc] = sort(pres, 'ascend');         % weakest first
+                        dropIdx  = asc(1:nDrop);
+                        keep{n}     = true(nBefore,1);
+                        keep{n}(dropIdx) = false;
+                    
+                        nAfter = sum(keep{n});
+                        if nclass>1
+                            fprintf('\nFractional prune (%1.1f%%): [ Model %d, Modality #%g ] %d → %d (dropped %d least-selected)', pruneFrac*100, h, n, nBefore, nAfter, nDrop);
+                        else
+                            fprintf('\nFractional prune (%1.1f%%): [ Modality #%g ] %d → %d (dropped %d least-selected)', pruneFrac*100, n, nBefore, nAfter, nDrop);
+                        end
                     end
                 end
             else
                 % count how many folds survived (not NaN) for each component
                 nBefore = size(I2.VCV2WPERMREF{h}, 1);
-                minFolds = round(inp.SelCompCutOff * size(I2.VCV2WPERMREF{h},2));
-                pres     = sum(~isnan(I2.VCV2WPERMREF{h}),2);
-                keep     = pres >= minFolds;
-                if all(keep), continue; end    % nothing to prune for this class
+                pres    = sum(~isnan(I2.VCV2WPERMREF{h}), 2);  % [nRef x 1], selection count per component
                 
-                 % how many after?
-                if ~any(keep)
-                   [~, sortedIdx] = sort(pres, 'descend');
-                    nKeep = min(3, numel(sortedIdx));      % up to three or fewer
-                    keep(sortedIdx(1:nKeep)) = true;
-                    fprintf('\nNo components passed selection cutoff=%.2f; ', inp.SelCompCutOff);
-                    fprintf('Falling back to best-%d components (fold counts: %s)\n', ...
-                            nKeep, mat2str(pres(sortedIdx(1:nKeep))) );
-                end
-                nAfter = sum(keep);
-    
-                if nclass>1
-                    fprintf('\nOut-of-memory prevention: Pruned reference components [ Classifier %d ] %d → %d', h, nBefore, nAfter);
+                % fractional prune settings
+                nDrop       = floor(pruneFrac * nBefore);
+                nDrop       = max(0, min(nDrop, nBefore - safetyFloor));
+                
+                if nDrop == 0
+                    % nothing to prune for this class
+                    keep = true(nBefore,1);
                 else
-                    fprintf('\nOut-of-memory prevention: Pruned reference components %d → %d', nBefore, nAfter);
+                    % drop the nDrop lowest 'pres' (tie-broken deterministically)
+                    [~, asc] = sort(pres, 'ascend');         % weakest first
+                    dropIdx  = asc(1:nDrop);
+                    keep     = true(nBefore,1);
+                    keep(dropIdx) = false;
+                    nAfter = sum(keep);
+                    if nclass>1
+                        fprintf('\nFractional prune (10%%): [ Model %d ] %d → %d (dropped %d least-selected)', h, nBefore, nAfter, nDrop);
+                    else
+                        fprintf('\nFractional prune (10%%): %d → %d (dropped %d least-selected)', nBefore, nAfter, nDrop);
+                    end
                 end
                 keep = repmat({keep},nM,1);
             end
             for n = 1:nM
                 if decompfl(n)
                     % 1) prune the reference‐space weights
+                    I2.VCV1REF{h}{n} = I2.VCV1REF{h}{n}(:, keep{n});
                     if inp.isInter
-                        I2.VCV1REF{h}{n}       = I2.VCV1REF{h}{n}      (:, keep{n});
+                        I2.VCV1REFCNT{h}{n} = I2.VCV1REFCNT{h}{n}(keep{n});
                     else
-                        I2.VCV1REF{h}{1}       = I2.VCV1REF{h}{1}      (:, keep{n});
+                        if n==1, I2.VCV1REFCNT{h} = I2.VCV1REFCNT{h}(keep{n}); end
                     end
                     % 2) prune the CV2‐aggregates
                     % The 2D accumulators:
@@ -306,8 +688,19 @@ switch act
                     I2.VCV2WPERMREF{h}{n} = I2.VCV2WPERMREF{h}{n}(keep{n},:);
                     I2.VCV2WCORRREF{h}{n} = I2.VCV2WCORRREF{h}{n}(keep{n},:);
                     I2.ModComp_L2n{h}{n} = I2.ModComp_L2n{h}{n}(keep{n},:);
-                    if isfield(I2,'VCV1ENTRY') && numel(I2.VCV1ENTRY) >= h && numel(I2.VCV1ENTRY{h}) >=n && ~isempty(I2.VCV1ENTRY{h}{n})
-                        I2.VCV1ENTRY{h}{n} = I2.VCV1ENTRY{h}{n}(keep{n});
+                    % ----- Prune Dx / DxN after merge+prune (intermediate) -----
+                    if isfield(I2,'DxSUM') 
+                        if ~decompfl(n), continue; end
+                        if ~isempty(I2.DxSUM{h}{n})
+                            keepCols = keep{n};
+                            nComp = size(I2.DxSUM{h}{n},2);
+                            if numel(keepCols) > nComp
+                                keepCols = keepCols(1:nComp);
+                            end
+                            I2.DxSUM{h}{n}  = I2.DxSUM{h}{n}(:, keepCols);
+                            I2.DxSQSUM{h}{n}  = I2.DxSQSUM{h}{n}(:, keepCols);
+                            I2.DxN{h}{n} = I2.DxN{h}{n}(:, keepCols);
+                        end
                     end
                 end
             else
@@ -316,11 +709,20 @@ switch act
                 I2.VCV2WCORRREF{h} = I2.VCV2WCORRREF{h}(keep{1},:);
                 I2.ModComp_L2n{h} = I2.ModComp_L2n{h}(keep{1},:);
                 if nM>1,I2.ModComp_L2nCube{h} = I2.ModComp_L2nCube{h}(keep{1},:,:); end
-                if isfield(I2,'VCV1ENTRY') && numel(I2.VCV1ENTRY) >= h && ~isempty(I2.VCV1ENTRY{h})
-                    I2.VCV1ENTRY{h} = I2.VCV1ENTRY{h}(keep{1});
+                % ----- Prune Dx / DxN after merge+prune (intermediate) -----
+                if isfield(I2,'DxSUM') 
+                    if ~isempty(I2.DxSUM{h})
+                        keepCols = keep{1};
+                        nComp = size(I2.DxSUM{h},2);
+                        if numel(keepCols) > nComp
+                            keepCols = keepCols(1:nComp);
+                        end
+                        I2.DxSUM{h}  = I2.DxSUM{h}(:, keepCols);
+                        I2.DxSQSUM{h}  = I2.DxSQSUM{h}(:, keepCols);
+                        I2.DxN{h} = I2.DxN{h}(:, keepCols);
+                    end
                 end
             end
-            
         end
 
     case 'prune'
@@ -341,13 +743,15 @@ switch act
                     filefound = false;
                     return;
                 end
+            elseif isstruct(I1) 
+                filefound = true;
             end
         else
             error('Visualization structure I1 has to be provided!')
         end
         
         % Loop through classifiers
-         for h = 1:nclass
+        for h = 1:nclass
                 
             if any(decompfl)
                 
@@ -369,7 +773,7 @@ switch act
                 if inp.isInter
                     for n=1:nM
                         if decompfl(n)
-                            if isfield(I1,'ModComp_L2n') && numel(I1.ModComp_L2n) >= h && numel(I1.ModComp_L2n{h}) <=n && ~isempty(I1.ModComp_L2n{h}{n})
+                            if isfield(I1,'ModComp_L2n') && numel(I1.ModComp_L2n) >= h && numel(I1.ModComp_L2n{h}) >=n && ~isempty(I1.ModComp_L2n{h}{n})
                                 keepRows = nonNaNrows{n};
                                 nRefLoc  = size(I1.ModComp_L2n{h}{n},1);
                                 if numel(keepRows) > nRefLoc, keepRows = keepRows(1:nRefLoc); end
@@ -440,6 +844,26 @@ switch act
                             end
                         end
                     end
+                    if inp.isInter
+                        % --- Dx: prune component dimension identically to VCV1 ---
+                        if isfield(I1,'Dx') && numel(I1.Dx,1) >= h && numel(I1.Dx{h}) >= n && ~isempty(I1.Dx{h}{n})
+                            Dx_n  = I1.Dx{h}{n};         % [subj × CV1_model × comp]
+                            nComp = size(Dx_n, 3);
+                            keepIdx = keepIdxAll(keepIdxAll <= nComp);
+                            if ~isempty(keepIdx)
+                                I1.Dx{h}{n} = Dx_n(:,:, keepIdx);
+                            end
+                        end
+                    elseif inp.isEarly && n==1
+                        if isfield(I1,'Dx') && numel(I1.Dx,1) >= h
+                            Dx_n  = I1.Dx{h};         % [subj × CV1_model × comp]
+                            nComp = size(Dx_n, 3);
+                            keepIdx = keepIdxAll(keepIdxAll <= nComp);
+                            if ~isempty(keepIdx)
+                                I1.Dx{h} = Dx_n(:,:, keepIdx);
+                            end
+                        end
+                    end
                 end
             end
          end
@@ -456,6 +880,8 @@ switch act
                     filefound = false;
                     return;
                 end
+            else 
+                filefound = true;
             end
          else
             error('Visualization structure I1 has to be provided!')
@@ -496,26 +922,32 @@ switch act
             % --- ensure reference container shape ---
             if ~isfield(I2,'VCV1REF') || numel(I2.VCV1REF) < h || isempty(I2.VCV1REF{h})
                 I2.VCV1REF{h} = cell(1,nM);
+                I2.VCV1REFCNT{h} = cell(1,nM);
             elseif numel(I2.VCV1REF{h}) < nM
                 I2.VCV1REF{h}(nM) = {[]};
+                I2.VCV1REFCNT{h}(nM) = {[]};
             end
         
             % ==================== fold loop ====================
             for f = 1:nFolds
-        
+                
+                CVPOS.CV1f = f;
+                
                 % 1) Build per-modality source cells (prune empty/NaN cols)
                 src_cells   = cell(1,nM);
                 validCols   = cell(1,nM);
+                vc = cell(1,nM);
                 for n = 1:nM
                     if size(I1.VCV1{h,n},3) >0
                         X = reshape(I1.VCV1{h,n}(:, f, :), size(I1.VCV1{h,n},1), []);
                     else
                         X = I1.VCV1{h,n}(:,f);
                     end
-                    vc = any(isfinite(X) & X ~= 0, 1);
-                    validCols{n} = vc;
-                    src_cells{n} = X(:, vc);
+                    vc{n} = any(isfinite(X) & X ~= 0, 1);
+                    validCols{n} = vc{n};
+                    src_cells{n} = X(:, vc{n});
                 end
+
                 anyComp = any(cellfun(@(v) ~isempty(v) && any(v), validCols(actMods)));
                 if ~anyComp
                     % nothing to align this fold
@@ -526,12 +958,23 @@ switch act
         
                 if ~inp.isInter
                     % ================= EARLY FUSION (one joint call) =================
-                    Ref_in = I2.VCV1REF{h};     % 1×nM cells (some may be empty)
-                    Tx_in  = src_cells;         % 1×nM cells (pruned)
+                    Ref_in = I2.VCV1REF{h};      % 1×nM cells (some may be empty)
+                    Refcnt_in = I2.VCV1REFCNT{h};
+                    Tx_in  = src_cells;          % 1×nM cells (pruned)
         
                     haveRef = any(~cellfun(@isempty, Ref_in));
+
+                     % ----- Dx_in for early or late fusion: pass all modalities at once -----
+                    if isfield(I1,'Dx') && numel(I1.Dx) >= h && ~isempty(I1.Dx{h})
+                        Dx_slice = I1.Dx{h}(:, f, vc{1});  
+                        nSubj = size(Dx_slice,1);
+                        Dx_in    = {reshape(Dx_slice, size(Dx_slice,1), [])};  
+                    else
+                        Dx_in = [];
+                        nSubj = 0;
+                    end
         
-                    [I1, Tx_out, ~, assignmentVec, ~, Ref_out] = nk_VisXRealignComponentsHelper( I1, inp, haveRef, Tx_in, Ref_in, nM, f, ill, [], h, I1.Fadd{h,f}, I1.Vind{h,f});
+                    [I1, Tx_out, ~, Dx_out, assignmentVec, ~, Ref_out, Refcnt_out] = nk_VisXRealignComponentsHelper( I1, inp, haveRef, Tx_in, Dx_in, Ref_in, Refcnt_in, nM, f, ill, [], h, I1.Fadd{h,f}, I1.Vind{h,f});
         
                     % --- detect growth & persist ---
                     nRef_old = 0;
@@ -546,27 +989,24 @@ switch act
                     if grew
                         % persist updated ref & meta
                         I2.VCV1REF{h} = Ref_out;
-                    
-                        % grow/seed entry vector (per your original semantics: single vector per class)
-                        entryVal = f;
-                        if ~isfield(I2,'VCV1ENTRY') || numel(I2.VCV1ENTRY) < h || isempty(I2.VCV1ENTRY{h})
-                            I2.VCV1ENTRY{h} = repmat(entryVal, nRef_new, 1);
-                        else
-                            kAdd = nRef_new - numel(I2.VCV1ENTRY{h});
-                            if kAdd > 0
-                                I2.VCV1ENTRY{h} = [I2.VCV1ENTRY{h}; repmat(entryVal, kAdd, 1)];
-                            end
-                        end
+                        I2.VCV1REFCNT{h} = Refcnt_out;
                     end
+
                     % --- scatter aligned maps back to cubes (ref-ordered columns) ---
                     nRef_combined = nRef_new;
                     for n = actMods
-                        Aln_n = full(Tx_out{n});  % [nFeat_n x nRef_combined]
+                        Aln_n = Tx_out{n};  % [nFeat_n x nRef_combined]
                         old3 = size(I1.VCV1{h,n},3);
                         if nRef_combined > old3
                             I1.VCV1{h,n}(:,:,old3+1:nRef_combined) = NaN;
+                            if isfield(I1,'Dx') && ~isempty(I1.Dx{h})
+                                I1.Dx{h}(:,:,old3+1:nRef_combined) = NaN;
+                            end
                         end
                         I1.VCV1{h,n}(:, f, 1:nRef_combined) = reshape(Aln_n, [size(Aln_n,1), 1, nRef_combined]);
+                        if isfield(I1,'Dx') && ~isempty(I1.Dx{h})
+                            I1.Dx{h}(:, f, 1:nRef_combined) = reshape(Dx_out{1}, [nSubj, 1, nRef_combined]);
+                        end
                     end
                     
                     % --- perm-stat cubes: realign with same assignment (unchanged logic) ---
@@ -594,48 +1034,53 @@ switch act
                             end
                         end
                     end
-        
                 else
                     % ================ INTERMEDIATE FUSION (loop DR mods) ================
                     for n = actMods
                         Ref_in = I2.VCV1REF{h}{n};         % 1x1 cell
+                        Refcnt_in = I2.VCV1REFCNT{h}{n};         % 1x1 cell
                         Tx_in  = src_cells{n};             % 1x1 cell
                         haveRef_n = ~isempty(Ref_in);
+
+                         % ----- Dx_in for early or late fusion: pass all modalities at once -----
+                         if isfield(I1,'Dx') && numel(I1.Dx) >= h && ~isempty(I1.Dx{h}) && numel(I1.Dx{h}) >= n && ~isempty(I1.Dx{h}{n})
+                            Dx_slice = I1.Dx{h}{n}(:, f, vc{n});  
+                            Dx_in = reshape(Dx_slice, size(Dx_slice,1), []);  
+                            nSubj = size(Dx_slice,1);
+                        else
+                            Dx_in = [];
+                            nSubj = 0;
+                        end
         
-                        [I1, Tx_out, ~, aVec_n, ~, Ref_out] = nk_VisXRealignComponentsHelper(I1, inp, haveRef_n, Tx_in, Ref_in, nM, f, ill, n, h, I1.Fadd{h,f}, I1.Vind{h,f});
+                        [I1, Tx_out, ~, Dx_out, aVec_n, ~, Ref_out, Refcnt_out] = ...
+                            nk_VisXRealignComponentsHelper(I1, inp, haveRef_n, Tx_in, Dx_in, Ref_in, Refcnt_in, nM, f, ill, n, h, I1.Fadd{h,f}, I1.Vind{h,f});
         
                         % --- detect growth & persist (per modality) ---
                         nRef_old = 0;
                         if ~isempty(I2.VCV1REF{h}{n}), nRef_old = size(I2.VCV1REF{h}{n}, 2); end
-                        nRef_n = size(Ref_out, 2);
-                        grew_n = (nRef_n > nRef_old);
+                        nRef = size(Ref_out, 2);
+                        grew = (nRef > nRef_old);
                         
-                        if grew_n
+                        if grew
                             % persist updated ref
                             I2.VCV1REF{h}{n} = Ref_out;
-                        
-                            % per-modality entry vector (mirror your early-fusion semantics but per mod)
-                            if ~isfield(I2,'VCV1ENTRY') || numel(I2.VCV1ENTRY) < h || isempty(I2.VCV1ENTRY{h})
-                                I2.VCV1ENTRY{h} = cell(1,nM);
-                            end
-                            if isempty(I2.VCV1ENTRY{h}) || numel(I2.VCV1ENTRY{h}) < n || isempty(I2.VCV1ENTRY{h}{n})
-                                I2.VCV1ENTRY{h}{n} = repmat(f, nRef_n, 1);
-                            else
-                                kAdd = nRef_n - numel(I2.VCV1ENTRY{h}{n});
-                                if kAdd > 0
-                                    I2.VCV1ENTRY{h}{n} = [I2.VCV1ENTRY{h}{n}; repmat(f, kAdd, 1)];
-                                end
-                            end
+                            I2.VCV1REFCNT{h}{n} = Refcnt_out;
                         end
                         
                         % --- scatter aligned map for modality n (ref order) ---
                         Aln_n = full(Tx_out);                  % [nFeat_n x nRef_n]
                         old3  = size(I1.VCV1{h,n},3);
-                        if nRef_n > old3
-                            I1.VCV1{h,n}(:,:,old3+1:nRef_n) = NaN;
+                        if nRef > old3
+                            I1.VCV1{h,n}(:,:,old3+1:nRef) = NaN;
+                            if isfield(I1,'Dx') && ~isempty(I1.Dx{h})
+                                I1.Dx{h}{n}(:,:,old3+1:nRef) = NaN;
+                            end
                         end
-                        I1.VCV1{h,n}(:, f, 1:nRef_n) = reshape(Aln_n, [size(Aln_n,1), 1, nRef_n]);
-                        
+                        I1.VCV1{h,n}(:, f, 1:nRef) = reshape(Aln_n, [size(Aln_n,1), 1, nRef]);
+                        if isfield(I1,'Dx') && ~isempty(I1.Dx{h})
+                            I1.Dx{h}{n}(:, f, 1:nRef) = reshape(Dx_out, [nSubj, 1, nRef]);
+                        end
+
                         % --- perm-stat cubes for modality n (realign using same assignment) ---
                         if permfl && ~isempty(I1.VCV1PERM{h,n})
                             for fld = {'VCV1PERM','VCV1PERM_FDR','VCV1ZSCORE'}
@@ -644,14 +1089,14 @@ switch act
                                 slice = squeeze(A(:,f,:));              % [nFeat x nComp]
                                 vc    = validCols{n};                   % same pruning
                                 srcPn = slice(:, vc);
-                                AlnPn = nan(size(srcPn,1), nRef_n);
+                                AlnPn = nan(size(srcPn,1), nRef);
                                 keepP = aVec_n > 0 & aVec_n <= size(srcPn,2);
                                 if any(keepP), AlnPn(:, keepP) = srcPn(:, aVec_n(keepP)); end
                                 old3 = size(I1.(fld{1}){h,n},3);
-                                if nRef_n > old3
-                                    I1.(fld{1}){h,n}(:,:,old3+1:nRef_n) = NaN;
+                                if nRef > old3
+                                    I1.(fld{1}){h,n}(:,:,old3+1:nRef) = NaN;
                                 end
-                                I1.(fld{1}){h,n}(:, f, 1:nRef_n) = reshape(AlnPn, [size(AlnPn,1), 1, nRef_n]);
+                                I1.(fld{1}){h,n}(:, f, 1:nRef) = reshape(AlnPn, [size(AlnPn,1), 1, nRef]);
                             end
                         end
                     end
@@ -708,7 +1153,7 @@ switch act
                     I1.VCV1STD{h,n} = (squeeze(std(I1.VCV1{h,n}, [], 2, 'omitnan')) ./ sqrt(I1.VCV1NMODEL(h)))*1.96;
                 end
 
-                if ~any(decompfl)
+                if ~decompfl(n)
                     % --- NON-DR containers (unchanged) ---
                     if isempty(I2.PCV2SUM{h,n})
                         I2.PCV2SUM{h,n}(badcoords) = I1.VCV1SUM{h,n}(badcoords);
@@ -740,16 +1185,16 @@ switch act
         
                 % ===== PERM accumulation (make modality-local) =====
                 if permfl
-                    if ~any(decompfl)
+                    if ~decompfl(n)
                         % non-DR (unchanged)
                         if isempty(I2.VCV2PERM{h, n})
-                            I2.VCV2PERM{h, n}       = double(sum(I1.VCV1PERM{h, n}, 2, 'omitnan'));
+                            I2.VCV2PERM    {h, n}   = double(sum(I1.VCV1PERM{h, n}, 2, 'omitnan'));
                             I2.VCV2PERM_FDR{h, n}   = double(sum(I1.VCV1PERM_FDR{h, n}, 2, 'omitnan'));
-                            I2.VCV2ZSCORE{h, n}     = double(sum(I1.VCV1ZSCORE{h, n}, 2, 'omitnan'));
+                            I2.VCV2ZSCORE  {h, n}   = double(sum(I1.VCV1ZSCORE{h, n}, 2, 'omitnan'));
                         else
-                            I2.VCV2PERM{h, n}       = I2.VCV2PERM{h,n}       + double(sum(I1.VCV1PERM{h, n}, 2, 'omitnan'));
+                            I2.VCV2PERM    {h, n}   = I2.VCV2PERM{h,n}       + double(sum(I1.VCV1PERM{h, n}, 2, 'omitnan'));
                             I2.VCV2PERM_FDR{h, n}   = I2.VCV2PERM_FDR{h,n}   + double(sum(I1.VCV1PERM_FDR{h, n}, 2, 'omitnan'));
-                            I2.VCV2ZSCORE{h, n}     = I2.VCV2ZSCORE{h,n}     + double(sum(I1.VCV1ZSCORE{h, n}, 2, 'omitnan'));
+                            I2.VCV2ZSCORE  {h, n}   = I2.VCV2ZSCORE{h,n}     + double(sum(I1.VCV1ZSCORE{h, n}, 2, 'omitnan'));
                         end
                     else
                         % DR (works for component-wise and no-component; nComp==1 in the latter)
@@ -805,7 +1250,7 @@ switch act
                     I2.VCV2SUM   {h,n}   = I1.VCV1SUM  {h,n};
                     I2.VCV2SQ    {h,n}   = I1.VCV1SQ   {h,n};
                     I2.VCV2SEL   {h,n}   = I1.VCV1SEL  {h,n};
-                    I2.VCV2PROB  {h,n}   = indMEANgrSE;
+                    I2.VCV2PROB  {h,n}   = single(indMEANgrSE);
                 else
                     if any(decompfl)
                         if extra>0
@@ -830,10 +1275,10 @@ switch act
                     negE = single(E < 0); negE(notfiniteE) = NaN; negCount = squeeze(sum(negE, 2, 'omitnan'));
                     I2.SignPosCount{h,n} = nk_NanMatrixAddition(I2.SignPosCount{h,n}, posCount);
                     I2.SignNegCount{h,n} = nk_NanMatrixAddition(I2.SignNegCount{h,n}, negCount);
-                    I2.VCV2SUM	       {h,n} = nk_NanMatrixAddition(I2.VCV2SUM{h,n}, I1.VCV1SUM{h,n});
-                    I2.VCV2SQ           {h,n} = nk_NanMatrixAddition(I2.VCV2SQ{h,n},  I1.VCV1SQ{h,n});
-                    I2.VCV2SEL          {h,n} = nk_NanMatrixAddition(I2.VCV2SEL{h,n}, I1.VCV1SEL{h,n});
-                    I2.VCV2PROB         {h,n} = nk_NanMatrixAddition(I2.VCV2PROB{h,n}, indMEANgrSE);
+                    I2.VCV2SUM{h,n} = nk_NanMatrixAddition(I2.VCV2SUM{h,n}, I1.VCV1SUM{h,n});
+                    I2.VCV2SQ{h,n} = nk_NanMatrixAddition(I2.VCV2SQ{h,n},  I1.VCV1SQ{h,n});
+                    I2.VCV2SEL{h,n} = nk_NanMatrixAddition(I2.VCV2SEL{h,n}, I1.VCV1SEL{h,n});
+                    I2.VCV2PROB{h,n} = nk_NanMatrixAddition(I2.VCV2PROB{h,n}, indMEANgrSE);
                 end
             end
         
@@ -848,53 +1293,82 @@ switch act
             % keep WPERMREF/WCORRREF only for component-wise DR
             if any(decompfl) && compwise
            
-                actMods  = find(decompfl(:)~=0).';
-            
+                actMods     = find(decompfl(:)~=0).';
+                subjIdx     = CV.TestInd{CVPOS.CV2p, CVPOS.CV2f}; 
+                maxSubj     = size(inp.labels,1);
+
                 if ~inp.isInter
                     % ========================= EARLY FUSION (original behavior) =========================
                     % ---------- pull current combined-space columns once ----------
                     curW = []; curC = [];
                     if isfield(I1,'VCV1WPERMREF') && numel(I1.VCV1WPERMREF) >= h && ~isempty(I1.VCV1WPERMREF{h})
-                        curW = I1.VCV1WPERMREF{h};   % [nRef_combined × nCV1_models]
+                        curW = I1.VCV1WPERMREF{h};   % [nComponents × nCV1_models]
                     end
                     if isfield(I1,'VCV1WCORRREF') && numel(I1.VCV1WCORRREF) >= h && ~isempty(I1.VCV1WCORRREF{h})
-                        curC = I1.VCV1WCORRREF{h};   % [nRef_combined × nCV1_models]
+                        curC = I1.VCV1WCORRREF{h};   % [nComponents × nCV1_models]
                     end
             
-                    if ~(isempty(curW) && isempty(curC))
-                        if isempty(curW) && ~isempty(curC), curW = nan(size(curC)); end
-                        if isempty(curC) && ~isempty(curW), curC = nan(size(curW)); end
-            
-                        nRef_combined = max(size(curW,1), size(curC,1));
-            
-                        % ---------- ensure CV2-level combined containers exist ----------
-                        if ~isfield(I2,'VCV2WPERMREF') || numel(I2.VCV2WPERMREF) < h || isempty(I2.VCV2WPERMREF{h})
-                            I2.VCV2WPERMREF{h} = nan(nRef_combined, 0);
-                        end
-                        if ~isfield(I2,'VCV2WCORRREF') || numel(I2.VCV2WCORRREF) < h || isempty(I2.VCV2WCORRREF{h})
-                            I2.VCV2WCORRREF{h} = nan(nRef_combined, 0);
-                        end
-            
-                        % pad rows if the combined ref grew
-                        rOld = size(I2.VCV2WPERMREF{h},1); c = size(I2.VCV2WPERMREF{h},2);
-                        if rOld < nRef_combined
-                            I2.VCV2WPERMREF{h} = [I2.VCV2WPERMREF{h}; nan(nRef_combined - rOld, c)];
-                        end
-                        rOld = size(I2.VCV2WCORRREF{h},1); c = size(I2.VCV2WCORRREF{h},2);
-                        if rOld < nRef_combined
-                            I2.VCV2WCORRREF{h} = [I2.VCV2WCORRREF{h}; nan(nRef_combined - rOld, c)];
-                        end
-            
-                        % ---------- append current model’s combined columns ----------
-                        I2.VCV2WPERMREF{h} = [I2.VCV2WPERMREF{h}, curW];
-                        I2.VCV2WCORRREF{h} = [I2.VCV2WCORRREF{h}, curC];
+                    % --- ensure reference space grows in lock-step with WPERMREF rows ---
+                    % authoritative reference size AFTER prune_memory
+                    refCols = size(I2.VCV1REF{h}{1}, 2);   % authoritative after prune/merge
+                    nCur    = size(curW,1);                % == size(curC,1)
+                    
+                    % Harmonize CV1 contributions to refCols
+                    if nCur > refCols
+                        curW = curW(1:refCols, :);
+                        curC = curC(1:refCols, :);
+                    elseif nCur < refCols
+                        if ~isempty(curW) && size(curW,1) < refCols, curW(end+1:refCols, :) = NaN; end
+                        if ~isempty(curC) && size(curC,1) < refCols, curC(end+1:refCols, :) = NaN; end
                     end
-            
+                    
+                    % Ensure presence tables have refCols rows (grow rows, NOT reference)
+                    if isempty(I2.VCV2WPERMREF{h}), I2.VCV2WPERMREF{h} = nan(refCols, 0); end
+                    if size(I2.VCV2WPERMREF{h},1) < refCols
+                        I2.VCV2WPERMREF{h} = [I2.VCV2WPERMREF{h}; nan(refCols - size(I2.VCV2WPERMREF{h},1), size(I2.VCV2WPERMREF{h},2))];
+                    end
+                    if isempty(I2.VCV2WCORRREF{h}), I2.VCV2WCORRREF{h} = nan(refCols, 0); end
+                    if size(I2.VCV2WCORRREF{h},1) < refCols
+                        I2.VCV2WCORRREF{h} = [I2.VCV2WCORRREF{h}; nan(refCols - size(I2.VCV2WCORRREF{h},1), size(I2.VCV2WCORRREF{h},2))];
+                    end
+                    
+                    % Append (ref count stays fixed)
+                    I2.VCV2WPERMREF{h} = [I2.VCV2WPERMREF{h}, curW];
+                    I2.VCV2WCORRREF{h} = [I2.VCV2WCORRREF{h}, curC];
+
+                    % ===== Accumulate Dx (fractionated decision scores) at CV2 level =====
+                    if isfield(I1,'Dx') && numel(I1.Dx) >= h 
+
+                        Dx3 = squeeze(sum(I1.Dx{h},2,'omitnan')) ;   
+                        DxSQ3 = squeeze(sum(I1.Dx{h}.^2,2,'omitnan')) ;   
+                        DxN3 = squeeze(sum(~isnan(I1.Dx{h}),2,'omitnan'));  
+                        
+                        % --- transfer to I2.DxSUM / I2.DxN  ---
+                        if isempty(I2.DxSUM{h})
+                            nRef                       = size(Dx3,2);
+                            I2.DxSUM{h}                = nan(maxSubj,nRef);
+                            I2.DxSQSUM{h}              = nan(maxSubj,nRef);
+                            I2.DxN{h}                  = nan(maxSubj,nRef);
+                            I2.DxSUM{h}(subjIdx,:)     = Dx3;
+                            I2.DxSQSUM{h}(subjIdx,:)   = DxSQ3;
+                            I2.DxN{h}(subjIdx,:)       = DxN3;
+                        else
+                            I2.DxSUM{h} = harmonizeSize(I2.DxSUM{h}, Dx3); 
+                            I2.DxSQSUM{h} = harmonizeSize(I2.DxSQSUM{h}, DxSQ3); 
+                            I2.DxN{h} = harmonizeSize(I2.DxN{h}, DxN3);
+                            I2.DxSUM{h}(subjIdx,:)     = nk_NanMatrixAddition(I2.DxSUM{h}(subjIdx,:), Dx3);
+                            I2.DxSQSUM{h}(subjIdx,:)   = nk_NanMatrixAddition(I2.DxSQSUM{h}(subjIdx,:), DxSQ3);
+                            I2.DxN{h}(subjIdx,:)       = nk_NanMatrixAddition(I2.DxN{h}(subjIdx,:),DxN3);
+                        end
+                    end
                 else
                     % ========================= INTERMEDIATE FUSION (per-modality) =========================
                     % CV1 containers are per-modality cells: I1.VCV1WPERMREF{h}{n}, I1.VCV1WCORRREF{h}{n}
                     % Accumulate into per-mod CV2 cells: I2.VCV2WPERMREF{h}{n}, I2.VCV2WCORRREF{h}{n}
-            
+                    % pull per-modality CV1 WPERMREF / WCORRREF for this CV2 fold
+                    curW = [];
+                    curC = [];
+                    
                     % ensure CV2 cell arrays exist for this class
                     if ~isfield(I2,'VCV2WPERMREF') || numel(I2.VCV2WPERMREF) < h || isempty(I2.VCV2WPERMREF{h})
                         I2.VCV2WPERMREF{h} = cell(1,nM);
@@ -902,41 +1376,67 @@ switch act
                     if ~isfield(I2,'VCV2WCORRREF') || numel(I2.VCV2WCORRREF) < h || isempty(I2.VCV2WCORRREF{h})
                         I2.VCV2WCORRREF{h} = cell(1,nM);
                     end
+
+                    if isfield(I1,'VCV1WPERMREF') && numel(I1.VCV1WPERMREF) >= h && ...
+                            ~isempty(I1.VCV1WPERMREF{h}) && numel(I1.VCV1WPERMREF{h}) >= n && ...
+                            ~isempty(I1.VCV1WPERMREF{h}{n})
+                        curW = I1.VCV1WPERMREF{h}{n};    % [nRef_n × nCV1_models]
+                    end
+                    if isfield(I1,'VCV1WCORRREF') && numel(I1.VCV1WCORRREF) >= h && ...
+                            ~isempty(I1.VCV1WCORRREF{h}) && numel(I1.VCV1WCORRREF{h}) >= n && ...
+                            ~isempty(I1.VCV1WCORRREF{h}{n})
+                        curC = I1.VCV1WCORRREF{h}{n};    % [nRef_n × nCV1_models]
+                    end
             
                     for n = actMods
-                        curW = []; curC = [];
-                        if isfield(I1,'VCV1WPERMREF') && numel(I1.VCV1WPERMREF) >= h && ~isempty(I1.VCV1WPERMREF{h}) ...
-                                && numel(I1.VCV1WPERMREF{h}) >= n
-                            curW = I1.VCV1WPERMREF{h}{n};   % [nRef_n × nCV1_models] or []
+                        refCols = size(I2.VCV1REF{h}{n}, 2);
+                        nCur    = size(curW,1);   % == size(curC,1)
+                        
+                        if nCur > refCols
+                            curW = curW(1:refCols, :);
+                            curC = curC(1:refCols, :);
+                        elseif nCur < refCols
+                            if ~isempty(curW) && size(curW,1) < refCols, curW(end+1:refCols, :) = NaN; end
+                            if ~isempty(curC) && size(curC,1) < refCols, curC(end+1:refCols, :) = NaN; end
                         end
-                        if isfield(I1,'VCV1WCORRREF') && numel(I1.VCV1WCORRREF) >= h && ~isempty(I1.VCV1WCORRREF{h}) ...
-                                && numel(I1.VCV1WCORRREF{h}) >= n
-                            curC = I1.VCV1WCORRREF{h}{n};   % [nRef_n × nCV1_models] or []
+                        
+                        if isempty(I2.VCV2WPERMREF{h}{n}), I2.VCV2WPERMREF{h}{n} = nan(refCols, 0); end
+                        if size(I2.VCV2WPERMREF{h}{n},1) < refCols
+                            I2.VCV2WPERMREF{h}{n} = [I2.VCV2WPERMREF{h}{n}; nan(refCols - size(I2.VCV2WPERMREF{h}{n},1), size(I2.VCV2WPERMREF{h}{n},2))];
                         end
-            
-                        if isempty(curW) && isempty(curC), continue; end
-                        if isempty(curW) && ~isempty(curC), curW = nan(size(curC)); end
-                        if isempty(curC) && ~isempty(curW), curC = nan(size(curW)); end
-            
-                        nRef_n = max(size(curW,1), size(curC,1));
-            
-                        % ensure CV2 per-mod containers exist & have enough rows
-                        if isempty(I2.VCV2WPERMREF{h}{n})
-                            I2.VCV2WPERMREF{h}{n} = nan(nRef_n, 0);
-                        elseif size(I2.VCV2WPERMREF{h}{n},1) < nRef_n
-                            c = size(I2.VCV2WPERMREF{h}{n},2);
-                            I2.VCV2WPERMREF{h}{n} = [I2.VCV2WPERMREF{h}{n}; nan(nRef_n - size(I2.VCV2WPERMREF{h}{n},1), c)];
+                        if isempty(I2.VCV2WCORRREF{h}{n}), I2.VCV2WCORRREF{h}{n} = nan(refCols, 0); end
+                        if size(I2.VCV2WCORRREF{h}{n},1) < refCols
+                            I2.VCV2WCORRREF{h}{n} = [I2.VCV2WCORRREF{h}{n}; nan(refCols - size(I2.VCV2WCORRREF{h}{n},1), size(I2.VCV2WCORRREF{h}{n},2))];
                         end
-                        if isempty(I2.VCV2WCORRREF{h}{n})
-                            I2.VCV2WCORRREF{h}{n} = nan(nRef_n, 0);
-                        elseif size(I2.VCV2WCORRREF{h}{n},1) < nRef_n
-                            c = size(I2.VCV2WCORRREF{h}{n},2);
-                            I2.VCV2WCORRREF{h}{n} = [I2.VCV2WCORRREF{h}{n}; nan(nRef_n - size(I2.VCV2WCORRREF{h}{n},1), c)];
-                        end
-            
-                        % append current CV1 model columns for this modality
+                        
                         I2.VCV2WPERMREF{h}{n} = [I2.VCV2WPERMREF{h}{n}, curW];
                         I2.VCV2WCORRREF{h}{n} = [I2.VCV2WCORRREF{h}{n}, curC];
+                        % ===== Accumulate Dx (fractionated decision scores) at CV2 level =====
+                        if isfield(I1,'Dx') && numel(I1.Dx) >= h && numel(I1.Dx{h}) >= n && ~isempty(I1.Dx{h}{n})
+                            
+                            Dx3 = squeeze(sum(I1.Dx{h}{n},2,'omitnan'));
+                            DxSQ3 = squeeze(sum(I1.Dx{h}{n}.^2,2,'omitnan'));
+                            DxN3 = squeeze(sum(~isnan(I1.Dx{h}{n}),2,'omitnan'));  
+                            
+                            % --- transfer to I2.DxSUM for this modality ---
+                            if ~isfield(I2,'DxSUM') || isempty(I2.DxSUM{h}{n})
+                                nRef_n                      = size(Dx3,2);
+                                I2.DxSUM{h}{n}              = nan(maxSubj, nRef_n);
+                                I2.DxSQSUM{h}{n}            = nan(maxSubj, nRef_n);
+                                I2.DxN{h}{n}                = nan(maxSubj, nRef_n);
+                                I2.DxSUM{h}{n}(subjIdx,:)   = Dx3;
+                                I2.DxSQSUM{h}{n}(subjIdx,:) = DxSQ3;
+                                I2.DxN{h}{n}(subjIdx,:)     = DxN3;
+                            else
+                                I2.DxSUM{h}{n} = harmonizeSize(I2.DxSUM{h}{n}, Dx3); 
+                                I2.DxSQSUM{h}{n} = harmonizeSize(I2.DxSQSUM{h}{n}, DxSQ3); 
+                                I2.DxN{h}{n} = harmonizeSize(I2.DxN{h}{n}, DxN3);
+                                I2.DxSUM{h}{n}(subjIdx,:)   = nk_NanMatrixAddition(I2.DxSUM{h}{n}(subjIdx,:),Dx3);
+                                I2.DxSQSUM{h}{n}(subjIdx,:) = nk_NanMatrixAddition(I2.DxSQSUM{h}{n}(subjIdx,:),DxSQ3);
+                                I2.DxN{h}{n}(subjIdx,:)     = nk_NanMatrixAddition(I2.DxN{h}{n}(subjIdx,:),DxN3);
+                            end
+            
+                        end
                     end
                 end
             
@@ -959,11 +1459,11 @@ switch act
                         % ---------- EARLY: combined per-component L2 ----------
                         % ensure I1 combined vector exists and tall enough
                         if ~isfield(I1,'ModComp_L2n') || numel(I1.ModComp_L2n) < h || isempty(I1.ModComp_L2n{h})
-                            I1.ModComp_L2n{h} = nan(nRef_combined, ll);
-                        elseif size(I1.ModComp_L2n{h},1) < nRef_combined
-                            I1.ModComp_L2n{h}(end+1:nRef_combined,:) = NaN;
+                            I1.ModComp_L2n{h} = nan(nCur, ll);
+                        elseif size(I1.ModComp_L2n{h},1) < nCur
+                            I1.ModComp_L2n{h}(end+1:nCur,:) = NaN;
                         end
-                        L2_cv2_col = mean(I1.ModComp_L2n{h}, 2, 'omitnan');   % [nRef_combined × 1]
+                        L2_cv2_col = mean(I1.ModComp_L2n{h}, 2, 'omitnan');   % [nComponents × 1]
             
                         if ~isfield(I2,'ModComp_L2n') || numel(I2.ModComp_L2n) < h || isempty(I2.ModComp_L2n{h})
                             I2.ModComp_L2n{h} = L2_cv2_col;
@@ -980,9 +1480,9 @@ switch act
                         if nM>1
                             % combined per-component × modality L2 cube
                             if ~isfield(I1,'ModComp_L2nCube') || numel(I1.ModComp_L2nCube) < h || isempty(I1.ModComp_L2nCube{h})
-                                I1.ModComp_L2nCube{h} = nan(nRef_combined, nM, ll);
-                            elseif size(I1.ModComp_L2nCube{h},1) < nRef_combined
-                                I1.ModComp_L2nCube{h} = cat(1, I1.ModComp_L2nCube{h}, nan(nRef_combined - size(I1.ModComp_L2nCube{h},1), nM, size(I1.ModComp_L2nCube{h},3)));
+                                I1.ModComp_L2nCube{h} = nan(nCur, nM, ll);
+                            elseif size(I1.ModComp_L2nCube{h},1) < nCur
+                                I1.ModComp_L2nCube{h} = cat(1, I1.ModComp_L2nCube{h}, nan(nCur - size(I1.ModComp_L2nCube{h},1), nM, size(I1.ModComp_L2nCube{h},3)));
                             end
                             L2_cv2_slice = mean(I1.ModComp_L2nCube{h}, 3, 'omitnan');   % [nRef_combined × nM]
             
@@ -1050,6 +1550,7 @@ switch act
         
             % ---- modality-wise: I2.ModAgg_L2nShare (unchanged; valid for both modes) ----
             if isfield(I2,'ModAgg_L2nShare') && numel(I2.ModAgg_L2nShare) >= h && ~isempty(I2.ModAgg_L2nShare{h})
+
                 Mshare = I2.ModAgg_L2nShare{h};             % [nM x ll]
                 [nM_loc, ill_loc] = size(Mshare);
         
@@ -1096,7 +1597,7 @@ switch act
                     Pcv2 = []; Ccv2 = [];
                     if isfield(I2,'VCV2WPERMREF') && numel(I2.VCV2WPERMREF) >= h && ~isempty(I2.VCV2WPERMREF{h}), Pcv2 = I2.VCV2WPERMREF{h}; end
                     if isfield(I2,'VCV2WCORRREF') && numel(I2.VCV2WCORRREF) >= h && ~isempty(I2.VCV2WCORRREF{h}), Ccv2 = I2.VCV2WCORRREF{h}; end
-        
+
                     % build per-fold column counts up to current CV2 fold 'll'
                     if isfield(I2,'VCV2NMODEL_PERFOLD') && numel(I2.VCV2NMODEL_PERFOLD) >= h && ~isempty(I2.VCV2NMODEL_PERFOLD{h})
                         cpf_all = I2.VCV2NMODEL_PERFOLD{h}(:)';                  
@@ -1516,9 +2017,6 @@ switch act
                     if size(Pcv2_done,1) < nRef, Pcv2_done(end+1:nRef, :) = NaN; elseif size(Pcv2_done,1) > nRef, Pcv2_done = Pcv2_done(1:nRef,:); end
                     if size(Ccv2_done,1) < nRef, Ccv2_done(end+1:nRef, :) = NaN; elseif size(Ccv2_done,1) > nRef, Ccv2_done = Ccv2_done(1:nRef,:); end
         
-                    % convert to -log10(p) (as in your original report_final)
-                    Pcv2_done = -log10(Pcv2_done);
-        
                     % presence & means (same policy as 'report')
                     present_cv2 = zeros(nRef,1);
                     denom_cv2   = repmat(total_cols, nRef, 1);
@@ -1528,7 +2026,13 @@ switch act
         
                     if total_cols > 0
                         present_cv2 = sum(isfinite(Pcv2_done) | isfinite(Ccv2_done), 2);
-                        meanP_cv2   = mean(Pcv2_done, 2, 'omitnan');
+                        if ~isfield(I2,'VCV2WPERMREF_FDR_GLOBAL')
+                            meanP_cv2   = nm_nanmean(Pcv2_done,2);
+                        else
+                            meanP_cv2   = I2.VCV2WPERMREF_FDR_GLOBAL{h}(I2.KEEP{h});
+                        end
+                        % convert to -log10(p) (as in your original report_final)
+                        meanP_cv2   = -log10(meanP_cv2);
                         meanR_cv2   = mean(Ccv2_done, 2, 'omitnan');
         
                         for i = 1:nRef
@@ -1671,9 +2175,6 @@ switch act
                         if size(Pcv2,1) < nRef, Pcv2(end+1:nRef,:) = NaN; elseif size(Pcv2,1) > nRef, Pcv2 = Pcv2(1:nRef,:); end
                         if size(Ccv2,1) < nRef, Ccv2(end+1:nRef,:) = NaN; elseif size(Ccv2,1) > nRef, Ccv2 = Ccv2(1:nRef,:); end
         
-                        % convert to -log10(p) for reporting
-                        Pcv2 = -log10(Pcv2);
-        
                         % presence & means
                         present_cv2 = zeros(nRef,1);
                         denom_cv2   = repmat(total_cols, nRef, 1);
@@ -1683,7 +2184,13 @@ switch act
         
                         if total_cols > 0
                             present_cv2 = sum(isfinite(Pcv2) | isfinite(Ccv2), 2);
-                            meanP_cv2   = mean(Pcv2, 2, 'omitnan');
+                            if ~isfield(I2,'VCV2WPERMREF_FDR_GLOBAL')
+                                meanP_cv2 = nm_nanmean(Pcv2,2);
+                            else
+                                meanP_cv2 = I2.VCV2WPERMREF_FDR_GLOBAL{h}{n}(I2.KEEP{h}{n});
+                            end
+                            % convert to -log10(p) (as in your original report_final)
+                            meanP_cv2   = -log10(meanP_cv2);
                             meanR_cv2   = mean(Ccv2, 2, 'omitnan');
         
                             for i = 1:nRef
@@ -1735,261 +2242,24 @@ switch act
                     R.comp_by_mod = [];
                 end
             end
-        
             I2.ReportFinal{h} = R;
         end
-
-        % for h = 1:nclass
-        % 
-        %     R = struct();
-        %     R.meta = struct('h', h, ...
-        %                     'ill', ll, ...
-        %                     'nM', nM, ...
-        %                     'has_compwise', logical(compwise));
-        % 
-        %     %% -------------------- 1) Modality-wise (ModAgg_L2nShare) --------------------
-        %     R.modality = struct('names', {{}}, 'median', [], 'mean', [], 'coverage', [], 'order_by_median', []);
-        %     if isfield(I2,'ModAgg_L2nShare') && numel(I2.ModAgg_L2nShare) >= h && ~isempty(I2.ModAgg_L2nShare{h})
-        %         Mshare = I2.ModAgg_L2nShare{h};             % [nM x ll]
-        %         [nM_loc, ill_loc] = size(Mshare);
-        % 
-        %         ModNames = getModNames(inp, nM);
-        % 
-        %         meanShareM = nanmean_f(Mshare, 2);
-        %         covgM      = sum(isfinite(Mshare), 2);
-        %         R.modality.names   = ModNames;
-        %         R.modality.mean    = meanShareM;
-        %         medShareM = median(Mshare, 2, 'omitnan');
-        %         [~, ordM] = sort(medShareM, 'descend', 'MissingPlacement','last');
-        %         lo95M = NaN(size(medShareM)); hi95M = lo95M;
-        %         for m = 1:size(Mshare,1)
-        %             v = Mshare(m, :);
-        %             v = v(isfinite(v));
-        %             if isempty(v)
-        %                 lo95M(m) = NaN; hi95M(m) = NaN;
-        %             elseif isscalar(v)
-        %                 lo95M(m) = v;   hi95M(m) = v;
-        %             else
-        %                 lo95M(m) = nm_pctile_fast(v, 2.5);
-        %                 hi95M(m) = nm_pctile_fast(v, 97.5);
-        %             end
-        %         end
-        %         R.modality.median = medShareM(:);
-        %         R.modality.lo95   = lo95M(:);
-        %         R.modality.hi95   = hi95M(:);
-        %         R.modality.coverage = [covgM, repmat(ill_loc, nM_loc, 1)];  % [hits, total]
-        %         R.modality.order_by_median  = ordM;
-        %     end
-        % 
-        %     %% ---------------- 2) Component-wise (shares + CV2 presence + mean p/r) ----------------
-        %     if compwise && isfield(I2,'ModComp_L2n') && numel(I2.ModComp_L2n) >= h && ~isempty(I2.ModComp_L2n{h})
-        % 
-        %         R.meta.kept_components = find(I2.KEEP{h});
-        %         R.meta.settings.backprojection_method = inp.simCorrMethod;
-        %         R.meta.settings.similarity_alignment_method = inp.simCorrThresh;
-        %         R.meta.settings.similarity_pruning_cutoff = inp.CorrCompCutOff;
-        %         R.meta.settings.presence_pruning_cutoff = inp.SelCompCutOff;
-        % 
-        %         %% ---------------- 2) Component-wise (shares + CV2 presence + mean p/r) ----------------
-        %         R.components = struct('names', {{}}, ...
-        %               'median_share', [], 'mean_share', [], 'coverage_cv1', [], ...
-        %               'mean_p_cv2', [], 'mean_p_lo95', [], 'mean_p_hi95', [], ...
-        %               'mean_r_cv2', [], 'mean_r_lo95', [], 'mean_r_hi95', [], ...
-        %               'present_cv2', [], 'denom_cv2', [], ...
-        %               'order_by_median', [], 'mass_den_median', []);
-        % 
-        %         Cmag = I2.ModComp_L2n{h};                 % [nRef x ll]
-        %         nRef = size(Cmag,1);
-        % 
-        %         % Names
-        %         if exist('CompNames','var') && numel(CompNames)==nRef
-        %             R.components.names = CompNames(:);
-        %         else
-        %             if isfield(R.meta,'kept_components') && ~isempty(R.meta.kept_components)
-        %                  R.components.names = arrayfun(@(k) sprintf('Comp%03d',R.meta.kept_components(k)), (1:nRef).', 'uni',0);
-        %             else
-        %                  R.components.names = arrayfun(@(k) sprintf('Comp%03d',k), (1:nRef).', 'uni',0);
-        %             end
-        %         end
-        % 
-        %         % Normalize per fold to shares
-        %         denom = sum(Cmag, 1, 'omitnan');                 % 1 x ll
-        %         bad   = (denom<=0) | ~isfinite(denom);
-        %         denom(bad) = NaN;
-        %         Cshare = Cmag ./ denom;                           % [nRef x ll]
-        % 
-        %         % CV1 summaries (component-wise)
-        %         medShareC  = median(Cshare, 2, 'omitnan');
-        %         meanShareC = mean(Cshare,   2, 'omitnan');
-        %         covgC      = [sum(isfinite(Cshare), 2) repmat(size(Cshare,2),size(Cshare,1),1)];
-        % 
-        %         % ---- CV2-level matrices (component x CV1-model columns) — harmonized with 'report' ----
-        %         Pcv2 = []; Ccv2 = [];
-        %         if isfield(I2,'VCV2WPERMREF') && numel(I2.VCV2WPERMREF) >= h && ~isempty(I2.VCV2WPERMREF{h})
-        %             Pcv2 = I2.VCV2WPERMREF{h};
-        %         end
-        %         if isfield(I2,'VCV2WCORRREF') && numel(I2.VCV2WCORRREF) >= h && ~isempty(I2.VCV2WCORRREF{h})
-        %             Ccv2 = I2.VCV2WCORRREF{h};
-        %         end
-        % 
-        %         % Keep ALL columns seen so far; no filtering. Build total_cols exactly once.
-        %         if isempty(Pcv2) && isempty(Ccv2)
-        %             nRef_cv2   = nRef;
-        %             Pcv2_done  = nan(nRef_cv2,0);
-        %             Ccv2_done  = nan(nRef_cv2,0);
-        %             total_cols = 0;
-        %         else
-        %             nRef_cv2 = ~isempty(Pcv2) * size(Pcv2,1) + isempty(Pcv2) * size(Ccv2,1);
-        %             if isempty(Pcv2), Pcv2 = nan(nRef_cv2,0); end
-        %             if isempty(Ccv2), Ccv2 = nan(nRef_cv2,0); end
-        % 
-        %             % Determine total_cols from the matrices and (optionally) the recorded per-fold counts.
-        %             % We follow 'report': trim BOTH to the same total_cols and DO NOT drop all-NaN columns.
-        %             total_cols = max(size(Pcv2,2), size(Ccv2,2));
-        %             if size(Pcv2,2) < total_cols, Pcv2(:, end+1:total_cols) = NaN; end
-        %             if size(Ccv2,2) < total_cols, Ccv2(:, end+1:total_cols) = NaN; end
-        % 
-        %             Pcv2_done  = Pcv2(:, 1:total_cols);
-        %             Ccv2_done  = Ccv2(:, 1:total_cols);
-        %         end
-        % 
-        %         % Row-align to nRef (pad with NaN; never zeros)
-        %         if size(Pcv2_done,1) < nRef, Pcv2_done(end+1:nRef, :) = NaN; elseif size(Pcv2_done,1) > nRef, Pcv2_done = Pcv2_done(1:nRef,:); end
-        %         if size(Ccv2_done,1) < nRef, Ccv2_done(end+1:nRef, :) = NaN; elseif size(Ccv2_done,1) > nRef, Ccv2_done = Ccv2_done(1:nRef,:); end
-        % 
-        %         % Convert to -10log(p)
-        %         Pcv2_done = -log10(Pcv2_done);
-        % 
-        %         % -------- Presence & means (IDENTICAL POLICY TO 'report') --------
-        %         present_cv2 = zeros(nRef,1);
-        %         denom_cv2   = repmat(total_cols, nRef, 1);   % same denominator for everyone
-        %         meanP_cv2   = nan(nRef,1);
-        %         meanR_cv2   = nan(nRef,1);
-        %         meanP_lo    = nan(nRef,1);
-        %         meanP_hi    = nan(nRef,1);
-        %         meanR_lo    = nan(nRef,1);
-        %         meanR_hi    = nan(nRef,1);
-        % 
-        %         if total_cols > 0
-        %             % Presence: any finite p OR r counts as present (same as 'report')
-        %             present_cv2 = sum(isfinite(Pcv2_done) | isfinite(Ccv2_done), 2);
-        % 
-        %             % Means: RAW mean p (no -log10), mean r over ALL processed columns (omit NaNs)
-        %             meanP_cv2   = mean(Pcv2_done, 2, 'omitnan');
-        %             meanR_cv2   = mean(Ccv2_done, 2, 'omitnan');
-        % 
-        %             % Optional CIs to keep 'report_final' richer, computed on the same raw series
-        %             for i = 1:nRef
-        %                 pv = Pcv2_done(i, isfinite(Pcv2_done(i,:)));
-        %                 rv = Ccv2_done(i, isfinite(Ccv2_done(i,:)));
-        %                 if isempty(pv)
-        %                     meanP_lo(i) = NaN; meanP_hi(i) = NaN;
-        %                 elseif isscalar(pv)
-        %                     meanP_lo(i) = pv;  meanP_hi(i) = pv;
-        %                 else
-        %                     meanP_lo(i) = nm_pctile_fast(pv, 2.5);
-        %                     meanP_hi(i) = nm_pctile_fast(pv, 97.5);
-        %                 end
-        %                 if isempty(rv)
-        %                     meanR_lo(i) = NaN; meanR_hi(i) = NaN;
-        %                 elseif isscalar(rv)
-        %                     meanR_lo(i) = rv;  meanR_hi(i) = rv;
-        %                 else
-        %                     meanR_lo(i) = nm_pctile_fast(rv, 2.5);
-        %                     meanR_hi(i) = nm_pctile_fast(rv, 97.5);
-        %                 end
-        %             end
-        %         end
-        % 
-        %         % Store back into R.components using the harmonized policy
-        %         R.components.median_share   = medShareC;
-        %         R.components.mean_share     = meanShareC;
-        %         R.components.coverage_cv1   = covgC;
-        %         R.components.mean_p_cv2     = meanP_cv2;
-        %         R.components.mean_p_lo95    = meanP_lo;
-        %         R.components.mean_p_hi95    = meanP_hi;
-        %         R.components.mean_r_cv2     = meanR_cv2;
-        %         R.components.mean_r_lo95    = meanR_lo;
-        %         R.components.mean_r_hi95    = meanR_hi;
-        %         R.components.present_cv2    = present_cv2;
-        %         R.components.denom_cv2      = denom_cv2;
-        % 
-        %         % Precompute denominator for renormalized mass (used in UI)
-        %         medVec   = medShareC;
-        %         fin_mask = isfinite(medVec);
-        %         R.components.mass_den_median  = sum(medVec(fin_mask), 'omitnan');
-        % 
-        %         %% ----------- 3) Component × Modality-wise (shares across folds) -----------
-        %         % Uses I2.ModComp_L2nCube{h}: [nRef x nM x ll] L2 magnitudes
-        %         % We convert each fold to shares per component across modalities, then aggregate.
-        %         R.comp_by_mod = struct('median_share', [], 'mean_share', [], 'coverage', [], 'names_mod', {{}}, 'names_comp', {{}});
-        %         if compwise && isfield(I2,'ModComp_L2nCube') && numel(I2.ModComp_L2nCube) >= h && ~isempty(I2.ModComp_L2nCube{h})
-        %             Cube = I2.ModComp_L2nCube{h};              % [nRef x nM x ll]
-        %             [nRefC, nM_loc, ill_loc] = size(Cube);
-        % 
-        %             % names
-        %             if exist('ModNames','var') && numel(ModNames)==nM_loc
-        %                 R.comp_by_mod.names_mod = ModNames(:);
-        %             else
-        %                 R.comp_by_mod.names_mod = arrayfun(@(k) sprintf('Mod%d',k), (1:nM_loc).', 'uni',0);
-        %             end
-        %             if exist('CompNames','var') && numel(CompNames)==nRefC
-        %                 R.comp_by_mod.names_comp = CompNames(:);
-        %             else
-        %                 R.comp_by_mod.names_comp = arrayfun(@(k) sprintf('Comp%03d',k), (1:nRefC).', 'uni',0);
-        %             end
-        % 
-        %             for t = 1:ill_loc
-        %                 Sl = Cube(:,:,t);                        % [nRef x nM]
-        %                 rowDen = nansum_f(Sl, 2);               % per component sum over modalities
-        %                 rowDen(rowDen<=0 | ~isfinite(rowDen)) = NaN;
-        %                 Sh = Sl ./ rowDen;                      % per-fold shares
-        %                 if t == 1
-        %                     Sh_stack = nan(nRefC, nM_loc, ill_loc);
-        %                 end
-        %                 Sh_stack(:,:,t) = Sh;
-        %             end
-        % 
-        %             % Aggregate across folds
-        %             medShare_CM  = median(Sh_stack, 3, 'omitnan');
-        %             meanShare_CM = mean(Sh_stack,   3, 'omitnan');
-        %             covg_CM      = sum(isfinite(Sh_stack), 3);      % coverage (per comp×mod)
-        % 
-        %             R.comp_by_mod.median_share = medShare_CM;
-        %             R.comp_by_mod.mean_share   = meanShare_CM;
-        %             R.comp_by_mod.coverage     = cat(3, covg_CM, repmat(ill_loc, nRefC, nM_loc));  % [hits, total] per cell (3-D)
-        %         end
-        %     end
-        %     I2.ReportFinal{h} = R;
-        % end
     end
 end
 
 function B = pad3D(A, padCount)
-    
-% pad3D Pads a 2-D or 3-D array along its *last* dimension with NaN slices.
-    if padCount <= 0
-        B = A;
-        return
-    end
 
+    if padCount <= 0, B = A; return; end
     sz = size(A);
-    nd = numel(sz);
-    switch nd
-      case 2
-        % [m x n] -> [m x (n+padCount)]
-        B = nan(sz(1), sz(2) + padCount, 'double');
+    nd = ndims(A);
+    if nd==2
+        B = nan(sz(1), sz(2)+padCount, 'like', A);
         B(:,1:sz(2)) = A;
-        %B = nan(sz(1), sz(2), padCount, 'double');
-        %B(:,:,1:padCount) = A;
-
-      case 3
-        % [m x n x p] -> [m x n x (p+padCount)]
-        B = nan(sz(1), sz(2), sz(3) + padCount, 'double');
+    elseif nd==3
+        B = nan(sz(1), sz(2), sz(3)+padCount, 'like', A);
         B(:,:,1:sz(3)) = A;
-
-      otherwise
-        error('pad3D_fast only supports 2-D or 3-D arrays');
+    else
+        error('pad3D only supports 2-D or 3-D arrays');
     end
 
 end
@@ -2015,8 +2285,6 @@ function [Aeq,Beq] = harmonizeSize(A,B)
     Aeq = padColsNaN(padRowsNaN(A,R), C);
     Beq = padColsNaN(padRowsNaN(B,R), C);
 end
-
-
 
 function ModNames = getModNames(inp, nM)
     ModNames = cell(nM,1);
@@ -2070,4 +2338,291 @@ function q = nm_pctile_fast(v, p)
     else
         q = v(k) + d * (v(k+1) - v(k));
     end
+end
+
+function Y = apply_map_colwise(Y, map_old2new, w_old, op)
+% Columns are components. Combine columns according to 'op'.
+% op: 'sum' (default), 'mean'
+    if nargin<4 || isempty(op), op = 'sum'; end
+    if isempty(Y), return; end
+    kmax = max(map_old2new); if kmax==0, Y = Y(:,[]); return; end
+    Z = zeros(size(Y,1), kmax, 'like', Y);
+    W = zeros(1, kmax, 'like', Y(1));
+    if nargin < 3 || isempty(w_old), w_old = ones(1, numel(map_old2new)); end
+    for j = 1:numel(map_old2new)
+        k = map_old2new(j); if k==0, continue; end
+        w = w_old(j); if w==0 || ~isfinite(w), w = 1; end
+        Z(:,k) = Z(:,k) + Y(:,j) * w;
+        W(k)   = W(k)   + w;
+    end
+    switch lower(op)
+        case 'sum'
+            Y = Z;               % keep sums
+        case 'mean'
+            mask = W>0;
+            Y = nan(size(Z));
+            if any(mask)
+                Y(:,mask) = bsxfun(@rdivide, Z(:,mask), W(mask));
+            end
+        case 'min'
+            Yout = nan(size(Y,1), kmax, 'like', Y);
+            for k = 1:kmax
+                js = find(map_old2new == k);
+                if isempty(js), continue; end
+                Yout(:,k) = nanmin_compat(Y(:,js), 2);
+            end
+            Y = Yout;
+        case 'zmean'
+            Yout = nan(size(Y,1), kmax, 'like', Y);
+            for k = 1:kmax
+                js = find(map_old2new == k);
+                if isempty(js), continue; end
+        
+                r = Y(:,js);                  % cols to merge
+                w = w_old(js);                  % 1×J weights for those cols
+                w(~isfinite(w) | w<=0) = 0;     % zero-out invalid weights
+        
+                % clamp only finite r to avoid atanh(±1); keep NaNs as NaNs
+                r_finite = isfinite(r);
+                r(r_finite) = max(min(r(r_finite), 1-1e-6), -1+1e-6);
+        
+                z = atanh(r);                   % NaNs stay NaNs
+        
+                % build weight matrix per row, mask invalid cells
+                W = repmat(w, size(z,1), 1);
+                mask = isfinite(z) & (W>0);
+        
+                % weighted sum over valid cells only
+                Zw   = zeros(size(z), 'like', z); Zw(~mask) = 0;  Zw(mask) = z(mask) .* W(mask);
+                num  = sum(Zw, 2);
+                den  = sum(W .* double(mask), 2);   % sum of weights that actually contributed
+        
+                zbar = nan(size(num), 'like', num);
+                nz   = den > 0 & isfinite(den);
+                zbar(nz) = num(nz) ./ den(nz);
+        
+                % back to r; columns with no contributors remain NaN
+                Yout(:,k) = tanh(zbar);
+            end
+            Y = Yout;
+
+        otherwise
+            error('apply_map_colwise: unknown op "%s"', op);
+    end
+end
+
+function Y = apply_map_rowwise(Y, map_old2new, w_old, op)
+% Rows are components. Combine rows according to 'op'.
+% op: 'sum' | 'mean' | 'min' | 'fisherp' | 'zmean' | 'stoufferz'
+
+    if nargin<4 || isempty(op), op = 'sum'; end
+    if isempty(Y), return; end
+
+    Yin = Y;                  % <— keep the original
+    kmax = max(map_old2new);
+    if kmax==0, Y = Yin([],:); return; end
+
+    if nargin < 3 || isempty(w_old)
+        w_old = ones(1, numel(map_old2new));
+    end
+
+    switch lower(op)
+
+        case {'sum','mean'}
+            Z = zeros(kmax, size(Yin,2), 'like', Yin);
+            W = zeros(kmax, 1,           'like', Yin(1));
+            for j = 1:numel(map_old2new)
+                k = map_old2new(j); if k==0, continue; end
+                w = w_old(j); if ~isfinite(w) || w<=0, continue; end
+                Z(k,:) = Z(k,:) + Yin(j,:) * w;
+                W(k)   = W(k)   + w;
+            end
+            if strcmpi(op,'sum')
+                Y = nan(size(Z), 'like', Yin);
+                mask = W > 0;
+                if any(mask)
+                    Y(mask,:) = Z(mask,:);
+                end
+            else
+                Y = nan(size(Z), 'like', Yin);
+                mask = W > 0;
+                if any(mask)
+                    Y(mask,:) = Z(mask,:) ./ W(mask);
+                end
+            end
+        case 'min'   % conservative p: per-column min over merged rows
+            Yout = nan(kmax, size(Yin,2), 'like', Yin);
+            for k = 1:kmax
+                js = find(map_old2new == k);
+                if isempty(js), continue; end
+                Yout(k,:) = nanmin_compat(Yin(js,:), 1);
+            end
+            Y = Yout;
+
+        case 'fisherp'  % combine p via Fisher per column
+            Yout = nan(kmax, size(Yin,2), 'like', Yin);
+            for k = 1:kmax
+                js = find(map_old2new == k);
+                if isempty(js), continue; end
+                P = Yin(js,:);                         % rows: merged comps
+                X = -2 * nm_nansum(log(max(P, realmin)), 1);
+                m = sum(isfinite(P), 1);
+                Yout(k,:) = 1 - chi2cdf(X, 2*max(m,1));
+                Yout(k, m==0) = NaN;
+            end
+            Y = Yout;
+
+        case 'zmean'    % Fisher r->z mean for correlations (rowwise), returns r
+            Yin  = double(Yin);                 % ensure safe math
+            Yout = nan(kmax, size(Yin,2), 'like', Yin);
+            for k = 1:kmax
+                js = find(map_old2new == k);
+                if isempty(js), continue; end
+        
+                r = Yin(js,:);                  % rows to merge
+                w = w_old(js);                  % 1×J weights for those rows
+                w(~isfinite(w) | w<=0) = 0;     % zero-out invalid weights
+        
+                % clamp only finite r to avoid atanh(±1); keep NaNs as NaNs
+                r_finite = isfinite(r);
+                r(r_finite) = max(min(r(r_finite), 1-1e-6), -1+1e-6);
+        
+                z = atanh(r);                   % NaNs stay NaNs
+        
+                % build weight matrix per column, mask invalid cells
+                W = repmat(w(:), 1, size(z,2));
+                mask = isfinite(z) & (W>0);
+        
+                % weighted sum over valid cells only
+                Zw   = zeros(size(z), 'like', z); Zw(~mask) = 0;  Zw(mask) = z(mask) .* W(mask);
+                num  = sum(Zw, 1);
+                den  = sum(W .* double(mask), 1);   % sum of weights that actually contributed
+        
+                zbar = nan(size(num), 'like', num);
+                nz   = den > 0 & isfinite(den);
+                zbar(nz) = num(nz) ./ den(nz);
+        
+                % back to r; columns with no contributors remain NaN
+                Yout(k,:) = tanh(zbar);
+            end
+            Y = Yout;
+
+        case 'stoufferz' % Stouffer combine z per column: z_new = sum(w*z)/sqrt(sum(w^2))
+            Yin  = double(Yin);                                % safe math
+            Yout = nan(kmax, size(Yin,2), 'like', Yin);
+            for k = 1:kmax
+                js = find(map_old2new == k);
+                if isempty(js), continue; end
+        
+                z = Yin(js,:);                                 % rows to merge
+                w = w_old(js);                                 % 1×J weights
+                w(~isfinite(w) | w<=0) = 0;                    % zero-out invalid
+        
+                % Build weight matrix and validity mask per column
+                W    = repmat(w(:), 1, size(z,2));             % J×C
+                mask = isfinite(z) & (W>0);                    % valid (row,col) cells
+        
+                % Numerator: sum_i w_i * z_i over valid cells
+                Zw   = zeros(size(z), 'like', z);
+                Zw(mask) = z(mask) .* W(mask);
+                num  = sum(Zw, 1);                             % 1×C
+        
+                % Denominator: sqrt(sum_i w_i^2) but only over rows that contribute to each column
+                W2m  = (W.^2) .* double(mask);
+                den  = sqrt(sum(W2m, 1));                      % 1×C
+        
+                out       = nan(1, size(z,2), 'like', z);
+                ok        = den > 0 & isfinite(den);
+                out(ok)   = num(ok) ./ den(ok);                % Stouffer z per column
+                Yout(k,:) = out;
+            end
+            Y = Yout;
+
+        otherwise
+            error('apply_map_rowwise: unknown op "%s"', op);
+    end
+end
+
+% --- local helper: nanmin across rows, MATLAB-version agnostic
+function out = nanmin_compat(A, dim)
+    try
+        out = min(A, [], dim, 'omitnan');
+    catch
+        % Fallback if 'omitnan' unsupported
+        mask = ~isnan(A);
+        if dim==1
+            out = nan(1, size(A,2), 'like', A);
+            for c = 1:size(A,2)
+                col = A(:,c);
+                msk = mask(:,c);
+                if any(msk), out(c) = min(col(msk)); end
+            end
+        else
+            out = nan(size(A,1), 1, 'like', A);
+            for r = 1:size(A,1)
+                row = A(r,:);
+                msk = mask(r,:);
+                if any(msk), out(r) = min(row(msk)); end
+            end
+        end
+    end
+end
+
+function Xout = apply_map_3dthird(X, map_old2new, w_old, op)
+% Components are dim-3. Combine along 3rd dim.
+% op: 'sum' | 'mean'
+    if nargin<4 || isempty(op), op = 'sum'; end
+    if isempty(X), return; end
+    kmax = max(map_old2new); if kmax==0, X = X(:,:,[]); return; end
+    Z = zeros(size(X,1), size(X,2), kmax, 'like', X);
+    W = zeros(1, 1, kmax, 'like', X(1));
+    if nargin < 3 || isempty(w_old), w_old = ones(1, numel(map_old2new)); end
+    for j = 1:numel(map_old2new)
+        k = map_old2new(j); if k==0, continue; end
+        w = w_old(j); if w==0 || ~isfinite(w), continue; end
+        Z(:,:,k) = Z(:,:,k) + X(:,:,j) * w;
+        W(:,:,k) = W(:,:,k) + w;
+    end
+    switch lower(op)
+        case 'sum'
+            mask = W > 0;   
+            Xout = nan(size(Z), 'like', X);
+            Xout(mask) = Z(mask);
+        case 'mean'
+            mask = W > 0;                       % W is 1×1×k
+            Xout = nan(size(Z), 'like', X);
+            if any(mask, 'all')
+                for k = 1:size(Z,3)
+                    if mask(1,1,k)
+                        Xout(:,:,k) = Z(:,:,k) ./ W(1,1,k);
+                    end
+                end
+            end
+        otherwise
+            error('apply_map_3dthird: unknown op "%s"', op);
+    end
+end
+
+function X = apply_map_3dfirst(X, map_old2new, w_old, mode)
+    % 1st dim = components
+    if isempty(X), return; end
+    kmax = max(map_old2new); if kmax==0, X = X([],:,:); return; end
+    Z = zeros(kmax, size(X,2), size(X,3), 'like', X);
+    W = zeros(kmax, 1, 1, 'like', X(1));
+    if nargin < 3 || isempty(w_old), w_old = ones(1, numel(map_old2new)); end
+    if nargin < 4, mode = 'mean'; end
+
+    for j = 1:numel(map_old2new)
+        k = map_old2new(j); if k==0, continue; end
+        w = w_old(j); if w==0 || ~isfinite(w), w = 1; end
+        switch lower(mode)
+            case 'mean'
+                Z(k,:,:) = Z(k,:,:) + X(j,:,:) * w;
+                W(k,:,:) = W(k,:,:) + w;
+            otherwise
+                error('Unsupported mode: %s', mode);
+        end
+    end
+    W(W==0) = 1;
+    X = bsxfun(@rdivide, Z, W);
 end

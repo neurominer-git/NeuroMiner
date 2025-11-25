@@ -1,47 +1,77 @@
-function [I1, Tx_out, Tx_unmatched, assignmentVec, signCorrections, VCV1REF] = ...
-            nk_VisXRealignComponentsHelper(I1, inp, haveRef, Tx_in, VCV1REF, nM, il, ill, currmodal, h, Fadd, Vind)
+function [I1, Tx_out, Tx_unmatched, Dx_out, assignmentVec, signCorrections, VCV1REF, VCV1REFCNT] = ...
+            nk_VisXRealignComponentsHelper(I1, inp, haveRef, Tx_in, Dx_in, VCV1REF, VCV1REFCNT, nM, il, ill, currmodal, h, Fadd, Vind)
 
 global SVM
 
 isInter = ~isempty(currmodal);
 if ~isInter, currmodal = 1; Vind = ones(numel(Fadd),1); end
+oneTol = getfield_or(inp,'oneTol', 1e-4);
+collapseManyToOne = getfield_or(inp,'collapseManyToOne ', true);
+hasFractionatedScores = false; 
+if ~isempty(Dx_in) 
+    hasFractionatedScores = true; 
+else
+    Dx_out = []; 
+end
 
 %% ---------- One call: realign (+ possibly grow ref) in blk-diag space ----------
 if haveRef
-    [Tx_out, Tx_unmatched, assignmentVec, corrPerComp, signCorrections, ~, refUpdated] = ...
-        nk_AlignCompAndSignCorrect(VCV1REF, Tx_in, inp.simCorrThresh, inp.simCorrMethod);
-
+    
+    [Tx_out, Tx_unmatched, assignmentVec, corrPerComp, signCorrections, ~, refUpdated, groupsPerRef, sign_pair] = ...
+        nk_AlignCompAndSignCorrect(VCV1REF, Tx_in, inp.simCorrThresh, inp.simCorrMethod, true);
+    
     % Cache updated reference (per-modality cells)
-    VCV1REF = refUpdated;
+    c = corrPerComp; idx_nearOne = (c >= 1-oneTol) & (c<= 1+oneTol); c(idx_nearOne) = 0;
+    
+    [VCV1REF, VCV1REFCNT] = nk_UpdateRefEMA_Simple(refUpdated, Tx_out, c, 0.15, VCV1REFCNT, false, true);
+
     % Unified component count across modalities (must match by construction)
     if ~iscell(VCV1REF)
         colsPerMod = size(VCV1REF,2);
     else
         colsPerMod = cellfun(@(R) size(R,2), VCV1REF(:)');
     end
+
     if ~isInter
         assert(all(colsPerMod == colsPerMod(1)), 'Ref columns must be equal across modalities after unified alignment.');
     end
+    
     nRef_combined  = colsPerMod(1);
+
+    if hasFractionatedScores
+        if inp.isInter
+            Dx_out = nk_ApplyAlignmentToDx(Dx_in, groupsPerRef, sign_pair);
+        else
+            Dx_out{1} = nk_ApplyAlignmentToDx(Dx_in{1}, groupsPerRef, sign_pair);
+        end
+    end
+
 else
     % First time ever: seed with current kept maps; identity alignment
     VCV1REF       = Tx_in;
     Tx_out        = Tx_in;
     Tx_unmatched  = [];
+    if hasFractionatedScores, Dx_out = Dx_in; end
+
     if ~iscell(VCV1REF)
         colsPerMod = size(VCV1REF,2);
     else
         colsPerMod = cellfun(@(R) size(R,2), VCV1REF(:)');
     end
+    
     nRef_combined = colsPerMod(1);
     assignmentVec = (1:nRef_combined).';
     signCorrections = ones(nRef_combined,1);
     corrPerComp   = ones(nRef_combined,1);
+    groupsPerRef = num2cell(1:nRef_combined);
+    VCV1REFCNT = zeros(1, nRef_combined); 
+
     if isInter
         fprintf('\n\t\t\tDefine reference space for modality #%g consisting of %g component(s).', currmodal, colsPerMod(1));
     else
         fprintf('\n\t\t\tDefine reference space consisting of %g component(s).', colsPerMod(1));
     end
+
 end
 
 %% ---------- Ensure I1 destination containers exist *now* ----------
@@ -95,14 +125,25 @@ end
 %% ---------- p-values and correlations (component-level, modality-agnostic) ----------
 % p values
 p_src_sig = I1.VCV1WPERM{h}(Fadd & (Vind == currmodal), il); % compressed (sig-only)
-mask_ref   = assignmentVec > 0 & assignmentVec <= numel(p_src_sig);
-idx_pruned = assignmentVec(mask_ref);     % indices in p_src_sig
-p_ref = nan(numel(assignmentVec),1);
-p_ref(mask_ref) = p_src_sig(idx_pruned);
+p_ref = nan(numel(assignmentVec), 1);
+% --- fill in ref order ---
+if ~collapseManyToOne
+    mask_ref  = assignmentVec > 0 & assignmentVec <= numel(p_src_sig);
+    idx_pruned = assignmentVec(mask_ref);       
+    p_ref(mask_ref) = p_src_sig(idx_pruned);    
+else
+    % collapsed: groupsPerRef{i} contains all js with |S| >= cutoff
+    for i = 1:numel(groupsPerRef)
+        js = groupsPerRef{i};
+        if isempty(js), continue; end
+        % choose an aggregation; min is conservative and common
+        p_ref(i) = min(p_src_sig(js));
+    end
+end
 VCV1WPERMREF(1:nRef_combined, il) = p_ref;
 % correlations
 c = corrPerComp(:);
-oneTol = 1e-6; idx_nearOne = (c >= 1-oneTol) & (c <= 1+oneTol); c(idx_nearOne) = NaN;
+idx_nearOne = (c >= 1-oneTol) & (c <= 1+oneTol); c(idx_nearOne) = NaN;
 VCV1WCORRREF(1:nRef_combined, il) = c;
 
 %% ---------- L2 magnitudes (two views, depending on fusion mode) ----------
@@ -140,7 +181,11 @@ else
     % ---------- INTERMEDIATE FUSION (per-DR modality handled in its own call) ----------
     % Tx_out is this modality’s ref-ordered map: [nFeat_curr x nRef_combined]
     if ~isempty(Tx_out)
-        v = nk_VisXComputeLpShares(Tx_out, SVM, false);                % per-component L2, [nRef_combined x 1]
+        try
+            v = nk_VisXComputeLpShares(Tx_out, SVM, false);                % per-component L2, [nRef_combined x 1]
+        catch
+            fprintf('problem')
+        end
         if isrow(v), v = v(:); end
     else
         v = nan(nRef_combined,1);

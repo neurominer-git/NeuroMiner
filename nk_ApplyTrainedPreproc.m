@@ -47,11 +47,15 @@ smoothonly = false; if isfield(inp,'smoothonly') && inp.smoothonly, smoothonly =
 
 if isfield(inp,'loadGD') && ~isempty(inp.loadGD) && inp.loadGD
     if VERBOSE, fprintf('\nLoading CVdatamat for CV2 partition [%g,%g]:\n%s', inp.f, inp.d, GDpath); end
-    T = load(GDpath);
-    if isfield(T,'GD'), GD = T.GD; end
-    if isfield(T,'MD'), MD = T.MD; end
+    load(GDpath);
+    % --- Auto-recognize and decode GD_enc -> GD (triplet format) ---
+    if exist('GD_enc','var')
+        fprintf('\nDetected GD_enc (triplet). Decoding to full GD ...');
+        GD = nm_decode_nan_triplets(GD_enc);  % idempotent decoder
+        clear GD_enc
+        fprintf(' done.');
+    end
 end
-
 if smoothonly
     inp = nk_PerfInitSpatial(analysis, inp, paramfl);
     nM = numel(inp.PREPROC);

@@ -546,7 +546,7 @@ for f=1:ix % Loop through CV2 permutations
                     ppath = preprocmat{dim_index,f,d};
                     mapY = nk_CheckLoadFile(ppath, 'PreprocData', dimension, f, d, [] ,nclass);
                 else
-                    mapY =[]; mapYi = [];
+                    mapY =[]; 
                 end
             end
             %%%%%%%%%%%%%%%% SELECT PARAMS AT OPTIMUM %%%%%%%%%%%%%%%%%
@@ -561,14 +561,14 @@ for f=1:ix % Loop through CV2 permutations
             GD = tGD; clear tGD;
         end
 
-        %%%%%%%%%%%%%%%%%%%%%%%%% Save CVDATAMAT %%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%% Save CVDATAMAT (NaN-aware saving to save space in nearly empty matrices when doing BO or SA optimization) %%%%%%%%%%%%%%%%%%%%%%%%%
         if isfield(inp,'simFlag') && inp.simFlag
             saveGDflag = 0;
         end
-
-        [~,oCVnam] = fileparts(oCVpath); 
+        
+        [~,oCVnam] = fileparts(oCVpath);
         if saveGDflag && updGD
-            operm = d; ofold = f; 
+            operm = d; ofold = f;
             if ~batchflag
                 if ~exist(oCVpath,'file')
                     savflag = 1;
@@ -586,27 +586,34 @@ for f=1:ix % Loop through CV2 permutations
             end
             if savflag
                 fprintf('\nSaving: %s.', oCVpath)
+        
+                % --- Triplet-encode GD (Option B) before saving ---
+                GD_enc = nm_encode_nan_triplets(GD);  % uses field 'fmt' (valid)
+        
+                GD_TRIPLET = true; 
                 if SAV.savemodel
                     if OCTAVE
-                        save(oCVpath,'GD','MD','Ps','Params_desc','operm','ofold');
+                        save(oCVpath,'GD_enc','GD_TRIPLET','MD','Ps','Params_desc','operm','ofold');
                     else
-                        save(oCVpath,'-v7.3','GD','MD','Ps','Params_desc','operm','ofold');
+                        save(oCVpath,'-v7.3','GD_enc','GD_TRIPLET','MD','Ps','Params_desc','operm','ofold');
                     end
                 else
                     if OCTAVE
-                        save(oCVpath,'GD','Ps','Params_desc','operm','ofold');
+                        save(oCVpath,'GD_enc','GD_TRIPLET','Ps','Params_desc','operm','ofold');
                     else
-                        save(oCVpath,'-v7.3','GD','Ps','Params_desc','operm','ofold');
+                        save(oCVpath,'-v7.3','GD_enc','GD_TRIPLET','Ps','Params_desc','operm','ofold');
                     end
                 end
-                
+        
+                % Keep workspace behavior unchanged: restore full GD with NaNs
+                GD = nm_decode_nan_triplets(GD_enc); 
             end
         else
             fprintf('\nUpdate of %s skipped!',oCVnam)
         end
-
+        
         if batchflag == 0 || batchflag == 2
-            GDanalysis.GDfilenames{f,d} = [ oCVnam '.mat' ]; 
+            GDanalysis.GDfilenames{f,d} = [ oCVnam '.mat' ];
         end
         
         if GDfl || batchflag == 0 || batchflag == 2
@@ -699,7 +706,7 @@ for f=1:ix % Loop through CV2 permutations
                         GDanalysis.bestComplexity{curclass}(f,d,curlabel) = nm_nanmean(GD.BinaryGridSelection{curclass}{curlabel}.bestcomplexity);
                         GDanalysis.bestError{curclass}(f,d,curlabel) = nm_nanmean(GD.BinaryGridSelection{curclass}{curlabel}.besterr);
 
-                        EnsDat=[];
+                        EnsDat = [];
                         for zu = 1:GD.BinaryGridSelection{curclass}{curlabel}.Nodes
                             EnsDat = [EnsDat nk_cellcat(GD.BinaryGridSelection{curclass}{curlabel}.bestpred{zu},[],2)];
                         end
@@ -1140,3 +1147,6 @@ else
         GDanalysis = [];
     end
 end
+
+
+

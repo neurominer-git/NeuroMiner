@@ -26,7 +26,6 @@ Gdefs                           = 2.^(-15:2:3);
 Epsdefs                         = [ 0.05 0.075 0.1 0.125 0.15 0.2];
 Nudefs                          = [ 0.2 0.5 0.7];
 Toldefs                         = [1e-6 1e-5 1e-4 1e-3 1e-2];
-Tdefs                           = [.2 .5 .7];
 PolyCoefdefs                    = 0;
 PolyDegrdefs                    = 3;
 WLiters                         = [2 4 6 8 10];
@@ -78,8 +77,10 @@ if isfield(NM.TrainParam.SVM.kernel, 'customfunc_nargin')
     end
 end
 OptMode.type = 'brute-force';
-OptMode.SimAneal = struct('T', 1, 'max_initial_jump', 10, 'alpha', 0.95, 'random_jump_prob', 0.2, 'max_iter', 100, 'reheating_iter', 10, 'reheating_alpha', 1.2);
-OptMode.Bayes = struct('max_iter', 100, 'max_iter_no_change', 25, 'num_seed', 10,'kernel_function', 'squaredexponential'); 
+SimAnneal = struct('T', 1, 'max_initial_jump', 10, 'alpha', 0.95, 'random_jump_prob', 0.2, 'max_iter', 100, 'reheating_iter', 10, 'reheating_alpha', 1.2);
+Bayes = struct('max_iter', 100, 'max_iter_no_change', 25, 'num_seed', 100, 'CritMode', 'lcb', 'LCBkappa', 2, 'EIjitter', 1e-06, 'kernel_function', 'squaredexponential'); 
+OptMode.SimAnneal = SimAnneal;
+OptMode.Bayes = Bayes;
 
 switch CompStr
     case 'above'
@@ -132,6 +133,11 @@ if ~defaultsfl
     if isfield(GRD,'LimsUparams'),              SEQOPTlimsUdefs = GRD.LimsUparams; end
     if isfield(GRD,'CoxCutoffparams'),          CoxCutoffsdefs = GRD.CoxCutoffparams; end
     if isfield(GRD,'OptMode'),                  OptMode = GRD.OptMode; end
+    if ~isfield(OptMode,'Simanneal'),           OptMode.SimAnneal = SimAnneal; end    
+    if ~isfield(OptMode,'Bayes'),               OptMode.Bayes = Bayes; end
+    if ~isfield(OptMode.Bayes,'mode'),                OptMode.Bayes.mode = 'lcb'; end
+    if ~isfield(OptMode.Bayes,'LCBkappa'),            OptMode.Bayes.LCBkappa = 2; end
+    if ~isfield(OptMode.Bayes,'EIjitter'),            OptMode.Bayes.EIjitter = 1e-06; end
     if isfield(GRD,'OptRegul'),                 OptRegul = GRD.OptRegul; end
     if isfield(GRD,'NodeSelect'),               NodeSelect = GRD.NodeSelect; end
     if isfield(GRD,'WLiters'),                  WLiters = GRD.WLiters; end
@@ -562,9 +568,13 @@ if ~defaultsfl
                 max_iter_str = sprintf('Define maximum number of iterations [ %g ]', OptMode.Bayes.max_iter);
                 max_iter_str_no_change = sprintf('Define maximum number of iterations without performance changes until algorithm aborts [ %g ]', OptMode.Bayes.max_iter_no_change);
                 num_seed_str = sprintf('Define number of seed iterations [ %g ]', OptMode.Bayes.num_seed);
+                if strcmpi(OptMode.Bayes.mode,'ei'), BO_mode_str = 'expectation minimization'; else, BO_mode_str = 'lower confidence bound'; end
+                    bayes_mode_str = sprintf('Define Bayesian Optimization mode [ %s ]', BO_mode_str );
+                if strcmpi(OptMode.Bayes.mode,'ei'), BOparam_str = 'jitter'; BOparam_val = OptMode.Bayes.EIjitter; else, BOparam_str = 'kappa'; BOparam_val = OptMode.Bayes.LCBkappa; end
+                bayes_param_str = sprintf('Define %s parameter for %s BO optimization mode [ %g ]', BOparam_str, OptMode.Bayes.mode, BOparam_val );
                 kernel_str = sprintf('Select kernel function [ %s ]', OptMode.Bayes.kernel_function);
-                menustr = sprintf('%s|%s|%s|%s|%s', menustr, max_iter_str, max_iter_str_no_change, num_seed_str, kernel_str ); 
-                menuact = [menuact 210:213];
+                menustr = sprintf('%s|%s|%s|%s|%s|%s|%s', menustr, max_iter_str, max_iter_str_no_change, num_seed_str, kernel_str, bayes_mode_str, bayes_param_str ); 
+                menuact = [menuact 210:215];
         end
 
     end
@@ -779,6 +789,33 @@ if ~defaultsfl
                  'Matern kernel with parameter 5/2|', ...
                  'Matern kernel with parameter 5/2 + ARD'], ...
                 kernelfunc_defs, def_kernelfunc));
+        case 214
+            switch OptMode.Bayes.mode
+                case 'lcb'
+                    OptMode.Bayes.mode = 'ei';
+                case 'ei'
+                    OptMode.Bayes.mode = 'lcb';
+            end
+
+        case 215
+            switch OptMode.Bayes.mode
+                case 'ei'
+                    % EI(x)=E[max(0,f(x)−f+)]
+                    % where :  f(x) = unknown true performance at candidate x
+                    % f+ = best observed performance so far
+                    % the expectation is over the GP posterior at x (i.e. we integrate over the predicted uncertainty).
+                    % jitter:
+                    % 0	strict EI can stall if GP flattens early
+                    % 1e-6–1e-3	mild exploration boost: stable, default for NM pipelines
+                    % >0.01	aggressive exploration useful only if you suspect the surrogate underexplores
+                    OptMode.Bayes.ei_jitter = nk_input('Set small jitter to avoid BO being trapped too early (1e-0 <-> 1e-04, >0.01 => aggresive exploration). ', 0, 'e', OptMode.Bayes.ei_jitter);
+                case 'lcb'
+                    % LCB score (for maximization criteria, like BAC) = μ(x) − κ * σ(x)
+                    % where: μ(x) = GP-predicted mean performance at candidate x
+                    % σ(x) = GP-predicted standard deviation (uncertainty)
+                    % κ = exploration weight
+                    OptMode.Bayes.kappa = nk_input('Set kappa (higher values => BO less explorative)', 0, 'e', OptMode.Bayes.kappa);
+            end
                   
     end
     if ~isempty(PX) && ~isempty(PX.opt), n_pars = size(PX.opt,1); else, n_pars = 0; end

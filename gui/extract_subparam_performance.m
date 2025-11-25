@@ -36,11 +36,12 @@ if exist('plotflag','var') || ~isempty(plotflag)
    else
       mPx = mPerf; Parx = Params;    
    end
-   cla(ha);
+   safe_cla(ha);
    bars = bar(ha, mPx);
-   ha.XLim = [0.5 size(Parx,1)+0.5]; ha.YLimMode = 'auto';
-   ha.XTick = 1:size(Parx,1); ha.XTickLabel=num2str(Parx(:,1));
-
+   if nargin<6 || isempty(ha)
+    ha.XLim = [0.5 size(Parx,1)+0.5]; ha.YLimMode = 'auto';
+    ha.XTick = 1:size(Parx,1); ha.XTickLabel=num2str(Parx(:,1));
+   end
 end
 
 function [mPerf, sdPerf, uPi] = extract_perf(Pi, Perf)
