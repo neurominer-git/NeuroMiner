@@ -192,6 +192,10 @@ if isfield(TemplParam,'ACTPARAM')
                             InputParam.P{ac}.keep_idx   = [];
                             InputParam.P{ac}.remove_idx = [];
                             InputParam.P{ac}.covars_idx = [];
+                            
+                            % Use covars
+                            InputParam.P{ac}.MCOVARUSE = TemplParam.ACTPARAM{ac}.MCOVARUSE;
+                            InputParam.P{ac}.MCOVARLABEL = TemplParam.ACTPARAM{ac}.MCOVARLABEL;
                         
                             % Reference batch / CovBat settings
                             if isfield(TemplParam.ACTPARAM{ac},'REFERENCE_LEVEL')
@@ -529,8 +533,6 @@ if isfield(TemplParam,'ACTPARAM')
                     end
                      InputParam.P{ac}.COVDIR=0;
                      InputParam.P{ac}.INTERCEPT=0;
-                     InputParam.P{ac}.MCOVARUSE = TemplParam.ACTPARAM{ac}.MCOVARUSE;
-                     InputParam.P{ac}.MCOVARLABEL = TemplParam.ACTPARAM{ac}.MCOVARLABEL;
                 
                 elseif isfield(TemplParam.ACTPARAM{ac},'METHOD') && InputParam.P{ac}.METHOD == 3
                     if isfield(TemplParam.ACTPARAM{ac},'SUBGROUP') && ~isempty(TemplParam.ACTPARAM{ac}.SUBGROUP)
