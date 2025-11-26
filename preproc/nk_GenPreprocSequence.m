@@ -131,15 +131,9 @@ if isfield(TemplParam,'ACTPARAM')
                                             end
                                         end
                                     end
-                                    InputParam.P{ac}.remove_idx = []; InputParam.P{ac}.keep_idx = []; InputParam.P{ac}.MCOVAR = [];
+                                    InputParam.P{ac}.MCOVAR = [];
                                     if isfield(TemplParam.ACTPARAM{ac},'MCOVAR') && ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR)
                                         InputParam.P{ac}.MCOVAR = TemplParam.ACTPARAM{ac}.MCOVAR;
-                                        if isfield(TemplParam.ACTPARAM{ac},'MCOVARREM') && ~isempty(TemplParam.ACTPARAM{ac}.MCOVARREM)
-                                            InputParam.P{ac}.MCOVARREM = TemplParam.ACTPARAM{ac}.MCOVARREM;
-                                            InputParam.P{ac}.remove_idx = TemplParam.ACTPARAM{ac}.MCOVARREM;
-                                            if VERBOSE, fprintf('\n\t- Remove covariate variance from: %s', strjoin(NM.covnames(InputParam.P{ac}.MCOVAR(InputParam.P{ac}.remove_idx)),', ')); end
-                                        end
-                                        InputParam.P{ac}.keep_idx = setdiff(1:numel(InputParam.P{ac}.MCOVAR), InputParam.P{ac}.MCOVARREM);
                                     end
                                     if VERBOSE 
                                         if isempty( InputParam.P{ac}.remove_idx) && ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR)
@@ -154,25 +148,25 @@ if isfield(TemplParam,'ACTPARAM')
                    
                         InputParam.P{ac}.TsCovars = [];
                         if isfield(SrcParam,'TrX')         
-                            InputParam.P{ac}.TrCovars        = SrcParam.covars( SrcParam.TrX, TemplParam.ACTPARAM{ac}.COVAR );
+                            InputParam.P{ac}.TrCovars        = SrcParam.covars( SrcParam.TrX, InputParam.P{ac}.COVAR );
                             InputParam.P{ac}.TrCovars(SrcParam.iTrX,:)=[];
                         end
                         if isfield(SrcParam,'TrI')         
-                            InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.TrI, TemplParam.ACTPARAM{ac}.COVAR );
+                            InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.TrI, InputParam.P{ac}.COVAR );
                             InputParam.P{ac}.TsCovars{1}(SrcParam.iTr,:) = [];
                         end
                         if isfield(SrcParam,'CVI')         
-                            InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.CVI, TemplParam.ACTPARAM{ac}.COVAR );   
+                            InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.CVI, InputParam.P{ac}.COVAR );   
                             InputParam.P{ac}.TsCovars{2}(SrcParam.iCV,:)=[];
                         end
                         if isfield(SrcParam,'TsI')         
-                            InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.TsI, TemplParam.ACTPARAM{ac}.COVAR );
+                            InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.TsI, InputParam.P{ac}.COVAR );
                             InputParam.P{ac}.TsCovars{3}(SrcParam.iTs,:)=[]; 
                         end
                         if ~isempty(SrcParam.covars_oocv)  
                             if iscell(SrcParam.covars_oocv)
                                 for n=1:numel(SrcParam.covars_oocv)
-                                    InputParam.P{ac}.TsCovars{tscnt+n} = SrcParam.covars_oocv{n}( :, TemplParam.ACTPARAM{ac}.COVAR );
+                                    InputParam.P{ac}.TsCovars{tscnt+n} = SrcParam.covars_oocv{n}( :, InputParam.P{ac}.COVAR );
                                     if iscell(SrcParam.iOCV)
                                         InputParam.P{ac}.TsCovars{tscnt+n}(SrcParam.iOCV{n},:)=[]; 
                                     else
@@ -314,8 +308,6 @@ if isfield(TemplParam,'ACTPARAM')
                         
                                 % ------------------ 5) Prepend labels if requested --------------
                                 covars = [];
-                                InputParam.P{ac}.keep_idx   = [];
-                                InputParam.P{ac}.remove_idx = [];
                                 InputParam.P{ac}.covars_idx = [];
                         
                                 if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
