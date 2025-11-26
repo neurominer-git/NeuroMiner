@@ -19,7 +19,7 @@ NMinfo.info.author  = 'N. Koutsouleris, C. Vetter, A. Wiegand, L. Hahn, S. Mena'
 NMinfo.info.affil   = 'Section for Precision Psychiatry / Artificial Intelligence in Mental Health (AIM)';
 NMinfo.info.dep     = 'Dept. of Psychiatry and Psychotherapy / IoPPN, Department of Psychosis Studies';
 NMinfo.info.inst    = 'Ludwig-Maximilians-University / King''s College London';
-NMinfo.info.datever = '10/2025';
+NMinfo.info.datever = '11/2025';
 NMinfo.info.timestamp = datetime("today");
 NMinfo.info.email   = 'nm@pronia.eu';
 try
