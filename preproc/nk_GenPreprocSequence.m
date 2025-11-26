@@ -121,7 +121,7 @@ if isfield(TemplParam,'ACTPARAM')
                                     end
                                     if VERBOSE 
                                         if InputParam.P{ac}.USEBATCH 
-                                            fprintf('\n\t- Batch correction: %s', NM.covnames{InputParam.P{ac}.ACTPARAM{ac}.COVAR})
+                                            fprintf('\n\t- Batch correction: %s', NM.covnames{InputParam.P{ac}.COVAR})
                                         else
                                             fprintf('\n\t- No-batch correction mode!') 
                                         end
