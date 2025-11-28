@@ -191,7 +191,9 @@ if ~isempty(analysis)
     % reduction method. If so, allow user to modify the memory mode and
     % thus compute correlation matrices and derived metrics
     switch analysis.params.TrainParam.FUSION.flag
-        case {0,1,2}
+        case {0,1} % No or early fusion: take the first modality-specific preproc param
+            PREPROCs = analysis.params.TrainParam.PREPROC(analysis.params.TrainParam.FUSION.M(1));
+        case 2 % Intermediate fusion: take all modality-specific preproc params
             PREPROCs = analysis.params.TrainParam.PREPROC(analysis.params.TrainParam.FUSION.M);
         case 3
             nM = numel(analysis.params.TrainParam.FUSION.M); PREPROCs = cell(1,nM);
@@ -441,7 +443,11 @@ nF = numel(F); if FUSION.flag < 3, nF = 1; end
 
 % Create final decompfl boolean array
 switch analysis.params.TrainParam.FUSION.flag
-    case {0,1,2}
+    case {0,1}
+        nM = numel(analysis.params.TrainParam.FUSION.M);
+        PREPROCs = analysis.params.TrainParam.PREPROC(analysis.params.TrainParam.FUSION.M(1));
+        if nM>1,PREPROCs = repmat(PREPROCs,1,nM); end
+    case 2
         PREPROCs = analysis.params.TrainParam.PREPROC(analysis.params.TrainParam.FUSION.M);
     case 3
         nM = numel(analysis.params.TrainParam.FUSION.M); PREPROCs = cell(1,nM);

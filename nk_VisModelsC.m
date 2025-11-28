@@ -1531,7 +1531,7 @@ end
                 [I, I1] = nk_VisXHelperC('merge_and_prune', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
             end
             [I, I1] = nk_VisXHelperC('report', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);
-            if VERBOSE
+            if VERBOSE && compwise
                 for curclass = 1:nclass
                     nk_plot_VCV2CorrRef(I.VCV2WCORRREF, curclass, VERBOSE, sprintf('Model [%g]: Component correlations and contributions',curclass))
                 end
