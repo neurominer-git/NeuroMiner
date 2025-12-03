@@ -1370,7 +1370,7 @@ for f=1:ix % Loop through CV2 permutations
                                                     if ~isempty(Dx) && ~isempty(Dx{n})
                                                         nSubj     = size(Dx{n},1);
                                                         nComp_new = size(Tx{n},2);        % components in this fold
-                                                        if il(h) == 1 && (numel(I1.Dx) < h || numel(I1.Dx{h}) < n || isempty(I1.Dx{h}{n}))
+                                                        if il(h) == 1 && (~isfield(I1,'Dx') || numel(I1.Dx) < h || numel(I1.Dx{h}) < n || isempty(I1.Dx{h}{n}))
                                                             % First time: full preallocation with NaNs
                                                             I1.Dx{h}{n} = nan(nSubj, jy, nComp_new, 'like', Dx{n});
                                                         else
@@ -1390,7 +1390,7 @@ for f=1:ix % Loop through CV2 permutations
                                                         nSubj     = size(Dx{1},1);
                                                         nComp_new = size(Tx{1},2);
                                                         
-                                                        if il(h) == 1 && (numel(I1.Dx) < h || isempty(I1.Dx{h}))
+                                                        if il(h) == 1 && (~isfield(I1,'Dx') || numel(I1.Dx) < h || isempty(I1.Dx{h}))
                                                             I1.Dx{h} = nan(nSubj, jy, nComp_new, 'like', Dx{1});
                                                         else
                                                             if size(I1.Dx{h},2) < jy

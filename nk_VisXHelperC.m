@@ -139,6 +139,8 @@ switch act
             if inp.isInter
                 for h = 1:nclass, I1.Dx{h} = cell(1, nM); end
             end
+        else
+            I1.Dx = [];
         end
 
         % --- Modality contribution containers (combined reference; per CV2 fold) ---
