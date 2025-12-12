@@ -92,6 +92,9 @@ for u = 1 : ukbin
             InputParam.Yw = inp.Yw;
         end 
     end
+
+    SrcParam.synth_activated = false;
+
     [TEMPL.Tr{u}, oTrainedParam] = nk_GenPreprocSequence(InputParam, uPREPROC, SrcParam);
 
     if isfield(paramfl,'PREPROC') && isfield(paramfl,'PXfull') && ~isempty(paramfl.PXopt{u})

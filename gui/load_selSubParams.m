@@ -7,10 +7,12 @@ if curclass>numel(handles.ModelParamsDesc), curclass=1; end
 desc = handles.ModelParamsDesc{curclass};
 if iscell(desc)
     names = desc(:);
-else
+elseif ~isempty(desc)
     % works for char arrays, string arrays, and scalar strings
     names = cellstr(desc);
     names = names(:);
+else
+    names = {'no params'};
 end
 [names_enum, ~] = FindIdentStringsEnum(names);
 

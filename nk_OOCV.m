@@ -92,10 +92,10 @@ function [Results, FileNames, RootPath] = nk_OOCV(inp)
 %     subgroup analyses are performed.
 %   - Detailed inline comments are provided within the code to explain each step of the process.
 %
-% (c) Nikolaos Koutsouleris, Last Modified 03/2025
+% (c) Nikolaos Koutsouleris, Last Modified 12/2025
 % -------------------------------------------------------------------------
 
-global SVM RFE MULTI MODEFL CV EVALFUNC OOCV SCALE SAV CVPOS RAND
+global SVM RFE MULTI MODEFL CV EVALFUNC OOCV SCALE SAV CVPOS RAND FUSION
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%% INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 FullPartFlag    = RFE.ClassRetrain;
 switch inp.analmode
@@ -115,6 +115,10 @@ analysis        = inp.analysis;
 GridAct         = inp.GridAct;
 batchflag       = inp.batchflag;
 algostr         = GetMLType(SVM);
+inp.isEarly     = FUSION.flag == 1 || FUSION.flag == 0;
+inp.isInter     = FUSION.flag == 2;
+inp.isLate      = FUSION.flag == 3;
+
 [ylm, ylb]      = nk_GetScaleYAxisLabel(SVM);
 
 % Setup CV2 and CV1 counters and data containers:
@@ -413,7 +417,11 @@ for f=1:ix % Loop through CV2 permutations
                                     % training and test data, (c) CV1 training & test
                                     % data as well as CV2 test data              
                                     if BINMOD, hix = h; else, hix = 1; end
-                                    [ TR , CV1, ~, OCV ] = nk_ReturnAtOptPos(mapY.Tr{k,l}{hix},  mapY.CV{k,l}{hix}, mapY.Ts{k,l}{hix}, mapYocv.Ts{k,l}{hix}, Param{1}(k,l,hix), pnt);                                        
+                                    if inp.isInter
+                                        TR = mapY.Tr{k,l}{hix}{pnt}; CV1 = mapY.CV{k,l}{hix}{pnt}; OCV = mapYocv.Ts{k,l}{hix}{pnt};
+                                    else
+                                        [ TR , CV1, ~, OCV ] = nk_ReturnAtOptPos(mapY.Tr{k,l}{hix},  mapY.CV{k,l}{hix}, mapY.Ts{k,l}{hix}, mapYocv.Ts{k,l}{hix}, Param{1}(k,l,hix), pnt);                                        
+                                    end
                                     modelTrL = mapY.TrL{k,l}{h}; 
 
                                     if FullPartFlag
@@ -824,19 +832,7 @@ for f=1:ix % Loop through CV2 permutations
                     hu = findobj('Tag','OOCV');
                     if isempty(hu)
                         sz = get(0,'ScreenSize');
-                        % === Screen size adjustment for MATLAB Online ===
-                        isMatlabOnline = strcmp(getenv('MW_DDUX_APP_NAME'), 'MATLAB_ONLINE');
-                        if isMatlabOnline
-                            % Manually set a fixed size and center the window for MATLAB Online
-                            win_wdth = 1200;
-                            win_hght = 800;
-                            win_x = max( (sz(3) - win_wdth) / 2, 1);
-                            win_y = max( (sz(4) - win_hght) / 2, 1);
-                        else
-                            % Original desktop logic
-                            win_wdth = sz(3)/1.5; win_hght = sz(4)/1.25; win_x = sz(3)/2 - win_wdth/2; win_y = sz(4)/2 - win_hght/2;
-                        end
-                        
+                        win_wdth = sz(3)/1.5; win_hght = sz(4)/1.25; win_x = sz(3)/2 - win_wdth/2; win_y = sz(4)/2 - win_hght/2;
                         hu = figure('Tag','OOCV', ...
                             'NumberTitle','off', ...
                              'MenuBar','none', ...
@@ -852,26 +848,15 @@ for f=1:ix % Loop through CV2 permutations
                     % --- 1) Resize figure window proportionally to number of columns ---
                     nCols = nsubgroups;
                     screenSz = get(0,'ScreenSize');  % [left bottom width height]
-                    % === Screen size adjustment for MATLAB Online ===
-                    isMatlabOnline = strcmp(getenv('MW_DDUX_APP_NAME'), 'MATLAB_ONLINE');
-                    if isMatlabOnline
-                        % Manually set a fixed size and center the window for MATLAB Online
-                        figW = 1200;
-                        figH = 800;
-                        figX = max( (screenSz(3) - figW) / 2, 1);
-                        figY = max( (screenSz(4) - figH) / 2, 1);
-                    else
-                        % Original desktop logic
-                        % Compute desired width: base + extra per subplot, cap at 90% screen
-                        baseW = 300;                    % pixels for 1 col
-                        perW  = 200;                    % extra per additional col
-                        figW  = min(screenSz(3)*0.9, baseW + perW*(nCols-1));
-                        % Height fixed fraction of screen
-                        figH  = screenSz(4)*0.6;
-                        % Center the figure
-                        figX  = (screenSz(3) - figW)/2;
-                        figY  = (screenSz(4) - figH)/2;
-                    end
+                    % Compute desired width: base + extra per subplot, cap at 90% screen
+                    baseW = 300;                    % pixels for 1 col
+                    perW  = 200;                    % extra per additional col
+                    figW  = min(screenSz(3)*0.9, baseW + perW*(nCols-1));
+                    % Height fixed fraction of screen
+                    figH  = screenSz(4)*0.6;
+                    % Center the figure
+                    figX  = (screenSz(3) - figW)/2;
+                    figY  = (screenSz(4) - figH)/2;
                     set(hu, 'Position', [figX, figY, figW, figH]);
                     
                     % --- 2) Compute margins and gaps for tight_subplot ---

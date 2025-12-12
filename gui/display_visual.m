@@ -811,6 +811,7 @@ switch meas{measind}
             case {1,2}
                 % Neuroimaging data view!
                 [~,~,ext] = fileparts(v.params.brainmask);
+                ext = regexprep(ext,',1','');
                 switch ext
                     case '.nii'
                         handles.pn3DView.Visible='on'; handles.axes33.Visible='off'; 

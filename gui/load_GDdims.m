@@ -20,8 +20,12 @@ else
     handles.calibflag = false;
 end
 
-if strcmp(handles.selYaxis.String{handles.selYaxis.Value},'Multi-group probabilities derived from similarity averaging')
-    fld = 'MultiClassProb';
+if iscell(handles.selYaxis.String)
+    if strcmp(handles.selYaxis.String{handles.selYaxis.Value},'Multi-group probabilities derived from similarity averaging')
+        fld = 'MultiClassProb';
+    else
+        fld = 'MultiClass';
+    end
 else
     fld = 'MultiClass';
 end

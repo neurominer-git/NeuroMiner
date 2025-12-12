@@ -1,9 +1,15 @@
 function load_selPager(handles, perpage)
 
-if strcmp(handles.popupmenu1.String{handles.popupmenu1.Value},'Multi-group classifier')
-    multiflag = true;
-else
-    multiflag = false;
+
+% Multi-group branch unchanged
+if handles.popupmenu1.Value > numel(handles.popupmenu1.String)
+    multiflag =false;
+else    
+    if strcmp(handles.popupmenu1.String{handles.popupmenu1.Value},'Multi-group classifier')
+        multiflag = true;
+    else
+        multiflag = false;
+    end
 end
 
 if handles.curmodal<= size(handles.visdata,1) && handles.visdata{handles.curmodal, handles.curlabel}.params.visflag ~= 1 && ~multiflag 

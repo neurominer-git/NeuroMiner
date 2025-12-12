@@ -169,7 +169,7 @@ for am = 1:nA
                  am, inp.analyses{am}.id, jm, inp.f, inp.d);
          end
          fprintf('\n%s: ', analid(am,:)); [~,nam]= fileparts(CVpath); fprintf('Loading %s', nam); 
-         load(CVpath,'GD'); 
+         load(CVpath); 
          % --- Auto-recognize and decode GD_enc -> GD (triplet format) ---
          if exist('GD_enc','var')
             fprintf('\nDetected GD_enc (triplet). Decoding to full GD ...');

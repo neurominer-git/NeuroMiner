@@ -2,7 +2,11 @@ function handles = load_selVisMeasDropDown(handles)
 % Build the measurement dropdown for the current modality (no repopulation on click)
 
 % Multi-group branch unchanged
-isMulti = strcmp(handles.popupmenu1.String{handles.popupmenu1.Value}, 'Multi-group classifier');
+if handles.popupmenu1.Value > numel(handles.popupmenu1.String)
+    isMulti=false;
+else
+    isMulti = strcmp(handles.popupmenu1.String{handles.popupmenu1.Value}, 'Multi-group classifier');
+end
 
 if ~isMulti
     if handles.curmodal <= size(handles.visdata,1)

@@ -228,7 +228,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
         tElapsed = tic;
         CVPOS.CV1p=k;CVPOS.CV1f=l;
         fprintf('\nWorking on CV2 [%2g, %2g ], CV1 [%2g, %2g ]: Prepare data', CVPOS.CV2p, CVPOS.CV2f, k, l);
-
+        
         for u=1:ukbin % Binary comparison loop depending on PREPROC.BINMOD & FBINMOD
             
             if ischar(Pnt(k,l,u).TrainedParam) && exist(Pnt(k,l,u).TrainedParam,'file')
@@ -290,6 +290,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
                 if iscell(usY)
                     n_usY = numel(usY); mult_contain = true; 
                     vTr = cell(n_usY,1); vTs = vTr;
+                    % Loop through modalities
                     for pu = 1:n_usY
                         % Training & OOCV data
                         vTr{pu} = usY{pu}(TrX,:); 
@@ -347,8 +348,8 @@ for k=sta_iy:stp_iy % Inner permutation loop
                 if iscell(usY)
                     n_usY = numel(usY); mult_contain = true; 
                     vTr = cell(n_usY,1); if ~isempty(Yocv), vTs = cell(n_usY,4); else, vTs = cell(n_usY,3); end
+                    % Loop through modalities
                     for pu = 1:n_usY
-                        
                         % Training & CV data
                         vTr{pu} = usY{pu}(TrX,:); vTs{pu,1} = usY{pu}(TrI,:); vTs{pu,2} = usY{pu}(CVI,:); 
                         % Check whether there is an alternative training/CV
@@ -359,13 +360,11 @@ for k=sta_iy:stp_iy % Inner permutation loop
                         else
                             vTs{pu,3} = usY{pu}(TsI{u},:); 
                         end
-
                         if pu == 1
                             % Remove cases which are completely NaN
                             [vTr{pu}, TrLX, SrcParam.iTrX] = nk_ManageNanCases(vTr{pu}, TrLX);
                             [vTs{pu,1}, TrL, SrcParam.iTr] = nk_ManageNanCases(vTs{pu,1}, TrL);
                             [vTs{pu,2}, CVL, SrcParam.iCV] = nk_ManageNanCases(vTs{pu,2}, CVL);
-                           
                         else
                             vTr{pu} = nk_ManageNanCases(vTr{pu});
                             vTs{pu,1} = nk_ManageNanCases(vTs{pu,1});
@@ -714,9 +713,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
 
                     if ~strcmp(MODEFL,'regression') && length(tCV.class{i,j}{u}.groups) == 2
                         [indtr, binlabels_tr] = create_binary_labels(oTrL, tCV.class{i,j}{u});
-                        if ~oocvonly
-                            [indcv, binlabels_cv] = create_binary_labels(oCVL, tCV.class{i,j}{u});        
-                        end
+                        if ~oocvonly, [indcv, binlabels_cv] = create_binary_labels(oCVL, tCV.class{i,j}{u}); end
                     else
                         indtr = true(size(TrI,1),1);
                         if ~oocvonly, indcv = true(size(CVI,1),1); end
@@ -733,11 +730,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
                             if RAND.Decompose ~=9
                                 % Write labels to CV1 partition
                                 tY.TrL{k,l}{u} = binlabels_tr;
-                                %tY.TrL{k,l}{u} = tCV.class{i,j}{u}.TrainLabel{k,l}(:,lb);	
-                                if ~oocvonly
-                                    tY.CVL{k,l}{u} = binlabels_cv;
-                                    %tY.CVL{k,l}{u} = tCV.class{i,j}{u}.TestLabel{k,l}(:,lb); 
-                                end
+                                if ~oocvonly, tY.CVL{k,l}{u} = binlabels_cv; end
                             else
                                 tY.TrL{k,l}{u} = TrL;
                                 if ~oocvonly, tY.CVL{k,l}{u} = labels(tCV.TrainInd{i,j}(tCV.cvin{i,j}.TestInd{k,l}),lb); end
@@ -751,11 +744,6 @@ for k=sta_iy:stp_iy % Inner permutation loop
             if paramfl.write || cv2flag
                 Pnt(k,l,u).TrainedParam = oTrainedParam; 
             end
-%             if isfield(paramfl,'writeCV1') && paramfl.writeCV1
-%                 filepath = fullfile(pwd, sprintf('PreprocDataMat_CV2-%g-%g_CV1-%g-%g_Class%g.mat', inp.f, inp.d, k, l,u));
-%                 fprintf('\nSaving preprocessing data:\n%s', filepath);
-%                 save(filepath, "oTrainedParam", "tY", "-v7.3")
-%             end
             clear TrainedParam SrcParam
         end
         fprintf('\tCompleted in %1.2fs. ',toc(tElapsed)); 

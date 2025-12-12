@@ -49,7 +49,7 @@ else
     oTrainedParam = Pnt.TrainedParam;
 end
 
-if ~isempty(Pnt.nA)
+if ~isempty(Pnt.nA) && isfield(Pnt,'TrainedParam') && ~isempty(Pnt.TrainedParam)
     TrainedParam = cell(1,Pnt.nA);
     for a = 1:Pnt.nA
         if isstruct(Pnt.TrainedParam{a})
