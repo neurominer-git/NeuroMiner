@@ -371,6 +371,24 @@ x1 = scatter(lxL(ide1),predh(ide1), 'x', 'MarkerFaceColor', CLR1, 'MarkerEdgeCol
 x2 = scatter(lxL(ide2),predh(ide2), 'x', 'MarkerFaceColor', CLR2, 'MarkerEdgeColor', CLR2, ...
     'SizeData',handles.DataMissMarkerSize,'LineWidth',handles.DataMissMarkerWidth);  
 
+% --- Minimal safeguard: force groupnames to legend-safe strings
+gn = handles.BinClass{h}.groupnames;
+if ~iscell(gn), gn = cellstr(gn); end
+for ii = 1:numel(gn)
+    try
+        v = gn{ii};
+        if isstring(v), v = char(v); end
+        if ischar(v), v = v(:)'; end                 % ensure row char
+        if isempty(v) || ~(ischar(v) || isstring(v))
+            v = sprintf('Group %d', ii);
+        end
+    catch
+        v = sprintf('Group %d', ii);
+    end
+    gn{ii} = v;
+end
+handles.BinClass{h}.groupnames = gn;
+
 % Create legend
 switch GraphType
     case {2,3,5,6}
@@ -448,7 +466,7 @@ set(hx(1), ...%'FontSize',handles.AxisLabelSize-2,
 hx(2) = ylabel([SrtStr algostr]); 
 set(hx(2), ...%'FontSize',handles.AxisLabelSize-2, ...
     'FontWeight',handles.AxisLabelWeight);
-handles.legend_classplot = legend(handlevec,legendvec, 'Location','Best', 'FontSize', 8,'LineWidth',1);%,'FontSize',handles.LegendFontSize); 
+handles.legend_classplot = legend(handlevec, legendvec, 'Location','Best', 'FontSize', 8,'LineWidth',1);%,'FontSize',handles.LegendFontSize); 
 legend('boxon')
 
 
