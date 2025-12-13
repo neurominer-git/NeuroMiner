@@ -260,33 +260,86 @@ axes(handles.axes5)
 if isfield(handles,'txtPerf'); delete(handles.txtPerf); end
   
 if binarizeflag
-    
-    m = nm_nanmean(pred); set(handles.txtBinarize,'String',m);
-    % Binarize at mean
+
+    % --- threshold handling (as before) ---
+    m = nm_nanmean(pred); 
+    set(handles.txtBinarize,'String',m);
+
     if isempty(handles.txtBinarize.String) || strcmp(handles.txtBinarize.String,'Binarization Threshold')
         if isfield(handles,'binarize_hline')
-            delete(handles.binarize_hline); 
-            delete(handles.binarize_vline); 
+            delete(handles.binarize_hline);
+            delete(handles.binarize_vline);
         end
+        % keep m = mean(pred)
     else
         m = str2double(handles.txtBinarize.String);
     end
-    pred_m = pred - m;
-    label_m = label; label_m(label>=m) = 1; label_m(label<m) = -1; 
+
+    % --- build binarized labels/preds ---
+    pred_m  = pred - m;
+    label_m = label;
+    label_m(label >= m) =  1;
+    label_m(label <  m) = -1;
+
     handles.curRegr.b_label = label_m;
-    handles.curRegr.b_pred = pred_m;
-    handles.curRegr.pred = pred;
-    [handles.curRegr.X, ...
-     handles.curRegr.Y, ...
-     handles.curRegr.T, ...
-     handles.curRegr.AUC] = perfcurve2(handles.curRegr.b_label, handles.curRegr.b_pred, 1);
-    handles.curRegr.contigmat = ALLPARAM(handles.curRegr.b_label, handles.curRegr.b_pred);
-    handles.curRegr.contigmat.BINARIZATION_THRESHOLD = m;
-    handles = binarize_regr(handles);
-    
-    % Print performance table
-    handles = display_contigmat(handles);
-    % Display contingency plot
-    confmatrix = [[handles.curRegr.contigmat.TP handles.curRegr.contigmat.FN]; [handles.curRegr.contigmat.FP handles.curRegr.contigmat.TN]];
-    handles.h_contig = display_contigplot(handles, confmatrix, {'Group 1', 'Group 2'});
+    handles.curRegr.b_pred  = pred_m;
+    handles.curRegr.pred    = pred;
+
+    % --- validity check: need 2 classes and enough valid points ---
+    bl = handles.curRegr.b_label(:);
+    bp = handles.curRegr.b_pred(:);
+
+    valid = ~isnan(bl) & ~isnan(bp) & isfinite(bl) & isfinite(bp);
+    blv = bl(valid);
+    bpv = bp(valid);
+
+    u = unique(blv);
+
+    if numel(u) < 2
+        % ====== NOT ENOUGH CLASSES: disable classification-derived outputs ======
+        % Clear ROC/AUC outputs
+        handles.curRegr.X   = NaN;
+        handles.curRegr.Y   = NaN;
+        handles.curRegr.T   = NaN;
+        handles.curRegr.AUC = NaN;
+
+        % Clear / reset contingency outputs so downstream code doesn't choke
+        handles.curRegr.contigmat = struct();
+        handles.curRegr.contigmat.BINARIZATION_THRESHOLD = m;
+        handles.curRegr.contigmat.NOTES = 'Binarization produced only one class; ROC/AUC and contingency unavailable.';
+
+        % Draw “binarize” graphics only if it makes sense
+        % Clear perf text/table/plot area
+        % axes(handles.axes5); cla; axis off;
+        % text(0.02, 0.98, sprintf(['Binarization at %.4g produced only one class.\n' ...
+        %                           'ROC/AUC + contingency metrics are not available.\n' ...
+        %                           'Tip: choose a different threshold or check label variance.'], m), ...
+        %      'Units','normalized','VerticalAlignment','top','Interpreter','none');
+        % 
+        % % If previous contig plot exists, remove it
+        % if isfield(handles,'h_contig') && ~isempty(handles.h_contig) && isvalid(handles.h_contig)
+        %     try, delete(handles.h_contig); end
+        % end
+
+    else
+        % ====== OK: proceed with ROC/AUC + contingency ======
+
+        [handles.curRegr.X, ...
+         handles.curRegr.Y, ...
+         handles.curRegr.T, ...
+         handles.curRegr.AUC] = perfcurve2(blv, bpv, 1);
+
+        handles.curRegr.contigmat = ALLPARAM(blv, bpv);
+        handles.curRegr.contigmat.BINARIZATION_THRESHOLD = m;
+
+        handles = binarize_regr(handles);
+
+        % Print performance table
+        handles = display_contigmat(handles);
+
+        % Display contingency plot
+        confmatrix = [[handles.curRegr.contigmat.TP handles.curRegr.contigmat.FN]; ...
+                      [handles.curRegr.contigmat.FP handles.curRegr.contigmat.TN]];
+        handles.h_contig = display_contigplot(handles, confmatrix, {'Group 1', 'Group 2'});
+    end
 end
