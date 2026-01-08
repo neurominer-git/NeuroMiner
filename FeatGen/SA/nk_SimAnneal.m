@@ -16,7 +16,7 @@ r = rfe_algo_settings(Y, label, Ynew, labelnew, Ps, FullFeat, FullParam, ActStr)
 n = size(r.Y,2); % the number of data instances (m) and the features (n)
 
 % #####################################################################
-% ==== Make the order of voxels to be introduced to the SA =====
+% ==== Make the order of features to be introduced to the SA =====
 % #####################################################################
 % The normal order
 featureID_sorted = 1:n;
@@ -32,11 +32,12 @@ featureID_order = featureID_sorted ; % the MI-descend order
 objFunction = @ObjectiveFunction1; 
 
 % @#$% user-defined solution mapping function
-nextSolution = @NextSolution3; 
+%nextSolution = @NextSolution3; 
 
 % @#$% SA parameters
 c               = RFE.Wrapper.SA.c;
 T               = RFE.Wrapper.SA.T;
+T_initial       = T;
 T_stop          = RFE.Wrapper.SA.T_stop; % the stopping temperature 
 alpha           = RFE.Wrapper.SA.alpha;
 itt_max         = RFE.Wrapper.SA.itt_max;
@@ -46,8 +47,10 @@ kc              = RFE.Wrapper.SA.kc; % k-constant. The smaller kc --> less solut
 
 % ====================================================
 % initialize or evaluate the solution for user-defined function  % @#$% user-defined
-x_curr          = zeros(1,n); x_curr(1:5) = 1; % starting with choosing first 5 voxels
-F_curr          = -1e+9; % F_curr = objFunction(x_curr);
+x_curr = false(1,n); 
+x_curr(1:min(5,n)) = true;
+%F_curr          = -1e+9; % F_curr = objFunction(x_curr);
+F_curr = objFunction(n, c, labelnew, r.Ynew(:,x_curr), label, r.Y(:,x_curr), Ps, r.Criterion.ylb_short);
 x_best          = x_curr;
 F_best          = F_curr;
 storage_new     = {};
@@ -78,12 +81,12 @@ end
 while converges == 0 && itt <= itt_max
     
     % pick a new solution x_new
-    x_new = nextSolution(x_curr, itt, n, featureID_order); % @#$% user-defined
+    x_new = NextSolution4(x_curr, n, featureID_order, T, T_initial);
     
     if ~any(x_new), x_new = x_curr; end
     % @#$% user-defined objective function
     % F_new = objFunction(x_new): Calculate F_new from x_new: 
-    F_new = objFunction(n, c, labelnew, r.Ynew(:,x_new), label, r.Y(:,x_new), Ps);
+    F_new = objFunction(n, c, labelnew, r.Ynew(:,x_new), label, r.Y(:,x_new), Ps, r.Criterion.ylb_short);
 
     % Anything you want to keep is here % @#$% user-defined
     storage_new.itt = itt;
@@ -97,8 +100,8 @@ while converges == 0 && itt <= itt_max
     % Check: update solution
     if feval(r.evaldir, F_new, F_curr)
         % back up before update
-        F_prev = F_curr; % backup the previous
-        x_prev = x_curr; % backup the previous
+        %F_prev = F_curr; % backup the previous
+        %x_prev = x_curr; % backup the previous
         % update
         F_curr = F_new; % accept the solution
         x_curr = x_new; % accept the solution
@@ -110,13 +113,13 @@ while converges == 0 && itt <= itt_max
             end
             F_best = F_new;
             x_best = x_new;
-            storage_best = storage_new;
-            is_best_updated = 1;
+            %storage_best = storage_new;
+            %is_best_updated = true;
         end
     elseif exp((F_new-F_curr)/(kc*T)) > rand(1)
         % back up before update
-        F_prev = F_curr; % backup the previous
-        x_prev = x_curr; % backup the previous
+        %F_prev = F_curr; % backup the previous
+        %x_prev = x_curr; % backup the previous
         % update
         F_curr = F_new; % accept the solution
         x_curr = x_new; % accept the solution
@@ -132,8 +135,8 @@ while converges == 0 && itt <= itt_max
         T = alpha*T;
         Rep_T = 0;
         Rep_accept = 0;
-        F_curr = F_best;
-        x_curr = x_best;
+        %F_curr = F_best;
+        %x_curr = x_best;
     end
     
     % stop criteria by temperature
@@ -155,19 +158,47 @@ end
 
 % =========== END of SA =====================
 if VERBOSE
-    if converges,
+    if converges
         fprintf('\nSA algorithm converged')
     else
         fprintf('\n%g iterations reached. Algorithm terminated.',itt_max);
     end
 end
 %% CHECK IF OPTIMIZED FEATURE SPACE PERFORMS BETTER THAN ORIGINAL SPACE
-% if ~feval(r.evaldir, F_best, r.FullParam)
-%     optparam = r.FullParam; optind = r.FullInd; optfound = 0;
-% else
+if ~feval(r.evaldir, F_best, r.FullParam)
+    optparam = r.FullParam; optind = r.FullInd; optfound = 0;
+    if VERBOSE
+        fprintf('\n----------------------')
+        fprintf('\nSA OPTIMIZATION RESULT')
+        fprintf('\n----------------------')
+        fprintf('\nOriginal feature set performance (%s): %g', ActStr, r.FullParam)
+        fprintf('\nSA-optimized performance (%s): %g', ActStr, F_best)
+        fprintf('\nFeatures selected by SA: %d/%d (%3.1f%%)', sum(x_best), n, sum(x_best)*100/n)
+        fprintf('\n==> SA did NOT improve performance. Using original feature set.')
+        fprintf('\n')
+    end
+else
     optind = r.FullInd(x_best); optparam = F_best; optfound = 1;
-%end
-SIG = nk_CheckMatrixEmptyNonVarNonFinite(Y(:,optind));
+    if VERBOSE
+        fprintf('\n----------------------')
+        fprintf('\nSA OPTIMIZATION RESULT')
+        fprintf('\n----------------------')
+        fprintf('\nOriginal feature set performance (%s): %g', ActStr, r.FullParam)
+        fprintf('\nSA-optimized performance (%s): %g', ActStr, F_best)
+        fprintf('\nFeatures selected by SA: %d/%d (%3.1f%%)', sum(x_best), n, sum(x_best)*100/n)
+        
+        % Calculate improvement
+        if feval(r.evaldir, 0, r.FullParam)  % Check if higher is better
+            improvement = ((F_best - r.FullParam) / abs(r.FullParam)) * 100;
+        else  % Lower is better
+            improvement = ((r.FullParam - F_best) / abs(r.FullParam)) * 100;
+        end
+        fprintf('\nImprovement: %+.2f%%', improvement)
+        fprintf('\n==> SA successfully improved performance!')
+        fprintf('\n')
+    end
+end
+%SIG = nk_CheckMatrixEmptyNonVarNonFinite(Y(:,optind));
 [~,optmodel] = TRAINFUNC(Y(:,optind), label, 1, Ps); 
 
 end

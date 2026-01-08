@@ -23,6 +23,7 @@ r.kFea   = numel(r.FullInd);
 % Defaults used elsewhere
 r.FeatRandPerc = 0;
 r.FeatStepPerc = true;
+[r.Criterion.yl, r.Criterion.ylb, r.Criterion.yfun, r.Criterion.ylb_short] = nk_GetScaleYAxisLabel(SVM.GridParam);
 
 % ------------------------- Wrapper type: Greedy --------------------------
 switch RFE.Wrapper.type
