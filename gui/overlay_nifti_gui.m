@@ -1,4 +1,4 @@
-function viewer = overlay_nifti_gui(structFile, statFile, parent, alphaVal)
+function viewer = overlay_nifti_gui(structFile, statFile, parent, alphaVal, structDir)
 % OVERLAY_NIFTI_GUI  Interactive overlay of structural image and statistical map
 %   overlay_nifti_gui(structFile, statFile, parent, alphaVal)
 %   structFile: path to structural NIfTI (.nii)
@@ -66,13 +66,14 @@ xBtn=[];
 maxSlices = []; sliceIdx = [];
 isoOn = false;   
 h3DAx = [];
-hRot = [];
 depthMM = 0;
 alpha3D = 0.6;    % default 3D brain opacity (0..1)
 
 trigBrainRebuild = false;
 trigVolRebuild = false;
 trigSurfRebuild = false;
+
+if nargin<5, structDir =[]; end
 
 %% B) Handle inputs & parent container
 if nargin<4, alphaVal=0.5; end
@@ -171,22 +172,23 @@ rlPos = get(hRegLabel,'Position');
 
 %% Change structural image 
 % === STRUCTURAL IMAGE CONTROL ===
-if exist(structFile,'dir')
-    structDir = structFile;
-    D = dir(fullfile(structDir,'*_struct.nii'));
-    names = {D.name};
-    % append browse option
-    names{end+1} = 'Browse...';
-    % build popup
-    hStructPopup = uicontrol(parent, 'Style','popupmenu', 'String', names, 'Units','normalized', 'Position',[rlPos(1) 0.18 rlPos(3) 0.06], ...
-      'Callback',@onStructSelect);
-    % pre‐load the first one
-    structFile = fullfile(structDir, names{1});
-else
-    structDir = [];
-    % single‐file mode: keep your existing pushbutton
-    hStructBtn = uicontrol(parent,'Style','pushbutton', 'String','Select structural image', 'Units','normalized', 'Position',[rlPos(1) 0.2 rlPos(3) 0.04], ...
-      'Callback',@onLoadStruct);
+if ~exist(structDir,'dir') || isempty(structDir)
+    if exist(structFile,'dir')
+        structDir = structFile;
+        D = dir(fullfile(structDir,'*_struct.nii'));
+        names = {D.name};
+        % append browse option
+        names{end+1} = 'Browse...';
+        % build popup
+        hStructPopup = uicontrol(parent, 'Style','popupmenu', 'String', names, 'Units','normalized', 'Position',[rlPos(1) 0.18 rlPos(3) 0.06], ...
+          'Callback',@onStructSelect);
+        % pre‐load the first one
+        structFile = fullfile(structDir, names{1});
+    else
+        % single‐file mode: keep your existing pushbutton
+        hStructBtn = uicontrol(parent,'Style','pushbutton', 'String','Select structural image', 'Units','normalized', 'Position',[rlPos(1) 0.2 rlPos(3) 0.04], ...
+          'Callback',@onLoadStruct);
+    end
 end
 
 onLoadStruct([],[],structFile);

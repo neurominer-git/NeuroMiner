@@ -460,7 +460,9 @@ switch meas{measind}
          handles.axes33.YTick = 0:maxah/10:(maxah+maxah*0.2);
          yticklabels(handles.axes33,'auto')
          [~,xlb]=nk_GetScaleYAxisLabel(handles.NM.analysis{handles.curranal}.params.TrainParam.SVM);
-         rg = range(yh)*0.15; xl = [ min(yh)-rg max(yh)+rg ]; if vp>=xl(2), xl(2) = vp + rg; elseif vp<=xl(1), xl(1) = vp +rg; end
+         rg = range(yh)*0.15; 
+         xl = [ min(yh)-rg max(yh)+rg ]; 
+         if vp>=xl(2), xl(2) = vp + rg; elseif vp<=xl(1), xl(1) = vp - rg; end
          xlim(xl); 
          xlabel(['Optimization criterion: ' xlb]);
          ylabel('Probability');

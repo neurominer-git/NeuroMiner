@@ -84,182 +84,192 @@ if isfield(TemplParam,'ACTPARAM')
                         end
                     end
                 end
-                
+
             case 'correctnuis'
-                
-                    if ~isempty(SrcParam.covars)
-                        if isfield(TemplParam.ACTPARAM{ac},'METHOD') 
-                            InputParam.P{ac}.METHOD = TemplParam.ACTPARAM{ac}.METHOD;
-                            switch TemplParam.ACTPARAM{ac}.METHOD
-                                case {1,3} 
+    
+                if ~isempty(SrcParam.covars)
+                    if isfield(TemplParam.ACTPARAM{ac},'METHOD') 
+                        InputParam.P{ac}.METHOD = TemplParam.ACTPARAM{ac}.METHOD;
+                        switch TemplParam.ACTPARAM{ac}.METHOD
+                            case {1,3} 
+                                InputParam.P{ac}.COVAR = TemplParam.ACTPARAM{ac}.COVAR;
+                                if VERBOSE 
+                                    fprintf('\n* ADJUSTING DATA FOR COVARIATE EFFECTS')
+                                    switch TemplParam.ACTPARAM{ac}.METHOD
+                                        case 1
+                                            fprintf('\n\t- Method: Partial correlations'); 
+                                        case 3
+                                            fprintf('\n\t- Method: Disparate Impact Removal'); 
+                                    end
+                                    fprintf('\n\t- Nuisance covariate(s): %s', strjoin(NM.covnames(TemplParam.ACTPARAM{ac}.COVAR),', '))
+                                end
+                            case 2
+                                if VERBOSE 
+                                    fprintf('\n* ADJUSTING DATA FOR BATCH/COVARIATE EFFECTS')
+                                    fprintf('\n\t- Method: Combat')
+                                end
+                                InputParam.P{ac}.USEBATCH = true;
+                                if isfield(TemplParam.ACTPARAM{ac},'MBATCH')
+                                    if ~isempty(TemplParam.ACTPARAM{ac}.MBATCH)
+                                        InputParam.P{ac}.COVAR = TemplParam.ACTPARAM{ac}.MBATCH;
+                                    else
+                                        InputParam.P{ac}.COVAR = 1;
+                                    end
+                                    InputParam.P{ac}.USEBATCH = TemplParam.ACTPARAM{ac}.MBATCHUSE;
+                                else
                                     InputParam.P{ac}.COVAR = TemplParam.ACTPARAM{ac}.COVAR;
-                                    if VERBOSE 
-                                        fprintf('\n* ADJUSTING DATA FOR COVARIATE EFFECTS')
-                                         switch TemplParam.ACTPARAM{ac}.METHOD
-                                             case 1
-                                                fprintf('\n\t- Method: Partial correlations'); 
-                                             case 3
-                                                fprintf('\n\t- Method: Disparate Impact Removal'); 
-                                         end
-                                        fprintf('\n\t- Nuisance covariate(s): %s', strjoin(NM.covnames(TemplParam.ACTPARAM{ac}.COVAR),', '))
-                                    end
-                                case 2
-                                    if VERBOSE 
-                                        fprintf('\n* ADJUSTING DATA FOR BATCH/COVARIATE EFFECTS')
-                                        if VERBOSE, fprintf('\n\t- Method: Combat'); end
-                                    end
-                                    InputParam.P{ac}.USEBATCH = true;
-                                    if isfield(TemplParam.ACTPARAM{ac},'MBATCH')
-                                        if ~isempty(TemplParam.ACTPARAM{ac}.MBATCH)
-                                            InputParam.P{ac}.COVAR = TemplParam.ACTPARAM{ac}.MBATCH;
-                                        else
-                                            InputParam.P{ac}.COVAR = 1;
-                                        end
-                                        InputParam.P{ac}.USEBATCH = TemplParam.ACTPARAM{ac}.MBATCHUSE;
+                                end
+                                if VERBOSE 
+                                    if InputParam.P{ac}.USEBATCH 
+                                        fprintf('\n\t- Batch correction: %s', NM.covnames{InputParam.P{ac}.COVAR})
                                     else
-                                        InputParam.P{ac}.COVAR = TemplParam.ACTPARAM{ac}.COVAR;
+                                        fprintf('\n\t- No-batch correction mode!') 
                                     end
-                                    if VERBOSE 
-                                        if InputParam.P{ac}.USEBATCH 
-                                            fprintf('\n\t- Batch correction: %s', NM.covnames{InputParam.P{ac}.COVAR})
-                                        else
-                                            fprintf('\n\t- No-batch correction mode!') 
+                                    if isfield(TemplParam.ACTPARAM{ac},'MCOVARUSE') 
+                                        if TemplParam.ACTPARAM{ac}.MCOVARUSE == 1
+                                            fprintf('\n\t- Combat includes covariate estimators: %s', strjoin(NM.covnames(TemplParam.ACTPARAM{ac}.MCOVAR),', ')); 
                                         end
-                                        if isfield(TemplParam.ACTPARAM{ac},'MCOVARUSE') 
-                                            if TemplParam.ACTPARAM{ac}.MCOVARUSE == 1
-                                                fprintf('\n\t- Combat includes covariate estimators: %s', strjoin(NM.covnames(TemplParam.ACTPARAM{ac}.MCOVAR),', ')); 
-                                            end
-                                        end
-                                    end
-                                    InputParam.P{ac}.MCOVAR = [];
-                                    if isfield(TemplParam.ACTPARAM{ac},'MCOVAR') && ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR)
-                                        InputParam.P{ac}.MCOVAR = TemplParam.ACTPARAM{ac}.MCOVAR;
-                                    end
-                                    if VERBOSE 
-                                        if isempty( InputParam.P{ac}.remove_idx) && ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR)
-                                            fprintf('\n\t- Retain all covariates'' variance.')
-                                        end
-                                        if InputParam.P{ac}.MCOVARLABEL == 1
-                                             fprintf('\n\t- Retain label variance.')
-                                        end
-                                    end
-                            end
-                        end
-                   
-                        InputParam.P{ac}.TsCovars = [];
-                        if isfield(SrcParam,'TrX')         
-                            InputParam.P{ac}.TrCovars        = SrcParam.covars( SrcParam.TrX, InputParam.P{ac}.COVAR );
-                            InputParam.P{ac}.TrCovars(SrcParam.iTrX,:)=[];
-                        end
-                        if isfield(SrcParam,'TrI')         
-                            InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.TrI, InputParam.P{ac}.COVAR );
-                            InputParam.P{ac}.TsCovars{1}(SrcParam.iTr,:) = [];
-                        end
-                        if isfield(SrcParam,'CVI')         
-                            InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.CVI, InputParam.P{ac}.COVAR );   
-                            InputParam.P{ac}.TsCovars{2}(SrcParam.iCV,:)=[];
-                        end
-                        if isfield(SrcParam,'TsI')         
-                            InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.TsI, InputParam.P{ac}.COVAR );
-                            InputParam.P{ac}.TsCovars{3}(SrcParam.iTs,:)=[]; 
-                        end
-                        if ~isempty(SrcParam.covars_oocv)  
-                            if iscell(SrcParam.covars_oocv)
-                                for n=1:numel(SrcParam.covars_oocv)
-                                    InputParam.P{ac}.TsCovars{tscnt+n} = SrcParam.covars_oocv{n}( :, InputParam.P{ac}.COVAR );
-                                    if iscell(SrcParam.iOCV)
-                                        InputParam.P{ac}.TsCovars{tscnt+n}(SrcParam.iOCV{n},:)=[]; 
-                                    else
-                                        InputParam.P{ac}.TsCovars{tscnt+n}(SrcParam.iOCV,:)=[]; 
                                     end
                                 end
+                                InputParam.P{ac}.MCOVAR = [];
+                                if isfield(TemplParam.ACTPARAM{ac},'MCOVAR') && ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR)
+                                    InputParam.P{ac}.MCOVAR = TemplParam.ACTPARAM{ac}.MCOVAR;
+                                end
+                        end
+                    end
+               
+                    InputParam.P{ac}.TsCovars = [];
+                    if isfield(SrcParam,'TrX')         
+                        InputParam.P{ac}.TrCovars        = SrcParam.covars( SrcParam.TrX, InputParam.P{ac}.COVAR );
+                        InputParam.P{ac}.TrCovars(SrcParam.iTrX,:)=[];
+                    end
+                    if isfield(SrcParam,'TrI')         
+                        InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.TrI, InputParam.P{ac}.COVAR );
+                        InputParam.P{ac}.TsCovars{1}(SrcParam.iTr,:) = [];
+                    end
+                    if isfield(SrcParam,'CVI')         
+                        InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.CVI, InputParam.P{ac}.COVAR );   
+                        InputParam.P{ac}.TsCovars{2}(SrcParam.iCV,:)=[];
+                    end
+                    if isfield(SrcParam,'TsI')         
+                        InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.TsI, InputParam.P{ac}.COVAR );
+                        InputParam.P{ac}.TsCovars{3}(SrcParam.iTs,:)=[]; 
+                    end
+                    if ~isempty(SrcParam.covars_oocv)  
+                        if iscell(SrcParam.covars_oocv)
+                            for n=1:numel(SrcParam.covars_oocv)
+                                InputParam.P{ac}.TsCovars{tscnt+n} = SrcParam.covars_oocv{n}( :, InputParam.P{ac}.COVAR );
+                                if iscell(SrcParam.iOCV)
+                                    InputParam.P{ac}.TsCovars{tscnt+n}(SrcParam.iOCV{n},:)=[]; 
+                                else
+                                    InputParam.P{ac}.TsCovars{tscnt+n}(SrcParam.iOCV,:)=[]; 
+                                end
+                            end
+                        else
+                            InputParam.P{ac}.TsCovars{tscnt+1} = SrcParam.covars_oocv( :, InputParam.P{ac}.COVAR );
+                            if iscell(SrcParam.iOCV)
+                                InputParam.P{ac}.TsCovars{tscnt+1}(SrcParam.iOCV{1},:)=[]; 
                             else
-                                InputParam.P{ac}.TsCovars{tscnt+1} = SrcParam.covars_oocv( :, TemplParam.ACTPARAM{ac}.COVAR );
                                 InputParam.P{ac}.TsCovars{tscnt+1}(SrcParam.iOCV,:)=[]; 
                             end
                         end
-
-                        if isfield(TemplParam.ACTPARAM{ac},'METHOD') && TemplParam.ACTPARAM{ac}.METHOD==2
+                    end
+            
+                    if isfield(TemplParam.ACTPARAM{ac},'METHOD') && TemplParam.ACTPARAM{ac}.METHOD==2
+                
+                        InputParam.P{ac}.TsMod    = []; 
+                        InputParam.P{ac}.TrMod    = []; 
+                        InputParam.P{ac}.keep_idx   = [];
+                        InputParam.P{ac}.remove_idx = [];
+                        InputParam.P{ac}.covars_idx = [];
+                        
+                        % Use covars - Initialize these first before any reference
+                        InputParam.P{ac}.MCOVARUSE = TemplParam.ACTPARAM{ac}.MCOVARUSE;
+                        InputParam.P{ac}.MCOVARLABEL = TemplParam.ACTPARAM{ac}.MCOVARLABEL;
                     
-                            InputParam.P{ac}.TsMod    = []; 
-                            InputParam.P{ac}.TrMod    = []; 
-                            InputParam.P{ac}.keep_idx   = [];
-                            InputParam.P{ac}.remove_idx = [];
-                            InputParam.P{ac}.covars_idx = [];
+                        % Reference batch / CovBat settings
+                        if isfield(TemplParam.ACTPARAM{ac},'REFERENCE_LEVEL')
+                            InputParam.P{ac}.REFERENCE_LEVEL = TemplParam.ACTPARAM{ac}.REFERENCE_LEVEL; 
+                        end
+                        if isfield(TemplParam.ACTPARAM{ac},'COVBAT_MODE')
+                            InputParam.P{ac}.COVBAT_MODE = TemplParam.ACTPARAM{ac}.COVBAT_MODE;
+                            InputParam.P{ac}.COVBAT_K    = TemplParam.ACTPARAM{ac}.COVBAT_K;
+                            InputParam.P{ac}.COVBAT_VAR  = TemplParam.ACTPARAM{ac}.COVBAT_VAR;
+                        end
+                    
+                        % Unseen-batch mode (EB / no-shrink / strong-shrink)
+                        if isfield(TemplParam.ACTPARAM{ac},'UNSEENBATCH_MODE')
+                            InputParam.P{ac}.UNSEENBATCH_MODE  = TemplParam.ACTPARAM{ac}.UNSEENBATCH_MODE;
+                        end
+                        if isfield(TemplParam.ACTPARAM{ac},'UNSEENBATCH_ALPHA')
+                            InputParam.P{ac}.UNSEENBATCH_ALPHA = TemplParam.ACTPARAM{ac}.UNSEENBATCH_ALPHA;
+                        end
+                    
+                        % Now that MCOVARLABEL is initialized, we can use it in VERBOSE blocks
+                        if VERBOSE 
+                            if isfield( InputParam.P{ac}, 'remove_idx')
+                                if isempty( InputParam.P{ac}.remove_idx) && ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR)
+                                    fprintf('\n\t- Retain all covariates'' variance.')
+                                end
+                            end
+                            if InputParam.P{ac}.MCOVARLABEL == 1
+                                 fprintf('\n\t- Retain label variance.')
+                            end
+                        end
+                    
+                        % ------------------------------------------------------------------
+                        % Build ComBat design 'mod' (covariates) + label prepend + indices
+                        % ------------------------------------------------------------------
+                        if ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR) || TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
                             
-                            % Use covars
-                            InputParam.P{ac}.MCOVARUSE = TemplParam.ACTPARAM{ac}.MCOVARUSE;
-                            InputParam.P{ac}.MCOVARLABEL = TemplParam.ACTPARAM{ac}.MCOVARLABEL;
-                        
-                            % Reference batch / CovBat settings
-                            if isfield(TemplParam.ACTPARAM{ac},'REFERENCE_LEVEL')
-                                InputParam.P{ac}.REFERENCE_LEVEL = TemplParam.ACTPARAM{ac}.REFERENCE_LEVEL; 
+                            % ------------------ 1) Conceptual covariates -------------------
+                            MC = TemplParam.ACTPARAM{ac}.MCOVAR; % indices into NM.covars
+                            nc = numel(MC);
+                            covars_raw = [];
+                            if ~isempty(MC)
+                                covars_raw = SrcParam.covars(:, MC);  % n x nc
                             end
-                            if isfield(TemplParam.ACTPARAM{ac},'COVBAT_MODE')
-                                InputParam.P{ac}.COVBAT_MODE = TemplParam.ACTPARAM{ac}.COVBAT_MODE;
-                                InputParam.P{ac}.COVBAT_K    = TemplParam.ACTPARAM{ac}.COVBAT_K;
-                                InputParam.P{ac}.COVBAT_VAR  = TemplParam.ACTPARAM{ac}.COVBAT_VAR;
+                            
+                            % Types: 'continuous' | 'binary' | 'ordinal' | 'categorical'
+                            MCOVAR_TYPE = {};
+                            if isfield(TemplParam.ACTPARAM{ac},'MCOVAR_TYPE') && ...
+                               ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR_TYPE)
+                                MCOVAR_TYPE = TemplParam.ACTPARAM{ac}.MCOVAR_TYPE;
                             end
-                        
-                            % Unseen-batch mode (EB / no-shrink / strong-shrink)
-                            if isfield(TemplParam.ACTPARAM{ac},'UNSEENBATCH_MODE')
-                                InputParam.P{ac}.UNSEENBATCH_MODE  = TemplParam.ACTPARAM{ac}.UNSEENBATCH_MODE;
+                            if isempty(MCOVAR_TYPE) || numel(MCOVAR_TYPE) ~= nc
+                                MCOVAR_TYPE = cell(1,nc);
+                                for j = 1:nc
+                                    v = covars_raw(:,j);
+                                    MCOVAR_TYPE{j} = infer_covtype(v);
+                                end
                             end
-                            if isfield(TemplParam.ACTPARAM{ac},'UNSEENBATCH_ALPHA')
-                                InputParam.P{ac}.UNSEENBATCH_ALPHA = TemplParam.ACTPARAM{ac}.UNSEENBATCH_ALPHA;
+                    
+                            % Which conceptual covariates to remove?
+                            remove_concept = [];
+                            if isfield(TemplParam.ACTPARAM{ac},'MCOVARREM') && ...
+                               ~isempty(TemplParam.ACTPARAM{ac}.MCOVARREM)
+                                remove_concept = TemplParam.ACTPARAM{ac}.MCOVARREM(:).';
                             end
-                        
-                            % ------------------------------------------------------------------
-                            % Build ComBat design 'mod' (covariates) + label prepend + indices
-                            % ------------------------------------------------------------------
-                            if ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR) || TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
-                
-                                % ------------------ 1) Conceptual covariates -------------------
-                                MC = TemplParam.ACTPARAM{ac}.MCOVAR; % indices into NM.covars
-                                nc = numel(MC);
-                                covars_raw = [];
-                                if ~isempty(MC)
-                                    covars_raw = SrcParam.covars(:, MC);  % n x nc
-                                end
-                
-                                % Types: 'continuous' | 'binary' | 'ordinal' | 'categorical'
-                                MCOVAR_TYPE = {};
-                                if isfield(TemplParam.ACTPARAM{ac},'MCOVAR_TYPE') && ...
-                                   ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR_TYPE)
-                                    MCOVAR_TYPE = TemplParam.ACTPARAM{ac}.MCOVAR_TYPE;
-                                end
-                                if isempty(MCOVAR_TYPE) || numel(MCOVAR_TYPE) ~= nc
-                                    MCOVAR_TYPE = cell(1,nc);
-                                    for j = 1:nc
-                                        v = covars_raw(:,j);
-                                        MCOVAR_TYPE{j} = infer_covtype(v);  % same logic as in configurator
-                                    end
-                                end
-                        
-                                % Which conceptual covariates to remove?
-                                remove_concept = [];
-                                if isfield(TemplParam.ACTPARAM{ac},'MCOVARREM') && ...
-                                   ~isempty(TemplParam.ACTPARAM{ac}.MCOVARREM)
-                                    remove_concept = TemplParam.ACTPARAM{ac}.MCOVARREM(:).';
-                                end
-                                keep_concept = setdiff(1:nc, remove_concept);
-                        
-                                % Spline df per conceptual covariate (0/1 = no spline; >=2 = df)
-                                MCOVAR_SPLINE_DF = zeros(1,nc);
-                                if isfield(TemplParam.ACTPARAM{ac},'MCOVAR_SPLINE_DF') && ...
-                                   ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR_SPLINE_DF) && ...
-                                   numel(TemplParam.ACTPARAM{ac}.MCOVAR_SPLINE_DF)==nc
-                                    MCOVAR_SPLINE_DF = TemplParam.ACTPARAM{ac}.MCOVAR_SPLINE_DF(:).';
-                                end
-                        
-                                % ------------------ 2) Dummy-code categoricals -----------------
-                                % Build 'covars_mod_full' for ALL subjects,
-                                % and keep a block_map: conceptual idx -> mod-column indices
-                                covars_mod_full = [];
-                                block_map = cell(1,nc);
-                                cat_levels = cell(1,nc);   % store category levels for each categorical cov
-                                cur = 0;
-                
+                            keep_concept = setdiff(1:nc, remove_concept);
+                    
+                            % Spline df per conceptual covariate (0/1 = no spline; >=2 = df)
+                            MCOVAR_SPLINE_DF = zeros(1,nc);
+                            if isfield(TemplParam.ACTPARAM{ac},'MCOVAR_SPLINE_DF') && ...
+                               ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR_SPLINE_DF) && ...
+                               numel(TemplParam.ACTPARAM{ac}.MCOVAR_SPLINE_DF)==nc
+                                MCOVAR_SPLINE_DF = TemplParam.ACTPARAM{ac}.MCOVAR_SPLINE_DF(:).';
+                            end
+                    
+                            % ------------------ 2) Dummy-code categoricals -----------------
+                            % Build 'covars_mod_full' for ALL subjects,
+                            % and keep a block_map: conceptual idx -> mod-column indices
+                            covars_mod_full = [];
+                            block_map = cell(1,nc);
+                            cat_levels = cell(1,nc);   % store category levels for each categorical cov
+                            cur = 0;
+                            
+                            % Only process if we have conceptual covariates
+                            if nc > 0
                                 for j = 1:nc
                                     x = covars_raw(:,j);
                                     t = MCOVAR_TYPE{j};
@@ -280,208 +290,241 @@ if isfield(TemplParam,'ACTPARAM')
                                             cat_levels{j}   = [];
                                     end
                                 end
-                        
-                                q_mod = size(covars_mod_full,2);
-                        
-                                % ------------------ 3) Keep/remove in MOD space ----------------
+                            end
+                    
+                            q_mod = size(covars_mod_full,2);
+                    
+                            % ------------------ 3) Keep/remove in MOD space ----------------
+                            keep_idx_mod   = [];
+                            remove_idx_mod = [];
+                            
+                            if nc > 0
                                 keep_idx_mod   = lift_idx(keep_concept,   block_map);
                                 remove_idx_mod = lift_idx(remove_concept, block_map);
-                        
+                    
                                 % disjoint & sorted
                                 keep_idx_mod   = unique(keep_idx_mod);
                                 remove_idx_mod = unique(setdiff(remove_idx_mod, keep_idx_mod));
-                
-                                % ------------------ 4) Spline df_map in MOD space --------------
-                                % We only allow spline on single-column covariates (non-categorical)
-                                df_map = containers.Map('KeyType','double','ValueType','double');
+                            end
+                            
+                            % ------------------ 4) Spline df_map in MOD space --------------
+                            % We only allow spline on single-column covariates (non-categorical)
+                            df_map = containers.Map('KeyType','double','ValueType','double');
+                            if nc > 0
                                 for j = 1:nc
                                     dfj = MCOVAR_SPLINE_DF(j);
                                     if dfj >= 2 && ~strcmp(MCOVAR_TYPE{j},'categorical') && ...
-                                                   isscalar(block_map{j})
+                                                   ~isempty(block_map{j}) && isscalar(block_map{j})
                                         col = block_map{j}(1);  % mod column index
                                         df_map(col) = dfj;
                                     end
                                 end
-                                if ~isempty(df_map.keys)
-                                    InputParam.P{ac}.spline.df_map = df_map;
+                            end
+                            if ~isempty(df_map.keys)
+                                InputParam.P{ac}.spline.df_map = df_map;
+                            end
+                    
+                            % ------------------ 5) Prepend labels if requested --------------
+                            covars = [];
+                            InputParam.P{ac}.covars_idx = [];
+                            nL = 0;  % Initialize label count
+                    
+                            if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
+                                % Validate that labels exist
+                                if ~isfield(NM, 'label') || isempty(NM.label)
+                                    error('MCOVARLABEL is set to 1 but NM.label is not available');
                                 end
-                        
-                                % ------------------ 5) Prepend labels if requested --------------
-                                covars = [];
-                                InputParam.P{ac}.covars_idx = [];
-                        
+                                if isempty(sL)
+                                    error('MCOVARLABEL is set to 1 but sL (label indices) is empty');
+                                end
+                                
+                                % Label(s) always kept as biological signal
+                                covars = NM.label(:, sL);      % n x nL
+                                nL = numel(sL);
+                                InputParam.P{ac}.keep_idx = 1:nL;
+                            end
+                            
+                            if ~isempty(covars_mod_full)
+                                covars = [covars, covars_mod_full];  % n x (nL + q_mod)
+                    
                                 if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
-                                    % Label(s) always kept as biological signal
-                                    covars = NM.label(:, sL);      % n x nL
-                                    InputParam.P{ac}.keep_idx = 1:nL;
-                                    % covars_idx: non-label covariate columns (set below if covars_mod_full not empty)
+                                    % covars_idx = columns whose covariate effects can be added/removed
+                                    InputParam.P{ac}.covars_idx = (nL+1):(nL+q_mod);
+                    
+                                    % shift keep/remove from mod space to [label + mod] space
+                                    keep_idx_shift   = keep_idx_mod   + nL;
+                                    remove_idx_shift = remove_idx_mod + nL;
+                    
+                                    InputParam.P{ac}.keep_idx   = unique([InputParam.P{ac}.keep_idx, keep_idx_shift]);
+                                    InputParam.P{ac}.remove_idx = unique(remove_idx_shift);
                                 else
-                                    nL = 0;
+                                    % no labels: covars = just covariates
+                                    InputParam.P{ac}.covars_idx = 1:q_mod;
+                                    InputParam.P{ac}.keep_idx   = keep_idx_mod;
+                                    InputParam.P{ac}.remove_idx = remove_idx_mod;
                                 end
-                
-                                if ~isempty(covars_mod_full)
-                                    covars = [covars, covars_mod_full];  % n x (nL + q_mod)
-                        
-                                    if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
-                                        % covars_idx = columns whose covariate effects can be added/removed
-                                        InputParam.P{ac}.covars_idx = (nL+1):(nL+q_mod);
-                        
-                                        % shift keep/remove from mod space to [label + mod] space
-                                        keep_idx_shift   = keep_idx_mod   + nL;
-                                        remove_idx_shift = remove_idx_mod + nL;
-                        
-                                        InputParam.P{ac}.keep_idx   = unique([InputParam.P{ac}.keep_idx, keep_idx_shift]);
-                                        InputParam.P{ac}.remove_idx = unique(remove_idx_shift);
-                                    else
-                                        % no labels: covars = just covariates
-                                        InputParam.P{ac}.covars_idx = 1:q_mod;
-                                        InputParam.P{ac}.keep_idx   = keep_idx_mod;
-                                        InputParam.P{ac}.remove_idx = remove_idx_mod;
-                                    end
-                                else
-                                    % No covariates, only labels (if MCOVARLABEL==1): keep_idx already set,
-                                    % covars_idx stays empty (we never remove label estimators)
-                                    if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
-                                        InputParam.P{ac}.covars_idx = [];
-                                    end
+                            else
+                                % No covariates, only labels (if MCOVARLABEL==1): keep_idx already set,
+                                % covars_idx stays empty (we never remove label estimators)
+                                if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
+                                    InputParam.P{ac}.covars_idx = [];
                                 end
-                
-                                % ---- Final hygiene ----
-                                InputParam.P{ac}.keep_idx   = unique(InputParam.P{ac}.keep_idx);
-                                InputParam.P{ac}.remove_idx = unique(setdiff(InputParam.P{ac}.remove_idx, InputParam.P{ac}.keep_idx));
-                        
-                                % guard: bounds
-                                q_final = size(covars, 2);
-                                if q_final > 0
-                                    if any(InputParam.P{ac}.keep_idx   < 1 | InputParam.P{ac}.keep_idx   > q_final)
-                                        error('ComBat: keep_idx out of range! Check your settings!');
-                                    end
-                                    if any(InputParam.P{ac}.remove_idx < 1 | InputParam.P{ac}.remove_idx > q_final)
-                                        error('ComBat: remove_idx out of range! Check your settings!');
-                                    end
+                            end
+                            
+                            % ---- Final hygiene ----
+                            InputParam.P{ac}.keep_idx   = unique(InputParam.P{ac}.keep_idx);
+                            InputParam.P{ac}.remove_idx = unique(setdiff(InputParam.P{ac}.remove_idx, InputParam.P{ac}.keep_idx));
+                    
+                            % guard: bounds
+                            q_final = size(covars, 2);
+                            if q_final > 0
+                                if ~isempty(InputParam.P{ac}.keep_idx) && ...
+                                   (any(InputParam.P{ac}.keep_idx < 1) || any(InputParam.P{ac}.keep_idx > q_final))
+                                    error('ComBat: keep_idx out of range! keep_idx=[%s], q_final=%d', ...
+                                          num2str(InputParam.P{ac}.keep_idx), q_final);
                                 end
-                        
-                                % ------------------ 6) Build TrMod / TsMod splits ---------------
-                                if ~isempty(covars)
-                                    % Training mod
-                                    InputParam.P{ac}.TrMod        = covars(SrcParam.TrX, :);
-                                    InputParam.P{ac}.TrMod(SrcParam.iTrX,:) = []; 
-                        
-                                    % Internal test sets
-                                    if isfield(SrcParam,'TrI')         
-                                        InputParam.P{ac}.TsMod{1} = covars(SrcParam.TrI, :);
-                                        InputParam.P{ac}.TsMod{1}(SrcParam.iTr,:) = [];
-                                    end
-                                    if isfield(SrcParam,'CVI')         
-                                        InputParam.P{ac}.TsMod{2} = covars(SrcParam.CVI, :);
-                                        InputParam.P{ac}.TsMod{2}(SrcParam.iCV,:) = []; 
-                                    end
-                                    if isfield(SrcParam,'TsI')         
-                                        InputParam.P{ac}.TsMod{3} = covars(SrcParam.TsI, :); 
-                                        InputParam.P{ac}.TsMod{3}(SrcParam.iTs,:) = [];   
-                                    end
+                                if ~isempty(InputParam.P{ac}.remove_idx) && ...
+                                   (any(InputParam.P{ac}.remove_idx < 1) || any(InputParam.P{ac}.remove_idx > q_final))
+                                    error('ComBat: remove_idx out of range! remove_idx=[%s], q_final=%d', ...
+                                          num2str(InputParam.P{ac}.remove_idx), q_final);
                                 end
-                
-                                % ------------------ 7) External OOCV covariates ----------------
-                                % We now need to apply the SAME dummy-coding structure to covars_oocv
-                                if ~isempty(SrcParam.covars_oocv)
-                        
-                                    if iscell(SrcParam.covars_oocv)
-                                        covars_oocv = cell(size(SrcParam.covars_oocv));
-                                        for n = 1:numel(SrcParam.covars_oocv)
-                                            if ~isempty(MC)
-                                                % build conceptual-level covars for this OOCV set
-                                                Xraw_o = SrcParam.covars_oocv{n}(:, MC);
-                                            else
-                                                Xraw_o = [];
-                                            end
-                        
-                                            % apply SAME dummy coding using cat_levels
-                                            Xo = [];
+                            end
+                    
+                            % ------------------ 6) Build TrMod / TsMod splits ---------------
+                            if ~isempty(covars)
+                                % Training mod
+                                InputParam.P{ac}.TrMod        = covars(SrcParam.TrX, :);
+                                InputParam.P{ac}.TrMod(SrcParam.iTrX,:) = []; 
+                    
+                                % Internal test sets
+                                if isfield(SrcParam,'TrI')         
+                                    InputParam.P{ac}.TsMod{1} = covars(SrcParam.TrI, :);
+                                    InputParam.P{ac}.TsMod{1}(SrcParam.iTr,:) = [];
+                                end
+                                if isfield(SrcParam,'CVI')         
+                                    InputParam.P{ac}.TsMod{2} = covars(SrcParam.CVI, :);
+                                    InputParam.P{ac}.TsMod{2}(SrcParam.iCV,:) = []; 
+                                end
+                                if isfield(SrcParam,'TsI')         
+                                    InputParam.P{ac}.TsMod{3} = covars(SrcParam.TsI, :); 
+                                    InputParam.P{ac}.TsMod{3}(SrcParam.iTs,:) = [];   
+                                end
+                            end
+                            
+                            % ------------------ 7) External OOCV covariates ----------------
+                            % We now need to apply the SAME dummy-coding structure to covars_oocv
+                            if ~isempty(SrcParam.covars_oocv)
+                    
+                                if iscell(SrcParam.covars_oocv)
+                                    covars_oocv = cell(size(SrcParam.covars_oocv));
+                                    for n = 1:numel(SrcParam.covars_oocv)
+                                        Xraw_o = [];
+                                        if ~isempty(MC)
+                                            % build conceptual-level covars for this OOCV set
+                                            Xraw_o = SrcParam.covars_oocv{n}(:, MC);
+                                        end
+                    
+                                        % apply SAME dummy coding using cat_levels
+                                        Xo = [];
+                                        if nc > 0
                                             for j = 1:nc
-                                                if isempty(MC), break; end
                                                 xj_o = Xraw_o(:,j);
                                                 tj   = MCOVAR_TYPE{j};
                                                 if strcmp(tj,'categorical')
+                                                    if isempty(cat_levels{j})
+                                                        error('Categorical levels not found for covariate %d during OOCV processing (set %d)', j, n);
+                                                    end
                                                     levels = cat_levels{j};
                                                     Xo = [Xo, dummy_code_categorical_with_levels(xj_o, levels)]; %#ok<AGROW>
                                                 else
                                                     Xo = [Xo, xj_o]; 
                                                 end
                                             end
-                        
-                                            % prepend labels for OOCV if requested
-                                            if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
-                                                if ~isfield(SrcParam,'OOCVLabel') || isempty(SrcParam.OOCVLabel)
-                                                    lab_o = zeros(size(SrcParam.covars_oocv{n},1), numel(sL));
-                                                else
-                                                    lab_o = SrcParam.OOCVLabel;
-                                                end
-                                                covars_oocv{n} = [lab_o, Xo];
+                                        end
+                    
+                                        % prepend labels for OOCV if requested
+                                        if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
+                                            if ~isfield(SrcParam,'OOCVLabel') || isempty(SrcParam.OOCVLabel)
+                                                lab_o = zeros(size(SrcParam.covars_oocv{n},1), nL);
                                             else
-                                                covars_oocv{n} = Xo;
+                                                lab_o = SrcParam.OOCVLabel;
                                             end
-                                        end
-                        
-                                        % push into TsMod
-                                        for n = 1:numel(covars_oocv)
-                                            InputParam.P{ac}.TsMod{tscnt+n} = covars_oocv{n};
-                                            InputParam.P{ac}.TsMod{tscnt+n}(SrcParam.iOCV{n},:) = []; 
-                                        end
-                        
-                                    else
-                                        % single OOCV matrix (non-cell)
-                                        Xo = [];
-                                        if ~isempty(MC)
-                                            Xraw_o = SrcParam.covars_oocv(:, MC);
+                                            covars_oocv{n} = [lab_o, Xo];
                                         else
-                                            Xraw_o = [];
+                                            covars_oocv{n} = Xo;
                                         end
-                        
+                                    end
+                    
+                                    % push into TsMod
+                                    for n = 1:numel(covars_oocv)
+                                        InputParam.P{ac}.TsMod{tscnt+n} = covars_oocv{n};
+                                        if iscell(SrcParam.iOCV)
+                                            InputParam.P{ac}.TsMod{tscnt+n}(SrcParam.iOCV{n},:) = []; 
+                                        else
+                                            InputParam.P{ac}.TsMod{tscnt+n}(SrcParam.iOCV,:) = []; 
+                                        end
+                                    end
+                    
+                                else
+                                    % single OOCV matrix (non-cell)
+                                    Xo = [];
+                                    Xraw_o = [];
+                                    if ~isempty(MC)
+                                        Xraw_o = SrcParam.covars_oocv(:, MC);
+                                    end
+                    
+                                    if nc > 0
                                         for j = 1:nc
-                                            if isempty(MC), break; end
                                             xj_o = Xraw_o(:,j);
                                             tj   = MCOVAR_TYPE{j};
                                             if strcmp(tj,'categorical')
+                                                if isempty(cat_levels{j})
+                                                    error('Categorical levels not found for covariate %d during OOCV processing', j);
+                                                end
                                                 levels = cat_levels{j};
                                                 Xo = [Xo, dummy_code_categorical_with_levels(xj_o, levels)]; 
                                             else
                                                 Xo = [Xo, xj_o]; 
                                             end
                                         end
-                        
-                                        if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
-                                            if ~isfield(SrcParam,'OOCVLabel') || isempty(SrcParam.OOCVLabel)
-                                                lab_o = zeros(size(SrcParam.covars_oocv,1), numel(sL));
-                                            else
-                                                lab_o = SrcParam.OOCVLabel;
-                                            end
-                                            covars_oocv = [lab_o, Xo];
+                                    end
+                    
+                                    if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
+                                        if ~isfield(SrcParam,'OOCVLabel') || isempty(SrcParam.OOCVLabel)
+                                            lab_o = zeros(size(SrcParam.covars_oocv,1), nL);
                                         else
-                                            covars_oocv = Xo;
+                                            lab_o = SrcParam.OOCVLabel;
                                         end
-                        
-                                        InputParam.P{ac}.TsMod{tscnt+1} = covars_oocv;
+                                        covars_oocv = [lab_o, Xo];
+                                    else
+                                        covars_oocv = Xo;
+                                    end
+                    
+                                    InputParam.P{ac}.TsMod{tscnt+1} = covars_oocv;
+                                    if iscell(SrcParam.iOCV)
+                                        InputParam.P{ac}.TsMod{tscnt+1}(SrcParam.iOCV{1},:) = []; 
+                                    else
                                         InputParam.P{ac}.TsMod{tscnt+1}(SrcParam.iOCV,:) = []; 
                                     end
                                 end
-                
-                            end  
-                        end
-
-                    elseif isfield(TemplParam.ACTPARAM{ac},'METHOD') && TemplParam.ACTPARAM{ac}.METHOD==3
-                        if VERBOSE, fprintf('\n\t- Method: Disparate impact remover'); end
-                    
-                        if isfield(TemplParam.ACTPARAM{ac},'PX') && ~isempty(TemplParam.ACTPARAM{ac}.PX)
-                            InputParam.P{ac}.opt = TemplParam.ACTPARAM{ac}.PX.opt;
-                            PX = nk_ReturnParamChain(TemplParam.ACTPARAM{ac});
-                            InputParam.P{ac}.Params = PX.Params;
-                            InputParam.P{ac}.Params_desc = PX.Params_desc;
-                        end
-                    else
-                        if VERBOSE, fprintf('\n\t- Method: Partial correlations analysis'); end
+                            end
+                            
+                        end  
                     end
-                    
+            
+                elseif isfield(TemplParam.ACTPARAM{ac},'METHOD') && TemplParam.ACTPARAM{ac}.METHOD==3
+                    if VERBOSE, fprintf('\n\t- Method: Disparate impact remover'); end
+                
+                    if isfield(TemplParam.ACTPARAM{ac},'PX') && ~isempty(TemplParam.ACTPARAM{ac}.PX)
+                        InputParam.P{ac}.opt = TemplParam.ACTPARAM{ac}.PX.opt;
+                        PX = nk_ReturnParamChain(TemplParam.ACTPARAM{ac});
+                        InputParam.P{ac}.Params = PX.Params;
+                        InputParam.P{ac}.Params_desc = PX.Params_desc;
+                    end
+                else
+                    if VERBOSE, fprintf('\n\t- Method: Partial correlations analysis'); end
+                end
+                
                 if isfield(TemplParam.ACTPARAM{ac},'METHOD') && TemplParam.ACTPARAM{ac}.METHOD == 1
                     if isfield(TemplParam.ACTPARAM{ac},'INTERCEPT')
                         InputParam.P{ac}.INTERCEPT = TemplParam.ACTPARAM{ac}.INTERCEPT-1;
@@ -516,7 +559,7 @@ if isfield(TemplParam,'ACTPARAM')
                             if VERBOSE,fprintf('\n\t-> Beta parameter(s) will be computed from a specific subgroup.'); end
                         end
                     end
-
+            
                 elseif isfield(TemplParam.ACTPARAM{ac},'METHOD') && InputParam.P{ac}.METHOD == 2
                     if isfield(TemplParam.ACTPARAM{ac},'SUBGROUP') && ~isempty(TemplParam.ACTPARAM{ac}.SUBGROUP)
                         InputParam.P{ac}.SUBGROUP = TemplParam.ACTPARAM{ac}.SUBGROUP(SrcParam.TrX,:);
@@ -541,6 +584,464 @@ if isfield(TemplParam,'ACTPARAM')
                      if VERBOSE, fprintf('\n\t- Feature subspace for covariate correction identified.'); end
                      InputParam.P{ac}.featind = TemplParam.ACTPARAM{ac}.featind;
                 end
+                
+            % case 'correctnuis'
+            % 
+            %         if ~isempty(SrcParam.covars)
+            %             if isfield(TemplParam.ACTPARAM{ac},'METHOD') 
+            %                 InputParam.P{ac}.METHOD = TemplParam.ACTPARAM{ac}.METHOD;
+            %                 switch TemplParam.ACTPARAM{ac}.METHOD
+            %                     case {1,3} 
+            %                         InputParam.P{ac}.COVAR = TemplParam.ACTPARAM{ac}.COVAR;
+            %                         if VERBOSE 
+            %                             fprintf('\n* ADJUSTING DATA FOR COVARIATE EFFECTS')
+            %                              switch TemplParam.ACTPARAM{ac}.METHOD
+            %                                  case 1
+            %                                     fprintf('\n\t- Method: Partial correlations'); 
+            %                                  case 3
+            %                                     fprintf('\n\t- Method: Disparate Impact Removal'); 
+            %                              end
+            %                             fprintf('\n\t- Nuisance covariate(s): %s', strjoin(NM.covnames(TemplParam.ACTPARAM{ac}.COVAR),', '))
+            %                         end
+            %                     case 2
+            %                         if VERBOSE 
+            %                             fprintf('\n* ADJUSTING DATA FOR BATCH/COVARIATE EFFECTS')
+            %                             if VERBOSE, fprintf('\n\t- Method: Combat'); end
+            %                         end
+            %                         InputParam.P{ac}.USEBATCH = true;
+            %                         if isfield(TemplParam.ACTPARAM{ac},'MBATCH')
+            %                             if ~isempty(TemplParam.ACTPARAM{ac}.MBATCH)
+            %                                 InputParam.P{ac}.COVAR = TemplParam.ACTPARAM{ac}.MBATCH;
+            %                             else
+            %                                 InputParam.P{ac}.COVAR = 1;
+            %                             end
+            %                             InputParam.P{ac}.USEBATCH = TemplParam.ACTPARAM{ac}.MBATCHUSE;
+            %                         else
+            %                             InputParam.P{ac}.COVAR = TemplParam.ACTPARAM{ac}.COVAR;
+            %                         end
+            %                         if VERBOSE 
+            %                             if InputParam.P{ac}.USEBATCH 
+            %                                 fprintf('\n\t- Batch correction: %s', NM.covnames{InputParam.P{ac}.COVAR})
+            %                             else
+            %                                 fprintf('\n\t- No-batch correction mode!') 
+            %                             end
+            %                             if isfield(TemplParam.ACTPARAM{ac},'MCOVARUSE') 
+            %                                 if TemplParam.ACTPARAM{ac}.MCOVARUSE == 1
+            %                                     fprintf('\n\t- Combat includes covariate estimators: %s', strjoin(NM.covnames(TemplParam.ACTPARAM{ac}.MCOVAR),', ')); 
+            %                                 end
+            %                             end
+            %                         end
+            %                         InputParam.P{ac}.MCOVAR = [];
+            %                         if isfield(TemplParam.ACTPARAM{ac},'MCOVAR') && ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR)
+            %                             InputParam.P{ac}.MCOVAR = TemplParam.ACTPARAM{ac}.MCOVAR;
+            %                         end
+            %                 end
+            %             end
+            % 
+            %             InputParam.P{ac}.TsCovars = [];
+            %             if isfield(SrcParam,'TrX')         
+            %                 InputParam.P{ac}.TrCovars        = SrcParam.covars( SrcParam.TrX, InputParam.P{ac}.COVAR );
+            %                 InputParam.P{ac}.TrCovars(SrcParam.iTrX,:)=[];
+            %             end
+            %             if isfield(SrcParam,'TrI')         
+            %                 InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.TrI, InputParam.P{ac}.COVAR );
+            %                 InputParam.P{ac}.TsCovars{1}(SrcParam.iTr,:) = [];
+            %             end
+            %             if isfield(SrcParam,'CVI')         
+            %                 InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.CVI, InputParam.P{ac}.COVAR );   
+            %                 InputParam.P{ac}.TsCovars{2}(SrcParam.iCV,:)=[];
+            %             end
+            %             if isfield(SrcParam,'TsI')         
+            %                 InputParam.P{ac}.TsCovars{end+1} = SrcParam.covars( SrcParam.TsI, InputParam.P{ac}.COVAR );
+            %                 InputParam.P{ac}.TsCovars{3}(SrcParam.iTs,:)=[]; 
+            %             end
+            %             if ~isempty(SrcParam.covars_oocv)  
+            %                 if iscell(SrcParam.covars_oocv)
+            %                     for n=1:numel(SrcParam.covars_oocv)
+            %                         InputParam.P{ac}.TsCovars{tscnt+n} = SrcParam.covars_oocv{n}( :, InputParam.P{ac}.COVAR );
+            %                         if iscell(SrcParam.iOCV)
+            %                             InputParam.P{ac}.TsCovars{tscnt+n}(SrcParam.iOCV{n},:)=[]; 
+            %                         else
+            %                             InputParam.P{ac}.TsCovars{tscnt+n}(SrcParam.iOCV,:)=[]; 
+            %                         end
+            %                     end
+            %                 else
+            %                     InputParam.P{ac}.TsCovars{tscnt+1} = SrcParam.covars_oocv( :, TemplParam.ACTPARAM{ac}.COVAR );
+            %                     InputParam.P{ac}.TsCovars{tscnt+1}(SrcParam.iOCV,:)=[]; 
+            %                 end
+            %             end
+            % 
+            %             if isfield(TemplParam.ACTPARAM{ac},'METHOD') && TemplParam.ACTPARAM{ac}.METHOD==2
+            % 
+            %                 InputParam.P{ac}.TsMod    = []; 
+            %                 InputParam.P{ac}.TrMod    = []; 
+            %                 InputParam.P{ac}.keep_idx   = [];
+            %                 InputParam.P{ac}.remove_idx = [];
+            %                 InputParam.P{ac}.covars_idx = [];
+            % 
+            %                 % Use covars
+            %                 InputParam.P{ac}.MCOVARUSE = TemplParam.ACTPARAM{ac}.MCOVARUSE;
+            %                 InputParam.P{ac}.MCOVARLABEL = TemplParam.ACTPARAM{ac}.MCOVARLABEL;
+            % 
+            %                 % Reference batch / CovBat settings
+            %                 if isfield(TemplParam.ACTPARAM{ac},'REFERENCE_LEVEL')
+            %                     InputParam.P{ac}.REFERENCE_LEVEL = TemplParam.ACTPARAM{ac}.REFERENCE_LEVEL; 
+            %                 end
+            %                 if isfield(TemplParam.ACTPARAM{ac},'COVBAT_MODE')
+            %                     InputParam.P{ac}.COVBAT_MODE = TemplParam.ACTPARAM{ac}.COVBAT_MODE;
+            %                     InputParam.P{ac}.COVBAT_K    = TemplParam.ACTPARAM{ac}.COVBAT_K;
+            %                     InputParam.P{ac}.COVBAT_VAR  = TemplParam.ACTPARAM{ac}.COVBAT_VAR;
+            %                 end
+            % 
+            %                 % Unseen-batch mode (EB / no-shrink / strong-shrink)
+            %                 if isfield(TemplParam.ACTPARAM{ac},'UNSEENBATCH_MODE')
+            %                     InputParam.P{ac}.UNSEENBATCH_MODE  = TemplParam.ACTPARAM{ac}.UNSEENBATCH_MODE;
+            %                 end
+            %                 if isfield(TemplParam.ACTPARAM{ac},'UNSEENBATCH_ALPHA')
+            %                     InputParam.P{ac}.UNSEENBATCH_ALPHA = TemplParam.ACTPARAM{ac}.UNSEENBATCH_ALPHA;
+            %                 end
+            % 
+            %                 if VERBOSE 
+            %                     if isempty( InputParam.P{ac}.remove_idx) && ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR)
+            %                         fprintf('\n\t- Retain all covariates'' variance.')
+            %                     end
+            %                     if InputParam.P{ac}.MCOVARLABEL == 1
+            %                          fprintf('\n\t- Retain label variance.')
+            %                     end
+            %                 end
+            % 
+            %                 % ------------------------------------------------------------------
+            %                 % Build ComBat design 'mod' (covariates) + label prepend + indices
+            %                 % ------------------------------------------------------------------
+            %                 if ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR) || TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
+            % 
+            %                     % ------------------ 1) Conceptual covariates -------------------
+            %                     MC = TemplParam.ACTPARAM{ac}.MCOVAR; % indices into NM.covars
+            %                     nc = numel(MC);
+            %                     covars_raw = [];
+            %                     if ~isempty(MC)
+            %                         covars_raw = SrcParam.covars(:, MC);  % n x nc
+            %                     end
+            % 
+            %                     % Types: 'continuous' | 'binary' | 'ordinal' | 'categorical'
+            %                     MCOVAR_TYPE = {};
+            %                     if isfield(TemplParam.ACTPARAM{ac},'MCOVAR_TYPE') && ...
+            %                        ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR_TYPE)
+            %                         MCOVAR_TYPE = TemplParam.ACTPARAM{ac}.MCOVAR_TYPE;
+            %                     end
+            %                     if isempty(MCOVAR_TYPE) || numel(MCOVAR_TYPE) ~= nc
+            %                         MCOVAR_TYPE = cell(1,nc);
+            %                         for j = 1:nc
+            %                             v = covars_raw(:,j);
+            %                             MCOVAR_TYPE{j} = infer_covtype(v);  % same logic as in configurator
+            %                         end
+            %                     end
+            % 
+            %                     % Which conceptual covariates to remove?
+            %                     remove_concept = [];
+            %                     if isfield(TemplParam.ACTPARAM{ac},'MCOVARREM') && ...
+            %                        ~isempty(TemplParam.ACTPARAM{ac}.MCOVARREM)
+            %                         remove_concept = TemplParam.ACTPARAM{ac}.MCOVARREM(:).';
+            %                     end
+            %                     keep_concept = setdiff(1:nc, remove_concept);
+            % 
+            %                     % Spline df per conceptual covariate (0/1 = no spline; >=2 = df)
+            %                     MCOVAR_SPLINE_DF = zeros(1,nc);
+            %                     if isfield(TemplParam.ACTPARAM{ac},'MCOVAR_SPLINE_DF') && ...
+            %                        ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR_SPLINE_DF) && ...
+            %                        numel(TemplParam.ACTPARAM{ac}.MCOVAR_SPLINE_DF)==nc
+            %                         MCOVAR_SPLINE_DF = TemplParam.ACTPARAM{ac}.MCOVAR_SPLINE_DF(:).';
+            %                     end
+            % 
+            %                     % ------------------ 2) Dummy-code categoricals -----------------
+            %                     % Build 'covars_mod_full' for ALL subjects,
+            %                     % and keep a block_map: conceptual idx -> mod-column indices
+            %                     covars_mod_full = [];
+            %                     block_map = cell(1,nc);
+            %                     cat_levels = cell(1,nc);   % store category levels for each categorical cov
+            %                     cur = 0;
+            % 
+            %                     for j = 1:nc
+            %                         x = covars_raw(:,j);
+            %                         t = MCOVAR_TYPE{j};
+            % 
+            %                         switch t
+            %                             case 'categorical'
+            %                                 [dum, levels] = dummy_code_categorical_full(x); % (n x (k-1))
+            %                                 covars_mod_full = [covars_mod_full, dum]; 
+            %                                 block_map{j}    = cur + (1:size(dum,2));
+            %                                 cur             = cur + size(dum,2);
+            %                                 cat_levels{j}   = levels;
+            % 
+            %                             otherwise
+            %                                 % continuous / binary / ordinal as single column
+            %                                 covars_mod_full = [covars_mod_full, x]; 
+            %                                 block_map{j}    = cur + 1;
+            %                                 cur             = cur + 1;
+            %                                 cat_levels{j}   = [];
+            %                         end
+            %                     end
+            % 
+            %                     q_mod = size(covars_mod_full,2);
+            % 
+            %                     % ------------------ 3) Keep/remove in MOD space ----------------
+            %                     keep_idx_mod   = lift_idx(keep_concept,   block_map);
+            %                     remove_idx_mod = lift_idx(remove_concept, block_map);
+            % 
+            %                     % disjoint & sorted
+            %                     keep_idx_mod   = unique(keep_idx_mod);
+            %                     remove_idx_mod = unique(setdiff(remove_idx_mod, keep_idx_mod));
+            % 
+            %                     % ------------------ 4) Spline df_map in MOD space --------------
+            %                     % We only allow spline on single-column covariates (non-categorical)
+            %                     df_map = containers.Map('KeyType','double','ValueType','double');
+            %                     for j = 1:nc
+            %                         dfj = MCOVAR_SPLINE_DF(j);
+            %                         if dfj >= 2 && ~strcmp(MCOVAR_TYPE{j},'categorical') && ...
+            %                                        isscalar(block_map{j})
+            %                             col = block_map{j}(1);  % mod column index
+            %                             df_map(col) = dfj;
+            %                         end
+            %                     end
+            %                     if ~isempty(df_map.keys)
+            %                         InputParam.P{ac}.spline.df_map = df_map;
+            %                     end
+            % 
+            %                     % ------------------ 5) Prepend labels if requested --------------
+            %                     covars = [];
+            %                     InputParam.P{ac}.covars_idx = [];
+            % 
+            %                     if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
+            %                         % Label(s) always kept as biological signal
+            %                         covars = NM.label(:, sL);      % n x nL
+            %                         InputParam.P{ac}.keep_idx = 1:nL;
+            %                         % covars_idx: non-label covariate columns (set below if covars_mod_full not empty)
+            %                     else
+            %                         nL = 0;
+            %                     end
+            % 
+            %                     if ~isempty(covars_mod_full)
+            %                         covars = [covars, covars_mod_full];  % n x (nL + q_mod)
+            % 
+            %                         if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
+            %                             % covars_idx = columns whose covariate effects can be added/removed
+            %                             InputParam.P{ac}.covars_idx = (nL+1):(nL+q_mod);
+            % 
+            %                             % shift keep/remove from mod space to [label + mod] space
+            %                             keep_idx_shift   = keep_idx_mod   + nL;
+            %                             remove_idx_shift = remove_idx_mod + nL;
+            % 
+            %                             InputParam.P{ac}.keep_idx   = unique([InputParam.P{ac}.keep_idx, keep_idx_shift]);
+            %                             InputParam.P{ac}.remove_idx = unique(remove_idx_shift);
+            %                         else
+            %                             % no labels: covars = just covariates
+            %                             InputParam.P{ac}.covars_idx = 1:q_mod;
+            %                             InputParam.P{ac}.keep_idx   = keep_idx_mod;
+            %                             InputParam.P{ac}.remove_idx = remove_idx_mod;
+            %                         end
+            %                     else
+            %                         % No covariates, only labels (if MCOVARLABEL==1): keep_idx already set,
+            %                         % covars_idx stays empty (we never remove label estimators)
+            %                         if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
+            %                             InputParam.P{ac}.covars_idx = [];
+            %                         end
+            %                     end
+            % 
+            %                     % ---- Final hygiene ----
+            %                     InputParam.P{ac}.keep_idx   = unique(InputParam.P{ac}.keep_idx);
+            %                     InputParam.P{ac}.remove_idx = unique(setdiff(InputParam.P{ac}.remove_idx, InputParam.P{ac}.keep_idx));
+            % 
+            %                     % guard: bounds
+            %                     q_final = size(covars, 2);
+            %                     if q_final > 0
+            %                         if any(InputParam.P{ac}.keep_idx   < 1 | InputParam.P{ac}.keep_idx   > q_final)
+            %                             error('ComBat: keep_idx out of range! Check your settings!');
+            %                         end
+            %                         if any(InputParam.P{ac}.remove_idx < 1 | InputParam.P{ac}.remove_idx > q_final)
+            %                             error('ComBat: remove_idx out of range! Check your settings!');
+            %                         end
+            %                     end
+            % 
+            %                     % ------------------ 6) Build TrMod / TsMod splits ---------------
+            %                     if ~isempty(covars)
+            %                         % Training mod
+            %                         InputParam.P{ac}.TrMod        = covars(SrcParam.TrX, :);
+            %                         InputParam.P{ac}.TrMod(SrcParam.iTrX,:) = []; 
+            % 
+            %                         % Internal test sets
+            %                         if isfield(SrcParam,'TrI')         
+            %                             InputParam.P{ac}.TsMod{1} = covars(SrcParam.TrI, :);
+            %                             InputParam.P{ac}.TsMod{1}(SrcParam.iTr,:) = [];
+            %                         end
+            %                         if isfield(SrcParam,'CVI')         
+            %                             InputParam.P{ac}.TsMod{2} = covars(SrcParam.CVI, :);
+            %                             InputParam.P{ac}.TsMod{2}(SrcParam.iCV,:) = []; 
+            %                         end
+            %                         if isfield(SrcParam,'TsI')         
+            %                             InputParam.P{ac}.TsMod{3} = covars(SrcParam.TsI, :); 
+            %                             InputParam.P{ac}.TsMod{3}(SrcParam.iTs,:) = [];   
+            %                         end
+            %                     end
+            % 
+            %                     % ------------------ 7) External OOCV covariates ----------------
+            %                     % We now need to apply the SAME dummy-coding structure to covars_oocv
+            %                     if ~isempty(SrcParam.covars_oocv)
+            % 
+            %                         if iscell(SrcParam.covars_oocv)
+            %                             covars_oocv = cell(size(SrcParam.covars_oocv));
+            %                             for n = 1:numel(SrcParam.covars_oocv)
+            %                                 if ~isempty(MC)
+            %                                     % build conceptual-level covars for this OOCV set
+            %                                     Xraw_o = SrcParam.covars_oocv{n}(:, MC);
+            %                                 else
+            %                                     Xraw_o = [];
+            %                                 end
+            % 
+            %                                 % apply SAME dummy coding using cat_levels
+            %                                 Xo = [];
+            %                                 for j = 1:nc
+            %                                     if isempty(MC), break; end
+            %                                     xj_o = Xraw_o(:,j);
+            %                                     tj   = MCOVAR_TYPE{j};
+            %                                     if strcmp(tj,'categorical')
+            %                                         levels = cat_levels{j};
+            %                                         Xo = [Xo, dummy_code_categorical_with_levels(xj_o, levels)]; %#ok<AGROW>
+            %                                     else
+            %                                         Xo = [Xo, xj_o]; 
+            %                                     end
+            %                                 end
+            % 
+            %                                 % prepend labels for OOCV if requested
+            %                                 if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
+            %                                     if ~isfield(SrcParam,'OOCVLabel') || isempty(SrcParam.OOCVLabel)
+            %                                         lab_o = zeros(size(SrcParam.covars_oocv{n},1), numel(sL));
+            %                                     else
+            %                                         lab_o = SrcParam.OOCVLabel;
+            %                                     end
+            %                                     covars_oocv{n} = [lab_o, Xo];
+            %                                 else
+            %                                     covars_oocv{n} = Xo;
+            %                                 end
+            %                             end
+            % 
+            %                             % push into TsMod
+            %                             for n = 1:numel(covars_oocv)
+            %                                 InputParam.P{ac}.TsMod{tscnt+n} = covars_oocv{n};
+            %                                 InputParam.P{ac}.TsMod{tscnt+n}(SrcParam.iOCV{n},:) = []; 
+            %                             end
+            % 
+            %                         else
+            %                             % single OOCV matrix (non-cell)
+            %                             Xo = [];
+            %                             if ~isempty(MC)
+            %                                 Xraw_o = SrcParam.covars_oocv(:, MC);
+            %                             else
+            %                                 Xraw_o = [];
+            %                             end
+            % 
+            %                             for j = 1:nc
+            %                                 if isempty(MC), break; end
+            %                                 xj_o = Xraw_o(:,j);
+            %                                 tj   = MCOVAR_TYPE{j};
+            %                                 if strcmp(tj,'categorical')
+            %                                     levels = cat_levels{j};
+            %                                     Xo = [Xo, dummy_code_categorical_with_levels(xj_o, levels)]; 
+            %                                 else
+            %                                     Xo = [Xo, xj_o]; 
+            %                                 end
+            %                             end
+            % 
+            %                             if TemplParam.ACTPARAM{ac}.MCOVARLABEL == 1
+            %                                 if ~isfield(SrcParam,'OOCVLabel') || isempty(SrcParam.OOCVLabel)
+            %                                     lab_o = zeros(size(SrcParam.covars_oocv,1), numel(sL));
+            %                                 else
+            %                                     lab_o = SrcParam.OOCVLabel;
+            %                                 end
+            %                                 covars_oocv = [lab_o, Xo];
+            %                             else
+            %                                 covars_oocv = Xo;
+            %                             end
+            % 
+            %                             InputParam.P{ac}.TsMod{tscnt+1} = covars_oocv;
+            %                             InputParam.P{ac}.TsMod{tscnt+1}(SrcParam.iOCV,:) = []; 
+            %                         end
+            %                     end
+            % 
+            %                 end  
+            %             end
+            % 
+            %         elseif isfield(TemplParam.ACTPARAM{ac},'METHOD') && TemplParam.ACTPARAM{ac}.METHOD==3
+            %             if VERBOSE, fprintf('\n\t- Method: Disparate impact remover'); end
+            % 
+            %             if isfield(TemplParam.ACTPARAM{ac},'PX') && ~isempty(TemplParam.ACTPARAM{ac}.PX)
+            %                 InputParam.P{ac}.opt = TemplParam.ACTPARAM{ac}.PX.opt;
+            %                 PX = nk_ReturnParamChain(TemplParam.ACTPARAM{ac});
+            %                 InputParam.P{ac}.Params = PX.Params;
+            %                 InputParam.P{ac}.Params_desc = PX.Params_desc;
+            %             end
+            %         else
+            %             if VERBOSE, fprintf('\n\t- Method: Partial correlations analysis'); end
+            %         end
+            % 
+            %     if isfield(TemplParam.ACTPARAM{ac},'METHOD') && TemplParam.ACTPARAM{ac}.METHOD == 1
+            %         if isfield(TemplParam.ACTPARAM{ac},'INTERCEPT')
+            %             InputParam.P{ac}.INTERCEPT = TemplParam.ACTPARAM{ac}.INTERCEPT-1;
+            %             if VERBOSE
+            %                 switch InputParam.P{ac}.INTERCEPT
+            %                     case 0
+            %                         fprintf('\n\t-> Not including intercept.'); 
+            %                     case 1
+            %                         fprintf('\n\t-> Including intercept.'); 
+            %                 end  
+            %             end
+            %         end
+            %         if isfield(TemplParam.ACTPARAM{ac},'COVDIR')
+            %             InputParam.P{ac}.COVDIR = TemplParam.ACTPARAM{ac}.COVDIR-1;
+            %             if VERBOSE 
+            %                 switch InputParam.P{ac}.COVDIR
+            %                     case 0
+            %                         fprintf('\n\t-> Covariate effects will be removed from data.'); 
+            %                     case 1
+            %                         fprintf('\n\t-> Covariate effects will be increased in data.')
+            %                 end  
+            %             end
+            %         end
+            %         if isfield(TemplParam.ACTPARAM{ac},'BETAEXT') && ~isempty(TemplParam.ACTPARAM{ac}.BETAEXT)
+            %             InputParam.P{ac}.BETAEXT = TemplParam.ACTPARAM{ac}.BETAEXT;
+            %             if VERBOSE,fprintf('\n\t Beta parameter(s) computed in an OOT-sample will be used.'); end
+            %         else
+            % 
+            %             if isfield(TemplParam.ACTPARAM{ac},'SUBGROUP') && ~isempty(TemplParam.ACTPARAM{ac}.SUBGROUP) && ~any(isnan(TemplParam.ACTPARAM{ac}.SUBGROUP))
+            %                 InputParam.P{ac}.SUBGROUP = TemplParam.ACTPARAM{ac}.SUBGROUP(SrcParam.TrX,:);
+            %                 InputParam.P{ac}.SUBGROUP(SrcParam.iTrX) = []; 
+            %                 if VERBOSE,fprintf('\n\t-> Beta parameter(s) will be computed from a specific subgroup.'); end
+            %             end
+            %         end
+            % 
+            %     elseif isfield(TemplParam.ACTPARAM{ac},'METHOD') && InputParam.P{ac}.METHOD == 2
+            %         if isfield(TemplParam.ACTPARAM{ac},'SUBGROUP') && ~isempty(TemplParam.ACTPARAM{ac}.SUBGROUP)
+            %             InputParam.P{ac}.SUBGROUP = TemplParam.ACTPARAM{ac}.SUBGROUP(SrcParam.TrX,:);
+            %             InputParam.P{ac}.SUBGROUP(SrcParam.iTrX) = [];
+            %             if VERBOSE,fprintf('\n\t-> Combat parameter(s) will be computed from a specific subgroup.'); end
+            %         end
+            %          InputParam.P{ac}.COVDIR=0;
+            %          InputParam.P{ac}.INTERCEPT=0;
+            % 
+            %     elseif isfield(TemplParam.ACTPARAM{ac},'METHOD') && InputParam.P{ac}.METHOD == 3
+            %         if isfield(TemplParam.ACTPARAM{ac},'SUBGROUP') && ~isempty(TemplParam.ACTPARAM{ac}.SUBGROUP)
+            %             InputParam.P{ac}.SUBGROUP = TemplParam.ACTPARAM{ac}.SUBGROUP(SrcParam.TrX,:);
+            %             InputParam.P{ac}.SUBGROUP(SrcParam.iTrX) = [];
+            %             if VERBOSE,fprintf('\n\t-> DIR distribution will be computed from a specific subgroup.'); end
+            %         end
+            %          InputParam.P{ac}.COVDIR=0;
+            %          InputParam.P{ac}.INTERCEPT=0;
+            %          InputParam.P{ac}.DISTYPE = TemplParam.ACTPARAM{ac}.DISTYPE;
+            %          InputParam.P{ac}.LAMBDA = TemplParam.ACTPARAM{ac}.LAMBDA;
+            %     end
+            %     if isfield(TemplParam.ACTPARAM{ac},'featind')
+            %          if VERBOSE, fprintf('\n\t- Feature subspace for covariate correction identified.'); end
+            %          InputParam.P{ac}.featind = TemplParam.ACTPARAM{ac}.featind;
+            %     end
                 
             case 'remmeandiff'
                 

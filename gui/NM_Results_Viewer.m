@@ -284,12 +284,15 @@ handles.lbStartup.String = 'Retrieve Training/CV results ...';
 handles = perf_display(handles);
 guidata(handles.figure1,handles);
 handles.pnStartup.Visible='off';
+try
 if isfield(handles,'ExportPredictionsM')
    for i=1:numel(handles.ExportPredictionsM)
         handles.ExportPredictionsM(i).Callback = {@MenuItemPredictions_Callback, hObject};
         handles.ExportPerformanceM(i).Callback = {@MenuItemPerformance_Callback, hObject};
    end
    handles.ExportPredictionsDlg.Callback = {@MenuItemPerfTabulatur_Callback, hObject};
+end
+catch
 end
 
 if handles.n_analyses>1

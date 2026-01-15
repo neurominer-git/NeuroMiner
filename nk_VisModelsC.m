@@ -93,7 +93,7 @@ function visdata = nk_VisModelsC(inp, id, GridAct, batchflag)
 % who require detailed insights into the predictive patterns of their models 
 % and the statistical significance of these patterns.
 % =========================================================================
-% (c) Nikolaos Koutsouleris, last modified 10/2025
+% (c) Nikolaos Koutsouleris, last modified 01/2026
 
 global SVM RAND SAV RFE MODEFL CV VERBOSE FUSION MULTILABEL EVALFUNC CVPOS OCTAVE 
 
@@ -1678,7 +1678,14 @@ if ~batchflag
             indempt     = ~(cellfun(@isempty,I.VCV2MORIG_S) | isnan(cellfun(@sum,I.VCV2MORIG_S)));
             Porig       = cellfun(@nm_nanmedian,I.VCV2MORIG_S(indempt(:,h),h)); 
             Lorig       = labelh(indempt(:,h));
-            if inp.targscale, IN.revertflag = true; IN.minY = inp.minLbCV; IN.maxY = inp.maxLbCV; Porig = nk_PerfScaleObj(Porig, IN); end
+            % This is important for regression models were the target label
+            % is scaled => We need to revert to the original scale
+            if inp.targscale 
+                IN.revertflag = true; 
+                IN.minY = inp.minLbCV; IN.maxY = inp.maxLbCV; 
+                Porig = nk_PerfScaleObj(Porig, IN); 
+                Lorig = nk_PerfScaleObj(Lorig, IN); 
+            end
             % Observed hold out performance
             I.VCV2MORIG_EVALFUNC_GLOBAL(h) = EVALFUNC(Lorig, Porig);
             fprintf('\nTesting observed %s model performance [ model #%g: %s = %1.2f ] in the hold-out data against %g permutations\n', ...
