@@ -738,7 +738,19 @@ for k=sta_iy:stp_iy % Inner permutation loop
                     end
 
             end
-            if ~isempty(MULTI) && MULTI.flag, tY.mTrL{k,l} = TrL; tY.mCVL{k,l} = CVL; end
+            % Always store multi-group training labels aligned to TrI universe
+            if ~isempty(MULTI) && MULTI.flag
+                mTrL_full = labels(TrI,lb);
+                mCVL_full = labels(CVI,lb);
+                if isfield(SrcParam,'iTr') && ~isempty(SrcParam.iTr) && numel(SrcParam.iTr)==numel(mTrL_full)
+                    mTrL_full(SrcParam.iTr) = NaN;
+                end
+                if isfield(SrcParam,'iCV') && ~isempty(SrcParam.iCV) && numel(SrcParam.iCV)==numel(mCVL_full)
+                    mCVL_full(SrcParam.iCV) = NaN;
+                end
+                tY.mTrL{k,l} = mTrL_full;
+                tY.mCVL{k,l} = mCVL_full;
+            end
             
             % save parameters
             if paramfl.write || cv2flag
