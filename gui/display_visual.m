@@ -815,7 +815,7 @@ switch meas{measind}
                 [~,~,ext] = fileparts(v.params.brainmask);
                 ext = regexprep(ext,',1','');
                 switch ext
-                    case '.nii'
+                    case {'.img','.nii'}
                         handles.pn3DView.Visible='on'; handles.axes33.Visible='off'; 
                         nk_WriteVol(y,'temp',2,v.params.brainmask,v.params.badcoords, ...
                             handles.NM.datadescriptor{v.params.varind}.threshval, ...
