@@ -476,12 +476,7 @@ for f=1:ix % Loop through CV2 permutations
                                     end
 
                                     if inp.PERM.flag==1
-                                        indpermA = nk_GenPermMatrix(CV, inp);
-                                        if inp.nclass>1
-                                            indperm = indpermA{h}(TrInd,:); 
-                                        else
-                                            indperm = indpermA(TrInd,:); 
-                                        end
+                                        G = nk_GenPermMatrix(CV, inp, inp.PERM.nperms);
                                         uD_perm = zeros(inp.nOOCVsubj,ul,inp.PERM.nperms);
                                     end
 
@@ -513,6 +508,7 @@ for f=1:ix % Loop through CV2 permutations
                                             % retrain model using permuted
                                             % labels
                                             for curperm = 1:inp.PERM.nperms
+                                                indperm = G.getperm(h,curperm); indperm = indperm(TrInd); 
                                                 fprintf('.')
                                                 modelTrL_perm = nk_VisXPermY(Ymodel, inp.label, TrInd, 1, indperm, [], curperm, analysis, inp, paramfl, BINMOD, h);
                                                 [ ~, MD_perm ] = nk_GetParam2(Ymodel, modelTrL_perm , sPs, 1);
