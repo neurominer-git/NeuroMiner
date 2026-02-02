@@ -183,7 +183,7 @@ else
        mapY = nk_DealWithNaNCases(mapY, iy, jy, inp.nclass, true);
        if (iscell(mapYocv) && ~sum(cellfun(@isempty,mapYocv))) || ( ~iscell(mapYocv) && ~isempty(mapYocv))
            mapYocv = nk_mapY2Struct(mapYocv, Param, P, inp); 
-           mapYocv = nk_DealWithNaNCases(mapYocv, iy, jy, inp.nclass, true);
+           mapYocv = nk_DealWithNaNCases_OOCV(mapYocv, iy, jy, inp.nclass, true);
        end
     else
         mapY = mapY{n};

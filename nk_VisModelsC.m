@@ -769,11 +769,7 @@ for f=1:ix % Loop through CV2 permutations
                                 for u=1:ul
                                      
                                     % Extract features according to mask
-                                    try
-                                        Ymodel = nk_ExtractFeatures(modelTr, F, [], u);
-                                    catch
-                                        fprintf('problem')
-                                    end
+                                    Ymodel = nk_ExtractFeatures(modelTr, F, [], u);
                                     Find = F(:,u);
 
                                     % If permutation mode expects feature

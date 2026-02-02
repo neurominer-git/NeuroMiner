@@ -58,7 +58,7 @@ switch SVM.prog
         probflag = true;
 
     case 'TFDEEP'
-        algostr = 'Tensorflow neural [ probability ]';
+        algostr = 'Tensorflow/pytorch neural [ probability ]';
         probflag = true;
     case 'GLMFIT'
         algostr = 'Univariate logistic regression [ probability ]';

@@ -237,7 +237,9 @@ if hasBatch
         gamma_star=[]; delta_star=[];
         for i=1:n_batch
             indices = batches{i};
-            temp = itSol(s_data(:,indices), gamma_hat(i,:), delta_hat(i,:), ...
+            % Improved solver cannot be trapped in an infinite loop in case
+            % of non-convergence.
+            temp = itSol_new(s_data(:,indices), gamma_hat(i,:), delta_hat(i,:), ...
                          gamma_bar(i), t2(i), a_prior(i), b_prior(i), 0.001);
             gamma_star = [gamma_star; temp(1,:)];
             delta_star = [delta_star; temp(2,:)];

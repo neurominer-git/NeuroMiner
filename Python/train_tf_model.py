@@ -3,8 +3,11 @@
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers, models, optimizers, callbacks, regularizers
-
+from tensorflow.keras import layers as layers
+from tensorflow.keras import models as models
+from tensorflow.keras import optimizers as optimizers
+from tensorflow.keras import callbacks as callbacks
+from tensorflow.keras import regularizers as regularizers
 
 # ------------------------------
 # Differentiable Metrics as Losses
@@ -57,11 +60,6 @@ def balanced_accuracy_loss(y_true, y_pred, smooth=1e-6):
 
 @tf.function(reduce_retracing=True)
 def enhanced_balanced_accuracy_loss(y_true, y_pred, smooth=1e-6):
-    """
-    Differentiable Enhanced Balanced Accuracy (BAC2) loss.
-    - Uses product of sensitivity and specificity if both are defined.
-    - Falls back to the valid metric if one denominator is zero.
-    """
     # assume binary classification
     y_true = tf.cast(y_true[:, 0], tf.float32)
     y_pred = tf.clip_by_value(y_pred[:, 0], smooth, 1 - smooth)
@@ -90,6 +88,30 @@ def enhanced_balanced_accuracy_loss(y_true, y_pred, smooth=1e-6):
     EBA = sens*spec 
 
     return 1.0 - EBA
+
+
+@tf.function(reduce_retracing=True)
+def auc_loss(y_true, y_pred, smooth=1e-6):
+    y_true = tf.cast(y_true[:, 0], tf.float32)
+    y_pred = tf.clip_by_value(y_pred[:, 0], smooth, 1.0 - smooth)
+
+    pos_scores = tf.boolean_mask(y_pred, y_true > 0.5)
+    neg_scores = tf.boolean_mask(y_pred, y_true <= 0.5)
+
+    # If one class is missing, return zero loss
+    def zero():
+        return tf.constant(0.0, dtype=tf.float32)
+
+    def pairwise_loss():
+        diff = tf.expand_dims(pos_scores, 1) - tf.expand_dims(neg_scores, 0)
+        return tf.reduce_mean(tf.math.log1p(tf.exp(-diff)))
+
+    return tf.cond(
+        tf.logical_or(tf.size(pos_scores) == 0, tf.size(neg_scores) == 0),
+        zero,
+        pairwise_loss
+    )
+
 
 @tf.function(reduce_retracing=True)
 def true_positive_rate_loss(y_true, y_pred, smooth=1e-6):
@@ -195,6 +217,110 @@ def negative_likelihood_ratio_loss(y_true, y_pred, smooth=1e-6):
     return NLR  # minimize directly
 
 
+@tf.function(reduce_retracing=True)
+def nrmsd_loss(y_true, y_pred, smooth=1e-6):
+    y_true = tf.cast(y_true[:, 0], tf.float32)
+    y_pred = tf.cast(y_pred[:, 0], tf.float32)
+
+    mse = tf.reduce_mean(tf.square(y_pred - y_true))
+    rmse = tf.sqrt(mse + smooth)
+
+    y_range = tf.reduce_max(y_true) - tf.reduce_min(y_true)
+
+    nrmsd = 100.0 * rmse / (y_range + smooth)
+
+    return nrmsd
+
+@tf.function(reduce_retracing=True)
+def scc_loss(y_true, y_pred, smooth=1e-6):
+    y_true = tf.cast(y_true[:, 0], tf.float32)
+    y_pred = tf.cast(y_pred[:, 0], tf.float32)
+
+    # Remove means
+    y_true_mean = tf.reduce_mean(y_true)
+    y_pred_mean = tf.reduce_mean(y_pred)
+
+    y_true_centered = y_true - y_true_mean
+    y_pred_centered = y_pred - y_pred_mean
+
+    # Covariance and variances
+    cov = tf.reduce_mean(y_true_centered * y_pred_centered)
+    var_true = tf.reduce_mean(tf.square(y_true_centered))
+    var_pred = tf.reduce_mean(tf.square(y_pred_centered))
+
+    # Pearson correlation
+    corr = cov / (tf.sqrt(var_true * var_pred) + smooth)
+
+    # Squared correlation
+    scc = tf.square(corr)
+
+    # Loss (scale-invariant, smooth)
+    return 1.0 - scc
+
+
+@tf.function(reduce_retracing=True)
+def cc_loss(y_true, y_pred, smooth=1e-6):
+    y_true = tf.cast(y_true[:, 0], tf.float32)
+    y_pred = tf.cast(y_pred[:, 0], tf.float32)
+
+    # Center variables
+    y_true_mean = tf.reduce_mean(y_true)
+    y_pred_mean = tf.reduce_mean(y_pred)
+
+    y_true_centered = y_true - y_true_mean
+    y_pred_centered = y_pred - y_pred_mean
+
+    # Covariance and variances
+    cov = tf.reduce_mean(y_true_centered * y_pred_centered)
+    var_true = tf.reduce_mean(tf.square(y_true_centered))
+    var_pred = tf.reduce_mean(tf.square(y_pred_centered))
+
+    # Pearson correlation
+    corr = cov / (tf.sqrt(var_true * var_pred) + smooth)
+
+    return 1.0 - corr
+
+@tf.function(reduce_retracing=True)
+def mse_inverse_density_loss(y_true, y_pred, smooth=1e-6):
+    y_true = tf.cast(y_true[:, 0], tf.float32)
+    y_pred = tf.cast(y_pred[:, 0], tf.float32)
+
+    n = tf.cast(tf.size(y_true), tf.float32)
+
+
+    # Bandwidth (Silverman's rule)
+    mean_y = tf.reduce_mean(y_true)
+    std_y = tf.sqrt(tf.reduce_mean(tf.square(y_true - mean_y)))
+
+    std_y = tf.where(std_y > 0, std_y, tf.constant(1.0, dtype=tf.float32))
+    h = 1.06 * std_y * tf.pow(n, -0.2)
+
+ 
+    # Pairwise KDE (O(n^2))
+    y_col = tf.reshape(y_true, (-1, 1))
+    diff_mat = y_col - tf.transpose(y_col)
+
+    gauss_kernel = tf.exp(-0.5 * tf.square(diff_mat / (h + smooth))) \
+                   / (tf.sqrt(2.0 * np.pi) * (h + smooth))
+
+    p = tf.reduce_mean(gauss_kernel, axis=1)
+
+    # Avoid division by zero
+    p = tf.maximum(p, smooth)
+
+
+    # Inverse-density weights
+    w = 1.0 / p
+    w = w / tf.reduce_sum(w)
+
+
+    # Weighted MSE
+    diff = y_pred - y_true
+    loss = tf.reduce_sum(w * tf.square(diff))
+
+    return loss
+
+
 # ------------------------------
 # Model Definition
 # ------------------------------
@@ -209,6 +335,10 @@ def tf_model_fit(Y, label, layers_sizes, activation="relu",
     # ----------------- Seed setting -----------------
     tf.random.set_seed(seed)
     np.random.seed(seed)
+    
+    # ----------------- Device printout --------------
+    device = "GPU" if tf.config.list_physical_devices("GPU") else "CPU"
+    print(f"[TensorFlow framework] training on device: {device}")
 
     # ----------------- Input conversion -------------
     Y = np.array(Y).astype(np.float32)
@@ -248,6 +378,7 @@ def tf_model_fit(Y, label, layers_sizes, activation="relu",
 
     #Adapt loss to NM performance criterion.
     if loss == 'performance_criterion':
+        #Classification metrics
         if NM_perf_criterion == 'ACCURACY':
             loss = "categorical_crossentropy"
         elif NM_perf_criterion == 'TPR':
@@ -276,6 +407,20 @@ def tf_model_fit(Y, label, layers_sizes, activation="relu",
             loss = positive_likelihood_ratio_loss
         elif NM_perf_criterion == 'NLR':
             loss = negative_likelihood_ratio_loss
+
+        #Regression metrics.
+        elif NM_perf_criterion == 'MSE':
+            loss = "mean_squared_error"
+        elif NM_perf_criterion == 'NRMSD':
+            loss = nrmsd_loss
+        elif NM_perf_criterion == 'SCC':
+            loss = scc_loss
+        elif NM_perf_criterion == 'CC':
+            loss = cc_loss
+        elif NM_perf_criterion == 'MAERR':
+            loss = 'mean_absolute_error'
+        elif NM_perf_criterion == 'MSEINVDENS':
+            loss = mse_inverse_density_loss
 
 
 
@@ -309,3 +454,4 @@ def tf_model_fit(Y, label, layers_sizes, activation="relu",
 
     # ----------------- Return ------------------------
     return model
+

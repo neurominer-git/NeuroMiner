@@ -29,7 +29,7 @@ global VERBOSE
 
 % --------- defaults / basic checks ----------
 if nargin < 5 || isempty(opts), opts = struct(); end
-if ~isfield(opts,'strict_min') || isempty(opts.strict_min), opts.strict_min = 5; end
+if ~isfield(opts,'strict_min') || isempty(opts.strict_min), opts.strict_min = 2; end
 
 % Mode handling
 if ~isfield(opts,'mode') || isempty(opts.mode)

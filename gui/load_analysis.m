@@ -25,7 +25,8 @@ for i = 1:nVarIn
             [nM, nL] = size(vis);
             for m=1:nM
                 for l=1:nL
-                    handles.visdata_table(m, l) = create_visdata_tables(vis{m,l}, [], [], 'create');
+                    if iscell(vis{m,l}), visml = vis{m,l}{1}; else, visml = vis{m,l}; end
+                    handles.visdata_table(m, l) = create_visdata_tables(visml, [], [], 'create');
                 end
             end
             handles.visdata = vis;

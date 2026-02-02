@@ -162,7 +162,12 @@ switch SVM.prog
             end
         else
             %Default mode with default python function
-            TENSORFLOW.modules{1} = py.importlib.import_module("train_tf_model");
+            if strcmp(TrainParam.GRD.(SVM.prog).Params(2).range, 'tensorflow')
+                TENSORFLOW.modules{1} = py.importlib.import_module("train_tf_model");
+            else 
+                TENSORFLOW.modules{1} = py.importlib.import_module("train_pytorch_model");
+            end
+            
             %Force reload in case file has changed. 
             TENSORFLOW.modules{1} = py.importlib.reload(TENSORFLOW.modules{1});
         end

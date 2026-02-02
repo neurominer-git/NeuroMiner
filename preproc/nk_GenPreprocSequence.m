@@ -5,7 +5,7 @@ function [InputParam, TrainedParam, SrcParam] = nk_GenPreprocSequence(InputParam
 % =========================================================================
 % 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, 01/2024
+% (c) Nikolaos Koutsouleris, 12/2025
 global MODEFL NM VERBOSE MULTILABEL 
 
 % This is needed for Combat to properly work when a multi-label analysis is

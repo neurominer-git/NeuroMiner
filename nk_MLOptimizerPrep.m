@@ -497,7 +497,16 @@ nk_SetupGlobalVariables(analysis.params, 'setup_strat', 0, inp1.varind(1));
 strout = nk_Preprocess_StrCfg([], []);
 
 % Define # of classifiers to train (1 for multi-group classification & regression)
-inp1.nclass = 1; if strcmp(MODEFL,'classification') && RAND.Decompose ~= 9, inp1.nclass = length(CV(1).class{1,1}); end
+inp1.nclass = 1; 
+if strcmp(MODEFL,'classification') && RAND.Decompose ~= 9
+    if analysis.params.label.altlabelflag
+        
+    else
+        % This works if no alternative class label is used in a main
+        % regression setting
+        inp1.nclass = length(CV(1).class{1,1}); 
+    end
+end
 inp1.probflag = false;
 
 % **************************** ANALYSIS SETUP *****************************

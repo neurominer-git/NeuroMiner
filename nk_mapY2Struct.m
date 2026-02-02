@@ -303,14 +303,31 @@ switch FUSION.flag
                                 if i==1
                                     if multiproc, out.Ts{k,l} = cell(cntPXopt,1); else, out.Ts{k,l}{j} = cell(cntPXopt,1); end
                                 end
-                                % Check if parameter columns consist only one value
+                                % Check if parameter columns consist only of one value
                                 % and remove these columns
-                                if width(paramfl{i}.P{j}.opt) ~= width(paramfl{i}.PXopt{j})
-                                    idx_rem = all(diff(paramfl{i}.PXopt{j}) == 0, 1);
-                                    paramfl{i}.PXopt{j}(:,idx_rem) = [];
+                                % --- Guard against empty or missing P{j} ---
+                                if isfield(paramfl{i},'P') && ...
+                                   numel(paramfl{i}.P) >= j && ...
+                                   isstruct(paramfl{i}.P{j}) && ...
+                                   isfield(paramfl{i}.P{j},'opt') && ...
+                                   ~isempty(paramfl{i}.P{j}.opt)
+                                
+                                    if width(paramfl{i}.P{j}.opt) ~= width(paramfl{i}.PXopt{j})
+                                        idx_rem = all(diff(paramfl{i}.PXopt{j}) == 0, 1);
+                                        paramfl{i}.PXopt{j}(:,idx_rem) = [];
+                                    end
+                                else
+                                    % No parameter space → PXopt used as-is
+                                    % (intentionally do nothing)
                                 end
-                                shelf_ind = find(ismember(paramfl{i}.P{j}.opt,paramfl{i}.PXopt{j},'rows'));
-                                p_opt = paramfl{i}.P{j}.opt(shelf_ind,:);
+                                if isstruct(paramfl{i}.P{j}) && isfield(paramfl{i}.P{j},'opt') && ~isempty(paramfl{i}.P{j}.opt)
+                                    shelf_ind = find(ismember(paramfl{i}.P{j}.opt, paramfl{i}.PXopt{j}, 'rows'));
+                                    p_opt     = paramfl{i}.P{j}.opt(shelf_ind,:);
+                                else
+                                    % Degenerate case: one shelf per PXopt row
+                                    shelf_ind = (1:height(paramfl{i}.PXopt{j}))';
+                                    p_opt     = paramfl{i}.PXopt{j};
+                                end
                                 cnt_p_opt = height(p_opt);
                                 for zq = 1 : cnt_p_opt
                                     shelf_ind_zq = ismember(paramfl{i}.PXopt{j},p_opt(zq,:),'rows');

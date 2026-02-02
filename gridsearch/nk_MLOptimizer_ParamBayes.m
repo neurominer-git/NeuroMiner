@@ -220,18 +220,30 @@ for curlabel = 1:nl
 
         % Fit GP surrogate on evaluated candidates.
         X = Xgrid(evaluated_idx,:);
-        y_vec = y;
-        gpModel = fitrgp(X, y_vec, 'BasisFunction','constant',...
-                          'KernelFunction',GRD.OptMode.Bayes.kernel_function,...
-                          'Standardize',true);
+        notVisited = setdiff(valid_indices, evaluated_idx);
+        Xtest = Xgrid(notVisited,:);
+
+        % X_train and X_test (e.g. Xgrid(notVisited,:)) BEFORE calling either GP
+        muX  = mean(X);
+        sdX  = std(X, [], 1);
+        sdX(sdX == 0) = 1;  % avoid division by zero
+
+        X_std      = (X     - muX) ./ sdX;
+        Xtest_std  = (Xtest - muX) ./ sdX;
+        y_mean = mean(y);
+        y_std  = std(y);
+        y_train_std = (y - y_mean) / y_std;
+
+        % Train and predict using a Gaussian Process Model (this helpers
+        % supports both a MATLAB Stats and ML toolbox implementation and if
+        % this is not available a Python scikit-learn replacement
+        [mu_std, sigma_std] = nm_fitgp_surrogate(X_std, y_train_std, Xtest_std, GRD.OptMode.Bayes.kernel_function);
+        
+        mu = mu_std * y_std + y_mean;
+        sigma = sigma_std * y_std;
 
         % Compute Expected Improvement (EI) for each candidate in valid_indices.
-        notVisited = setdiff(valid_indices, evaluated_idx);
-        
-        % Predict on remaining candidates
-        [mu, sigma] = predict(gpModel, Xgrid(notVisited,:));  % Vectorized prediction
-        % Guard!
-        if any(sigma < 1e-6), sigma(sigma < 1e-6) = 1e-6; end
+        sigma(sigma < 1e-9) = 1e-9; % numeric guard
         
         % ---- Acquisition (EI or LCB) ----
         switch lower(BayesAcq)
@@ -239,7 +251,6 @@ for curlabel = 1:nl
                 % Expected Improvement (supports max/min via dir)
                 improvement = (dir==1) * (mu - best_cost) + (dir==-1) * (best_cost - mu);
                 improvement = improvement + jitter ;
-                sigma(sigma<1e-9)=1e-9;
                 Z = improvement ./ sigma;
                 EI_vec = max(0, improvement) .* normcdf(Z) + sigma .* normpdf(Z);
         
@@ -258,7 +269,6 @@ for curlabel = 1:nl
             case 'lcb'
                 % Lower/Upper Confidence Bound with optional early stop on optimistic bound
                 % kappa already read above
-                sigma(sigma < 1e-9) = 1e-9; % numeric guard
         
                 % Scores to select next candidate (always pick max(score))
                 if dir == 1
@@ -365,4 +375,31 @@ end
 DISP.visited = [];
 fprintf('\n'); fprintf('CV2 [%g, %g]: OPTIMIZATION COMPLETED IN %1.2f SEC\n', f, d, tElapsedSum);
 
+end
+% ----------------------------------------------------------------------------------------------------
+function [mu, sigma] = nm_fitgp_surrogate(X, y, Xtest, kernel_name)
+
+    useMatlabGP = license('test','statistics_toolbox') && exist('fitrgp','file') == 2;
+
+    if useMatlabGP
+        % Original MATLAB Stats/ML implementation
+        gpModel = fitrgp(X, y, ...
+            'BasisFunction','constant', ...
+            'KernelFunction', kernel_name, ...
+            'Standardize', false);
+
+        [mu, sigma] = predict(gpModel, Xtest);
+
+    else
+
+        % Python fallback
+        if isempty(pyenv().Version)
+            error('Bayesian HO requires either MATLAB''s Statistics/ML toolbox or a configured Python environment with scikit-learn.');
+        end
+
+        pymod = py.importlib.import_module('nm_gp_surrogate');
+        res   = pymod.gp_predict(X, y(:), Xtest, kernel_name);
+        mu    = double(res{1});
+        sigma = double(res{2});
+    end
 end

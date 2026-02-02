@@ -13,18 +13,7 @@ global MODEFL GRD EVALFUNC TENSORFLOW
 param = [];
 
 % ================= Convert to Python arrays =================
-%sklearn errors when size(Y,2) = 1, ndarray needs reshaping 
-if size(Y,1) == 1 && size(Y,2) == 1
-    Y_py = py.numpy.array(Y).reshape(int64(1), int64(1)).astype('float32');
-
-elseif size(Y, 2) == 1
-    Y_py = py.numpy.array(Y).reshape(int64(-1), int64(1)).astype('float32');
-
-elseif size(Y, 1) == 1
-    Y_py = py.numpy.array(Y).reshape(int64(1), int64(-1)).astype('float32');
-else
-    Y_py = py.numpy.array(Y).astype('float32');
-end
+Y_py = py.numpy.array(Y).astype('float32');
 label_py = py.numpy.array(reshape(label, [], 1)).astype('float32');
 
 
@@ -44,11 +33,6 @@ if length(Param)>2
     else
         layers_sizes_py = py.list(num2cell(int64(layers_sizes)));
     end
-
-
-
-
-
     
     % ================= Python call to train model =================
 

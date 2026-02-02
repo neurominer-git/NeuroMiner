@@ -1,6 +1,15 @@
 function [data, labels, covars] = nk_SynthPCAGaussGMM(realData, realLabels, realCovars, IN, method)
 global VERBOSE
 
+% --- Python imports cached per MATLAB session ---
+persistent np_mod sklearn_mixture_mod GaussianMixtureClass
+if isempty(np_mod) || isempty(sklearn_mixture_mod) || isempty(GaussianMixtureClass)
+    % Import Python libraries once
+    np_mod              = py.importlib.import_module('numpy');
+    sklearn_mixture_mod = py.importlib.import_module('sklearn.mixture');
+    GaussianMixtureClass = sklearn_mixture_mod.GaussianMixture;
+end
+
 if ~exist("IN","var") || isempty(IN)
     numSyntheticObservations = 100;
 else
@@ -55,9 +64,6 @@ switch method
     
     case 'gmm'
         fprintf('| Generating synthetic data using Gaussian Mixture Modelling');
-        % Import Python libraries
-        py.importlib.import_module('numpy');
-        py.importlib.import_module('sklearn.mixture');
 
         % Convert MATLAB data to Python-compatible format
         realData_py = py.numpy.array(realData);
@@ -68,7 +74,7 @@ switch method
         for i=1:ncomp
             % Fit Gaussian Mixture Model using Python's scikit-learn
             n_components_py = py.int(IN.n_components(i));
-            gmm = py.sklearn.mixture.GaussianMixture( n_components_py , pyargs('random_state', random_state_py));
+            gmm = GaussianMixtureClass( n_components_py , pyargs('random_state', random_state_py));
             dimred = false;
             try % ... in the original space
                 gmm.fit(realData_py);

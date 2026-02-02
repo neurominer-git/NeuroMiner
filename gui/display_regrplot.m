@@ -262,7 +262,7 @@ if isfield(handles,'txtPerf'); delete(handles.txtPerf); end
 if binarizeflag
 
     % --- threshold handling (as before) ---
-    m = nm_nanmean(pred); 
+    m = mean(pred,'omitnan'); 
     set(handles.txtBinarize,'String',m);
 
     if isempty(handles.txtBinarize.String) || strcmp(handles.txtBinarize.String,'Binarization Threshold')
