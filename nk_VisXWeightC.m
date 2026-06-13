@@ -421,36 +421,38 @@ for n = 1:nM
 
                 case {'elimzero','extfeat','extdim'}
                     % For these steps (feature elimination), apply to the aggregated vectors.
-                    if isfield(naPX,'NonPruneVec')
-                        IND = 'NonPruneVec';
-                    elseif isfield(naPX,'indNonRem')    
-                        IND = 'indNonRem';
-                    else
-                        IND = 'ind';
-                    end
-                    if size(naPX.(IND),2) > 1 && size(naPX.(IND),1) > 1
-                        pIND = naPX.(IND)(:,inp.curlabel);
-                    else
-                        pIND = naPX.(IND);
-                    end
-                    % In DR case, nmW is a matrix.
-                    tmW = zeros(length(pIND), size(nmW,2));
-                    tmW(pIND, :) = nmW;
-                    nmW = tmW;
-                    tmP = false(length(pIND), size(nmW,2));
-                    tmP(pIND, :) = nmP;
-                    nmP = tmP;
-                    if ~isempty(PA)
-                        tmPA = zeros(length(pIND), size(nmW,2));
-                        tmPA(pIND, :) = nmPA;
-                        nmPA = tmPA;
-                    end
-                    if ~compwise
-                        tcorr_mask = false(length(pIND), 1);
-                        tcorr_mask(pIND) = corr_mask;
-                        corr_mask = tcorr_mask;
-                    end
+                    if ~any(strcmp(preprocs,'JuSpace'))
+                        if isfield(naPX,'NonPruneVec')
+                            IND = 'NonPruneVec';
+                        elseif isfield(naPX,'indNonRem')    
+                            IND = 'indNonRem';
+                        else
+                            IND = 'ind';
+                        end
+                        if size(naPX.(IND),2) > 1 && size(naPX.(IND),1) > 1
+                            pIND = naPX.(IND)(:,inp.curlabel);
+                        else
+                            pIND = naPX.(IND);
+                        end
+                        % In DR case, nmW is a matrix.
+                        tmW = zeros(length(pIND), size(nmW,2));
+                        tmW(pIND, :) = nmW;
+                        nmW = tmW;
+                        tmP = false(length(pIND), size(nmW,2));
+                        tmP(pIND, :) = nmP;
+                        nmP = tmP;
+                        if ~isempty(PA)
+                            tmPA = zeros(length(pIND), size(nmW,2));
+                            tmPA(pIND, :) = nmPA;
+                            nmPA = tmPA;
+                        end
+                        if ~compwise
+                            tcorr_mask = false(length(pIND), 1);
+                            tcorr_mask(pIND) = corr_mask;
+                            corr_mask = tcorr_mask;
+                        end
                     % (Note: If needed, adjust the feature masks lFuVI, fVI here.)
+                    end
             end
         end
         
