@@ -6,7 +6,7 @@
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % (c) Nikolaos Koutsouleris, last modified 04/2024
 
-global CV 
+global CV UI 
 
 % Detect completed analyses
 complvec = []; for z=1:numel(NM.analysis), if NM.analysis{z}.status, complvec = [ complvec z ]; end; end
@@ -28,9 +28,17 @@ if ~exist('inp','var') || isempty(inp)
                     ...                         % 2 = recompute parameters
                     'PERM', struct( 'flag', 2, 'nperms', 1000), ... % Permutation analysis performed on OOCV data
                     'HideGridAct', false, ...
-                    'batchflag', 0);            % 1 = Run in batchmode (without graphics outputs)
-                                                % 0 = run in interactive mode
+                    'batchflag', 0);            % 1 = partition/batch execution (for example HPC)
+                                                % 0 = serial/full OOCV execution; UI owns progress display
 end
+browserRuntime = isstruct(UI) && isfield(UI,'enabled') && logical(UI.enabled) && ...
+    isfield(UI,'appUI') && logical(UI.appUI) && isfield(UI,'mode') && ...
+    strcmpi(char(string(UI.mode)), 'browser');
+% The browser is noninteractive, but it is not the HPC/batch execution
+% pathway. Keep batchflag for execution semantics and let UI own progress
+% presentation.
+if browserRuntime, inp.batchflag = 0; end
+
 na_str = '?'; inp.datatype = 'OOCVdatamat'; 
 OverWriteStr = []; GridSelectStr = []; 
 LoadModelsStr = []; LoadParamsStr = []; 
@@ -182,9 +190,12 @@ end
 if ~disallow, menustr = [menustr '|PROCEED >>>']; menuact = [menuact 10]; end 
 
 %% Display menu and act on user selections
-nk_PrintLogo
-mestr = 'Independent test module run-time configuration'; navistr = [parentstr ' >>> ' mestr]; fprintf('\nYou are here: %s >>>',parentstr);
-if ~inp.batchflag && act<17, act = nk_input(mestr, 0, 'mq', menustr, menuact); end
+mestr = 'Independent test module run-time configuration'; navistr = [parentstr ' >>> ' mestr];
+if ~inp.batchflag && ~browserRuntime && act<17
+    nk_PrintLogo
+    fprintf('\nYou are here: %s >>>',parentstr);
+    act = nk_input(mestr, 0, 'mq', menustr, menuact);
+end
 
 switch act
     
@@ -256,6 +267,7 @@ switch act
             inp.analysis_id = NM.analysis{inp.analind(i)}.id;
             inp.saveoptdir = [ NM.analysis{inp.analind(i)}.rootdir filesep 'opt' ];
             NM.analysis{inp.analind(i)}.OOCV{inp.oocvind} = OOCVPrep(NM, inp, NM.analysis{inp.analind(i)});
+            NM.OOCV{inp.oocvind}.analysis_used = true;
             nk_SetupGlobalVariables(NM.analysis{inp.analind(i)}.params, 'clear', 0); 
          end
          NM = rmfield(NM,'runtime');
@@ -378,7 +390,7 @@ for i = 1:inp1.nF
 	
         strOOCVfile = fullfile(inp.rootdir,[stranalysis inp.varstr '_t' num2str(j) '_OOCVresults-' num2str(inp.oocvind) '_ID' dat.id '.mat']);
         inp.multlabelstr = '';  if MULTILABEL.flag, inp.multlabelstr = sprintf('_t%g',j); end
-        if exist(strOOCVfile,'file') && inp.ovrwrt==2
+        if exist(strOOCVfile,'file') && ~inp.ovrwrt
 	        fprintf('\nLoading:\n%s',strOOCVfile);
 	        load(strOOCVfile)
         else

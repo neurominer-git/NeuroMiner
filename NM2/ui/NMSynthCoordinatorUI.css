@@ -1,0 +1,58 @@
+/* SYNTH Coordinator: follows the shared NM2 module shell and training-template controls.
+ * Scientific controls and cross-analysis visualization are owned by the existing JS/MATLAB services.
+ */
+:root {
+  --s-bg: #f6f7f9;
+  --s-card: #fff;
+  --s-border: #d8dee4;
+  --s-text: #1f2933;
+  --s-muted: #607080;
+  --s-accent: #2563eb;
+}
+body { margin: 0; background: var(--s-bg); color: var(--s-text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+.synthPage { max-width: 1300px; margin: 0 auto; padding: 0 24px 64px; box-sizing: border-box; }
+/* Use the dark 64px module header established by NMTrainTemplateUI.css. */
+.synthPage > .synthHeader {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  height: 64px; margin: 0 -24px 0; padding: 0 24px;
+  box-sizing: border-box; background: #17202a; color: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+.synthHeader h1 { font-size: 17px; line-height: 1.25; margin: 0; font-weight: 650; letter-spacing: -.01em; }
+.synthHeader p { font-size: 12px; margin: 4px 0 0; color: #cbd5e1; }
+.synthHeader #synthBack { color: #1f2933; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 13px; font-weight: 600; }
+.synthTabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 18px; padding: 12px 0 0; border-bottom: 1px solid var(--s-border); background: var(--s-bg); }
+.synthTabs button { border: 0; border-bottom: 3px solid transparent; border-radius: 0; padding: 10px 16px; background: transparent; color: var(--s-muted); cursor: pointer; font: inherit; font-size: 13px; }
+.synthTabs button.active { border-bottom-color: var(--s-accent); color: #1d4ed8; font-weight: 700; }
+.synthTabs button:hover { color: #1d4ed8; background: #eff6ff; }
+.synthTab { display: none; }
+.synthTab.active { display: block; }
+.synthCard { background: var(--s-card); border: 1px solid var(--s-border); border-radius: 10px; padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 2px 9px rgba(15,23,42,.04); }
+.synthCard h2 { font-size: 15px; font-weight: 700; margin: 0 0 14px; }
+.synthGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 15px 18px; margin-bottom: 16px; }
+.synthGrid label { min-width: 0; display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; color: #374151; }
+.synthGrid select, .synthGrid input { width: 100%; box-sizing: border-box; background: #fff; color: var(--s-text); border: 1px solid #cbd5e1; border-radius: 6px; min-height: 37px; padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 400; }
+.synthGrid select:focus, .synthGrid input:focus { outline: 2px solid #93c5fd; outline-offset: 1px; border-color: var(--s-accent); }
+.synthGrid .span2 { grid-column: span 2; }
+.synthPage button { cursor: pointer; }
+.synthPage button.primary { border: 1px solid #1d4ed8; background: var(--s-accent); color: #fff; border-radius: 6px; padding: 9px 15px; font-weight: 650; font-size: 13px; }
+.synthPage button.primary:hover { background: #1d4ed8; }
+.synthPage .synthCard > button:not(.primary) { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px 13px; margin-right: 8px; color: #334155; font-size: 13px; }
+.synthPage button:disabled { opacity: .45; cursor: not-allowed; }
+.synthPage .muted { font-size: 12px; color: var(--s-muted); line-height: 1.55; }
+#sourceSummary { font-size: 13px; font-weight: 600; color: #334155; }
+#synthMessage { min-height: 22px; font-size: 12px; color: var(--s-muted); }
+#synthChart { display: block; width: 100%; height: auto; max-height: 360px; margin: 12px 0; }
+#synthRunTable { max-height: 260px; overflow: auto; margin-top: 16px; }
+#synthRunTable table { border-collapse: collapse; width: 100%; font-size: 12px; }
+#synthRunTable th, #synthRunTable td { padding: 9px; border-bottom: 1px solid var(--s-border); text-align: left; }
+#synthRunTable th { background: #f8fafc; color: #475569; font-weight: 650; position: sticky; top: 0; }
+#synthRunTable tr.selected { background: #dbeafe; }
+#synthRunTable tr { cursor: pointer; }
+@media(max-width:700px) {
+  .synthPage { padding: 0 14px 40px; }
+  .synthPage > .synthHeader { margin: 0 -14px; padding: 0 14px; }
+  .synthHeader p { display: none; }
+  .synthGrid { grid-template-columns: 1fr; }
+  .synthGrid .span2 { grid-column: span 1; }
+}

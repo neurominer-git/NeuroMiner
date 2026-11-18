@@ -48,6 +48,10 @@ inparams.covars_oocv =      [];
 inparams.varstr =           inp.varstr;
 inparams.varind =           inp.tF;
 inparams.P =                inp;
+% nm2-allow: Historical analyses may lack init_token; preserve their original SYNTH cache behavior.
+if isfield(inp,'init_token')
+    inparams.init_token = inp.init_token;
+end
 inparams.analyses =         inp.analyses;
 inparams.stacking =         inp.stacking;
 inparams.rootdir =          inp.rootdir;

@@ -1,0 +1,144 @@
+/* NMModuleNavigationRail.css
+ * styles the NMModuleNavigationRail browser UI component.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+@import url("NMModal.css");
+@import url("NMRuntimeProgressViewer.css");
+
+/* Global application-layer contract: the NM2 navigation rail occupies the
+   reserved top stacking band. Module panels, sticky toolbars, modals and
+   transient plot overlays must remain below --nmNavPlaceholderLayer. */
+:root{--nmNavRailCollapsed:56px;--nmNavRailExpanded:232px;--nmNavBg:#111827;--nmNavBg2:#17202a;--nmNavInk:#e5edf6;--nmNavMuted:#9aa8b8;--nmNavActive:#0ea5e9;--nmNavBorder:rgba(255,255,255,.10);--nmNavPlaceholderLayer:199990;--nmNavLayer:200000;--nmNavRestoreLayer:200010;}
+.nmModuleIconSvg{width:1em;height:1em;display:block;flex:none;}
+body.nmHasNavRail:not(.nmNavReady) > header #finish{visibility:hidden;}
+body.nmHasNavRail{padding-left:var(--nmNavRailCollapsed);box-sizing:border-box;transition:none;}
+body.nmHasNavRail:not(.nmNavReady)::before{content:'';position:fixed;left:0;top:0;bottom:0;width:var(--nmNavRailCollapsed);height:auto;z-index:var(--nmNavPlaceholderLayer);background:linear-gradient(180deg,var(--nmNavBg2),var(--nmNavBg));border-right:1px solid rgba(255,255,255,.08);box-shadow:2px 0 16px rgba(15,23,42,.20);pointer-events:none;}
+body.nmHasNavRail.nmNavReady::before{display:none;}
+.nmHasNavRail > header,.nmHasNavRail > .wbHeader{margin-left:0;}
+.nmHasNavRail > main{margin-left:0;transition:none;}
+/* Fixed application modals live outside normal body flow, so explicitly reserve
+   the same collapsed navigation band as the owning page. */
+body.nmHasNavRail > .modal,body.nmHasNavRail > .selectorModal{left:var(--nmNavRailCollapsed);}
+body.nmHasNavRail > .modal > .modalBox{width:96%;}
+body.nmHasNavRail.nmNavRailRolled > .modal,body.nmHasNavRail.nmNavRailRolled > .selectorModal{left:0;}
+.nmHasNavRail.nmNavReady > main{transition:margin-left .22s cubic-bezier(.2,.8,.2,1),width .22s cubic-bezier(.2,.8,.2,1);}
+body.nmHasNavRail.nmNavRailRolled > main{margin-left:calc(-1 * var(--nmNavRailCollapsed));width:calc(100% + var(--nmNavRailCollapsed));}
+.nmHasNavRail .panel.prPanel,.nmHasNavRail .panel.mlrPanel,.nmHasNavRail .panel.visPanel,.nmHasNavRail .panel.mliPanel,.nmHasNavRail .panel.modelExportPanel,.nmHasNavRail .panel.oocvRunnerPanel{width:calc(100vw - var(--nmNavRailCollapsed) - 32px);}
+.nmNavRail{display:flex;flex-direction:column;position:fixed;isolation:isolate;left:0;top:0;bottom:0;height:auto;width:var(--nmNavRailCollapsed);z-index:var(--nmNavLayer);box-sizing:border-box;background:linear-gradient(180deg,var(--nmNavBg2),var(--nmNavBg));border-right:1px solid rgba(255,255,255,.08);box-shadow:2px 0 16px rgba(15,23,42,.20);color:var(--nmNavInk);overflow:hidden;transform:translateX(0);transition:width .22s cubic-bezier(.2,.8,.2,1),transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s cubic-bezier(.2,.8,.2,1),height .26s cubic-bezier(.2,.8,.2,1),border-radius .22s ease;}
+.nmNavRail.isExpanded{width:var(--nmNavRailExpanded);box-shadow:14px 0 36px rgba(15,23,42,.30);}
+.nmNavRail.isRolled{width:var(--nmNavRailCollapsed);height:64px;bottom:auto;transform:none;overflow:hidden;border-bottom:1px solid var(--nmNavBorder);border-bottom-right-radius:12px;box-shadow:2px 6px 18px rgba(15,23,42,.28);}
+.nmNavRail.isRolled.isExpanded{width:var(--nmNavRailCollapsed);}
+.nmNavRail.isRolled .nmNavHeader{width:var(--nmNavRailCollapsed);border-bottom:0;}
+.nmNavRail.isRolled .nmNavList,.nmNavRail.isRolled .nmNavFooter{display:none;}
+.nmNavRail.isRolled .nmNavToggle{opacity:.35;cursor:not-allowed;pointer-events:none;}
+body.nmNavRailRolled .panel.prPanel,body.nmNavRailRolled .panel.mlrPanel,body.nmNavRailRolled .panel.visPanel,body.nmNavRailRolled .panel.mliPanel,body.nmNavRailRolled .panel.modelExportPanel,body.nmNavRailRolled .panel.oocvRunnerPanel{width:calc(100vw - 32px);}
+.nmNavHeader{height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-bottom:1px solid var(--nmNavBorder);}
+.nmNavHeaderControls{display:flex;align-items:center;justify-content:center;gap:4px;}
+.nmNavBrand{font-weight:900;letter-spacing:-.03em;font-size:14px;color:#fff;line-height:1;white-space:nowrap;}
+.nmNavRail.isRolled .nmNavHeader .nmNavBrand{display:block;opacity:1;visibility:visible;}
+.nmNavRail.isRolled .nmNavHeaderControls{gap:3px;}
+.nmNavRail.isRolled .nmNavHeader .nmNavBrand{font-size:13px;letter-spacing:-.02em;}
+.nmNavRail.isExpanded .nmNavBrand::after{content:'  Workbench';font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--nmNavMuted);margin-left:8px;}
+.nmNavRail.isRolled.isExpanded .nmNavBrand::after{content:none;}
+.nmNavToggle,.nmNavRollToggle{width:18px;height:18px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--nmNavInk);display:grid;place-items:center;padding:0;cursor:pointer;transition:background .15s ease,border-color .15s ease,transform .15s ease;}
+.nmNavToggle:hover,.nmNavRollToggle:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);}
+.nmNavToggle .nmModuleIconSvg,.nmNavRollToggle .nmModuleIconSvg{width:11px;height:11px;}
+.nmNavRestoreToggle{position:fixed;left:8px;top:96px;z-index:var(--nmNavRestoreLayer);width:30px;height:30px;border-radius:999px;border:1px solid rgba(15,23,42,.18);background:#17202a;color:#e5edf6;box-shadow:0 8px 24px rgba(15,23,42,.22);display:none;place-items:center;padding:0;cursor:pointer;}
+.nmNavRestoreToggle .nmModuleIconSvg{width:15px;height:15px;}
+body.nmNavRailRolled .nmNavRestoreToggle{display:none;}
+.nmNavRestoreToggle:hover{background:#111827;}
+.nmNavList{display:flex;flex:1;min-height:0;flex-direction:column;gap:5px;padding:10px 6px 14px;opacity:1;transform:translateY(0);overflow-x:hidden;overflow-y:auto;transform-origin:top center;transition:opacity .18s ease,transform .26s cubic-bezier(.2,.8,.2,1);}
+.nmNavFooter{flex:none;padding:8px 6px;border-top:1px solid var(--nmNavBorder);}
+.nmNavQuit{justify-content:start;}
+.nmNavItem{height:44px;width:100%;border:0;border-radius:13px;background:transparent;color:var(--nmNavMuted);display:grid;grid-template-columns:44px 1fr auto;align-items:center;padding:0;overflow:hidden;text-align:left;cursor:pointer;transition:background .15s ease,color .15s ease,opacity .15s ease;}
+.nmNavItem:hover:not(:disabled){background:rgba(255,255,255,.08);color:#fff;}
+.nmNavItem.isActive{background:rgba(14,165,233,.16);color:#e0f2fe;box-shadow:inset 3px 0 0 var(--nmNavActive);}
+.nmNavItem.isDisabled{opacity:.48;cursor:not-allowed;}
+.nmNavIcon{width:44px;height:44px;display:grid;place-items:center;}
+.nmNavIcon .nmModuleIconSvg{width:24px;height:24px;}
+.nmNavIcon .nmModuleIconSvg g{stroke-width:2.05;}
+.nmNavItem.isActive .nmNavIcon .nmModuleIconSvg g{stroke-width:2.15;}
+.nmNavLabel{font-size:13px;font-weight:750;line-height:1.1;white-space:nowrap;opacity:0;transform:translateX(-8px);transition:opacity .16s ease,transform .16s ease;}
+.nmNavRail.isExpanded .nmNavLabel{opacity:1;transform:translateX(0);}
+.nmNavBadge{opacity:0;justify-self:end;margin-right:9px;border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:2px 6px;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#d9e2ee;background:rgba(255,255,255,.06);transition:opacity .16s ease;}
+.nmNavRail.isExpanded .nmNavBadge{opacity:1;}
+.nmHeaderModuleIcon{display:inline-flex;vertical-align:-2px;margin-right:9px;color:#a7f3d0;}
+.nmHeaderModuleIcon .nmModuleIconSvg{width:19px;height:19px;}
+.wbModuleIcon .nmModuleIconSvg{width:22px;height:22px;}
+
+html[data-nm-theme="neutral"]{--nm-header-bg:#30363D!important;--nm-nav-bg:#252B31!important;--nm-nav-bg2:#30363D!important;--nm-nav-active:#78A8CA!important;}
+html[data-nm-theme="cool-slate"]{--nm-page-bg:#E6EEF5!important;--nm-surface:#F7FAFC!important;--nm-surface-soft:#EDF3F8!important;--nm-surface-elevated:#FFFFFF!important;--nm-border:#BFCEDB!important;--nm-text:#172733!important;--nm-muted:#5B7080!important;--nm-accent:#2D6F9E!important;--nm-accent-hover:#225A82!important;--nm-accent-soft:#D8E8F4!important;--nm-disabled:#7A8D9B!important;--nm-header-bg:#0F3654!important;--nm-header-muted:#C4D7E6!important;--nm-nav-bg:#08243B!important;--nm-nav-bg2:#103C5D!important;--nm-nav-muted:#A9C0D1!important;--nm-nav-active:#69B3E0!important;}
+html[data-nm-theme="warm-neutral"]{--nm-header-bg:#4A3329!important;--nm-header-muted:#DED0C6!important;--nm-nav-bg:#33231D!important;--nm-nav-bg2:#4A3329!important;--nm-nav-muted:#CBB9AD!important;--nm-nav-active:#D3A27D!important;}
+html[data-nm-theme="dark-navy"]{--nm-header-bg:#234B70!important;--nm-header-muted:#D3E2EF!important;--nm-nav-bg:#153552!important;--nm-nav-bg2:#245275!important;--nm-nav-ink:#F1F7FC!important;--nm-nav-muted:#BACADA!important;--nm-nav-active:#8CCAF2!important;--nm-disabled:#A6B7C9!important;}
+html[data-nm-theme="dark-navy"] .wbModuleCard.disabled .wbModuleTop{opacity:.68!important;}
+html[data-nm-theme="dark-navy"] .wbStage-future>.wbSectionHead{opacity:.72!important;}
+html[data-nm-theme="dark-navy"] .nmNavItem.isDisabled{opacity:.68!important;}
+
+/* Shared header action icon layout for SYNTH, matching Workbench actions. */
+#synthBack{display:inline-flex;align-items:center;gap:8px}
+#synthBack .nmModuleIconSvg{width:17px;height:17px;flex:none}
+/* Results Viewer keeps the common NM2 header-button language, scaled to its deliberately compact header. */
+html[data-nm-theme] .rvHeader .headerActions{gap:7px!important;}
+html[data-nm-theme] .rvHeader .headerActions button{
+  min-height:28px!important;
+  height:28px!important;
+  border:1px solid color-mix(in srgb,var(--nm-header-text) 18%,transparent)!important;
+  border-radius:7px!important;
+  padding:4px 10px!important;
+  font-family:inherit!important;
+  font-size:12px!important;
+  line-height:1!important;
+  font-weight:400!important;
+  box-shadow:none!important;
+}
+html[data-nm-theme] .rvHeader .headerActions button:not(.primary){
+  background:color-mix(in srgb,var(--nm-header-bg) 74%,#000 26%)!important;
+  color:var(--nm-header-text)!important;
+}
+html[data-nm-theme] .rvHeader .headerActions button:not(.primary):hover{
+  background:color-mix(in srgb,var(--nm-header-bg) 58%,var(--nm-accent) 42%)!important;
+  border-color:color-mix(in srgb,var(--nm-accent) 70%,var(--nm-header-text) 30%)!important;
+  color:#fff!important;
+}
+html[data-nm-theme] .rvHeader .headerActions button.primary{
+  background:var(--nm-accent)!important;
+  border-color:var(--nm-accent)!important;
+  color:#fff!important;
+}
+html[data-nm-theme] .rvHeader .headerActions button.primary:hover{background:var(--nm-accent-hover)!important;border-color:var(--nm-accent-hover)!important;}
+
+html[data-nm-theme] .wbStage-active .wbModuleCard:has(>button:not(:disabled)){background:color-mix(in srgb,var(--nm-stage-active-bg) 62%,var(--nm-surface) 38%)!important;border-color:color-mix(in srgb,var(--nm-stage-active-border) 72%,var(--nm-border) 28%)!important;}
+html[data-nm-theme] .wbStage-active .wbModuleCard:has(>button:not(:disabled)):hover{background:color-mix(in srgb,var(--nm-stage-active-bg) 42%,var(--nm-surface-elevated) 58%)!important;border-color:var(--nm-stage-active-border)!important;}
+html[data-nm-theme] .wbStage-completed .wbModuleCard:has(>button:not(:disabled)){background:color-mix(in srgb,var(--nm-stage-done-bg) 64%,var(--nm-surface) 36%)!important;border-color:color-mix(in srgb,var(--nm-stage-done-border) 70%,var(--nm-border) 30%)!important;}
+html[data-nm-theme] .wbStage-completed .wbModuleCard:has(>button:not(:disabled)):hover{background:color-mix(in srgb,var(--nm-stage-done-bg) 44%,var(--nm-surface-elevated) 56%)!important;border-color:var(--nm-stage-done-border)!important;}
+html[data-nm-theme] .wbStage-future .wbModuleCard:has(>button:not(:disabled)){background:color-mix(in srgb,var(--nm-stage-future-bg) 64%,var(--nm-surface) 36%)!important;border-color:color-mix(in srgb,var(--nm-stage-future-border) 70%,var(--nm-border) 30%)!important;}
+
+/* Shared navigation dialogs use the browser's native modal/focus lifecycle. */
+.nmNavDialog{position:fixed;width:min(360px,calc(100vw - 32px));box-sizing:border-box;padding:20px;border:1px solid var(--nm-border,#cbd5e1);border-radius:12px;background:var(--nm-surface,#fff);color:var(--nm-text,#111827);box-shadow:0 20px 50px rgba(15,23,42,.3);font:inherit;}
+.nmNavDialog::backdrop{background:rgba(15,23,42,.55);}
+.nmNavDialog h2{margin:0 0 20px;font-size:18px;}
+.nmNavDialog label{display:flex;align-items:center;gap:9px;font-size:14px;cursor:pointer;}
+.nmNavQuitDialogActions{display:flex;justify-content:flex-end;gap:9px;margin-top:24px;}
+.nmNavQuitDialogActions button{padding:8px 14px;border:1px solid var(--nm-border,#cbd5e1);border-radius:8px;cursor:pointer;}
+
+/* Shared Generate runtime script action across execution runners. */
+#generateRuntimeScript {
+  background: #7c3aed;
+  border: 1px solid #7c3aed;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+#generateRuntimeScript:hover:not(:disabled) {
+  background: #6d28d9;
+  border-color: #6d28d9;
+}
+#generateRuntimeScript:disabled {
+  background: #cbd5e1;
+  border-color: #cbd5e1;
+  color: #f8fafc;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 1;
+}

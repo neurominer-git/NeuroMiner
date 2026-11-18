@@ -97,6 +97,8 @@ switch action
                         impstr = sprintf('median of %g nearest neighbors (%s)',params.LABELMOD.LABELIMPUTE.k, 'Hamming');
                     case 'none'
                         impstr = 'none';
+                    otherwise
+                        impstr = sprintf('median of %g nearest neighbors (%s)',params.LABELMOD.LABELIMPUTE.k, params.LABELMOD.LABELIMPUTE.method); 
                 end
                 labelimputestr = sprintf('Label Imputation: %s', impstr);
             end
@@ -180,7 +182,9 @@ switch action
                                 case 'jaccard'
                                     impstr = sprintf('median of %g nearest neighbors (%s)',params.ACTPARAM{i}.LABELIMPUTE.k, 'Jaccard');
                                 case 'hamming'
-                                    impstr = sprintf('median of %g nearest neighbors (%s)',params.ACTPARAM{i}.IMPUTE.k, 'Hamming');
+                                    impstr = sprintf('median of %g nearest neighbors (%s)',params.ACTPARAM{i}.LABELIMPUTE.k, 'Hamming');
+                                otherwise
+                                    impstr = sprintf('median of %g nearest neighbors (%s)',params.ACTPARAM{i}.LABELIMPUTE.k, params.ACTPARAM{i}.LABELIMPUTE.method); 
                             end
                             preprocact{i} = sprintf('Label Imputation: %s', impstr);
                             
@@ -247,20 +251,28 @@ switch action
                                     end
                                 end
                             elseif isfield(params.ACTPARAM{i},'METHOD') && params.ACTPARAM{i}.METHOD == 2
-                                if isfield(params.ACTPARAM{i},'MBATCHUSE') && ~isempty(params.ACTPARAM{i}.MBATCHUSE) && params.ACTPARAM{i}.MBATCHUSE == 1 && ~isempty(params.ACTPARAM{i}.MBATCH) 
-                                    preprocact{i} = ['ComBat batch effect correction [ batch vector: ' res.covnames{params.ACTPARAM{i}.MBATCH} ];
-                                elseif isfield(params.ACTPARAM{i},'MBATCHUSE') && ~isempty(params.ACTPARAM{i}.MBATCHUSE) && params.ACTPARAM{i}.MBATCHUSE > 1 || isempty(params.ACTPARAM{i}.MBATCH) && ~isempty(params.ACTPARAM{i}.MCOVARREM)
-                                     preprocact{i} = 'ComBat covariate effect correction';
+                                if isfield(params.ACTPARAM{i},'MBATCH')
+                                    if isfield(params.ACTPARAM{i},'MBATCHUSE') && ~isempty(params.ACTPARAM{i}.MBATCHUSE) && params.ACTPARAM{i}.MBATCHUSE == 1 && ~isempty(params.ACTPARAM{i}.MBATCH) 
+                                        preprocact{i} = ['ComBat batch effect correction [ batch vector: ' res.covnames{params.ACTPARAM{i}.MBATCH} ];
+                                    elseif isfield(params.ACTPARAM{i},'MBATCHUSE') && ~isempty(params.ACTPARAM{i}.MBATCHUSE) && params.ACTPARAM{i}.MBATCHUSE > 1 || isempty(params.ACTPARAM{i}.MBATCH) && ~isempty(params.ACTPARAM{i}.MCOVARREM)
+                                         preprocact{i} = 'ComBat covariate effect correction';
+                                    end
+                                else
+                                    preprocact{i} = 'ComBat batch correction [ batch undefined';
                                 end
-                                if params.ACTPARAM{i}.MCOVARUSE
-                                    if ~isempty(params.ACTPARAM{i}.MCOVAR)
-                                        preprocact{i} = [ preprocact{i} '; covariates: ' strjoin( res.covnames(params.ACTPARAM{i}.MCOVAR),', ') ];
+                                if isfield(params.ACTPARAM{i},'MCOVARUSE')
+                                    if params.ACTPARAM{i}.MCOVARUSE
+                                        if ~isempty(params.ACTPARAM{i}.MCOVAR)
+                                            preprocact{i} = [ preprocact{i} '; covariates: ' strjoin( res.covnames(params.ACTPARAM{i}.MCOVAR),', ') ];
+                                        end
+                                        if params.ACTPARAM{i}.MCOVARLABEL == 1
+                                            preprocact{i} = [ preprocact{i} '; label: variance retained' ];
+                                        else
+                                            preprocact{i} = [ preprocact{i} '; label: variance not included' ];
+                                        end
                                     end
-                                    if params.ACTPARAM{i}.MCOVARLABEL == 1
-                                        preprocact{i} = [ preprocact{i} '; label: variance retained' ];
-                                    else
-                                        preprocact{i} = [ preprocact{i} '; label: variance not included' ];
-                                    end
+                                else
+                                     preprocact{i} = [ preprocact{i} '; covariates undefined' ];
                                 end
                             elseif isfield(params.ACTPARAM{i},'METHOD') && params.ACTPARAM{i}.METHOD == 3
                                 if ~isempty(params.ACTPARAM{i}.COVAR) 
@@ -1202,7 +1214,7 @@ switch action
             case 'MLPERC'
                 vargout.prog = 'Multilayer Perceptron';
             case 'TFDEEP'
-                vargout.prog = 'Tensorflow neural network';
+                vargout.prog = 'Tensorflow/pytorch neural network';
             case 'BAYLIN'
                 vargout.prog = 'Linear Bayesian algorithm';
             otherwise
@@ -1341,7 +1353,7 @@ switch action
             case 'MLPERC'
                 vargout.classifier = 'Python''s sklearn.neural_network.MLPClassifier algorithm';
             case 'TFDEEP'
-                vargout.classifier = 'Python''s tensorflow.keras.Sequential algorithm';
+                vargout.classifier = 'Python''s tensorflow/pytorch neural network framework';
             case 'BAYLIN'
                 vargout.classifier = 'Python''s sklearn.sklearn.linear_model.BayesianRidge/ARDRegression algorithm';
         end

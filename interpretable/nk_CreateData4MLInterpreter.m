@@ -1,8 +1,9 @@
-function IN = nk_CreateData4MLInterpreter(MLI, RandFeats, Tr, Ts, covars, IN, nx, curclass)
+function IN = nk_CreateData4MLInterpreter(MLI, RandFeats, Tr, Ts, covars, IN, nx, curclass, progressFcn)
 % nk_CreateData4MLInterpreter - Prepares input data for machine learning interpreters
 %
 % Syntax:
 %   IN = nk_CreateData4MLInterpreter(MLI, RandFeats, Tr, Ts, covars, IN, nx, curclass)
+%   IN = nk_CreateData4MLInterpreter(MLI, RandFeats, Tr, Ts, covars, IN, nx, curclass, progressFcn)
 %
 % Description:
 %   The function `nk_CreateData4MLInterpreter` prepares the input data structure 
@@ -118,10 +119,27 @@ function IN = nk_CreateData4MLInterpreter(MLI, RandFeats, Tr, Ts, covars, IN, nx
 %        M_all     - 3D matrix containing all permutations of the modified instances for each 
 %                    observation in the training data.
 %
+% Progress callback
+%   progressFcn is optional and has signature progressFcn(stage, fraction).
+%   The helper reports only local MLI work. It has no dependency on the NM2
+%   browser/runtime bridge; the caller owns any UI routing.
+%
+% Materialization/performance
+%   Progress updates are throttled inside long perturbation loops. The
+%   callback never scans feature-scale arrays and does not alter the
+%   artificial-data materialization contract.
+%
 % =========================================================================
 % (c) Nikolaos Koutsouleris, 08/2024
 
-if isfield(IN,'issmoothed') && IN.issmoothed
+if nargin < 9
+    progressFcn = [];
+elseif ~isempty(progressFcn) && ~isa(progressFcn,'function_handle')
+    error('progressFcn must be empty or a function handle.')
+end
+localProgress(progressFcn, 'initializing', 0);
+
+if isfield(IN,'isSpatialPreprocessed') && IN.isSpatialPreprocessed
     sstr = 's'; smoothfl = true;
 else
     sstr = ''; smoothfl = false;
@@ -162,12 +180,13 @@ switch method
             sn = numel(IN.X(nx).(Ystr){curclass});
             IN.X(nx).(Yocvstr){curclass} = cell(sn,1);
             for q=1:sn
-                [P, N, I] = CreateData4MLInterpreterPosNeg(IN, RandFeats, Tr{q}, Ts{q}, MapIdx, fMapIdx, nperms, n);
+                qProgress = @(stage,fraction) localNestedProgress(progressFcn, stage, q, sn, fraction);
+                [P, N, I] = CreateData4MLInterpreterPosNeg(IN, RandFeats, Tr{q}, Ts{q}, MapIdx, fMapIdx, nperms, n, qProgress);
                 IN.X(nx).(Yocvstr){curclass}{q}{1} = P;
                 IN.X(nx).(Yocvstr){curclass}{q}{2} = N;
             end
         else
-            [P, N, I] = CreateData4MLInterpreterPosNeg(IN, RandFeats, Tr, Ts, MapIdx, fMapIdx, nperms, n);
+            [P, N, I] = CreateData4MLInterpreterPosNeg(IN, RandFeats, Tr, Ts, MapIdx, fMapIdx, nperms, n, progressFcn);
             IN.X(nx).(Yocvstr){1} = P;
             IN.X(nx).(Yocvstr){2} = N;
         end
@@ -179,12 +198,13 @@ switch method
             sn = numel(IN.X(nx).(Ystr){curclass});
             IN.X(nx).(Yocvstr){curclass} = cell(sn,1);
             for q=1:sn
-               [ M, I ] = CreateData4MLInterpreterMedFlipRand(IN, RandFeats, Tr{q}, Ts{q}, MapIdx, fMapIdx, nperms, n, method);
+               qProgress = @(stage,fraction) localNestedProgress(progressFcn, stage, q, sn, fraction);
+               [ M, I ] = CreateData4MLInterpreterMedFlipRand(IN, RandFeats, Tr{q}, Ts{q}, MapIdx, fMapIdx, nperms, n, method, qProgress);
                IN.X(nx).(Yocvstr){curclass}{q} = M;
             end
             IN.X(nx).I = I;
         else
-            [ IN.X(nx).(Yocvstr) , IN.X(nx).I ] = CreateData4MLInterpreterMedFlipRand(IN, RandFeats, Tr, Ts, MapIdx, fMapIdx, nperms, n, method);
+            [ IN.X(nx).(Yocvstr) , IN.X(nx).I ] = CreateData4MLInterpreterMedFlipRand(IN, RandFeats, Tr, Ts, MapIdx, fMapIdx, nperms, n, method, progressFcn);
         end
         
     case 'shapley'
@@ -193,20 +213,23 @@ switch method
             sn = numel(IN.X(nx).(Ystr){curclass});
             IN.X(nx).(Yocvstr){curclass} = cell(sn,1);
             for q=1:sn
-                IN.X(nx).(Yocvstr){curclass}{q} = CreateData4MLInterpreterShapley(RandFeats, Tr{q}, Ts{q}, nperms, MLI.frac);
+                qProgress = @(stage,fraction) localNestedProgress(progressFcn, stage, q, sn, fraction);
+                IN.X(nx).(Yocvstr){curclass}{q} = CreateData4MLInterpreterShapley(RandFeats, Tr{q}, Ts{q}, nperms, MLI.frac, qProgress);
             end
         else
-            IN.X(nx).(Yocvstr) = CreateData4MLInterpreterShapley(RandFeats, Tr, Ts, nperms, MLI.frac);
+            IN.X(nx).(Yocvstr) = CreateData4MLInterpreterShapley(RandFeats, Tr, Ts, nperms, MLI.frac, progressFcn);
         end
         IN.X(nx).I = RandFeats;
 
 end
 
-function [P, N, I] = CreateData4MLInterpreterPosNeg(IN, RandFeats, Tr, Ts, MapIdx, fMapIdx, nperms, n)
+function [P, N, I] = CreateData4MLInterpreterPosNeg(IN, RandFeats, Tr, Ts, MapIdx, fMapIdx, nperms, n, progressFcn)
 
 % Determine extremes of the distribution
+localProgress(progressFcn, 'computing_replacement_values', 0.02);
 upper = prctile(Tr(:,MapIdx), IN.MLI.upper_thresh);
 lower = prctile(Tr(:,MapIdx), IN.MLI.lower_thresh);
+localProgress(progressFcn, 'materializing_perturbations', 0.08);
                 
 if ~isinf(nperms)
 
@@ -229,6 +252,9 @@ if ~isinf(nperms)
         P(i, fMapIdx(rIdx)) = upper(rIdx); 
         N(i, fMapIdx(rIdx)) = lower(rIdx);
         I(i, fMapIdx(rIdx)) = true;
+        if ~isempty(progressFcn) && (i == nperms || mod(i,ceil(nperms/100)) == 0)
+            localProgress(progressFcn, 'materializing_perturbations', 0.08 + 0.92*i/max(nperms,1));
+        end
     end
 else
     I = false(MLI.max_iter, size(Tr,2)); iter = 1; completed = false;
@@ -254,8 +280,9 @@ else
     end
 end
 
-function [M, I] = CreateData4MLInterpreterMedFlipRand(IN, RandFeats, Tr, Ts, MapIdx, fMapIdx, nperms, n, method)
+function [M, I] = CreateData4MLInterpreterMedFlipRand(IN, RandFeats, Tr, Ts, MapIdx, fMapIdx, nperms, n, method, progressFcn)
 
+localProgress(progressFcn, 'computing_replacement_values', 0.02);
 switch method
     case 'median'
         medi = prctile(Tr(:,MapIdx), 50);
@@ -274,12 +301,14 @@ switch method
         medi = zeros(1,n);
         
 end
+localProgress(progressFcn, 'materializing_perturbations', 0.08);
 if ~isinf(nperms)
 
     M = repmat(Ts, nperms, 1);
     I = false(nperms, size(Tr,2));
     
     % Create modified instances of case
+    progressStep = max(1, ceil(nperms/100));
     for i=1:nperms
         if isequal(method, 'random')
             %AW: for each feature select randomly a value from the training sample
@@ -288,6 +317,9 @@ if ~isinf(nperms)
         rIdx = RandFeats(i,:);
         M(i, fMapIdx(rIdx)) = medi(rIdx); 
         I(i, fMapIdx(rIdx)) = true;
+        if i == nperms || mod(i,progressStep) == 0
+            localProgress(progressFcn, 'materializing_perturbations', 0.08 + 0.92*i/max(nperms,1));
+        end
     end
 else
     I = false( MLI.max_iter, size(Tr,2) ); iter = 1; completed = false;
@@ -317,10 +349,11 @@ else
     end
 end
 
-function M_all = CreateData4MLInterpreterShapley(RandFeats, Tr, Ts, nperms, frac)
+function M_all = CreateData4MLInterpreterShapley(RandFeats, Tr, Ts, nperms, frac, progressFcn)
 
 % Determine the number of training instances to select (e.g. 10% of total)
 % to make this computationally feasible in high-dimensional problems
+localProgress(progressFcn, 'selecting_reference_instances', 0.02);
 numTrainingInstances = round(frac * size(Tr, 1));
 
 % Randomly select 10% of training instances
@@ -332,6 +365,8 @@ MZ = M(RandFeats); %QZ
 M_all = zeros(size(M,1),size(M,2),size(Tr,1));
 % Possible improvement: select randomly a subset of training cases to speed
 %-up computations.
+progressStep = max(1, ceil(max(numTrainingInstances,1)/100));
+localProgress(progressFcn, 'materializing_shapley_instances', 0.08);
 for obsidx = 1:numTrainingInstances
     %this is the other way round than for method "random",
     %i.e. where the values were modified which were true in
@@ -341,6 +376,19 @@ for obsidx = 1:numTrainingInstances
     % where it is not chosen, take its value from X => X(~Z) must survive
     Xprime(RandFeats) = MZ;
     M_all(:,:,obsidx) = Xprime;
+    if obsidx == numTrainingInstances || mod(obsidx,progressStep) == 0
+        localProgress(progressFcn, 'materializing_shapley_instances', ...
+            0.08 + 0.92*obsidx/max(numTrainingInstances,1));
+    end
 end
 
 %IN.X.Yocv = modified data; IN.X.I = RandFeats -> coalition matrix
+
+function localNestedProgress(progressFcn, stage, index, count, fraction)
+if isempty(progressFcn), return; end
+fraction = max(0,min(1,double(fraction)));
+progressFcn(stage, ((double(index)-1) + fraction) / max(double(count),1));
+
+function localProgress(progressFcn, stage, fraction)
+if isempty(progressFcn), return; end
+progressFcn(stage, max(0,min(1,double(fraction))));

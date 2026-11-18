@@ -1,0 +1,100 @@
+/* Shared OOCV-container selector modal for application and MLI runners. */
+.oocvDatasetModalIntro {
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #475569;
+}
+.oocvDatasetModalTableWrap {
+  overflow: auto;
+  max-height: 60vh;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+.oocvDatasetTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.oocvDatasetTable th,
+.oocvDatasetTable td {
+  padding: 8px 9px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: middle;
+}
+.oocvDatasetTable th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 1;
+  font-weight: 700;
+}
+.oocvDatasetModalRow {
+  cursor: pointer;
+}
+.oocvDatasetModalRow:hover {
+  background: #eff6ff;
+}
+.oocvDatasetModalRow.selected {
+  background: #dbeafe;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+.oocvDatasetModalRow:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: -2px;
+}
+.oocvRunnerSectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.oocvRunnerSectionHeader h2,
+.oocvRunnerSectionHeader label {
+  margin: 0;
+}
+.oocvDatasetField {
+  margin-top: 0;
+}
+.oocvDatasetSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  margin-top: 8px;
+}
+.oocvDatasetSelectionText {
+  flex: 1 1 280px;
+  min-width: 0;
+  font-size: 13px;
+  color: #334155;
+}
+.oocvSelectorButton {
+  flex: 0 0 auto;
+  border: 1px solid #1d4ed8;
+  background: #1d4ed8;
+  color: #fff;
+  border-radius: 9px;
+  padding: 7px 13px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.oocvSelectorButton:hover:not(:disabled) {
+  background: #1b46c2;
+  border-color: #1b46c2;
+}
+.oocvSelectorButton:disabled {
+  background: #cbd5e1;
+  border-color: #cbd5e1;
+  color: #f8fafc;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 1;
+}

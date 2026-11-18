@@ -67,7 +67,6 @@ if ~isfield(IO,'Vmvol'), IO.Vmvol = spm_read_vols(IO.Vm); end
 
 % Read images for weighting / subspace extraction
 if isfield(IO,'Vw') && ~isempty(IO.Vw)
-    
     [IO.Vm, tmpflg] = WriteTempVol(IO.Vm, IO.Vmvol, tmpflg);
     IO.Yw = nk_ReturnSubSpaces(IO.Vw, IO.Vm, 1, numel(IO.Vw) , IO.Thresh, filereport);
 end

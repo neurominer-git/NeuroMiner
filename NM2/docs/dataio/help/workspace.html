@@ -1,0 +1,120 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NM2 DataIO Help — MATLAB workspace variables</title><style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#152033;background:#f7f9fc;line-height:1.55}
+body{margin:0}.wrap{max-width:1000px;margin:0 auto;padding:24px 30px 64px}header{background:#12233f;color:#fff;padding:20px 30px}
+header h1{margin:0 0 4px;font-size:25px}header p{margin:0;color:#d9e4f4}.toc{background:#fff;border:1px solid #d5dde9;border-radius:10px;padding:14px 18px;margin:18px 0}
+.toc a{display:inline-block;margin:2px 14px 2px 0;color:#174ea6;text-decoration:none}section{scroll-margin-top:14px;background:#fff;border:1px solid #dbe2ec;border-radius:10px;padding:17px 20px;margin:14px 0}
+h2{margin:0 0 8px;font-size:20px}h3{margin:14px 0 6px;font-size:16px}p{margin:7px 0}ol,ul{margin:7px 0 7px 22px;padding:0}li{margin:4px 0}
+code{background:#edf2f7;padding:1px 5px;border-radius:4px}pre{background:#10213a;color:#edf4ff;border-radius:8px;padding:12px;overflow:auto}
+table{border-collapse:collapse;width:100%;margin:9px 0}th,td{border:1px solid #d9e0ea;padding:7px 9px;text-align:left;vertical-align:top}th{background:#eef3f9}
+.note{border-left:4px solid #2563eb;padding:8px 11px;background:#eef5ff}.warn{border-left:4px solid #c2410c;padding:8px 11px;background:#fff4e8}.ok{border-left:4px solid #16a34a;padding:8px 11px;background:#effaf2}
+.steps{border-left:4px solid #2563eb;padding:8px 12px;background:#f5f9ff}.term{font-weight:700}.muted{color:#56657a}.back{font-size:13px;color:#dbe8ff;text-decoration:none}
+details.advanced{margin-top:12px;border-top:1px solid #dde4ee;padding-top:9px}details.advanced summary{cursor:pointer;font-weight:700;color:#34455d}details.advanced[open] summary{margin-bottom:7px}
+.small{font-size:13px}.concepts{background:#f3f6fa;border:1px solid #d8e0ea;border-radius:8px;padding:10px 12px}.concepts b{color:#0f2745}
+</style></head><body><header><div class="wrap" style="padding-top:0;padding-bottom:0"><h1>MATLAB workspace variables</h1><p>Import arrays that are already loaded in the MATLAB workspace.</p><a class="back" href="dataio.html">General DataIO help</a></div></header><main class="wrap"><nav class="toc"><a href="#source">Choose source data</a> <a href="#alignment">Case alignment</a> <a href="#shared-key">Shared key</a> <a href="#key-per-block">Key per block</a> <a href="#row-order">Explicit row order</a> <a href="#filters">Row filters</a> <a href="#labels">Labels</a> <a href="#covariates">Covariates</a> <a href="#preview">Preview</a> <a href="#qc">QC and diagnostics</a> <a href="#commit">Commit</a> <a href="#resume">Modify / Resume</a> <a href="#oocv">OOCV</a> <a href="#api">Public API</a></nav><section id="source"><h2>Choose the source data</h2><div class="concepts"><b>Three NM2 words used below:</b> A <b>case</b> is one observation that NM2 analyses—for example one person, participant, scan or sample. A <b>modality</b> is one block of measurements collected for a set of cases, for example questionnaire scores, MRI voxels, ROI values or connectivity edges. A <b>feature</b> is one input measurement that the machine-learning model uses.</div><p>Use this source when the data are already loaded in MATLAB as vectors or matrices. For a feature matrix, one row must represent one case and one column must represent one feature.</p>
+<div class="steps"><ol>
+<li>Make sure the required variables exist in the MATLAB base workspace.</li>
+<li>Choose <b>MATLAB workspace variables</b> as the Source type.</li>
+<li>Click <b>Refresh workspace variables</b>.</li>
+<li>Assign the variable(s) that contain features, labels and optional covariates.</li>
+<li>For every feature matrix, make sure that rows are cases and columns are features.</li>
+<li>Choose how NM2 matches the rows across the selected variables, then run Preview.</li>
+</ol></div>
+<p>If your data are stored in a MATLAB <code>table</code>, use the dedicated <b>MATLAB tables</b> source instead.</p>
+<div class="warn"><b>Your responsibility:</b> NM2 uses the matrix orientation you provide. Before import, verify that rows represent cases, columns represent the intended features, and any separate Case-ID vector describes those rows in the same order.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Workspace matrix import reads the selected base-workspace variables and then passes them to the common DataIO role-assignment, alignment, label and materialisation logic.</p></details></section><section id="alignment"><h2>Case alignment</h2><p>When features, labels or covariates are stored in separate MATLAB vectors or matrices, NM2 must know which rows belong to the same case.</p>
+<p>For workspace and MAT-file matrix imports, choose one of these modes:</p>
+<ul><li><b>Key per block</b> — choose this when each feature, label or covariate block has a Case-ID vector that identifies its rows.</li>
+<li><b>Explicit row order</b> — choose this only when every input block has exactly the same number of rows and row 1, row 2, and so on refer to the same cases in every block.</li></ul>
+<p>When this is the first modality in a training or OOCV dataset, also choose how NM2 creates the initial case list:</p>
+<ul><li><b>Complete-case intersection</b> keeps only cases that are present in every required input block.</li>
+<li><b>Target-anchored</b> uses the cases present in the label/target data as the reference list.</li>
+<li><b>Feature union</b> keeps the union of cases found in the feature blocks; blocks that do not contain a retained case contain a missing value for that case.</li></ul>
+<div class="warn"><b>Your responsibility:</b> choose the alignment mode and case-list policy that match how your MATLAB data are actually organised.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Key per block matches rows by the Case-ID values assigned to each data block. Explicit row order does not perform identifier matching. The first-case-axis policy applies only when a new case list is created; later modalities are matched to the existing list.</p></details></section><section id="shared-key"><h2>Shared key</h2><p><b>Shared key is not used for this source type.</b> Use the Case-ID controls or alignment options shown for this source instead.</p>
+<details class="advanced"><summary>Advanced details</summary><p>Shared key is the tabular mode for data in which the same Case-ID column(s) exist in every selected table. This source establishes case identity through its own Case-ID controls before the data enter the common DataIO matching path.</p></details></section><section id="key-per-block"><h2>Key per block</h2><p>Use <b>Key per block</b> when each MATLAB feature matrix, label vector or covariate matrix has a Case-ID vector that identifies its rows.</p>
+<div class="steps"><ol>
+<li>Choose <b>Key per block</b>.</li>
+<li>Assign the feature, label and optional covariate variables.</li>
+<li>For each assigned data block, select the Case-ID vector that belongs to that block.</li>
+<li>Check that the Case-ID vector has one value for every row in its data block.</li>
+<li>Run Preview and check the number of matched cases.</li>
+</ol></div>
+<div class="warn"><b>Your responsibility:</b> each Case-ID vector must describe the rows of the data block to which you assign it. NM2 uses those values exactly for matching.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Each matrix/vector block is matched through its assigned Case-ID vector. The names of the Case-ID variables do not need to be identical; their values define the correspondence.</p></details></section><section id="row-order"><h2>Explicit row order</h2><p><b>Explicit row order</b> assumes that all MATLAB vectors and matrices providing input data have exactly the same number of rows and that each row refers to the same case in every variable. For example, row 1 must refer to the same person in every feature, label and covariate block, row 2 to the same person, and so on.</p>
+<div class="steps"><ol>
+<li>Choose <b>Explicit row order</b> only after you have verified this row correspondence.</li>
+<li>If NM2 shows the <b>Case-ID/PSN</b> selector, choose the variable that identifies each row. PSN is the legacy NM2 name for the Case ID.</li>
+<li>Run Preview and confirm the expected number of cases.</li>
+</ol></div>
+<div class="warn"><b>Your responsibility:</b> make sure that these assumptions are met by the data. NM2 does not compare identifiers in this mode.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Explicit row order bypasses Case-ID matching and retains the supplied row order exactly.</p></details></section><section id="filters"><h2>Row filters</h2><p>The <b>Advanced tabular row filters</b> panel is not used for this source type.</p>
+<p>If cases must be excluded, select the required files/cases in the source-specific controls or prepare the source data before import. Then run Preview and check the final case list/count.</p>
+<details class="advanced"><summary>Advanced details</summary><p>Tabular row filters operate on tables and worksheets. Image, connectivity, surface and other non-tabular sources use their own case/file selection and then enter the common downstream DataIO alignment and validation path.</p></details></section><section id="labels"><h2>Labels</h2><p><b>Labels</b> are the values that you want the model to predict.</p>
+<ul><li>For <b>classification</b>, every labelled case belongs to a class, for example Control / Patient or Class A / Class B / Class C.</li>
+<li>For <b>regression</b>, every labelled case has a numerical target, for example age or symptom score.</li></ul>
+<div class="steps"><ol>
+<li>Select the variable or column that contains the labels when labels are required for this import.</li>
+<li>For classification, check the source values that NM2 found and enter clear class names in the Label definition panel.</li>
+<li>If the labels are matched by Case ID, also select the Case-ID variable that identifies the rows of the label data.</li>
+<li>Run <b>Preview</b> and check the class counts or target summary.</li>
+</ol></div>
+<p>Leave genuinely missing labels missing. Do not replace them with an invented class or numerical value.</p>
+<div class="warn"><b>Your responsibility:</b> for classification, make sure that each class name is attached to the correct source label value.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Training classification data define the raw source value → canonical NM2 class mapping once. Labelled OOCV data use the same training mapping. Missing labels remain <code>NaN</code>. An OOCV class value that was not present in training is a blocking error.</p></details></section><section id="covariates"><h2>Covariates</h2><p><b>Covariates</b> are optional case-level variables that NM2 stores separately from the main features, for example age, sex, site or scanner.</p>
+<div class="steps"><ol>
+<li>Select the covariate variable(s) or columns if your analysis needs them.</li>
+<li>Enter covariate names when they are not already available from table headers.</li>
+<li>If covariates are matched by Case ID, also select the Case-ID variable that identifies their rows.</li>
+<li>Choose whether the new covariates are added to the existing covariates or replace them.</li>
+</ol></div>
+<p>Leave the covariate assignment empty when the analysis does not use covariates.</p>
+<details class="advanced"><summary>Advanced details</summary><p>Covariates are committed as a separate case-level matrix. Missing covariate values are retained and reported. Downstream preprocessing or analysis determines how those missing values are handled.</p></details></section><section id="preview"><h2>Preview</h2><div class="steps"><ol>
+<li>Complete the controls marked as required, then click <b>Preview</b>.</li>
+<li>Check the number of cases and features that NM2 plans to import.</li>
+<li>Check the preview table and the class/target summary when labels are present.</li>
+<li>Open diagnostics and QC when NM2 reports a warning or blocker.</li>
+<li>If anything is wrong, correct the setup and run Preview again.</li>
+</ol></div>
+<div class="ok"><b>Preview does not change the committed NM dataset.</b> It shows the data that NM2 will import if you press Commit with the current settings.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Preview materialises the current import setup and retains that result. Commit reuses the retained materialisation while the relevant import settings remain unchanged, which avoids unnecessary rereading of the source.</p></details></section><section id="qc"><h2>QC and diagnostics</h2><p>Use QC and diagnostics to check the data before Commit.</p>
+<ul><li><b>Blocking:</b> the stated problem must be corrected before Commit.</li>
+<li><b>Warning:</b> the warning itself does not block Commit, but read it and decide whether the data are scientifically acceptable.</li>
+<li><b>Information:</b> NM2 is reporting what it found or what it did.</li></ul>
+<div class="steps"><ol>
+<li>Read the first blocking message, if one is present.</li>
+<li>Identify the named file, table, variable, case or setting.</li>
+<li>Correct that item in the import setup.</li>
+<li>Run Preview again and re-check QC.</li>
+</ol></div>
+<div class="warn"><b>Your responsibility:</b> a technically valid import is not automatically scientifically correct. Check that the cases, variables and labels are the data you intended to import.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Diagnostics are produced by backend source discovery, materialisation, validation and QC. The QC viewer uses the retained Preview materialisation rather than independently rereading the source.</p></details></section><section id="commit"><h2>Commit</h2><p><b>Commit</b> writes the Previewed data into the selected NM2 training modality or OOCV dataset.</p>
+<div class="steps"><ol>
+<li>Run Preview and resolve every blocking diagnostic.</li>
+<li>Check the case count, feature count, labels and QC information.</li>
+<li>Click <b>Commit</b> only when these values describe the dataset you intend to create.</li>
+<li>Return to the modality overview and verify that the modality is listed and ready.</li>
+</ol></div>
+<div class="warn"><b>Your responsibility:</b> Commit confirms that the current import setup is scientifically the one you want to store in NM2.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Commit transfers the validated retained materialisation into NM2 and stores the restorable scientific input settings and source description. If the retained Preview is no longer valid, the same DataIO materialiser runs again before Commit.</p></details></section><section id="resume"><h2>Modify / Resume</h2><p>Use <b>Modify</b> to reopen the setup of a modality that has already been committed. Use <b>Resume</b> to continue an import task that was saved before Commit.</p>
+<div class="steps"><ol>
+<li>Open Modify or Resume.</li>
+<li>Check the restored source, the feature/label/covariate/Case-ID assignments, the alignment settings and the filters.</li>
+<li>Re-enter live information that NM2 intentionally does not save, such as a database password.</li>
+<li>For database imports, rediscover the database/schema/table list before continuing.</li>
+<li>Run Preview again before recommitting.</li>
+</ol></div>
+<p>Do not assume that a value shown after Resume proves that the external source is currently connected. Follow the red/green navigation borders and refresh live resources when requested.</p>
+<details class="advanced"><summary>Advanced details</summary><p>Persisted scientific settings are rehydrated from DataIO state. Security-sensitive credentials and live external namespace catalogues are not persisted.</p></details></section><section id="oocv"><h2>OOCV / application data</h2><p><b>OOCV</b> (out-of-cross-validation) data are independent cases to which an already trained model is applied, for example an external validation cohort or new clinical cases.</p>
+<div class="steps"><ol>
+<li>Create or select the OOCV/application dataset.</li>
+<li>State whether true labels are available for these cases.</li>
+<li>Import the modality or modalities required by the trained analysis.</li>
+<li>Use the same scientific meaning and feature definition as in training.</li>
+<li>Preview and Commit each OOCV modality.</li>
+</ol></div>
+<p>The OOCV dataset does <b>not</b> need the same number of cases or the same class proportions as the training dataset. If labels are present, their class values must correspond to classes that existed in training.</p>
+<div class="warn"><b>Your responsibility:</b> make sure that each OOCV feature has the same meaning, units and preprocessing interpretation as the corresponding training feature.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Training defines the classification class mapping. Labelled OOCV data reuse that mapping. DataIO can store an OOCV dataset while only some modalities are present; the selected trained analysis determines which modalities are required before application can run.</p></details></section><section id="api"><h2>Public API</h2><p>If you are importing data through the graphical DataIO interface, you can ignore this section. The public API is for reproducible MATLAB scripts that perform the same imports without clicking through the interface.</p><details class="advanced"><summary>Advanced details</summary><p>The browser and public API converge on the same DataIO authorities. Example:</p><pre><code>spec = struct(&#x27;sourceType&#x27;,&#x27;workspace&#x27;,&#x27;modeflag&#x27;,&#x27;classification&#x27;, ...
+    &#x27;description&#x27;,&#x27;Clinical predictors&#x27;,&#x27;variableRoles&#x27;,roles, ...
+    &#x27;metadataAlignmentMode&#x27;,&#x27;key_per_block&#x27;);
+[NM,out] = NMDataIOAPITools.importTrainingMatrix(NM,spec);</code></pre><p>Use the exact fields supported by <code>NMDataIOAPITools</code> for production scripts.</p></details></section></main></body></html>

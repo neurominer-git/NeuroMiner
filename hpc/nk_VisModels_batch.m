@@ -35,14 +35,14 @@ CV2x1               = str2double(params{1}{19});      % Range param for CV2 grid
 CV2x2               = str2double(params{1}{20});      % Range param for CV2 grid definition: Perm end CV2
 CV2y1               = str2double(params{1}{21});      % Range param for CV2 grid definition: Fold start CV2
 CV2y2               = str2double(params{1}{22});      % Range param for CV2 grid definition: Fold end CV2
-DecompMode     = str2double(params{1}{23});   % Back-projection mode
-simCorrThresh    = str2double(params{1}{24});   % Similarity threshold for realignment
-simCorrMethod    = params{1}{25};         % Similarity method
-CorrCompCutOff   = str2double(params{1}{26});   % Similarity cutoff for pruning
-SelCompCutOff    = str2double(params{1}{27});   % Presence cutoff for pruning
-fdr_comp_search     = str2double(params{1}{28});     % 1 = back-project only FDR-sig components
-PruneMode        = params{1}{29};
-PruneFraction    = params{1}{30};
+% <<< MODIFIED SECTION START
+DecompMode          = str2double(params{1}{23});      % Back-projection mode
+simCorrThresh       = str2double(params{1}{24});      % Similarity threshold for realignment
+simCorrMethod       = params{1}{25};                  % Similarity method
+CorrCompCutOff      = str2double(params{1}{26});      % Similarity cutoff for pruning
+SelCompCutOff       = str2double(params{1}{27});      % Presence cutoff for pruning
+% <<< MODIFIED SECTION END
+
 if ~isdeployed
     addpath(NMpath);
 end
@@ -119,6 +119,7 @@ elseif saveparam == 2
     
 end
 
+% <<< MODIFIED SECTION START
 inp = struct('analind',       analind, ...
              'lfl',           1, ...
              'extraL',        [], ...
@@ -134,13 +135,12 @@ inp = struct('analind',       analind, ...
              'lowmem',        lowmem, ...
              'CVRnorm',       CVRnorm, ...
              'DecompMode',    DecompMode, ...
-             'fdr_comp_search', fdr_comp_search, ...
              'simCorrThresh', simCorrThresh, ...
              'simCorrMethod', simCorrMethod, ...
              'CorrCompCutOff', CorrCompCutOff, ...
-             'SelCompCutOff', SelCompCutOff, ...
-             'PruneMode', PruneMode, ...            
-             'PruneFraction', PruneFraction);
+             'SelCompCutOff', SelCompCutOff ...
+             );
+% <<< MODIFIED SECTION END
                 
 inp.GridAct = nk_GenGridAct_batch(NM.analysis{analind}.params.cv, curCPU, numCPU, CV2x1, CV2x2, CV2y1, CV2y2);
 inp.optpreprocmat = optparammaster;

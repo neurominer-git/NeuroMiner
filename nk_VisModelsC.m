@@ -56,7 +56,9 @@ function visdata = nk_VisModelsC(inp, id, GridAct, batchflag)
 %                 * PermProb_CV2: Permutation-based probability (uncorrected).
 %                 * PermProb_CV2_FDR: Permutation-based probability (FDR-corrected).
 %                 * PermZ_CV2: Permutation-based Z-scores.
-%                 * CorrMat_CV2: Correlation matrices for the features.
+%                 * CorrMat_CV2: Modality-specific correlation matrices.
+%                 * CombinedRelation: Replicated combined native-space
+%                   relation contract for eligible reversible early or intermediate fusion.
 %                 * SignBased_CV2: Sign-based consistency measures.
 %                 * Pearson_CV2 and Spearman_CV2: Univariate association measures.
 %                 * Analytical_p: P-values computed analytically (if applicable).
@@ -88,6 +90,9 @@ function visdata = nk_VisModelsC(inp, id, GridAct, batchflag)
 %     testing with FDR correction.
 %   - Efficient handling of large datasets through selective computation and 
 %     memory optimization.
+%   - Correlation matrices use fixed-size CV1/CV2 accumulators rather than
+%     retaining third-dimensional stacks. Eligible intermediate fusion
+%     reuses the same fixed-size combined relation accumulator.
 %
 % This function is essential for researchers using the NeuroMiner framework 
 % who require detailed insights into the predictive patterns of their models 
@@ -129,6 +134,7 @@ sigPthr         = 0.05;
 sigPfdr         = 1;
 memorytested    = false;
 memoryprob      = false;
+combinedmemoryprob = false;
 compwisefls     = {true,false}; 
 compwise        = compwisefls{inp.DecompMode}; % global flag
 inp.isEarly     = FUSION.flag == 1 || FUSION.flag == 0;
@@ -245,6 +251,31 @@ for i = 1 : nM
     end       
 end
 
+% Combined native-space correlations are release-supported for reversible,
+% non-stacking early and intermediate fusion. Intermediate fusion keeps its
+% modality-specific preprocessing pipelines; only the resulting
+% feature-axis-preserving representations enter the combined relation.
+combinedCorrEligible = (inp.isEarly || inp.isInter) && nM > 1 && ~any(decompfl);
+inp.fractionatedDecisionScores = compwise && (permfl || sigfl) && ...
+    ~(inp.isInter && any(decompfl) && any(~decompfl));
+if isfield(inp,'lowmem') && ~isempty(inp.lowmem)
+    combinedCorrEligible = combinedCorrEligible && inp.lowmem ~= 1;
+end
+if isfield(inp,'stacking') && ~isempty(inp.stacking)
+    combinedCorrEligible = combinedCorrEligible && ~logical(inp.stacking);
+end
+inp.combinedCorrEligible = combinedCorrEligible;
+combinedValidMask = [];
+if combinedCorrEligible
+    combinedValidMask = false(Dall,1);
+    offset = 0;
+    for n = 1:nM
+        [Dn,~,~,badn] = getD(FUSION.flag,inp,n);
+        combinedValidMask(offset+(1:Dn)) = ~badn(:);
+        offset = offset + Dn;
+    end
+end
+
 alpha_str = 'at uncorrected alpha';
 if sigfl && sigPfdr == 1, alpha_str = 'at FDR-corrected q'; end
 
@@ -302,7 +333,7 @@ inp.ll=inp.GridAct';inp.ll=find(inp.ll(:));
 if ~inp.analmode
     inp = nk_PerfInitSpatial(analysis, inp, paramfl);
 end
-
+CVPOS.GridAct = GridAct;
 % %%%%%%%%%%%%%%%%%%%%%%%%%% PROCESSING %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 for f=1:ix % Loop through CV2 permutations
@@ -324,6 +355,7 @@ for f=1:ix % Loop through CV2 permutations
         operm = f; ofold = d;
         oVISpath = nk_GenerateNMFilePath(inp.rootdir, SAV.matname, inp.datatype, multlabelstr, strout, id, operm, ofold);
         OptModelPath = nk_GenerateNMFilePath( inp.saveoptdir, SAV.matname, 'OptModel', [], inp.varstr, inp.id, operm, ofold);
+        nm_vis_browser_progress(sprintf('Preparing visualization for CV2 partition %g.%g.', f, d), 0, CVPOS, 'cv2_start');
     
         switch inp.analmode 
             
@@ -337,8 +369,10 @@ for f=1:ix % Loop through CV2 permutations
                     fprintf('\nVISdatamat found for CV2 partition [%g,%g]:',f,d)
                     fprintf('\nLoading visualization data: %s', onam);
                     CVPOS.mode = 'loaded';
+                    nm_vis_browser_progress(sprintf('Loading existing VISdatamat for CV2 partition %g.%g.', f, d), 5, CVPOS, 'load_visdatamat');
                     ill= []; [I, I1, filefound] = CV2wrapUp(I, oVISpath);
                     if filefound
+                        nm_vis_browser_progress(sprintf('Loaded existing VISdatamat for CV2 partition %g.%g.', f, d), 100, CVPOS, 'load_visdatamat');
                         if isfield(I1,'PCV1SUM'), PCV1SUMflag=true; else, PCV1SUMflag = false; end
                         ll=ll+1;
                         ind0(ll) = true;
@@ -517,24 +551,27 @@ for f=1:ix % Loop through CV2 permutations
                                 I1.VCV1SPEARMAN_UNCORR_PVAL{h, n}   = nan(D, iy*jy*nP,'single');
                                 I1.VCV1PEARSON_FDR_PVAL{h, n}       = nan(D, iy*jy*nP,'single'); 
                                 I1.VCV1SPEARMAN_FDR_PVAL{h, n}      = nan(D, iy*jy*nP,'single'); 
-                                I1.VCV1CORRMAT{h, n}                = nan(D, D, iy*jy*nP,'single');           
-                                I1.VCV1CORRMAT_UNCORR_PVAL{h, n}    = nan(D, D, iy*jy*nP,'single');
-                                I1.VCV1CORRMAT_FDR_PVAL{h, n}       = nan(D, D, iy*jy*nP,'single'); 
+                                % Fixed-size CV1 matrix accumulators replace
+                                % D-by-D-by-CV1 stacks while preserving the
+                                % existing per-CV2 mean semantics.
+                                I1.VCV1CORRMAT_SUM{h,n}               = zeros(D,D,'single');
+                                I1.VCV1CORRMAT_N{h,n}                 = zeros(D,D,'uint32');
+                                I1.VCV1CORRMAT_UNCORR_LOGP_SUM{h,n}   = zeros(D,D,'single');
+                                I1.VCV1CORRMAT_UNCORR_LOGP_N{h,n}     = zeros(D,D,'uint32');
+                                I1.VCV1CORRMAT_FDR_LOGP_SUM{h,n}      = zeros(D,D,'single');
+                                I1.VCV1CORRMAT_FDR_LOGP_N{h,n}        = zeros(D,D,'uint32');
                             catch ERR
                                 memoryprob=true; warning on;
                                 warning(ERR.identifier, '\nEncountered problems creating variables:\n%s\nSkipping cross-correlation computations.',ERR.message);
-                                if isfield(I1,'VCV1CORRMAT'), I1 = rmfield(I1,'VCV1CORRMAT'); end
-                                if isfield(I1,'VCV1CORRMAT_UNCORR_PVAL'), I1 = rmfield(I1,'VCV1CORRMAT_UNCORR_PVAL'); end
-                                if isfield(I1,'VCV1CORRMAT_FDR_PVAL'), I1 = rmfield(I1,'VCV1CORRMAT_FDR_PVAL'); end
+                                I1 = nm_remove_corr_accumulator_fields(I1,false);
                                 warning off
                             end
                         end
                         memorytested = true;
                         if inp.lowmem == 1
-                            if isfield(I1,'VCV1CORRMAT'), I1 = rmfield(I1,'VCV1CORRMAT'); end
-                            if isfield(I1,'VCV1CORRMAT_UNCORR_PVAL'), I1 = rmfield(I1,'VCV1CORRMAT_UNCORR_PVAL'); end
-                            if isfield(I1,'VCV1CORRMAT_FDR_PVAL'), I1 = rmfield(I1,'VCV1CORRMAT_FDR_PVAL'); end
+                            I1 = nm_remove_corr_accumulator_fields(I1,true);
                             memoryprob=true;
+                            combinedmemoryprob=true;
                         end
                         
                         % Prepare for permutation analysis
@@ -573,6 +610,24 @@ for f=1:ix % Loop through CV2 permutations
                                 I1.VCV1WPERMREF{h}  = nan(0, ill); 
                                 I1.VCV1WCORRREF{h}  = nan(0, ill); 
                             end
+                        end
+                    end
+
+                    if combinedCorrEligible && ~memoryprob && ~combinedmemoryprob && inp.lowmem ~= 1
+                        try
+                            I1.VCV1CORRMAT_COMBINED_SUM{h}               = zeros(Dall,Dall,'single');
+                            I1.VCV1CORRMAT_COMBINED_N{h}                 = zeros(Dall,Dall,'uint32');
+                            I1.VCV1CORRMAT_COMBINED_UNCORR_LOGP_SUM{h}   = zeros(Dall,Dall,'single');
+                            I1.VCV1CORRMAT_COMBINED_UNCORR_LOGP_N{h}     = zeros(Dall,Dall,'uint32');
+                            I1.VCV1CORRMAT_COMBINED_FDR_LOGP_SUM{h}      = zeros(Dall,Dall,'single');
+                            I1.VCV1CORRMAT_COMBINED_FDR_LOGP_N{h}        = zeros(Dall,Dall,'uint32');
+                        catch ERR
+                            combinedmemoryprob = true;
+                            inp.combinedCorrEligible = false;
+                            warning on;
+                            warning(ERR.identifier, '\nEncountered problems creating the combined correlation accumulator:\n%s\nSkipping only the combined correlation matrix.',ERR.message);
+                            I1 = nm_remove_combined_corr_accumulator_fields(I1);
+                            warning off;
                         end
                     end
                     
@@ -725,7 +780,11 @@ for f=1:ix % Loop through CV2 permutations
                                 modelTrL = mapY.TrL{k,l}{h};
                                 modelCVL = mapY.CVL{k,l}{h};
                                 
-                                % Impute labels if needed
+                                % Preserve the CV1 case selection before label imputation.
+                                if permfl || sigfl
+                                    permTrRows = TrInd;
+                                    if ~IMPUTE.flag, permTrRows(any(isnan(modelTrL),2)) = false; end
+                                end
                                 [modelTrL, modelTr, TrInd] = nk_LabelImputer( modelTrL, modelTr, TrInd, sPs, IMPUTE);
                                 
                                 % Concatenate Training and CV data if needed
@@ -741,17 +800,17 @@ for f=1:ix % Loop through CV2 permutations
                                 % permutation operations
                                 if permfl || sigfl
                                     indpermfeat = [];
-                                    switch MODEFL
-                                        case 'classification'
-                                            pTrInd = CV.TrainInd{f,d}(CV.class{f,d}{h}.TrainInd{k,l}); 
-                                            pCVInd = CV.TrainInd{f,d}(CV.class{f,d}{h}.TestInd{k,l}); 
-                                        otherwise
-                                            pTrInd = CV.TrainInd{f,d}(CV.cvin{f,d}.TrainInd{k,l}); 
-                                            pCVInd = CV.TrainInd{f,d}(CV.cvin{f,d}.TestInd{k,l});
-                                    end
-                                    if size(pTrInd,2)>1,pTrInd=pTrInd'; end
-                                    if size(pCVInd,2)>1,pCVInd=pCVInd'; end
-                                    if FullPartFlag, pTrInd = [pTrInd; pCVInd];end
+                                    % Select full CV1 partitions, then apply the class masks once.
+                                    cv1 = CV.cvin{f,d};
+                                    pTrInd = CV.TrainInd{f,d}(cv1.TrainInd{k,l});
+                                    pCVInd = CV.TrainInd{f,d}(cv1.TestInd{k,l});
+                                    pTrInd = pTrInd(permTrRows);
+                                    pCVInd = pCVInd(CVInd);    
+                                    pTrInd = pTrInd(:);
+                                    if FullPartFlag, pTrInd = [pTrInd; pCVInd(:)]; end
+                                    assert(numel(pTrInd)==size(modelTr,1), 'nk_VisModelsC:permutationCaseAxis', ...
+                                        'CV1 permutation case count (%d) differs from model training rows (%d).', ...
+                                        numel(pTrInd), size(modelTr,1));
                                     if pmode(1), G = nk_GenPermMatrix(CV, inp, nperms); end
                                     if inp.multiflag ==1
                                         modelTsm = modelTs;
@@ -786,12 +845,10 @@ for f=1:ix % Loop through CV2 permutations
                                         Vind = ones(size(Find,1),1);
                                     end
                                     
-                                    % Train model
-                                    if isfield(mapY,'VI')
-                                        if ~fndMD, [~, MD{h}{m}{k,l}{u}] = nk_GetParam2(Ymodel, modelTrL, sPs, 1, mapY.VI{k,l}{hix}{u}); end
-                                    else
-                                        if ~fndMD, [~, MD{h}{m}{k,l}{u}] = nk_GetParam2(Ymodel, modelTrL, sPs, 1); end
-                                    end
+                                    % Resolve the conditional feature-group axis once for every fit.
+                                    featGroups = [];
+                                    if inp.stacking || (nM > 1 && inp.isInter), featGroups = mapY.VI{k,l}{hix}{u}; end
+                                    if ~fndMD, [~, MD{h}{m}{k,l}{u}] = nk_GetParam2(Ymodel, modelTrL, sPs, 1, featGroups); end
 
                                     if inp.stacking
                                         vec_mj = [];
@@ -837,7 +894,7 @@ for f=1:ix % Loop through CV2 permutations
                                         end
 
                                         % Retrieve the original weight vector in model-space
-                                        [~, ~, ~, ~, ~, Vx] = nk_VisXWeightC(inp, MD{h}{m}{k,l}{u}, Ymodel, modelTrL, varind, ParamX, Find, Vind, decompfl, memoryprob, false, compwise, [], true);
+                                        [~, ~, ~, ~, ~, Vx] = nk_VisXWeightC(inp, MD{h}{m}{k,l}{u}, Ymodel, modelTrL, varind, ParamX, Find, Vind, decompfl, memoryprob, false, compwise, [], true, [], true);
 
                                         % Apply boosting weights if needed
                                         % (otherwise multiply with 1)
@@ -856,12 +913,8 @@ for f=1:ix % Loop through CV2 permutations
                                             indperm = G.getperm(h,perms); indperm = indperm(pTrInd); 
                                             [ L_perm, Ymodel_perm ] = nk_VisXPermY(Ymodel, inp.label, pTrInd, pmode(1), indperm, indpermfeat, perms, analysis, inp, paramfl, BINMOD, h, k, l, pnt, FullPartFlag, F, u);
                                             
-                                            % Train permuted model
-                                            if isfield(mapY,'VI')
-                                                [~, MD_perm{perms} ] = nk_GetParam2(Ymodel_perm, L_perm, sPs, 1, mapY.VI{k,l}{hix}{u});
-                                            else
-                                                [~, MD_perm{perms} ] = nk_GetParam2(Ymodel_perm, L_perm, sPs, 1);
-                                            end
+                                            % Train permuted model on the same feature-group axis.
+                                            [~, MD_perm{perms} ] = nk_GetParam2(Ymodel_perm, L_perm, sPs, 1, featGroups);
     
                                             % Retrieve permuted model performance
                                             [perf_perm, I1.TS_perm{h}(:,il(h),perms), I1.DS_perm{h}(:,il(h),perms)] = ...
@@ -890,7 +943,7 @@ for f=1:ix % Loop through CV2 permutations
 
                                             % Compute permuted weight vector in model space
                                             [~,~,~,~,~,Vx_perm(:, perms)] = nk_VisXWeightC(inp, MD_perm{perms}, Ymodel_perm, ...
-                                                L_perm, varind, ParamX, Find, Vind, decompfl, memoryprob, false, compwise, [], true);
+                                                L_perm, varind, ParamX, Find, Vind, decompfl, memoryprob, false, compwise, [], true, [], true);
 
                                             % Apply boosting weights if needed
                                             % (otherwise multiply with 1)
@@ -972,20 +1025,49 @@ for f=1:ix % Loop through CV2 permutations
                                     
                                     % Compute original weight map in input
                                     % space without re-scaling for L2 share computations
-                                    [ Tx, Psel, Rx, SRx, Cx, ~, PAx, Dx ] = nk_VisXWeightC(inp, MD{h}{m}{k,l}{u}, Ymodel, modelTrL, varind, ParamX, Find, Vind, decompfl, memoryprob, [], compwise, Fadd, true, modelTs);
+                                    [ Tx, Psel, Rx, SRx, Cx, ~, PAx, Dx, CxCombined ] = nk_VisXWeightC(inp, MD{h}{m}{k,l}{u}, Ymodel, modelTrL, varind, ParamX, Find, Vind, decompfl, memoryprob, [], compwise, Fadd, true, modelTs, false);
 
                                     % Apply boosting weights if needed
                                     % (otherwise multiply with 1)
                                     
                                     % Prepare boosting weights, if relevant
-                                        if isempty(Wkl), wu = 1; else, wu = Wkl(u); end
-                                        if ~isfinite(wu) || wu < 0, wu = 1; end  % harden
+                                    if isempty(Wkl), wu = 1; else, wu = Wkl(u); end
+                                    if ~isfinite(wu) || wu < 0, wu = 1; end  % harden
 
                                     Tx = nm_apply_scalar_weight(Tx, wu); 
 
+                                    if permfl
+                                        % Inferential observed map: independent raw back-projection.
+                                        TxRaw = nk_VisXWeightC(inp, MD{h}{m}{k,l}{u}, Ymodel, modelTrL, varind, ParamX, Find, Vind, decompfl, memoryprob, [], compwise, Fadd, true, [], true);
+                                        TxRaw = nm_apply_scalar_weight(TxRaw, wu);
+                                    end
+
                                     if compwise
                                         %% ================= GLOBAL (CROSS-MODALITY) REALIGNMENT — nk_VisModelsC =================
-                                        [I, I1, Tx, Psel, Rx, SRx, PAx, assignmentVec, signCorrections, Dx ] = nk_VisXRealignComponents(I, I1, h, Tx, Dx, Psel, Rx, SRx, PAx, Fadd, Vind, il(h), inp, nM, ill);
+                                        if permfl
+                                            % The assignment indexes the nonzero OBSERVED map columns.
+                                            % Preserve that indexing basis for every permuted model.
+                                            observedMapMask = cell(1,nM);
+                                            for n = 1:nM
+                                                if decompfl(n)
+                                                    observedMapMask{n} = any((Tx{n} ~= 0) & isfinite(Tx{n}), 1);
+                                                end
+                                            end
+                                        end
+                                        [I, I1, Tx, Psel, Rx, SRx, PAx, assignmentVec, signCorrections, Dx ] = nk_VisXRealignComponents(I, I1, h, Tx, Dx, Psel, Rx, SRx, PAx, I1.Fadd{h,il(h)}, Vind, il(h), inp, nM, ill);
+                                        if permfl
+                                            for n = 1:nM
+                                                if ~decompfl(n), continue; end
+                                                if inp.isInter
+                                                    aVec = assignmentVec{n};
+                                                    sCorr = signCorrections{n};
+                                                else
+                                                    aVec = assignmentVec;
+                                                    sCorr = signCorrections;
+                                                end
+                                                TxRaw{n} = nm_align_perm_weights(TxRaw{n}, aVec, sCorr, observedMapMask{n});
+                                            end
+                                        end
                                     end
 
                                     % ===== per-modality aggregate share for aggregated pathways =====
@@ -1012,15 +1094,15 @@ for f=1:ix % Loop through CV2 permutations
                                             if any(decompfl) || compwise
                                                 % DR active: Tx{n} is [nFeatures x numComponents]
                                                 [nF, nComp] = size(Tx{n});
-                                                runningSum{n}   = zeros(nF, nComp);
-                                                runningSumSq{n} = zeros(nF, nComp);
+                                                runningMean{n}  = zeros(nF, nComp);
+                                                runningM2{n}    = zeros(nF, nComp);
                                                 exceedCount{n}  = zeros(nF, nComp);
                                                 validCount{n}   = zeros(nF, nComp);         % how many finite perms
                                             else
                                                 % Aggregated case: Tx{n} is a vector [nFeatures x 1]
                                                 nF = numel(Tx{n});
-                                                runningSum{n}   = zeros(nF,1);
-                                                runningSumSq{n} = zeros(nF,1);
+                                                runningMean{n}  = zeros(nF,1);
+                                                runningM2{n}    = zeros(nF,1);
                                                 exceedCount{n}  = zeros(nF,1);
                                                 validCount{n}   = zeros(nF,1);         % how many finite perms
                                             end
@@ -1037,12 +1119,8 @@ for f=1:ix % Loop through CV2 permutations
                                             % We test model signifcance if the ML pipeline does not involve factorization methods
                                             if ~sigfl
 
-                                                % Train permuted model
-                                                if isfield(mapY,'VI')
-                                                    [~, MD_perm{perms} ] = nk_GetParam2(Ymodel_perm, L_perm, sPs, 1, mapY.VI{k,l}{hix}{u});
-                                                else
-                                                    [~, MD_perm{perms} ] = nk_GetParam2(Ymodel_perm, L_perm, sPs, 1);
-                                                end
+                                                % Train permuted model on the same feature-group axis.
+                                                [~, MD_perm{perms} ] = nk_GetParam2(Ymodel_perm, L_perm, sPs, 1, featGroups);
 
                                                 % For multiflag mode, collect additional performance measures.
                                                 if inp.multiflag
@@ -1062,7 +1140,7 @@ for f=1:ix % Loop through CV2 permutations
                                                 else
                                                     fprintf('*');
                                                 end
-                                                Tx_perms = nk_VisXWeightC(inp, MD_perm{perms}, Ymodel_perm, L_perm, varind, ParamX, Find, Vind, decompfl, memoryprob, [], compwise, [], true);
+                                                Tx_perms = nk_VisXWeightC(inp, MD_perm{perms}, Ymodel_perm, L_perm, varind, ParamX, Find, Vind, decompfl, memoryprob, [], compwise, [], true, [], true);
                                                 
                                                 % Apply boosting weights if needed
                                                 % (otherwise multiply with 1)
@@ -1105,7 +1183,7 @@ for f=1:ix % Loop through CV2 permutations
                                                         Fadd_perms(keep) = true;
                                                     end
                                                 end
-                                                Tx_perms = nk_VisXWeightC(inp, MD_perm{perms}, Ymodel_perm, L_perm, varind, ParamX, Find, Vind, decompfl, memoryprob, [], compwise, Fadd_perms, true);
+                                                Tx_perms = nk_VisXWeightC(inp, MD_perm{perms}, Ymodel_perm, L_perm, varind, ParamX, Find, Vind, decompfl, memoryprob, [], compwise, Fadd_perms, true, [], true);
                                                 % Apply boosting weights if needed
                                                 % (otherwise multiply with 1)
                                                 Tx_perms = nm_apply_scalar_weight(Tx_perms, wu);  
@@ -1117,22 +1195,13 @@ for f=1:ix % Loop through CV2 permutations
                                                     % ===================== Aggregated path =====================
                                                     % (covers non-DR and DR + no-component)
                                                     Tp = Tx_perms{n}(:);        % column vector
-                                                    T  = Tx{n}(:);              % matching observed vector
-                                                    ok = isfinite(Tp);
-                                            
-                                                    runningSum{n}(ok)   = runningSum{n}(ok)   + Tp(ok);
-                                                    runningSumSq{n}(ok) = runningSumSq{n}(ok) + Tp(ok).^2;
-                                                    exceedCount{n}(ok)  = exceedCount{n}(ok)  + double( abs(Tp(ok)) >= abs(T(ok)) );
-                                                    validCount{n}(ok)   = validCount{n}(ok)   + 1;
+                                                    T  = TxRaw{n}(:);           % raw observed permutation statistic
+                                                    % Accumulate moments after the shared alignment step below.
                                                 elseif compwise
                                                     % ===================== Component-specific path =====================
                                                     % Realign each modality's permuted weight map if DR is active.
                                                     % Should work for component-level and aggregated case
                                                     % Tx_perms{n} should be a matrix of size [nFeatures x non-zero components].
-                                                    nz = any((Tx_perms{n}~=0) & isfinite(Tx_perms{n}), 1);
-                                                    if ~any(nz), continue; end
-                                                    nonZeroMasksPerm  = nz;
-                                                    Tx_perms{n} = Tx_perms{n}(:, nonZeroMasksPerm );
                                                     if inp.isInter
                                                         aVec = assignmentVec{n};
                                                         sCorr = signCorrections{n};
@@ -1140,36 +1209,21 @@ for f=1:ix % Loop through CV2 permutations
                                                         aVec = assignmentVec;
                                                         sCorr = signCorrections;
                                                     end
-                                                    nRef = numel(aVec); 
-                                                    % Create an output matrix with the same size as Tx_perms{n}.
-                                                    sortedTx = nan(size(Tx_perms{n},1), nRef,'like',Tx_perms{n});
-                                                    % Identify the indices in assignmentVec that are valid (i.e. > 0)
-                                                    valid = aVec > 0;
-                                                    % For columns with valid assignments, reorder them accordingly.
-                                                    sortedTx(:, valid) = Tx_perms{n}(:, aVec(valid));
-                                                    % Now, sortedTx has the same number of columns as the reference.
-                                                    % Apply sign correction
-                                                    % Create a full sign-correction vector of the same length as assignmentVec.
-                                                    fullSignCorrections = ones(nRef, 1);
-                                                    for i = 1:nRef
-                                                        if aVec(i) > 0
-                                                            % If signCorrections has an entry at index i, use it; otherwise default to 1.
-                                                            if i <= nRef
-                                                                fullSignCorrections(i) = sCorr(i);
-                                                            else
-                                                                fullSignCorrections(i) = 1;
-                                                            end
-                                                        end
-                                                    end
-                                                    % Now, apply the full vector for sign correction.
-                                                    % element‑wise sign correction, leaves NaNs untouched
-                                                    Tx_perms{n} = sortedTx.* (ones(size(Tx_perms{n},1),1,'like', Tx_perms{n}) * fullSignCorrections.');
-                                                    ok = isfinite(Tx_perms{n});  % mask of valid entries this round
-                                                    runningSum{n}(ok)   = runningSum{n}(ok)   + Tx_perms{n}(ok);
-                                                    runningSumSq{n}(ok) = runningSumSq{n}(ok) + Tx_perms{n}(ok).^2;
-                                                    exceedCount{n}(ok)  = exceedCount{n}(ok)  + double( abs(Tx_perms{n}(ok)) >= abs(Tx{n}(ok)) );
-                                                    validCount{n}(ok)   = validCount{n}(ok) + 1;
+                                                    Tx_perms{n} = nm_align_perm_weights(Tx_perms{n}, aVec, sCorr, observedMapMask{n});
+                                                    Tp = Tx_perms{n};
+                                                    T  = TxRaw{n};
                                                 end
+
+                                                % Stable online variance (Welford): only finite, aligned
+                                                % permutation weights contribute to each feature/component.
+                                                ok = isfinite(Tp);
+                                                x = Tp(ok);
+                                                countNew = validCount{n}(ok) + 1;
+                                                delta = x - runningMean{n}(ok);
+                                                runningMean{n}(ok) = runningMean{n}(ok) + delta ./ countNew;
+                                                runningM2{n}(ok) = runningM2{n}(ok) + delta .* (x - runningMean{n}(ok));
+                                                exceedCount{n}(ok) = exceedCount{n}(ok) + double(abs(x) >= abs(T(ok)));
+                                                validCount{n}(ok) = countNew;
                                             end
                                         end
     
@@ -1188,28 +1242,29 @@ for f=1:ix % Loop through CV2 permutations
                                             c = validCount{n};
                                             c(c == 0) = NaN;
 
-                                            % now compute mean & std using only the valid counts
-                                            permMean = runningSum{n} ./ c;
-                                            varHat   = (runningSumSq{n} - (runningSum{n}.^2)./c) ./ max(c-1,1);
-                                            permStd  = sqrt(varHat);
+                                            % Welford moments avoid subtracting nearly equal squared sums.
+                                            permMean = runningMean{n};
+                                            permMean(isnan(c)) = NaN;
+                                            varHat = runningM2{n} ./ max(c-1,1);
+                                            permStd = sqrt(varHat);
                                             
                                             % empirical p‐values
                                             Pvals = (exceedCount{n}+1) ./ (c+1);
                                             
                                             % finally your continuous Z‐scores
-                                            Zvals = (Tx{n} - permMean) ./ permStd;
+                                            Zvals = (TxRaw{n} - permMean) ./ permStd;
                                         
                                             if decompfl(n) && compwise
     
                                                 % ===== COMPONENT-WISE (per-component) path =====
                                                 % DR active AND component-wise view: Tx{n}, Pvals, Zvals are [nFeat × nComp]
-                                                compMask = any(isfinite(Tx{n}), 1);           
+                                                compMask = any(isfinite(TxRaw{n}), 1);           
                                                 keptIdx  = find(compMask);
                                                 fprintf('\n\t\t\tCompute single component stats [Modality #%g]:\t', n);
                                                 for kl = keptIdx
                                                     fprintf('~')
                                                     % feature mask for this component
-                                                    Fmask = isfinite(Tx{n}(:, kl));
+                                                    Fmask = isfinite(TxRaw{n}(:, kl));
                                             
                                                     % per-component p/z
                                                     compP = Pvals(Fmask, kl);
@@ -1247,7 +1302,7 @@ for f=1:ix % Loop through CV2 permutations
                                                     fprintf('\n\t\t\tCompute stats [Modality #%g]:\t', n);
                                                 end
                                                 % Ensure column vectors
-                                                TxAgg    = Tx{n}(:);
+                                                TxAgg    = TxRaw{n}(:);
                                                 PvalsVec = Pvals(:);   % full-length vectors for non-stacking indexing
                                                 ZvalsVec = Zvals(:);
                                             
@@ -1340,9 +1395,11 @@ for f=1:ix % Loop through CV2 permutations
                                                            fprintf('\n')
                                                         end
                                                     end
-                                                    if ~memoryprob
+                                                    if ~memoryprob && isfield(I1,'VCV1CORRMAT_SUM')
                                                         mjCx = Cx{n}(Imj, Imj);
-                                                        I1.VCV1CORRMAT{h,n}(mj,mj,kil(h)) = nm_nanmean(mjCx(:));
+                                                        mjCorr = nm_nanmean(mjCx(:));
+                                                        [I1.VCV1CORRMAT_SUM{h,n},I1.VCV1CORRMAT_N{h,n}] = ...
+                                                            nm_corr_accum_add_scalar(I1.VCV1CORRMAT_SUM{h,n},I1.VCV1CORRMAT_N{h,n},mj,mj,mjCorr);
                                                     end
                                                 end
                                             end
@@ -1381,7 +1438,7 @@ for f=1:ix % Loop through CV2 permutations
                                                             end
                                                         end
                                                     end
-                                                elseif inp.isEarly
+                                                elseif inp.isEarly || inp.isLate
                                                     if ~isempty(Dx) && ~isempty(Dx{1})
                                                         nSubj     = size(Dx{1},1);
                                                         nComp_new = size(Tx{1},2);
@@ -1404,7 +1461,7 @@ for f=1:ix % Loop through CV2 permutations
                                                     I1.VCV1{h,n}(badcoords, il(h), comp) = Tx{n}(badcoords, comp);
                                                     if inp.isInter
                                                         if ~isempty(Dx) && ~isempty(Dx{n}), I1.Dx{h}{n}(:, il(h), comp) = Dx{n}(:, comp); end
-                                                    elseif inp.isEarly && n==1
+                                                    elseif (inp.isEarly || inp.isLate) && n==1
                                                         if ~isempty(Dx) && ~isempty(Dx{1}), I1.Dx{h}(:, il(h), comp) = Dx{1}(:, comp); end
                                                     end
                                                     
@@ -1416,26 +1473,23 @@ for f=1:ix % Loop through CV2 permutations
                                                     %% Compute univariate correlation coefficient for each feature
                                                     I1.VCV1PEARSON{h, n}(badcoords,kil(h)) = Rx{n};
                                                     I1.VCV1SPEARMAN{h, n}(badcoords,kil(h)) = SRx{n};
-                                                    if ~memoryprob
-                                                        I1.VCV1CORRMAT{h,n}(badcoords,badcoords,kil(h)) = Cx{n};
-                                                    end
                                                     I1.VCV1PEARSON_UNCORR_PVAL{h, n}(badcoords,kil(h)) = nk_PTfromR(Rx{n}, size(Ymodel,1), 2);
                                                     I1.VCV1SPEARMAN_UNCORR_PVAL{h, n}(badcoords,kil(h)) = nk_PTfromR(SRx{n}, size(Ymodel,1), 2);
-                                                    if ~memoryprob
-                                                        I1.VCV1CORRMAT_UNCORR_PVAL{h, n}(badcoords,badcoords,kil(h)) = nk_PTfromR(Cx{n}, size(Ymodel,1), 2);
-                                                    end
                                                     [~,~,~,I1.VCV1PEARSON_FDR_PVAL{h, n}(badcoords,kil(h))] = fdr_bh(I1.VCV1PEARSON_UNCORR_PVAL{h, n}(badcoords,kil(h)), 0.05, 'pdep');
                                                     [~,~,~,I1.VCV1SPEARMAN_FDR_PVAL{h, n}(badcoords,kil(h))] = fdr_bh(I1.VCV1SPEARMAN_UNCORR_PVAL{h, n}(badcoords,kil(h)), 0.05, 'pdep');
-                                                    % Use half of the matrix to correct P
-                                                    % values
-                                                    if ~memoryprob
-                                                        p_uncorr = I1.VCV1CORRMAT_UNCORR_PVAL{h, n}(badcoords,badcoords, kil(h));
+                                                    if ~memoryprob && isfield(I1,'VCV1CORRMAT_SUM')
+                                                        p_uncorr = nk_PTfromR(Cx{n}, size(Ymodel,1), 2);
                                                         sz_p_uncorr = size(p_uncorr,1);
                                                         mI = itriu(sz_p_uncorr,1);
-                                                        p_fdr = single(nan(sz_p_uncorr));                
-                                                        [~,~,~, c_pfdr] = fdr_bh(p_uncorr(mI), 0.05, 'pdep');
+                                                        p_fdr = single(nan(sz_p_uncorr));
+                                                        [~,~,~,c_pfdr] = fdr_bh(p_uncorr(mI),0.05,'pdep');
                                                         p_fdr(mI) = c_pfdr;
-                                                        I1.VCV1CORRMAT_FDR_PVAL{h, n}(:,:, kil(h)) = p_fdr;
+                                                        [I1.VCV1CORRMAT_SUM{h,n},I1.VCV1CORRMAT_N{h,n}] = ...
+                                                            nm_corr_accum_add_block(I1.VCV1CORRMAT_SUM{h,n},I1.VCV1CORRMAT_N{h,n},badcoords,Cx{n});
+                                                        [I1.VCV1CORRMAT_UNCORR_LOGP_SUM{h,n},I1.VCV1CORRMAT_UNCORR_LOGP_N{h,n}] = ...
+                                                            nm_corr_accum_add_block(I1.VCV1CORRMAT_UNCORR_LOGP_SUM{h,n},I1.VCV1CORRMAT_UNCORR_LOGP_N{h,n},badcoords,-log10(p_uncorr));
+                                                        [I1.VCV1CORRMAT_FDR_LOGP_SUM{h,n},I1.VCV1CORRMAT_FDR_LOGP_N{h,n}] = ...
+                                                            nm_corr_accum_add_block(I1.VCV1CORRMAT_FDR_LOGP_SUM{h,n},I1.VCV1CORRMAT_FDR_LOGP_N{h,n},badcoords,-log10(p_fdr));
                                                     end
                                                 end
                                                 %% Comnpute feature selection probabilities %%
@@ -1452,10 +1506,33 @@ for f=1:ix % Loop through CV2 permutations
                                             end
                                        end
                                     end
+
+                                    if u == 1 && combinedCorrEligible && ~memoryprob && ~combinedmemoryprob ...
+                                            && ~isempty(CxCombined) && isfield(I1,'VCV1CORRMAT_COMBINED_SUM')
+                                        if size(CxCombined,1) ~= nnz(combinedValidMask)
+                                            error('nk_VisModelsC:CombinedCorrelationDimensionMismatch', ...
+                                                ['Combined correlation matrix has %g native-valid features, ' ...
+                                                 'but the concatenated modality masks define %g.'], ...
+                                                size(CxCombined,1),nnz(combinedValidMask));
+                                        end
+                                        p_uncorr_combined = nk_PTfromR(CxCombined,size(Ymodel,1),2);
+                                        sz_combined = size(p_uncorr_combined,1);
+                                        mIcombined = itriu(sz_combined,1);
+                                        p_fdr_combined = single(nan(sz_combined));
+                                        [~,~,~,c_pfdr_combined] = fdr_bh(p_uncorr_combined(mIcombined),0.05,'pdep');
+                                        p_fdr_combined(mIcombined) = c_pfdr_combined;
+                                        [I1.VCV1CORRMAT_COMBINED_SUM{h},I1.VCV1CORRMAT_COMBINED_N{h}] = ...
+                                            nm_corr_accum_add_block(I1.VCV1CORRMAT_COMBINED_SUM{h},I1.VCV1CORRMAT_COMBINED_N{h},combinedValidMask,CxCombined);
+                                        [I1.VCV1CORRMAT_COMBINED_UNCORR_LOGP_SUM{h},I1.VCV1CORRMAT_COMBINED_UNCORR_LOGP_N{h}] = ...
+                                            nm_corr_accum_add_block(I1.VCV1CORRMAT_COMBINED_UNCORR_LOGP_SUM{h},I1.VCV1CORRMAT_COMBINED_UNCORR_LOGP_N{h},combinedValidMask,-log10(p_uncorr_combined));
+                                        [I1.VCV1CORRMAT_COMBINED_FDR_LOGP_SUM{h},I1.VCV1CORRMAT_COMBINED_FDR_LOGP_N{h}] = ...
+                                            nm_corr_accum_add_block(I1.VCV1CORRMAT_COMBINED_FDR_LOGP_SUM{h},I1.VCV1CORRMAT_COMBINED_FDR_LOGP_N{h},combinedValidMask,-log10(p_fdr_combined));
+                                    end
+                                    nm_vis_browser_progress(sprintf('Predictor %g/%g: evaluated %g/%g model units in CV2 partition %g.%g.', h, nclass, min(il(h), max(ill,1)), max(ill,1), f, d), 100 * min(il(h), max(ill,1)) / max(ill,1), CVPOS, 'model_unit');
                                     il(h)=il(h)+1;
                                 end
                                 kil(h)=kil(h)+1;
-                                clear Tx Vx Tx_perm Vx_perm tSRx tRx Rx SRx
+                                clear Tx Vx Tx_perm Vx_perm tSRx tRx Rx SRx CxCombined
                                 %fprintf(' Done.')
                             end
                         end  
@@ -1478,6 +1555,7 @@ for f=1:ix % Loop through CV2 permutations
               
                 [~, I1] = nk_VisXHelperC('prune', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, ll, nperms, I1, compwise);  
            
+                nm_vis_browser_progress(sprintf('Saving VISdatamat for CV2 partition %g.%g.', f, d), 95, CVPOS, 'save_visdatamat');
                 fprintf('\nSaving %s', oVISpath); 
                 if OCTAVE
                     save(oVISpath,'I1','sPs','operm','ofold');
@@ -1485,6 +1563,7 @@ for f=1:ix % Loop through CV2 permutations
                     save(oVISpath,'-v7.3','I1','sPs','operm','ofold');
                 end
                 [I,I1] = CV2wrapUp(I,I1);
+                nm_vis_browser_progress(sprintf('Completed visualization for CV2 partition %g.%g.', f, d), 100, CVPOS, 'cv2_complete');
                 if saveparam, fprintf('\nSaving %s', OptModelPath); save(OptModelPath, 'MD', 'ofold','operm', '-v7.3'); end
                 if isfield(I1,'PCV1SUM'), PCV1SUMflag=true; else, PCV1SUMflag = false; end
                 clear Param MD
@@ -1500,7 +1579,9 @@ for f=1:ix % Loop through CV2 permutations
                     [~,vnam] = fileparts(vpth);
                     ind0(ll) = true; 
                     fprintf('\nLoading visualization data: %s.', vnam); ill=[];
+                    nm_vis_browser_progress(sprintf('Loading existing VISdatamat for CV2 partition %g.%g.', f, d), 5, CVPOS, 'load_visdatamat');
                     [I,I1] = CV2wrapUp(I,vpth);
+                    nm_vis_browser_progress(sprintf('Loaded existing VISdatamat for CV2 partition %g.%g.', f, d), 100, CVPOS, 'load_visdatamat');
                     ol=ol+1;
                 end
                 if isfield(I1,'PCV1SUM'), PCV1SUMflag=true; else, PCV1SUMflag = false; end
@@ -1545,6 +1626,7 @@ end
 %% PERFORM POST-PROCESSING VISUALIZATION PROCEDURES ON THE ENTIRE DATA 
 if ~batchflag
     
+    nm_vis_browser_progress('Aggregating CV2 visualization results.', 0, CVPOS, 'final_aggregation');
     % visdata is a cell array of with nM dimensions, where nM is defined by
     % the number of modalities used in the analysis
     visdata = cell(1,nM);
@@ -1756,7 +1838,13 @@ if ~batchflag
             end
         end
     end
+     if inp.fractionatedDecisionScores
+         I = nk_VisXHelperC('finalize_Dx', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, [], [], [], compwise);
+     end
      I = nk_VisXHelperC('report_final', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, [], [], [], compwise);
+     I = nk_VisXHelperC('finalize_corr', nM, nclass, decompfl, permfl, sigfl, ix, jx, I, inp, [], [], [], compwise);
+
+     combinedRelation = nm_build_combined_relation(I,inp,nM,nclass,featnames,combinedCorrEligible);
     
     for n=1:nM
         
@@ -1790,14 +1878,6 @@ if ~batchflag
                     if linsvmfl
                         I.VCV2PVAL_ANALYTICAL{h,n} = mean(I.VCV2PVAL_ANALYTICAL{h, n},2, 'omitnan');
                         I.VCV2PVAL_ANALYTICAL_FDR{h,n} = mean(I.VCV2PVAL_ANALYTICAL_FDR{h, n},2, 'omitnan');
-                    end
-                    if ~isempty(I.VCV2CORRMAT{h,n})
-                        I.VCV2CORRMAT{h,n} = mean(I.VCV2CORRMAT{h, n}, 3, 'omitnan');
-                        I.VCV2CORRMAT_STD{h,n} = std(I.VCV2CORRMAT{h, n}, [], 3, 'omitnan');
-                        I.VCV2CORRMAT_UNCORR_PVAL{h,n} = mean(I.VCV2CORRMAT_UNCORR_PVAL{h, n},3, 'omitnan');
-                        I.VCV2CORRMAT_UNCORR_PVAL_STD{h,n} = std(I.VCV2CORRMAT_UNCORR_PVAL{h, n}, [], 3, 'omitnan');
-                        I.VCV2CORRMAT_FDR_PVAL{h,n} = mean(I.VCV2CORRMAT_FDR_PVAL{h, n},3, 'omitnan');
-                        I.VCV2CORRMAT_FDR_PVAL_STD{h,n} = std(I.VCV2CORRMAT_FDR_PVAL{h, n}, [], 3, 'omitnan');
                     end
                 end
             end
@@ -2016,28 +2096,80 @@ if ~batchflag
                     case 1  % SPM‐style NIfTI
                         nk_WriteVol(vols, volnam, 2, brainmaski, [], labeli, labelopi);
             
-                    case 2  % surface‐based
-                        [~,~,ext] = fileparts(brainmaski);
-                        switch ext
-                            case {'.mgh','.mgz'}
-                                s = MRIread(brainmaski);
-                                for yy = 1:size(vols,2)
-                                    fname = fullfile(pwd, [deblank(volnam(yy,:)) '.mgh']);
-                                    s.vol = vols(:,yy);
+                    case 2  % surface-based
+
+                        % NM2: use the authoritative native surface geometry stored by DataIO.
+                        if isfield(analysis.datadescriptor, 'Vm') && ...
+                                isstruct(analysis.datadescriptor.Vm) && ...
+                                isfield(analysis.datadescriptor.Vm, 'surfaceGeometryFile') && ...
+                                ~isempty(analysis.datadescriptor.Vm.surfaceGeometryFile)
+                    
+                            surfaceFile = analysis.datadescriptor.Vm.surfaceGeometryFile;
+                    
+                            if isfield(analysis.datadescriptor.Vm, 'format') && ...
+                                    ~isempty(analysis.datadescriptor.Vm.format)
+                                surfaceFormat = lower(analysis.datadescriptor.Vm.format{1});
+                            else
+                                [~, ~, ext] = fileparts(surfaceFile);
+                                surfaceFormat = lower(strrep(ext, '.', ''));
+                            end
+                    
+                        else
+                            % Legacy NM fallback.
+                            surfaceFile = brainmaski;
+                            [~, ~, ext] = fileparts(surfaceFile);
+                            surfaceFormat = lower(strrep(ext, '.', ''));
+                        end
+                    
+                        switch surfaceFormat
+                    
+                            case {'mgh', 'mgz'}
+                    
+                                s = MRIread(surfaceFile);
+                    
+                                if numel(s.vol) ~= size(vols, 1)
+                                    error('nk_VisModelsC:SurfaceSizeMismatch', ...
+                                        ['Surface template contains %d values, but the result ' ...
+                                         'map contains %d vertices.'], ...
+                                        numel(s.vol), size(vols, 1));
+                                end
+                    
+                                templateSize = size(s.vol);
+                    
+                                for yy = 1:size(vols, 2)
+                                    fname = fullfile(pwd, ...
+                                        [deblank(volnam(yy, :)) '.mgh']);
+                    
+                                    s.vol = reshape(vols(:, yy), templateSize);
                                     MRIwrite(s, fname);
                                 end
-                            case '.gii'
-                                s = GIIread(brainmaski);
-                                for yy = 1:size(vols,2)
-                                    fname = fullfile(pwd, [deblank(volnam(yy,:)) '.gii']);
-                                    save( ...
-                                      gifti(struct( ...
-                                        'vertices',double(s.vertices), ...
-                                        'faces',   double(s.faces),    ...
-                                        'cdata',   vols(:,yy)          ...
-                                      )), fname ...
-                                    );
+                    
+                            case 'gii'
+                    
+                                s = gifti(surfaceFile);
+                    
+                                if size(s.vertices, 1) ~= size(vols, 1)
+                                    error('nk_VisModelsC:SurfaceSizeMismatch', ...
+                                        ['Surface template contains %d vertices, but the result ' ...
+                                         'map contains %d values.'], ...
+                                        size(s.vertices, 1), size(vols, 1));
                                 end
+                    
+                                for yy = 1:size(vols, 2)
+                                    fname = fullfile(pwd, ...
+                                        [deblank(volnam(yy, :)) '.gii']);
+                    
+                                    save(gifti(struct( ...
+                                        'vertices', double(s.vertices), ...
+                                        'faces',    double(s.faces), ...
+                                        'cdata',    double(vols(:, yy)))), ...
+                                        fname);
+                                end
+                    
+                            otherwise
+                    
+                                error('nk_VisModelsC:UnsupportedSurfaceFormat', ...
+                                    'Unsupported surface format: %s', surfaceFormat);
                         end
                 end
             end
@@ -2127,31 +2259,38 @@ if ~batchflag
                 visdata{n}.ModComp_L2nShare             = I.ModComp_L2n;
                 visdata{n}.ModComp_L2nShare_Summary{h}  = I.ModComp_L2n_SUMMARY{h};
             end
-            if inp.isEarly
-                num = I.DxSUM{h};
-                sumx2  = I.DxSQSUM{h};
-                den = I.DxN{h};
-            else
-                num = I.DxSUM{h}{n};
-                sumx2  = I.DxSQSUM{h}{n};
-                den = I.DxN{h}{n};
+            if inp.fractionatedDecisionScores
+                for h = 1:nclass
+                    if inp.isEarly || inp.isLate
+                        num = I.DxSUM{h};
+                        sumx2  = I.DxSQSUM{h};
+                        den = I.DxN{h};
+                    else
+                        num = I.DxSUM{h}{n};
+                        sumx2  = I.DxSQSUM{h}{n};
+                        den = I.DxN{h}{n};
+                    end
+                    mask = den > 0 & isfinite(den);
+                    % Compute Means
+                    Frac = nan(size(num), 'like', num);   % prefill with NaN
+                    Frac(mask) = num(mask) ./ den(mask);
+                    % Compute SEs
+                    SE = nan(size(num), 'like', num);   % prefill with NaN
+                    SD = nan(size(num), 'like', num);   % prefill with NaN
+                    VAR = nan(size(num), 'like', num);   % prefill with NaN
+                    VAR(mask) = sumx2(mask) ./ den(mask) - Frac(mask).^2;
+                    VAR(mask & VAR<0) = 0;
+                    SD(mask) = sqrt(VAR(mask));
+                    SE(mask) = SD(mask) ./ sqrt(den(mask));
+                    % Assign
+                    visdata{n}.FracDec_CV2_mean{h} = Frac;
+                    visdata{n}.FracDec_CV2_se{h} = SE;
+                    visdata{n}.FracDec_CV2_sd{h} = SD;
+                end
             end
-            mask = den > 0 & isfinite(den);
-            % Compute Means
-            Frac = nan(size(num), 'like', num);   % prefill with NaN
-            Frac(mask) = num(mask) ./ den(mask);
-            % Compute SEs
-            SE = nan(size(num), 'like', num);   % prefill with NaN
-            SD = nan(size(num), 'like', num);   % prefill with NaN
-            VAR = nan(size(num), 'like', num);   % prefill with NaN
-            VAR(mask) = sumx2(mask) ./ den(mask) - Frac(mask).^2;
-            VAR(mask & VAR<0) = 0;
-            SD(mask) = sqrt(VAR(mask));
-            SE(mask) = SD(mask) ./ sqrt(den(mask));
-            % Assign
-            visdata{n}.FracDec_CV2_mean{h} = Frac;
-            visdata{n}.FracDec_CV2_se{h} = SE;
-            visdata{n}.FracDec_CV2_sd{h} = SD;
+        end
+        if ~isempty(combinedRelation)
+            visdata{n}.CombinedRelation = combinedRelation;
         end
         if isfield(I,'ModAgg_L2nShare')
             visdata{n}.ModAgg_L2nShare   = I.ModAgg_L2nShare;
@@ -2305,7 +2444,7 @@ if inp.multiflag
             % Multi-group CV2 array construction for observed
             % multi-class model.
             [mDTs, mTTs, ~, Classes, ~, mcolend] = ...
-                nk_MultiAssemblePredictions( I1.mDS{h}(:,il), I1.mTS{h}(:,il), [], mDTs, mTTs, Classes, 1, h, mcolend );
+                nk_MultiAssemblePredictions( I1.mDS{h}(:,il), I1.mTS{h}(:,il), [], mDTs, mTTs, [], Classes, 1, h, mcolend );
          end
      end
 
@@ -2323,7 +2462,7 @@ if inp.multiflag
              % multi-class model
              for il=1:size(I1.mDS{h},2)
                 [mDTs_perm, mTTs_perm, ~, Classes_perm, ~, mcolend_perm] = ...
-                    nk_MultiAssemblePredictions( I1.mDS_perm{h}(:,il,perms), I1.mTS_perm{h}(:,il,perms), [], mDTs_perm, mTTs_perm, Classes_perm, 1, h, mcolend_perm );
+                    nk_MultiAssemblePredictions( I1.mDS_perm{h}(:,il,perms), I1.mTS_perm{h}(:,il,perms), [], mDTs_perm, mTTs_perm, [], Classes_perm, 1, h, mcolend_perm );
              end
          end
          % Compute multi-group performance of permuted
@@ -2344,6 +2483,42 @@ end
 
 end
 % ______________________________________________________________________________
+function nm_vis_browser_progress(message, percent, CVPOS, phase)
+
+global UI
+
+if nargin < 4, phase = ''; end
+if ~(isstruct(UI) && isfield(UI,'enabled') && logical(UI.enabled) && ...
+        isfield(UI,'chartEnabled') && logical(UI.chartEnabled))
+    return;
+end
+if exist('NMRuntimeProgressTools','class') == 8 || exist('NMRuntimeProgressTools','file') == 2
+    NMRuntimeProgressTools.writeLegacyModuleProgressSafe('Visualization progress', message, percent, CVPOS, phase);
+end
+
+end
+
+function X = nm_align_perm_weights(X, aVec, sCorr, observedMapMask)
+% Apply the observed-model assignment in its original nonzero-component axis.
+% Permutation-specific exact zeros must not renumber the source components.
+nRef = numel(aVec);
+assert(size(X,2) == numel(observedMapMask), 'nm:permComponentAxis', ...
+    'Observed and permuted model maps have different component axes.');
+if ~any((X ~= 0) & isfinite(X), 'all')
+    X = nan(size(X,1), nRef, 'like', X);
+    return;
+end
+X = X(:,observedMapMask);
+sortedX = nan(size(X,1), nRef, 'like', X);
+valid = aVec > 0;
+assert(all(aVec(valid) <= size(X,2)), 'nm:permAlignmentIndex', ...
+    'Alignment index exceeds the observed active-component axis.');
+sortedX(:,valid) = X(:,aVec(valid));
+signs = ones(nRef,1);
+signs(valid) = sCorr(valid);
+X = sortedX .* (ones(size(X,1),1,'like',X) * signs.');
+end
+
 function Z = nm_apply_scalar_weight(Z, w)
 % Multiply Z by scalar w. Z can be numeric or a cell array (e.g., per modality).
 % For cells, multiplies each non-empty cell. Returns Z unchanged if empty.
@@ -2394,4 +2569,168 @@ function [pvals_corr, pvals_comb] = correct_p_values_across_cv(pvals)
     pvals_comb = nm_nanmean(pvals, 2);
     [~,~,~, pvals_corr] = fdr_bh(pvals_comb, 0.05, 'pdep'); % correct
 
+end
+
+function [sumMatrix,countMatrix] = nm_corr_accum_add_block(sumMatrix,countMatrix,fullMask,value)
+% Add one compact native-space matrix into a fixed-size full-space accumulator.
+idx = find(fullMask(:));
+if size(value,1) ~= numel(idx) || size(value,2) ~= numel(idx)
+    error('nk_VisModelsC:CorrelationAccumulatorDimensionMismatch', ...
+        'Correlation block is %g-by-%g, but the native-valid mask contains %g features.', ...
+        size(value,1),size(value,2),numel(idx));
+end
+sumBlock = sumMatrix(idx,idx);
+countBlock = countMatrix(idx,idx);
+valid = ~isnan(value);
+if any(valid(:))
+    addValue = single(value(valid));
+    sumBlock(valid) = sumBlock(valid) + addValue;
+    countBlock(valid) = countBlock(valid) + uint32(1);
+end
+sumMatrix(idx,idx) = sumBlock;
+countMatrix(idx,idx) = countBlock;
+end
+
+function [sumMatrix,countMatrix] = nm_corr_accum_add_scalar(sumMatrix,countMatrix,row,col,value)
+% Add one scalar matrix entry for the established stacking representation.
+if ~isnan(value)
+    sumMatrix(row,col) = sumMatrix(row,col) + single(value);
+    countMatrix(row,col) = countMatrix(row,col) + uint32(1);
+end
+end
+
+function I1 = nm_remove_corr_accumulator_fields(I1,includeCombined)
+% Remove only correlation accumulator fields after low-memory activation or allocation failure.
+fields = {'VCV1CORRMAT','VCV1CORRMAT_UNCORR_PVAL','VCV1CORRMAT_FDR_PVAL', ...
+    'VCV1CORRMAT_SUM','VCV1CORRMAT_N', ...
+    'VCV1CORRMAT_UNCORR_LOGP_SUM','VCV1CORRMAT_UNCORR_LOGP_N', ...
+    'VCV1CORRMAT_FDR_LOGP_SUM','VCV1CORRMAT_FDR_LOGP_N'};
+if includeCombined
+    fields = [fields, {'VCV1CORRMAT_COMBINED_SUM','VCV1CORRMAT_COMBINED_N', ...
+        'VCV1CORRMAT_COMBINED_UNCORR_LOGP_SUM','VCV1CORRMAT_COMBINED_UNCORR_LOGP_N', ...
+        'VCV1CORRMAT_COMBINED_FDR_LOGP_SUM','VCV1CORRMAT_COMBINED_FDR_LOGP_N'}];
+end
+present = fields(isfield(I1,fields));
+if ~isempty(present), I1 = rmfield(I1,present); end
+end
+
+function I1 = nm_remove_combined_corr_accumulator_fields(I1)
+% Remove combined-only accumulators while preserving established local matrices.
+fields = {'VCV1CORRMAT_COMBINED_SUM','VCV1CORRMAT_COMBINED_N', ...
+    'VCV1CORRMAT_COMBINED_UNCORR_LOGP_SUM','VCV1CORRMAT_COMBINED_UNCORR_LOGP_N', ...
+    'VCV1CORRMAT_COMBINED_FDR_LOGP_SUM','VCV1CORRMAT_COMBINED_FDR_LOGP_N'};
+present = fields(isfield(I1,fields));
+if ~isempty(present), I1 = rmfield(I1,present); end
+end
+
+function relation = nm_build_combined_relation(I,inp,nM,nclass,featnames,eligible)
+% Build one replicated public contract for eligible native combined relations.
+relation = [];
+if ~eligible || ~isfield(I,'VCV2CORRMAT_COMBINED_COMPLETE'), return; end
+if inp.isInter
+    fusionMode = 'intermediate';
+    contractVersion = 'C17j7-intermediate-native-v1';
+    relationPrefix = 'intermediate-native';
+    sourceSpaceDescription = ['Modality-specific preprocessing outputs mapped to each member''s native feature order; ' ...
+        'feature-mixing dimensionality reduction is excluded from this relation.'];
+else
+    fusionMode = 'early';
+    contractVersion = 'C17j2-early-native-v1';
+    relationPrefix = 'early-native';
+    sourceSpaceDescription = 'Original native feature order restored by the established preprocessing-reversal path.';
+end
+relation = struct();
+relation.schemaVersion = 1;
+relation.contractVersion = contractVersion;
+relation.relationId = sprintf('%s-%s',relationPrefix,strjoin(arrayfun(@(v)sprintf('var%d',v),inp.tF(:)','UniformOutput',false),'-'));
+relation.available = all(I.VCV2CORRMAT_COMBINED_COMPLETE(:)) && ...
+    all(I.VCV2CORRMAT_COMBINED_SEEN(:) > 0) && ...
+    isfield(I,'VCV2CORRMAT_COMBINED') && all(~cellfun(@isempty,I.VCV2CORRMAT_COMBINED));
+relation.availabilityCode = '';
+relation.disabledReason = '';
+relation.fusionMode = fusionMode;
+relation.memberVarind = inp.tF(:)';
+counts = zeros(1,nM);
+featureNames = {};
+featureVarind = [];
+featureNativeIndex = [];
+featureKeys = {};
+global FUSION
+for n = 1:nM
+    D = getD(FUSION.flag,inp,n);
+    counts(n) = D;
+    names = {};
+    if ~isempty(featnames) && numel(featnames) >= n && ~isempty(featnames{n})
+        names = nm_normalize_feature_names(featnames{n});
+    end
+    if numel(names) ~= D
+        names = cellstr(num2str((1:D)'));
+    end
+    names = names(:);
+    featureNames = [featureNames; names]; %#ok<AGROW>
+    featureVarind = [featureVarind; repmat(inp.tF(n),D,1)]; %#ok<AGROW>
+    nativeIndex = (1:D)';
+    featureNativeIndex = [featureNativeIndex; nativeIndex]; %#ok<AGROW>
+    keys = arrayfun(@(k)sprintf('var%g-feature%g',inp.tF(n),k),nativeIndex,'UniformOutput',false);
+    featureKeys = [featureKeys; keys(:)]; %#ok<AGROW>
+end
+relation.memberFeatureCounts = counts;
+relation.featureOffsets = [0 cumsum(counts)];
+relation.featureVarind = featureVarind;
+relation.featureNativeIndex = featureNativeIndex;
+relation.featureKeys = featureKeys;
+relation.featureNames = featureNames;
+relation.sourceSpaceDescription = sourceSpaceDescription;
+relation.aggregationDescription = 'Equal-weight CV1 mean within each CV2 partition, followed by an equal-weight mean across CV2 partitions; STD fields retain the legacy zero/NaN contract.';
+relation.missingValueHandling = 'Pairwise correlation rows; unsupported native feature positions remain NaN.';
+relation.evidenceInterpretation = 'Uncorrected and FDR fields contain mean cross-validation -log10 evidence, not a p-value calculated from the mean correlation.';
+if relation.available
+    relation.CorrMat_CV2 = I.VCV2CORRMAT_COMBINED;
+    relation.CorrMat_CV2_STD = I.VCV2CORRMAT_COMBINED_STD;
+    relation.CorrMat_CV2_support = I.VCV2CORRMAT_COMBINED_N;
+    relation.CorrMat_CV2_p_uncorr = I.VCV2CORRMAT_COMBINED_UNCORR_PVAL;
+    relation.CorrMat_CV2_p_uncorr_STD = I.VCV2CORRMAT_COMBINED_UNCORR_PVAL_STD;
+    relation.CorrMat_CV2_p_fdr = I.VCV2CORRMAT_COMBINED_FDR_PVAL;
+    relation.CorrMat_CV2_p_fdr_STD = I.VCV2CORRMAT_COMBINED_FDR_PVAL_STD;
+else
+    relation.availabilityCode = 'legacy_or_incomplete_cv2_combined_relation';
+    if inp.isInter
+        relation.disabledReason = 'At least one processed CV2 partition did not contain the intermediate-fusion combined relation state.';
+    else
+        relation.disabledReason = 'At least one processed CV2 partition did not contain the release-version early-fusion combined relation state.';
+    end
+    relation.CorrMat_CV2 = cell(nclass,1);
+    relation.CorrMat_CV2_STD = cell(nclass,1);
+    relation.CorrMat_CV2_support = cell(nclass,1);
+    relation.CorrMat_CV2_p_uncorr = cell(nclass,1);
+    relation.CorrMat_CV2_p_uncorr_STD = cell(nclass,1);
+    relation.CorrMat_CV2_p_fdr = cell(nclass,1);
+    relation.CorrMat_CV2_p_fdr_STD = cell(nclass,1);
+end
+end
+
+function names = nm_normalize_feature_names(rawNames)
+% Normalize supported feature-name containers without changing their order.
+if isstring(rawNames)
+    names = cellstr(rawNames(:));
+elseif ischar(rawNames)
+    names = cellstr(rawNames);
+elseif iscell(rawNames)
+    names = cell(numel(rawNames),1);
+    for k = 1:numel(rawNames)
+        value = rawNames{k};
+        if isstring(value) && isscalar(value)
+            names{k} = char(value);
+        elseif ischar(value)
+            names{k} = value;
+        elseif isnumeric(value) && isscalar(value)
+            names{k} = num2str(value);
+        else
+            names{k} = sprintf('%g',k);
+        end
+    end
+else
+    names = {};
+end
+names = names(:);
 end

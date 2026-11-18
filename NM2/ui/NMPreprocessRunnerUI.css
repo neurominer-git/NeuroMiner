@@ -1,0 +1,106 @@
+/* NMPreprocessRunnerUI.css
+ * styles the NMPreprocessRunnerUI browser UI component.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+.prWrap {
+  max-width: none;
+  align-items: flex-start;
+  height: calc(100vh - 64px);
+  min-height: 0;
+  overflow: hidden;
+}
+.panel.prPanel {
+  width: calc(100vw - 32px);
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.prPanelHead {
+  margin-bottom: 12px;
+}
+.prPanelHead h1 {
+  margin: 0;
+}
+.prLayout {
+  display: grid;
+  grid-template-columns: minmax(420px, 0.92fr) minmax(520px, 1.08fr);
+  gap: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.prConfigPanel,
+.prAnalysisPanel {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+.prAnalysisPanel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.prAnalysisList {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.prSectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.prSectionHeader h2 {
+  margin: 0;
+}
+.prRunRow {
+  margin-top: 14px;
+}
+.prAnalysisCard.disabled {
+  opacity: 0.62;
+  cursor: default;
+}
+.prAnalysisCard.disabled:hover {
+  border-color: #d8dee4;
+  box-shadow: none;
+}
+.prAnalysisCard.selected .amAnalysisCardBody {
+  border-top: 1px solid #dbeafe;
+}
+#gridPicker {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px;
+  background: #f8fafc;
+  margin-top: 8px;
+}
+#runHint {
+  margin-top: 8px;
+}
+@media (max-width: 1000px) {
+  .prLayout { grid-template-columns: 1fr; }
+  .prWrap { height: auto; overflow: auto; }
+  .panel.prPanel { height: auto; overflow: visible; }
+}
+
+.prRunRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+/* Run button greyed until the configuration is valid */
+#runPreprocessing:disabled,
+button.primary:disabled {
+  background: #cbd5e1;
+  border-color: #cbd5e1;
+  color: #f8fafc;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 1;
+}

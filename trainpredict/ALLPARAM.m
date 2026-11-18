@@ -53,7 +53,7 @@ sens = param.sens/100; spec = param.spec/100;
 
 TPrate = TP / ( TP + FN); 
 TNrate = TN / ( TN + FP); 
-param.GMean = sqrt(TPrate + TNrate);
+param.GMean = sqrt(TPrate * TNrate);
 
 % Calculate further measures
 if numel(unique(expected))>1 
@@ -86,7 +86,7 @@ param.nLR = (100 - param.sens) / param.spec;
 param.PSI = param.PPV + param.NPV - 100;
 param.NNP = 1 / (param.PSI / 100);
 param.NND = 1 / (sens - (1 - spec ));
-param.ECE = ECE( expected, predicted);
+%param.ECE = ECE( expected, predicted);
 param.Youden = ( sens + spec ) - 1;
 param.DOR = sens/(1-spec)/((1-spec)/sens);
 param = KAPPA(TP,TN,FP,FN,param);

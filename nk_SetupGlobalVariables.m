@@ -222,7 +222,7 @@ switch act
             'ML optimization', ...
             'Feature selection', ...
             'Visualization'};
-        if numel(unique(NM.label))>2 && strcmp(NM.modeflag,'classification')
+        if numel(unique(dat.label))>2 && strcmp(dat.modeflag,'classification')
             checkfields = [checkfields 'MULTI'];
             descriptors = [descriptors 'Multi-group'];
         end

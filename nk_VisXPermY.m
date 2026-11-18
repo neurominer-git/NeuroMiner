@@ -9,8 +9,8 @@ switch permmode
         Lperm = L(indpermrows);
         % ... but not the data
         Yperm = Y;
-        % find nan labels
-        indN = isnan(L);
+        % Remove missing permuted labels on their own CV1 row axis.
+        indN = isnan(Lperm);
         % Create binary labels
         Lperm = create_binary_permlabel(MODEFL, CV, Lperm, h);
         if sum(indN), Lperm(indN)=[]; Yperm(indN,:)=[]; end

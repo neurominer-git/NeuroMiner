@@ -49,7 +49,7 @@
 function [IN, OUT] = FoldPerm(IN, OUT, strout, fRFE, fFull, RetrainImmediate, fKX, LoopParam)
 
 % Global variables required by this function
-global VERBOSE CV MODEFL RAND MULTILABEL MULTI RFE CVPOS Ytrain
+global VERBOSE CV MODEFL RAND MULTILABEL MULTI RFE CVPOS Ytrain SVM
 
 % Initialize temporary variables
 RF = []; 
@@ -249,6 +249,11 @@ for ii = 1:PermNum  % Loop over CV1 permutations
                 % Extract feature subsets for training, full training (for model fitting), 
                 % and test data using an external function.
                 [Ymodel{curclass}{k(curclass)}, Fx{curclass}{k(curclass)}] = nk_ExtractFeatures(modelTr, Fk(curclass,:), [], k(curclass));
+                if strcmp(SVM.prog,'SEQOPT') && ...
+                        ~isequal(double(Fx{curclass}{k(curclass)}(:)'), 1:size(modelTr{1},2))
+                    error('FoldPerm:seqoptSourceAxisModified', ...
+                        'SEQOPT requires the complete ordered stacking prediction axis; feature selection changed its columns.');
+                end
                 Ytrain{curclass}{k(curclass)} = nk_ExtractFeatures(tTr, Fk(curclass,:), [], k(curclass));
                 Ytest{curclass}{k(curclass)}  = nk_ExtractFeatures(tCV, Fk(curclass,:), [], k(curclass));
             end
@@ -365,7 +370,8 @@ for ii = 1:PermNum  % Loop over CV1 permutations
                     %% Train Model(s) for current feature subspace
                     if ~fRFE
                         % Train without wrapper-based feature selection
-                        [~, model] = nk_GetParam2(Ymodel{curclass}{k(curclass)}, modelTrL{curclass}, IN.Ps{curclass}, 1, VI);
+                        [~, model] = nk_GetParam2(Ymodel{curclass}{k(curclass)}, ...
+                            modelTrL{curclass}, IN.Ps{curclass}, 1, VI);
                     else
                         % Use wrapper-based optimization (NOTE: currently supports only univariate data)
                         if IN.nvar < 2

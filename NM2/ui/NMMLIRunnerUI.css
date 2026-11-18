@@ -1,0 +1,20 @@
+/* NMMLIRunnerUI.css
+ * styles the NMMLIRunnerUI browser UI component.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+.mliWrap { max-width: none; align-items: flex-start; }
+.panel.mliPanel { width: calc(100vw - 32px); max-width: none; }
+.mliPanelHead { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+.mliLayout { display:grid; grid-template-columns:minmax(430px, 0.95fr) minmax(520px, 1.05fr); gap:16px; align-items:stretch; }
+.mliConfigPanel, .mliAnalysisPanel { min-width:0; }
+.mliAnalysisPanel { display:flex; flex-direction:column; min-height:0; }
+.mliAnalysisList { display:flex; flex-direction:column; gap:8px; min-height:0; max-height:calc(100vh - 250px); overflow:auto; padding-right:6px; }
+.mliSectionHeader { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; }
+.mliSectionHeader h2 { margin:0; }
+.mliArtifactOverride { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; }
+.mliOptionGroup { display:grid; gap:7px; }
+.mliRunRow { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+#runMLI:disabled, button.primary:disabled { background:#cbd5e1; border-color:#cbd5e1; color:#f8fafc; cursor:not-allowed; box-shadow:none; opacity:1; }
+#sampleIDs.hidden { display:none; }
+@media (max-width: 1100px){ .mliLayout { grid-template-columns:1fr; } .mliAnalysisList { max-height:none; } }

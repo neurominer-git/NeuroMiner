@@ -839,7 +839,7 @@ switch act
                 end
             elseif isfield(IO, 'label')
                 desc_labels = repmat({[]},size(IO.label,2),1);
-                IO = rmfield(IO, 'desc_labels'); 
+                if isfield(IO,'desc_labels'), IO = rmfield(IO, 'desc_labels'); end
                 for i=1:size(IO.label,2)
                     IO.desc_labels{i} = nk_input(sprintf('Provide description for label #%g',i),0,'s',desc_labels{i});
                 end

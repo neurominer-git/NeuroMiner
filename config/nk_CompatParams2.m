@@ -27,6 +27,16 @@ TENSORFLOW          = [];
 
 if ~exist('paramstr','var'), paramstr = []; end
 
+% Resolve the stacker's own preprocessing at the shared strategy boundary.
+% This changes only the local parameters, not first-level configurations.
+if TrainParam.STACKING.flag == 1
+    if ~isfield(TrainParam.STACKING,'PREPROC')
+        TrainParam.PREPROC = TrainParam.PREPROC{1}; % for compatibility with NM 1.4 Stacking analyses
+    else
+        TrainParam.PREPROC = TrainParam.STACKING.PREPROC;
+    end
+end
+
 if ~isempty(TrainParam.FUSION) && TrainParam.FUSION.flag == 3
    TrainParam = TrainParam.STRAT{varind};
 end

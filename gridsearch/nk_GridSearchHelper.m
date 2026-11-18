@@ -1,6 +1,6 @@
 function [GD, MD, DISP] = nk_GridSearchHelper(GD, MD, DISP, idx_selected, nclass, ngroups, CV1PerfData, CV2PerfData, models)
 
-global VERBOSE MULTI CV BATCH SVM MODEFL W2AVAIL RAND MULTILABEL RFE SAV DEBUG
+global VERBOSE MULTI CV BATCH SVM MODEFL W2AVAIL RAND MULTILABEL RFE SAV DEBUG UI CVPOS
 
 %%%%%% TRANSFER RESULTS TO GD :
 
@@ -164,6 +164,7 @@ switch SVM.prog
            GD.sdSEQPercThrL{idx_selected, curclass, curlabel} = Perf.SDPercThreshL(curclass,:);
            GD.CasePropagations{idx_selected, curclass, curlabel} = nk_cellcat(CV2Perf.binCV1CasePropagations(:,:,curclass),[],2);
            GD.SeqPerfIncreases{idx_selected, curclass, curlabel} = nk_cellcat(CV2Perf.binCV1PerformanceIncreases(:,:,curclass),[],1);
+           GD.SeqDiagnostics{idx_selected,curclass,curlabel} = CV2Perf.binCV1SeqDiagnostics(:,:,curclass);
            GD.DecValTraj{idx_selected,curclass,curlabel} = cat(3,CV2Perf.binCV1DecValTraj{:,:,curclass});
         end
     case 'WBLCOX'
@@ -178,10 +179,18 @@ switch SVM.prog
         end            
 end
 
-%%%%% OPTIONALLY, PRINT INFO TO FIGURE:
-% Create multi-group bar chart of current results
+%%%%% OPTIONALLY, PRINT INFO TO FIGURE OR BROWSER PROGRESS:
+% Create multi-group bar chart of current results.  The original MATLAB
+% viewer remains the default for CLI/non-batch use.  Browser-launched NM 2.0
+% runs can set global UI.mode='browser' to emit the same DISP.ax/DISP.m_ax
+% state through a compact JSON progress side channel without opening the
+% MATLAB figure.
 
-if ~BATCH 
+progressPolicy = NMRuntimeProgressTools.legacyCV2DisplayPolicy(BATCH);
+doBrowserProgress = progressPolicy.browser;
+doNativeProgress = progressPolicy.native;
+
+if doNativeProgress || doBrowserProgress
 
     if isfield(RAND,'CV2LCO') && ~isempty(RAND.CV2LCO), LCOstr = '_{LGO}'; end
 
@@ -343,7 +352,12 @@ if ~BATCH
             end
          end
      end
-     DISP = nk_PrintCV2BarChart(DISP, MULTI.flag);
+     if doBrowserProgress
+         NMRuntimeProgressTools.writeLegacyCV2BarChartSafe(DISP, MULTI.flag, CVPOS);
+     end
+     if doNativeProgress
+         DISP = nk_PrintCV2BarChart(DISP, MULTI.flag);
+     end
 end
 
 if VERBOSE && ~MULTILABEL.flag

@@ -1,5 +1,5 @@
 function out = nk_DealWithNaNCases(out, iy, jy, nclass, DealWithCompleteNanRows)
-global VERBOSE 
+global VERBOSE FUSION 
 
 % In the future the user should be able to define the imputation setting in
 % nk_Fusion_config
@@ -63,6 +63,33 @@ for k=1:iy
                         continue
                     end
                     
+                    % Intermediate-fusion VI is written by nk_CheckLoadFile / nk_mapY2Struct.
+                    % Report whole-modality gaps separately from residual partial NaNs.
+                    if DealWithCompleteNanRows == 1 && FUSION.flag == 2
+                        if multiproc
+                            vi = out.VI{k,l}{i};
+                        else
+                            vi = out.VI{k,l}{j}{i};
+                        end
+                        missingTr = false(size(outTr,1),1);
+                        missingCV = false(size(outCV,1),1);
+                        missingTs = false(size(outTs,1),1);
+                        for modality = unique(vi(:))'
+                            cols = vi == modality;
+                            missingTr = missingTr | all(isnan(outTr(:,cols)),2);
+                            missingCV = missingCV | all(isnan(outCV(:,cols)),2);
+                            missingTs = missingTs | all(isnan(outTs(:,cols)),2);
+                        end
+                        if any(missingTr) || any(missingCV) || any(missingTs)
+                            fprintf(2, ['\n[WARNING] Intermediate fusion CV1 [perm=%d, fold=%d, class=%d, shelf=%d]: ', ...
+                                'whole-modality missingness affects %d training, %d CV1 validation, and %d CV2 test rows. ', ...
+                                'Unresolved NaNs will mark %d/%d/%d rows respectively as entirely NaN for downstream exclusion ', ...
+                                '(includes any residual partially missing rows).\n'], ...
+                                k, l, j, i, nnz(missingTr), nnz(missingCV), nnz(missingTs), ...
+                                nnz(idx_Tr), nnz(idx_CV), nnz(idx_Ts));
+                        end
+                    end
+
                     %% Address missings
                     switch DealWithCompleteNanRows                    
                         case 1 % Set rows to complete NaN if NaNs are found

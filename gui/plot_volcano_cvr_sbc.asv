@@ -1,0 +1,346 @@
+function handles = plot_volcano_cvr_sbc(handles, v, curclass, multiflag, posColor, negColor)
+% PLOT_VOLCANO_CVR_SBC  Volcano-style plot:
+%   X = CVR (CV2), Y = Sign-based consistency (Z).
+%   Highlights top x% PER SIDE (x<0 and x>=0) to guarantee red+blue if present.
+%   Places labels in collision-free columns with thin connectors.
+
+    ax = handles.axes33;
+
+    % ---- axes hygiene (avoid tick-label leakage from other plots) ----
+    set(handles.pn3DView,'Visible','off');
+    set(ax,'Visible','on');
+    cla(ax); hold(ax,'on');
+    set(ax,'YTickMode','auto','YTickLabelMode','auto');
+    set(ax,'XTickMode','auto','XTickLabelMode','auto');
+    set(ax,'TickLabelInterpreter','none');
+
+    % ---- parameters (can be exposed later if desired) ----
+    TOP_PERC   = 10;      % highlight top x% within each side
+    FS_LABEL   = 8;      % label font size
+    BG_SIZE    = 28;     % marker size background
+    HI_SIZE    = 42;     % marker size highlighted
+    LINE_CLR   = [0.40 0.40 0.40];
+    LINE_W     = 0.5;
+
+    % ---- data acquisition ----
+    [x,~,~,~] = CVRatio(v, curclass, multiflag);          % X
+    [y,~,~,~] = SignBased_CV2_p_uncorr(v, curclass, multiflag);      % Y
+
+    x = x(:); y = y(:);
+
+    ok = isfinite(x) & isfinite(y);
+    x = x(ok); y = y(ok);
+
+    feats = v.params.features;
+    feats = feats(ok);
+    if isstring(feats), feats = cellstr(feats); end
+    feats = feats(:);
+
+    if isempty(x)
+        title(ax,'Volcano plot (no finite data)');
+        hold(ax,'off');
+        return
+    end
+
+    % ---- scoring (robust: extreme in either axis) ----
+    sx = rescale(abs(x));
+    sy = rescale(abs(y));
+    score = max(sx, sy);
+
+    % ---- symmetric selection: top-x% per sign of x ----
+    hi = false(size(x));
+    negIdx = find(x < 0);
+    posIdx = find(x >= 0);
+
+    if ~isempty(negIdx)
+        thrN = prctile(score(negIdx), 100 - TOP_PERC);
+        hi(negIdx) = score(negIdx) >= thrN;
+    end
+    if ~isempty(posIdx)
+        thrP = prctile(score(posIdx), 100 - TOP_PERC);
+        hi(posIdx) = score(posIdx) >= thrP;
+    end
+
+    posHi = hi & (x >= 0);
+    negHi = hi & (x <  0);
+    bg    = ~hi;
+
+    % ---- scatter layers (deterministic coloring) ----
+    scatter(ax, x(bg),    y(bg),    BG_SIZE, [0.85 0.85 0.85], 'filled');
+    scatter(ax, x(posHi), y(posHi), HI_SIZE, posColor, 'filled');
+    scatter(ax, x(negHi), y(negHi), HI_SIZE, negColor, 'filled');
+
+    % ---- axes labels + reference lines ----
+    xlabel(ax,'Cross-validation ratio (CV2)','FontWeight','bold');
+    ylabel(ax,'Sign-based consistency (Z score)','FontWeight','bold');
+    grid(ax,'on'); box(ax,'on');
+    xline(ax,0,'k-'); yline(ax,0,'k-');
+
+    % ---- set limits with padding ----
+    pad = 0.05;
+    xl = [min(x)-pad*range(x), max(x)+pad*range(x)];
+    yl = [min(y)-pad*range(y), max(y)+pad*range(y)];
+    if ~all(isfinite(xl)) || diff(xl)==0, xl = [min(x)-1, max(x)+1]; end
+    if ~all(isfinite(yl)) || diff(yl)==0, yl = [min(y)-1, max(y)+1]; end
+    xlim(ax,xl);
+    ylim(ax,yl);
+
+    % ---- widen x-range further to create label “gutters” ----
+    xl = xlim(ax);
+    xPad = 0.25 * range(xl);  % 25% gutter both sides
+    xlim(ax,[xl(1)-xPad, xl(2)+xPad]);
+    yPad = 0.25 * range(xl);  % 25% gutter both sides
+    xlim(ax,[xl(1)-xPad, xl(2)+xPad]);
+
+    % ---- collision-free label placement + connectors ----
+    %place_labels_columns(ax, x, y, feats, hi, LINE_CLR, LINE_W, FS_LABEL);
+    place_labels_local_normal(ax, x, y, feats, hi, FS_LABEL);
+
+    hold(ax,'off');
+end
+
+% =====================================================================
+% Helper (separate, non-nested): label placement in two columns
+% =====================================================================
+function place_labels_columns(ax, x, y, feats, hi, lineClr, lineW, fs)
+% Two-column greedy vertical separation with connectors.
+
+    labIdx = find(hi);
+    if isempty(labIdx), return; end
+
+    % Sort by descending Y for consistent stacking
+    [~,ord] = sort(y(labIdx),'descend');
+    labIdx  = labIdx(ord);
+
+    leftIdx  = labIdx(x(labIdx) < 0);
+    rightIdx = labIdx(x(labIdx) >= 0);
+
+    yl = ylim(ax);
+    xl = xlim(ax);
+
+    MIN_DY = 0.04 * range(yl);  % minimum vertical spacing
+
+    % Left column
+    if ~isempty(leftIdx)
+        xLab = xl(1) + 0.10*range(xl);
+        yLab = compute_nonoverlap_y(y(leftIdx), MIN_DY, yl);
+        draw_labels(ax, leftIdx, x, y, feats, xLab, yLab, 'right', lineClr, lineW, fs);
+    end
+
+    % Right column
+    if ~isempty(rightIdx)
+        xLab = xl(2) - 0.10*range(xl);
+        yLab = compute_nonoverlap_y(y(rightIdx), MIN_DY, yl);
+        draw_labels(ax, rightIdx, x, y, feats, xLab, yLab, 'left', lineClr, lineW, fs);
+    end
+end
+
+function yLab = compute_nonoverlap_y(yPts, minDy, yl)
+% Greedy vertical repulsion: ensure at least minDy separation.
+    yLab = yPts(:);
+    for i = 2:numel(yLab)
+        if yLab(i-1) - yLab(i) < minDy
+            yLab(i) = yLab(i-1) - minDy;
+        end
+    end
+    % Clamp into axis range
+    yLab = min(max(yLab, yl(1)+minDy), yl(2)-minDy);
+end
+
+function draw_labels(ax, idx, x, y, feats, xLab, yLab, ha, lineClr, lineW, fs)
+% Draw connector + label per point.
+    for k = 1:numel(idx)
+        i = idx(k);
+
+        plot(ax, [x(i) xLab], [y(i) yLab(k)], '-', ...
+            'Color', lineClr, 'LineWidth', lineW);
+
+        text(ax, xLab, yLab(k), feats{i}, ...
+            'FontSize', fs, ...
+            'Interpreter', 'none', ...
+            'HorizontalAlignment', ha, ...
+            'VerticalAlignment', 'middle', ...
+            'Clipping', 'on');
+    end
+end
+
+function [y, miny, maxy, vlineval] = CVRatio(v, curclass, multiflag)
+
+if iscell(v.CVRatio)
+    if multiflag
+        y = nm_nanmean(nk_cellcat(v.CVRatio,[],2),2);
+    else
+        y = v.CVRatio{curclass}; 
+    end
+else
+    y = v.CVRatio; 
+end
+vlineval = [-2 2];
+miny = min(y); maxy = max(y);
+end
+
+function [y, miny, maxy, vlineval] = SignBased_CV2_p_uncorr(v, curclass, multiflag)
+
+if iscell(v.SignBased_CV2_p_uncorr)
+    if multiflag
+        y = nm_nanmean(nk_cellcat(v.SignBased_CV2_p_uncorr,[],2),2);
+    else
+        y = v.SignBased_CV2_p_uncorr{curclass};
+    end
+else
+    y = v.SignBased_CV2_p_uncorr;
+end 
+miny = 0; maxy = max(y(:));
+vlineval = -log10(0.05);
+end
+
+function place_labels_local_normal(ax, x, y, feats, hi, fs)
+% Place labels close to points using local normal directions and
+% iterative overlap resolution by increasing distance ("multi-ring").
+%
+% Robust overlap detection uses text Extent boxes (data units).
+
+    idx = find(hi);
+    if numel(idx) < 1, return; end
+
+    xl = xlim(ax);
+    yl = ylim(ax);
+    Rx = range(xl);
+    Ry = range(yl);
+
+    % --- tunables ---
+    BASE_OFF = 0.020;                % base offset as fraction of axis range
+    STEP_OFF = 0.012;                % increment per collision (fraction)
+    MAX_IT   = 15;                   % max iterations for overlap resolution
+    INSET    = 0.02;                 % keep labels inside axes by this inset fraction
+    LINE_CLR = [0.4 0.4 0.4];
+    LINE_W   = 0.5;
+
+    % Sort by y (top to bottom) – stable order; "later" labels get pushed outward
+    [~,ord] = sort(y(idx),'descend');
+    idx = idx(ord);
+
+    % Preallocate
+    nLab = numel(idx);
+    x0   = x(idx);
+    y0   = y(idx);
+
+    % --- compute local normals (store for later radial pushes) ---
+    N = zeros(nLab,2);  % normal vectors
+    c = [median(x0); median(y0)];
+
+    for k = 1:nLab
+        i = idx(k);
+
+        % local neighborhood among highlighted points
+        d2 = (x0 - x(i)).^2 + (y0 - y(i)).^2;
+        [~,nn] = mink(d2, min(4,numel(d2)));
+
+        Xloc = [x0(nn) y0(nn)];
+        C = cov(Xloc);
+        [V,D] = eig(C);
+
+        % choose dominant eigenvector robustly
+        [~,mx] = max(diag(D));
+        t = V(:,mx);                 % tangent
+        n = [-t(2); t(1)];           % normal
+
+        % ensure normal points outward
+        p = [x(i); y(i)];
+        if dot(n, p-c) < 0, n = -n; end
+        n = n ./ max(norm(n), eps);  % normalize
+
+        N(k,:) = n(:).';
+    end
+
+    % --- initial offsets: alternate slightly above/below to avoid immediate pileup ---
+    off = BASE_OFF * ones(nLab,1);
+    off(1:2:end) = off(1:2:end) * 1.15;
+    off(2:2:end) = off(2:2:end) * 0.95;
+
+    % initial label positions (base distance along normal)
+    xLab = x0 + off .* Rx .* N(:,1);
+    yLab = y0 + off .* Ry .* N(:,2);
+
+    % choose HA based on where label sits relative to point
+    ha = repmat({'left'}, nLab, 1);
+    ha(xLab < x0) = {'right'};
+
+    % clamp helper
+    clampXY = @(xx,yy) deal( ...
+        min(max(xx, xl(1)+INSET*Rx), xl(2)-INSET*Rx), ...
+        min(max(yy, yl(1)+INSET*Ry), yl(2)-INSET*Ry) );
+
+    [xLab,yLab] = clampXY(xLab,yLab);
+
+    % --- iterative overlap resolution by pushing colliding labels outward ---
+    for it = 1:MAX_IT
+        % compute text extents at current positions
+        BB = nm_get_text_bboxes(ax, xLab, yLab, feats(idx), ha, fs);
+
+        moved = false;
+
+        % greedy: if (i,j) overlap, push j outward along its normal
+        for i = 1:nLab
+            for j = i+1:nLab
+                if nm_boxes_overlap(BB(i,:), BB(j,:))
+                    off(j) = off(j) + STEP_OFF;   % increase distance for later label
+                    xLab(j) = x0(j) + off(j)*Rx*N(j,1);
+                    yLab(j) = y0(j) + off(j)*Ry*N(j,2);
+
+                    % update HA after move
+                    if xLab(j) < x0(j), ha{j} = 'right'; else, ha{j} = 'left'; end
+
+                    % clamp
+                    [xLab(j), yLab(j)] = clampXY(xLab(j), yLab(j));
+                    moved = true;
+                end
+            end
+        end
+
+        if ~moved
+            break
+        end
+    end
+
+    % --- draw connectors and labels ---
+    for k = 1:nLab
+        i = idx(k);
+
+        plot(ax, [x(i) xLab(k)], [y(i) yLab(k)], '-', ...
+            'Color', LINE_CLR, 'LineWidth', LINE_W);
+
+        text(ax, xLab(k), yLab(k), feats{i}, ...
+            'FontSize', fs, ...
+            'Interpreter','none', ...
+            'HorizontalAlignment', ha{k}, ...
+            'VerticalAlignment','middle', ...
+            'Clipping','on');
+    end
+end
+
+% ====== helpers (keep in same file, after main) ======
+
+function BB = nm_get_text_bboxes(ax, xLab, yLab, labels, ha, fs)
+% Returns Nx4 boxes: [xmin xmax ymin ymax] in data units using Extent.
+    n = numel(xLab);
+    BB = zeros(n,4);
+    htmp = gobjects(n,1);
+    for k = 1:n
+        htmp(k) = text(ax, xLab(k), yLab(k), labels{k}, ...
+            'FontSize', fs, ...
+            'Interpreter','none', ...
+            'HorizontalAlignment', ha{k}, ...
+            'VerticalAlignment','middle', ...
+            'Clipping','on', ...
+            'Visible','off'); %
+        ext = get(htmp(k),'Extent');   % [x y w h]
+        BB(k,:) = [ext(1), ext(1)+ext(3), ext(2), ext(2)+ext(4)];
+    end
+    delete(htmp);
+end
+
+function tf = nm_boxes_overlap(a,b)
+% a,b: [xmin xmax ymin ymax]
+    tf = ~(a(2) < b(1) || b(2) < a(1) || a(4) < b(3) || b(4) < a(3));
+end

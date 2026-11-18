@@ -324,7 +324,12 @@ if ~defaultsfl
             if COVDIR_DEF == 1, COVDIR_DEF = 2; elseif COVDIR_DEF == 2, COVDIR_DEF = 1; end
             
         case 5
-            if MBATCHUSE_DEF == 1, MBATCHUSE_DEF = 2; elseif MBATCHUSE_DEF == 2, MBATCHUSE_DEF = 1; end
+            if MBATCHUSE_DEF == 1 
+                MBATCHUSE_DEF = 2; 
+                COVAR_DEF = [];
+            elseif MBATCHUSE_DEF == 2 
+                MBATCHUSE_DEF = 1; 
+            end
         
         case 6
             MBATCH_DEF = nk_SelectCovariateIndex(NM, MBATCH_DEF, 1);

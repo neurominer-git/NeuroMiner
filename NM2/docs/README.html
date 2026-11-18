@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>NM2 architecture documentation</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#nm2-architecture-documentation" id="toc-nm2-architecture-documentation">NM2 architecture
+documentation</a>
+<ul>
+<li><a href="#documentation-boundary" id="toc-documentation-boundary">Documentation boundary</a></li>
+<li><a href="#canonical-conceptual-documents" id="toc-canonical-conceptual-documents">Canonical conceptual
+documents</a></li>
+<li><a href="#update-rule" id="toc-update-rule">Update rule</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="nm2-architecture-documentation">NM2 architecture
+documentation</h1>
+<p>This directory contains the durable, cross-function documentation for
+the NM2 codebase.</p>
+<h2 id="documentation-boundary">Documentation boundary</h2>
+<p>The source code is the primary RAG/NOVA corpus for function and
+method behaviour. Substantive functions and methods are documented
+<strong>inside the implementing function</strong> using the standard
+sections:</p>
+<ol type="1">
+<li>Purpose</li>
+<li>Syntax</li>
+<li>Inputs</li>
+<li>Outputs</li>
+<li>Authority and flow</li>
+<li>Scientific/state contract</li>
+<li>Invariants</li>
+<li>Materialization and performance</li>
+<li>Failure semantics</li>
+<li>Side effects</li>
+<li>Consumers and dependencies</li>
+</ol>
+<p>The files in this directory must not duplicate those function-local
+contracts. They are reserved for concepts that span multiple functions
+or modules: ownership boundaries, state/data flow, lifecycle
+relationships, materialization boundaries, and architectural
+figures.</p>
+<p>Historical patch/stage identifiers are not part of the durable
+documentation taxonomy. Development history belongs in version control
+or the project patch history, not in this directory.</p>
+<h2 id="canonical-conceptual-documents">Canonical conceptual
+documents</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Document</th>
+<th>Cross-function scope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="SYSTEM_ARCHITECTURE.html">SYSTEM_ARCHITECTURE.md</a></td>
+<td>Overall MATLAB/DataIO/browser/bridge structure and authority
+boundaries</td>
+</tr>
+<tr class="even">
+<td><a href="SCIENTIFIC_STATE_ARCHITECTURE.html">SCIENTIFIC_STATE_ARCHITECTURE.md</a></td>
+<td>Scientific Annotation, Capability, Directory and runtime Scientific
+State</td>
+</tr>
+<tr class="odd">
+<td><a href="RESULTS_VIEWER_ARCHITECTURE.html">RESULTS_VIEWER_ARCHITECTURE.md</a></td>
+<td>Results Viewer backend, browser state, representations and message
+routing</td>
+</tr>
+<tr class="even">
+<td><a href="FEATURE_INSPECTION_ARCHITECTURE.html">FEATURE_INSPECTION_ARCHITECTURE.md</a></td>
+<td>Feature Inspection semantics, fusion contexts, graphs and spatial
+representations</td>
+</tr>
+<tr class="odd">
+<td><a href="MLI_VISUALIZATION_ARCHITECTURE.html">MLI_VISUALIZATION_ARCHITECTURE.md</a></td>
+<td>Subject-level ML interpretation selection, Feature Inspection
+parity, and shared spatial materialization</td>
+</tr>
+<tr class="even">
+<td><a href="DATAIO_ARCHITECTURE.html">DATAIO_ARCHITECTURE.md</a></td>
+<td>DataIO state, probe/import lifecycle, provenance and QC
+boundaries</td>
+</tr>
+<tr class="odd">
+<td><a href="ROI_ATLAS_ARCHITECTURE.html">ROI_ATLAS_ARCHITECTURE.md</a></td>
+<td>Canonical ROI identity/provenance, atlas/annotation references and
+ROI consumers</td>
+</tr>
+<tr class="even">
+<td><a href="IMAGING_ARCHITECTURE.html">IMAGING_ARCHITECTURE.md</a></td>
+<td>Voxel imaging services, 2-D/3-D browser viewers, caches and retained
+view state</td>
+</tr>
+<tr class="odd">
+<td><a href="SURFACE_ARCHITECTURE.html">SURFACE_ARCHITECTURE.md</a></td>
+<td>Native surface provenance, geometry, annotations and Results Viewer
+surface pathway</td>
+</tr>
+<tr class="even">
+<td><a href="CONNECTIVITY_ARCHITECTURE.html">CONNECTIVITY_ARCHITECTURE.md</a></td>
+<td>Connectivity import provenance and matrix/network/glass-brain
+pathway</td>
+</tr>
+<tr class="odd">
+<td><a href="COMMON_MESH_RENDERING_ARCHITECTURE.html">COMMON_MESH_RENDERING_ARCHITECTURE.md</a></td>
+<td>Shared WebGL mesh renderer used by surface, connectivity and imaging
+representations</td>
+</tr>
+<tr class="even">
+<td><a href="REPORT_BUILDER_ARCHITECTURE.html">REPORT_BUILDER_ARCHITECTURE.md</a></td>
+<td>Scientific-State-driven report planning, browser presentation
+preparation and assembly</td>
+</tr>
+<tr class="odd">
+<td><a href="RUNTIME_BRIDGE_ARCHITECTURE.html">RUNTIME_BRIDGE_ARCHITECTURE.md</a></td>
+<td>Local browser bridge, MATLAB-service dispatch, session lifecycle and
+progress</td>
+</tr>
+<tr class="even">
+<td><a href="OUTPUT_EXPORT_REPRODUCIBILITY.html">OUTPUT_EXPORT_REPRODUCIBILITY.md</a></td>
+<td>Viewer artifact boundary, exports including MLI relevance maps,
+state persistence, montage/video and code generation</td>
+</tr>
+</tbody>
+</table>
+<h2 id="update-rule">Update rule</h2>
+<p>When implementation changes, update the source-level function
+documentation first. Update a file here only when the cross-function
+relationship or architecture has changed. If a statement can be made
+authoritative by documenting one function, it does not belong here.</p>
+</body>
+</html>

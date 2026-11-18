@@ -88,7 +88,8 @@ try
                 end
             elseif isstruct(mess) && isfield(mess,'text')
                 fprintf(fid,'\n%s',mess.text);
-            end     
+            end
+            fclose(fid);
     end
 catch ERR
     status = [];

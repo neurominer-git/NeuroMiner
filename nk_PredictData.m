@@ -81,6 +81,8 @@
 %   .binCV1CasePropagations{k,l,curclass}
 %   .binCV1PerformanceIncreases{k,l,curclass}
 %   .binCV1DecValTraj{k,l,curclass}
+%   .binCV1SeqDiagnostics{k,l,curclass}{u} : CV2 diagnostic counts/rates
+%       for the applied model u, plus its ordered SequenceCols identity
 %   .binCV1times{k,l,curclass}
 %   .binCV1probthresh(k,l,curclass)
 %
@@ -166,6 +168,7 @@ switch SVM.prog
         Predict.binCV1CasePropagations = cell(iy,jy,nclass);
         Predict.binCV1PerformanceIncreases = cell(iy,jy,nclass);
         Predict.binCV1DecValTraj = cell(iy,jy,nclass);
+        Predict.binCV1SeqDiagnostics = cell(iy,jy,nclass);
     case 'WBLCOX'
         Predict.binCV1times = cell(iy,jy,nclass);
         Predict.binCV1probthresh = zeros(iy,jy,nclass);
@@ -359,15 +362,39 @@ for k=1:iy % Loop through CV1 permutations
             if detrendfl
                [ tsT, tsD ] = nk_ApplyDetrend(XTest, Ydum, XTrain, Mkl, Fkl, detrend, curclass);
             else
-               [~, tsT, tsD, Mkl] = nk_GetTestPerf(XTest, Ydum, Fkl, Mkl, XTrain, 1, mnclass);
+               [~, tsT, tsD, Mkl, Ipruned] = nk_GetTestPerf(XTest, Ydum, Fkl, Mkl, XTrain, 1, mnclass);
             end
                
             Predict.binCV1Predictions{k,l,curclass} = tsD;
             switch SVM.prog
                 case 'SEQOPT'
+                    Predict.binCV1SeqDiagnostics{k,l,curclass} = cell(1,size(tsD,2));
+                    % nk_GetTestPerf owns pruning; trajectory rows remain compact.
+                    retained = ~Ipruned;
+                    compactIndex = cumsum(retained);
+                    selected = dTSInd{curclass};
+                    included = retained(selected);
+                    compactSelected = compactIndex(selected(included));
+                    actualLabels = dTSLabel{curclass}(included,MULTILABEL.curdim);
                     for u=1:size(tsD,2)
                         Predict.binCV1CasePropagations{k,l,curclass} = [Predict.binCV1CasePropagations{k,l,curclass} Mkl{u}.Nremain_test];
-                        Predict.binCV1PerformanceIncreases{k,l,curclass} = [Predict.binCV1PerformanceIncreases{k,l,curclass}; Mkl{u}.SeqPerfGain_test];
+                        assert(nnz(retained)==size(Mkl{u}.optDh,1) && ...
+                            nnz(retained)==numel(Mkl{u}.Nremain_test), ...
+                            'nk_PredictData:SeqDiagnosticsCaseAxis', ...
+                            'Applied SEQOPT rows do not match CV2 prediction rows.');
+                        nodeDecisions = Mkl{u}.optDh(compactSelected,:);
+                        diagnostics = NMSEQOPTDiagnostics( ...
+                            actualLabels, ...
+                            nodeDecisions(:,1:numel(Mkl{u}.SequenceCols)), ...
+                            Mkl{u}.Nremain_test(compactSelected),1);
+                        diagnostics.sequenceCols = Mkl{u}.SequenceCols;
+                        if any(~included), diagnostics.nExcluded = nnz(~included); end
+                        Predict.binCV1SeqDiagnostics{k,l,curclass}{u} = diagnostics;
+                        nodePerformance = nan(1,size(nodeDecisions,2));
+                        for node = 1:size(nodeDecisions,2)
+                            nodePerformance(node) = EVALFUNC(actualLabels,nodeDecisions(:,node));
+                        end
+                        Predict.binCV1PerformanceIncreases{k,l,curclass} = [Predict.binCV1PerformanceIncreases{k,l,curclass}; nodePerformance];
                     end
                     Predict.binCV1DecValTraj{k,l,curclass} = Mkl{u}.optDh;
                 case 'WBLCOX'

@@ -1,0 +1,128 @@
+/* NMAnalysisCardSelector.css
+ * styles the NMAnalysisCardSelector browser UI component.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+.nmAnalysisSelectorCard.disabled {
+  opacity: 0.62;
+  cursor: default;
+}
+.nmAnalysisSelectorCard.disabled:hover {
+  border-color: #d8dee4;
+  box-shadow: none;
+}
+.nmAnalysisSelectorCard.selected .amAnalysisCardBody {
+  border-top: 1px solid #dbeafe;
+}
+.nmAnalysisSelectorCard:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+/* Inspect-in-Analysis-Manager action inside the selector card body */
+.nmSelectorActions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+.nmSelectorInspectButton {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #1d4ed8;
+  border-radius: 8px;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.nmSelectorInspectButton:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+.nmAnalysisSelectorCard.selected .nmSelectorInspectButton {
+  border-color: #bfdbfe;
+}
+
+
+/* Runner selector semantics: in double-click mode, selection and expansion are
+   separate states. The Analysis Manager card CSS expands any `.selected` card,
+   so explicitly keep selected-but-not-expanded runner cards collapsed. */
+.nmAnalysisSelectorCard.nmSelectorDoubleClickMode.selected:not(.expanded) > .amAnalysisCardHeader {
+  border-radius: 11px;
+}
+.nmAnalysisSelectorCard.nmSelectorDoubleClickMode.selected:not(.expanded) > .amAnalysisCardBody {
+  display: none !important;
+  max-height: 0 !important;
+  opacity: 0 !important;
+  padding: 0 12px !important;
+  border-top: 0 !important;
+}
+.nmAnalysisSelectorCard.nmSelectorDoubleClickMode.expanded > .amAnalysisCardBody {
+  border-top: 1px solid #dbeafe;
+}
+
+/* Disclosure chevron (double-click mode): explicit, discoverable expand control.
+   Single-click selects; this chevron expands/collapses without selecting. */
+.nmAnalysisSelectorCard .amAnalysisCardHeader > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+.nmAnalysisSelectorCard .amAnalysisCardHeader > div > b {
+  /* Title takes the slack so the grid-text and chevron are pushed right,
+     with the chevron pinned hard against the header's right edge. */
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.nmSelectorHeaderRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.nmSelectorGridText {
+  white-space: nowrap;
+}
+.nmSelectorChevron {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  transition: transform 0.24s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.nmSelectorChevron:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+.nmSelectorChevron svg {
+  display: block;
+}
+/* Chevron points down when collapsed, flips up when the card is expanded. */
+.nmAnalysisSelectorCard.expanded .nmSelectorChevron {
+  transform: rotate(180deg);
+}
+/* Keep the chevron on the selected blue header under the global theme's
+   generic button styling. Selector semantics remain authoritative here. */
+.nmAnalysisSelectorCard.selected .nmSelectorChevron {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  color: #fff !important;
+}
+.nmAnalysisSelectorCard.selected .nmSelectorChevron:hover {
+  background: rgba(255, 255, 255, 0.28) !important;
+  border-color: rgba(255, 255, 255, 0.65) !important;
+  color: #fff !important;
+}

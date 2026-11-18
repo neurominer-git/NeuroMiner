@@ -1,0 +1,124 @@
+/* NMRuntimeGridPicker.css
+ * styles the NMRuntimeGridPicker browser UI component.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+.nmGridPickerToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  flex-wrap: wrap;
+}
+.nmGridPickerToolbar span {
+  margin-left: auto;
+  color: var(--muted, #6b7280);
+  font-size: 12px;
+}
+.nmGridPickerTable {
+  display: grid;
+  gap: 4px;
+  overflow: auto;
+  max-width: 100%;
+}
+.nmGridPickerHeader,
+.nmGridPickerRow {
+  display: grid;
+  grid-template-columns: minmax(72px, max-content) repeat(var(--nm-grid-cols), minmax(34px, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+.nmGridPickerColHead,
+.nmGridPickerRowHead {
+  color: var(--muted, #6b7280);
+  font-size: 11px;
+  text-align: center;
+  white-space: nowrap;
+}
+.nmGridPickerRowHead {
+  text-align: right;
+  padding-right: 6px;
+}
+.nmGridPickerHeadBtn {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 2px 6px;
+  font: inherit;
+  color: var(--muted, #6b7280);
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.nmGridPickerHeadBtn:hover {
+  background: var(--accent-soft, #e6effb);
+  color: var(--accent, #0b63ce);
+  border-color: var(--accent, #0b63ce);
+}
+.nmGridPickerHeadBtn.is-full {
+  background: var(--accent, #0b63ce);
+  color: #fff;
+  border-color: var(--accent, #0b63ce);
+}
+.nmGridPickerHeadBtn:focus {
+  outline: 2px solid var(--focus, #60a5fa);
+  outline-offset: 1px;
+}
+.nmGridPickerCorner {
+  min-width: 34px;
+  font-size: 13px;
+  line-height: 1;
+}
+.nmGridPickerCell {
+  min-width: 34px;
+  min-height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--line, #d3dbe8);
+  background: var(--panel, #fff);
+  color: var(--muted, #6b7280);
+  cursor: pointer;
+}
+.nmGridPickerCell.is-selected {
+  background: var(--accent, #0b63ce);
+  border-color: var(--accent, #0b63ce);
+  color: #fff;
+}
+.nmGridPickerCell:focus {
+  outline: 2px solid var(--focus, #60a5fa);
+  outline-offset: 1px;
+}
+
+.nmGridPickerCell.is-unavailable {
+  background: var(--surface, #f1f5f9);
+  border-color: var(--line, #d3dbe8);
+  color: var(--muted, #94a3b8);
+  cursor: not-allowed;
+  opacity: .7;
+}
+
+/* CV2 summary control shared by the six runtime runners. */
+.nmGridSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--nm-border, #e5e7eb);
+  border-radius: 12px;
+  background: var(--nm-surface, #f8fafc);
+}
+.nmGridSummaryText { font-size: 13px; color: var(--nm-text, #334155); }
+.nmGridSummaryEdit {
+  flex: 0 0 auto;
+  padding: 7px 13px;
+  border: 1px solid #1d4ed8;
+  border-radius: 9px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.nmGridSummaryEdit:hover:not(:disabled) { background: #1b46c2; border-color: #1b46c2; }
+.nmGridSummaryEdit:disabled { background: #cbd5e1; border-color: #cbd5e1; cursor: not-allowed; }

@@ -2,7 +2,8 @@ function [sY, IN] = nk_PerfScaleObj(Y, IN)
 % =========================================================================
 % FORMAT function [sY, IN] = nk_PerfScaleObj(Y, IN)
 % =========================================================================
-% Scaling of matrix Y to [0,1] (zero_one=1) or [-1,1] (zero_one=2) or
+% Scaling of matrix Y to [0,1] (ZeroOne=1), min-max [-1,1] (2),
+% or zero-preserving symmetric [-1,1] (3); or
 % reverting of the resepctive scaling to original values (revertflag=1)
 % if minY and maxY are provided by the user then the function won't compute
 % the min and max values from Y. The zerooutflag allows to replace
@@ -15,7 +16,7 @@ function [sY, IN] = nk_PerfScaleObj(Y, IN)
 % Y                   :       M cases x N features data matrix
 % IN.minY, IN.maxY    : []    Min and Max values [computed from Y] 
 % IN.overmatflag      : 0     [not across entire matrix] / feature-wise
-% IN.ZeroOne          : 1     Scale to [0,1] 
+% IN.ZeroOne          : 1     Scale to [0,1]; 2 = min-max [-1,1]; 3 = symmetric [-1,1] 
 % IN.revertflag       : 0     Revert scaling [no]
 % IN.zerooutflag      : 1     Remove non-finite values [yes]
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -48,19 +49,40 @@ if eIN || ~isfield(IN,'zerooutflag')    || isempty(IN.zerooutflag), IN.zerooutfl
 
 % Check for Minimum
 if eIN || ~isfield(IN,'minY') || isempty(IN.minY)
-    if IN.AcMatFl, IN.minY = repmat(min(Y(:)),1,nY); else, IN.minY = nm_nanmin(Y); end
+    if IN.AcMatFl
+        if IN.ZeroOne == 3
+            IN.minY = repmat(nm_nanmin(Y(:)),1,nY);
+        else
+            IN.minY = repmat(min(Y(:)),1,nY);
+        end
+    else
+        IN.minY = nm_nanmin(Y);
+    end
 elseif size(IN.minY,2) == 1 && nY > 1 
     IN.minY = repmat(IN.minY,1,nY);
 end
 
 % Check for Maximum
 if eIN || ~isfield(IN,'maxY') || isempty(IN.maxY)
-    if IN.AcMatFl, IN.maxY = repmat(max(Y(:)),1,nY); else, IN.maxY = nm_nanmax(Y); end
+    if IN.AcMatFl
+        if IN.ZeroOne == 3
+            IN.maxY = repmat(nm_nanmax(Y(:)),1,nY);
+        else
+            IN.maxY = repmat(max(Y(:)),1,nY);
+        end
+    else
+        IN.maxY = nm_nanmax(Y);
+    end
 elseif size(IN.maxY,2) == 1 && nY > 1 
     IN.maxY = repmat(IN.maxY,1,nY);
 end
 if eIN || ~isfield(IN,'ise') || isempty(IN.ise)
-    IN.ise = ~(IN.minY == IN.maxY);
+    if IN.ZeroOne == 3
+        scale = max(abs(IN.minY),abs(IN.maxY));
+        IN.ise = isfinite(scale) & scale > 0;
+    else
+        IN.ise = ~(IN.minY == IN.maxY);
+    end
 end
 if any(IN.ise==0), nY = size(Y(:,IN.ise),2); end
 
@@ -93,12 +115,34 @@ switch IN.ZeroOne
         else
             sY = bsxfun(@times, Y(:,IN.ise)./2+0.5, (IN.maxY(IN.ise)-IN.minY(IN.ise)) + IN.minY(IN.ise));
         end
+    case 3
+        % Symmetric scaling: one training-fitted positive divisor per feature
+        % (or one shared divisor across the matrix). No shift of decision boundary.
+        scale = max(abs(IN.minY(IN.ise)),abs(IN.maxY(IN.ise)));
+        if ~IN.revertflag
+            sY = bsxfun(@rdivide,Y(:,IN.ise),scale);
+        else
+            sY = bsxfun(@times,Y(:,IN.ise),scale);
+        end
 end
 
 if issparse(sY), sY = full(sY); end
 
-% Deal with zero-variance columns and replace them with 0's.
-if sum(~IN.ise), tY = Y; tY(:,IN.ise) = sY; tY(:, ~IN.ise) = 0; sY = tY; end
+% Preserve missingness for symmetric scaling when the training fold has no
+% finite observations for a source. Subsequent imputation still needs NaNs.
+% A finite zero-only source has no scale and remains zero.
+if sum(~IN.ise)
+    tY = Y;
+    tY(:,IN.ise) = sY;
+    if IN.ZeroOne == 3
+        unestimated = ~IN.ise & ~isfinite(max(abs(IN.minY),abs(IN.maxY)));
+        tY(:,~IN.ise & ~unestimated) = 0;
+        tY(:,unestimated) = NaN;
+    else
+        tY(:,~IN.ise) = 0;
+    end
+    sY = tY;
+end
 
 % Deal with complete-NaN features and replace them with 0's.
 [ sY, IN ] = nk_PerfZeroOut(sY, IN);

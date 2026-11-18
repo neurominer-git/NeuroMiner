@@ -1,0 +1,784 @@
+/* NMAnalysisManagerUI.css
+ * styles the NMAnalysisManagerUI browser UI component.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+.amWrap {
+  max-width: none;
+  /* Override the shared .wrap centering: center horizontally but pin to the
+     top and bound the height to the viewport, so the panel can have a definite
+     height and scroll its list internally instead of growing the page. */
+  align-items: flex-start;
+  height: calc(100vh - 64px);
+  min-height: 0;
+  overflow: hidden;
+}
+.panel.amPanel {
+  width: min(1120px, 96vw);
+  /* Definite, viewport-bounded height. This is what lets the inner grid/list
+     scroll internally; min-height:0 keeps the flex/grid chain shrinkable. */
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.24s ease;
+}
+.panel.amPanel.amInspectionOpen {
+  width: calc(100vw - 32px);
+}
+.amShell {
+  padding-bottom: 24px;
+}
+.amPageTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.amPanelHead {
+  margin-bottom: 10px;
+}
+.amLayout {
+  display: grid;
+  grid-template-columns: minmax(390px, 430px) minmax(500px, 600px);
+  grid-template-rows: minmax(0, 1fr);   /* row cannot exceed the layout height */
+  gap: 16px;
+  align-items: stretch;
+  justify-content: center;
+  /* Fill the remaining panel height (panel is now a flex column) and stay
+     bounded, so an expanded card scrolls its list instead of growing. */
+  flex: 1 1 auto;
+  min-height: 0;
+  transition: grid-template-columns 0.24s ease;
+}
+.amLayout.amInspectionOpen {
+  grid-template-columns: minmax(360px, 420px) minmax(500px, 600px) minmax(1180px, 1fr);
+}
+.amPanel {
+  min-width: 0;
+}
+.amCreatePanel {
+  min-height: 0;
+  overflow-y: auto;     /* scrolls internally if content exceeds the bounded row */
+}
+.amAnalysisPanel {
+  display: flex;
+  flex-direction: column;
+  /* min-height:0 lets this grid item shrink so its inner list scrolls instead
+     of pushing the row taller. overflow:hidden stops content from forcing
+     growth; the list (below) provides the scrollbar. */
+  min-height: 0;
+  overflow: hidden;
+  min-width: 0;
+}
+.amPathRow,
+.amCreateRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.amCreateRow #createAnalysis {
+  min-width: 132px;
+  padding-left: 14px;
+  padding-right: 14px;
+  white-space: nowrap;
+}
+.amSectionHeader,
+.amInspectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.amApplicationTransition {
+  margin-top: 22px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+}
+.amApplicationButton {
+  width: 100%;
+  margin-top: 12px;
+}
+.amHelpButton {
+  border-radius: 999px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-weight: 800;
+}
+.amHelpPopover {
+  margin-top: 9px;
+  padding: 10px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.amHelpPopover.amHelpWarning {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+.amAnalysisList {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;          /* allows the flex child to shrink and scroll */
+  overflow-y: auto;       /* the list is the sole internal scroll region */
+  overflow-x: hidden;
+  padding-right: 6px;
+  padding-bottom: 12px;
+  overscroll-behavior: contain;
+  position: relative;     /* makes card.offsetTop list-relative for scoped scrolling */
+}
+.amEmptyState {
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 14px;
+  background: #f8fafc;
+}
+.amAnalysisCard {
+  border: 1px solid #d8dee4;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  display: block;          /* normal flow: the card's height is the sum of header + body */
+  overflow: visible;       /* never clip the expanded body */
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.amAnalysisCard.staleRoot {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+.amAnalysisCard.staleRoot .amAnalysisCardHeader {
+  background: #fff7ed;
+}
+.amStaleBadge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.amPathWarning {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #f59e0b;
+  border-radius: 9px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+.amAnalysisCard:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+.amAnalysisCardHeader {
+  padding: 9px 12px;
+  background: #f8fafc;
+  color: #1f2933;
+  border-radius: 11px 11px 0 0;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.amAnalysisCard:not(.selected) .amAnalysisCardHeader {
+  border-radius: 11px;
+}
+.amAnalysisCardHeaderInner {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+.amAnalysisTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.amAnalysisCardHeader span {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+}
+.amAnalysisCardHeader .amStaleBadge {
+  color: #92400e;
+}
+.amAnalysisCard.selected .amAnalysisCardHeader {
+  background: #1d4ed8;
+  color: #fff;
+}
+.amAnalysisCard.selected .amAnalysisCardHeader span {
+  color: #dbeafe;
+}
+
+.amAnalysisCard.staleRoot.selected .amAnalysisCardHeader {
+  background: #7f1d1d;
+  color: #fff;
+}
+.amAnalysisCard.staleRoot.selected .amStaleBadge {
+  border-color: rgba(255,255,255,0.48);
+  background: #991b1b;
+  color: #fff;
+}
+.amAnalysisCard.staleRoot.selected .amAnalysisCardHeader span {
+  color: #fff;
+}
+.amAnalysisCardBody {
+  display: none;           /* collapsed default; JS sets .amAnimating/.selected to reveal */
+  overflow: hidden;        /* clips only during the height animation, released to none after */
+  max-height: 0;
+  opacity: 0;
+  padding: 0 12px;
+  transition: max-height 0.32s ease, opacity 0.24s ease, padding 0.24s ease;
+}
+/* While animating (expand or collapse) the body must be rendered to be measurable/visible */
+.amAnalysisCard.amAnimating .amAnalysisCardBody {
+  display: block;
+}
+.amAnalysisCard.selected .amAnalysisCardBody {
+  display: block;
+  opacity: 1;
+  padding: 12px;
+  /* max-height is managed by JS: a pixel value during the open animation,
+     then 'none' once settled so wrapped content is never clipped */
+}
+.amAnalysisCardBodyInner {
+  display: block;
+  overflow: visible;
+}
+.amCardSummary {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.amActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.amAnalysisCard.selected .amActionRow {
+  padding-bottom: 2px;
+}
+.amActionRow button,
+.amResultsActions button {
+  font-size: 12px;
+  padding: 6px 9px;
+}
+.amInspectionPanel.hidden {
+  display: none !important;
+}
+.amInspectionPanel {
+  position: sticky;
+  top: 72px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  min-width: 0;
+}
+.amInspectionHeader {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+.amInspectionContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.amInspectSection {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 12px;
+}
+.amInspectSection h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+.amKeyValueGrid {
+  display: grid;
+  grid-template-columns: minmax(132px, 0.42fr) minmax(0, 1fr);
+  gap: 5px 10px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  margin-bottom: 10px;
+}
+.amKeyValueGrid > div:nth-child(odd) {
+  font-weight: 700;
+  color: #475569;
+}
+.amKeyValueGrid > div:nth-child(even) {
+  overflow-wrap: anywhere;
+}
+.amMiniCanvas {
+  border: 1px solid #d8dee4;
+  border-radius: 12px;
+  background:
+    linear-gradient(90deg, rgba(148, 163, 184, 0.10) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(148, 163, 184, 0.10) 1px, transparent 1px), #fff;
+  background-size: 36px 36px;
+  overflow: auto;
+  min-height: 620px;
+}
+.amMiniCanvas.empty {
+  padding: 16px;
+  color: #64748b;
+  min-height: 0;
+}
+.amMiniCanvas svg {
+  min-width: 1180px;
+  width: auto;
+  height: auto;
+  max-width: none;
+  display: block;
+}
+.amMiniEdge {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 2;
+  marker-end: url(#amMiniArrow);
+}
+.amMiniCanvas marker path {
+  fill: #94a3b8;
+}
+.amMiniNode rect {
+  fill: #fff;
+  stroke: #cbd5e1;
+  stroke-width: 1.4;
+}
+.amMiniNode text {
+  fill: #1f2933;
+  pointer-events: none;
+}
+.amMiniNode .amMiniSub {
+  font-size: 13.5px;
+  font-weight: 600;
+  fill: #64748b;
+}
+.amMiniStatus-warning rect,
+.amMiniStatus-warn rect {
+  stroke: #f59e0b;
+}
+.amMiniStatus-error rect,
+.amMiniStatus-danger rect {
+  stroke: #ef4444;
+}
+.amMiniStatus-ok rect {
+  stroke: #22c55e;
+}
+.amCanvasMessage {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.amResultsActions {
+  margin-top: 6px;
+}
+.hidden {
+  display: none !important;
+}
+
+@media (max-width: 1280px) {
+  .amLayout {
+    grid-template-columns: minmax(340px, 0.9fr) minmax(460px, 1.25fr);
+  }
+  .amInspectionPanel {
+    grid-column: 1 / -1;
+    position: static;
+    max-height: none;
+  }
+}
+@media (max-width: 900px) {
+  .amLayout {
+    grid-template-columns: 1fr;
+  }
+  .amCreatePanel,
+  .amInspectionPanel {
+    position: static;
+    max-height: none;
+  }
+  .amCreateActions #createAnalysis {
+    width: auto;
+  }
+}
+
+/* B1 residual: read-only analysis canvas mirrors the train-template flow geometry
+   more closely while remaining non-interactive and inspector-local. */
+.amMiniScope rect {
+  fill: rgba(248, 250, 252, 0.38);
+  stroke: #7aa6c2;
+  stroke-width: 2.2;
+  stroke-dasharray: 7 6;
+}
+.amMiniContainer rect {
+  fill: rgba(248, 250, 252, 0.86);
+  stroke: #7c3aed;
+  stroke-width: 2.4;
+}
+.amMiniScopeHeaderBox {
+  fill: #f8fafc;
+  stroke: #cbd5e1;
+  stroke-width: 1;
+}
+.amMiniScopeTitle {
+  font-size: 13px;
+  font-weight: 800;
+  fill: #475569;
+}
+.amMiniScopeSub {
+  font-size: 11px;
+  font-weight: 500;
+  fill: #64748b;
+}
+.amMiniContainerTitle {
+  font-size: 13px;
+  font-weight: 800;
+  fill: #4c1d95;
+}
+.amMiniContainerSub {
+  font-size: 11px;
+  font-weight: 500;
+  fill: #6d28d9;
+}
+.amMiniEdge {
+  fill: none;
+  stroke: #8fa2bd;
+  stroke-width: 2.2;
+}
+.amMiniCanvas marker path {
+  fill: #8fa2bd;
+}
+.amMiniNodeBox {
+  fill: #fff;
+  stroke: #cbd5e1;
+  stroke-width: 1.8;
+}
+.amMiniNodeStripe {
+  stroke: #94a3b8;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.amMiniNode.data .amMiniNodeStripe,
+.amMiniNode.modality .amMiniNodeStripe {
+  stroke: #22c55e;
+}
+.amMiniNode.learner .amMiniNodeStripe {
+  stroke: #2563eb;
+}
+.amMiniNode.output .amMiniNodeStripe {
+  stroke: #64748b;
+}
+.amMiniNodeTitle {
+  font-size: 14px;
+  font-weight: 800;
+  fill: #111827;
+}
+.amMiniNodeSub {
+  font-size: 11.5px;
+  font-weight: 500;
+  fill: #334155;
+}
+.amMiniNodeSummary {
+  font-size: 11px;
+  font-weight: 400;
+  fill: #64748b;
+}
+.amMiniStatus-warning .amMiniNodeBox,
+.amMiniStatus-warn .amMiniNodeBox {
+  stroke: #f59e0b;
+}
+.amMiniStatus-error .amMiniNodeBox,
+.amMiniStatus-danger .amMiniNodeBox {
+  stroke: #ef4444;
+}
+.amMiniStatus-ok .amMiniNodeBox {
+  stroke: #cbd5e1;
+}
+
+/* Shared runtime-action controls (Analysis Manager entry point) */
+.amRuntimeSection {
+  border-left: 4px solid #16a34a;
+}
+.amRuntimePlanNote {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+.amRuntimeActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.amRuntimeToggle {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 9px 10px;
+  display: grid;
+  grid-template-columns: 18px minmax(120px, 190px) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  background: #fff;
+}
+.amRuntimeToggle.disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+.amRuntimeToggleLabel {
+  font-weight: 700;
+  color: #1f2937;
+}
+.amRuntimeToggle.disabled .amRuntimeToggleLabel {
+  color: #94a3b8;
+}
+.amRuntimeToggleReason {
+  font-size: 12px;
+  color: #64748b;
+}
+.amRuntimeOverwrite {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+.amRuntimeOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  color: #475569;
+  font-size: 12px;
+}
+.amRuntimeRunRow {
+  margin-top: 12px;
+}
+.amRunSelectedButton {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+  font-weight: 800;
+}
+.amRunSelectedButton:disabled {
+  background: #94a3b8;
+  border-color: #94a3b8;
+  color: #f8fafc;
+}
+.amRuntimeReason {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.amRuntimeHint {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.amRuntimeArtifacts {
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 10px 0 12px 0;
+}
+.amRuntimeArtifactsTitle {
+  font-weight: 800;
+  color: #334155;
+  margin-bottom: 6px;
+}
+.amRuntimeArtifactRow {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 10px;
+  font-size: 12px;
+  color: #475569;
+  padding: 2px 0;
+}
+.amRuntimeArtifactRow span:first-child {
+  font-weight: 700;
+  color: #334155;
+}
+.amRuntimeArtifactRow span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.amRuntimeStageSelector {
+  display: grid;
+  grid-template-columns: minmax(150px, 190px) minmax(190px, 260px) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 13px;
+}
+.amRuntimeStageSelector span {
+  font-weight: 700;
+}
+.amRuntimeStageSelector select {
+  min-width: 180px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #fff;
+  color: #1f2937;
+}
+.amRuntimeStageSelector em {
+  font-style: normal;
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* C4c: inspector-local mini-canvas node popover. The content is the same
+   user-facing node.detail payload used by the full canvas detail panel, not a
+   raw rendering of SVG/card fields. */
+.amMiniCanvas {
+  position: relative;
+  min-height: 420px;
+}
+.amMiniCanvas svg {
+  min-width: 0;
+}
+.amMiniNode {
+  cursor: pointer;
+}
+.amMiniNode:hover .amMiniNodeBox,
+.amMiniNode:hover rect {
+  stroke: #2563eb;
+  stroke-width: 2.2;
+}
+.amMiniNode:focus {
+  outline: none;
+}
+.amMiniNode:focus .amMiniNodeBox,
+.amMiniNode:focus rect {
+  stroke: #1d4ed8;
+  stroke-width: 2.4;
+}
+.amMiniNodeTitle {
+  font-size: 12px;
+}
+.amMiniNodeSub {
+  font-size: 10.5px;
+}
+.amMiniNodeSummary {
+  font-size: 10px;
+}
+.amNodeInfo {
+  position: absolute;
+  z-index: 5;
+  width: min(380px, 86%);
+  background: #fff;
+  border: 1px solid #c7d2e0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  padding: 10px 12px;
+}
+.amNodeInfo.hidden {
+  display: none !important;
+}
+.amNodeInfoHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.amNodeInfoTitle {
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.amNodeInfoClose {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  border-radius: 999px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: #475569;
+  cursor: pointer;
+}
+.amNodeInfoClose:hover {
+  background: #eef2f7;
+  color: #1f2937;
+}
+.amNodeInfoMainTitle {
+  font-size: 13px;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.28;
+}
+.amNodeInfoSubtitle {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.amNodeInfoSection {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+}
+.amNodeInfoSectionTitle {
+  font-size: 12px;
+  font-weight: 800;
+  color: #475569;
+  margin-bottom: 4px;
+}
+.amNodeInfoLine {
+  font-size: 12px;
+  color: #1f2933;
+  line-height: 1.38;
+  overflow-wrap: anywhere;
+  margin-top: 3px;
+}
+.amNodeInfoAction {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+  line-height: 1.35;
+}
+
+/* When three columns cannot fit, inspection takes the bounded panel viewport.
+   Its internal canvas remains horizontally scrollable; Close stays accessible. */
+@media (max-width: 2200px) {
+  .amLayout.amInspectionOpen { grid-template-columns: minmax(0, 1fr); }
+  .amLayout.amInspectionOpen > .amCreatePanel,
+  .amLayout.amInspectionOpen > .amAnalysisPanel { display: none; }
+  .amLayout.amInspectionOpen > .amInspectionPanel {
+    grid-column: 1;
+    position: static;
+    max-height: 100%;
+  }
+}

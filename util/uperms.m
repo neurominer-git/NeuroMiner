@@ -1,104 +1,317 @@
-function [pInds, k_adjusted] = uperms(X, k, ulim)
-%uperms: unique permutations of an input vector or rows of an input matrix
-% Usage:  nPerms              = uperms(X)
-%        [nPerms pInds]       = uperms(X, k)
-%        [nPerms pInds Perms] = uperms(X, k)
+function [pInds, k_adjusted] = uperms(X, k, ulim, progressFcn)
+% uperms - Generate unique random fixed-size feature subsets.
 %
-% Determines number of unique permutations (nPerms) for vector or matrix X.
-% Optionally, all permutations' indices (pInds) are returned. If requested,
-% permutations of the original input (Perms) are also returned.
+% Purpose
+%   Generate k unique logical subset masks without replacement. This function
+%   retains the historical NeuroMiner MLI interface while replacing the former
+%   quadratic full-mask duplicate scan with compact fingerprint indexing.
+%   An optional progress callback allows the MLI owner to publish generation
+%   progress through the NM2 runtime bridge without coupling this utility to UI
+%   state.
 %
-% If k < nPerms, a random (but still unique) subset of k of permutations is
-% returned. The original/identity permutation will be the first of these.
+% Syntax
+%   [pInds, k_adjusted] = uperms(X, k, ulim)
+%   [pInds, k_adjusted] = uperms(X, k, ulim, progressFcn)
 %
-% Row or column vector X results in Perms being a [k length(X)] array,
-% consistent with MATLAB's built-in perms. pInds is also [k length(X)].
+% Inputs
+%   X
+%       Vector or matrix defining the available units. If X is logical, only
+%       true entries are treated as available units, matching the historical
+%       MLI behavior. For a nonlogical vector, numel(X) units are available;
+%       for a matrix, size(X,1) units are available.
 %
-% Matrix X results in output Perms being a [size(X, 1) size(X, 2) k]
-% three-dimensional array (this is inconsistent with the vector case above,
-% but is more helpful if one wants to easily access the permuted matrices).
-% pInds is a [k size(X, 1)] array for matrix X.
+%   k
+%       Requested number of unique subsets. If fewer than k distinct subsets
+%       exist, k is reduced to the exact number available.
 %
-% Note that permutations are not guaranteed in any particular order, even
-% if all nPerms of them are requested, though the identity is always first.
+%   ulim
+%       Number of units selected in every subset. Must be an integer in
+%       [0,n], where n is the number of available units.
 %
-% Other functions can be much faster in the special cases where they apply,
-% as shown in the second block of examples below, which uses perms_m.
+%   progressFcn
+%       Optional function handle with signature progressFcn(done,total).
+%       uperms invokes it only at the same throttled progress checkpoints used
+%       by the command-window counter. The callback owns any UI/bridge routing.
 %
-% Examples:
-%  uperms(1:7),       factorial(7)        % verify counts in simple cases,
-%  uperms('aaabbbb'), nchoosek(7, 3)      % or equivalently nchoosek(7, 4).
-%  [n pInds Perms] = uperms('aaabbbb', 5) % 5 of the 35 unique permutations
-%  [n pInds Perms] = uperms(eye(3))       % all 6 3x3 permutation matrices
+% Outputs
+%   pInds
+%       k_adjusted-by-n logical matrix. Each row is one unique subset and
+%       contains exactly ulim true entries.
 %
-%  % A comparison of timings in a special case (i.e. all elements unique)
-%  tic; [nPerms P1] = uperms(1:20, 5000); T1 = toc
-%  tic; N = factorial(20); S = sample_no_repl(N, 5000);
-%  P2 = zeros(5000, 20);
-%  for n = 1:5000, P2(n, :) = perms_m(20, S(n)); end
-%  T2 = toc % quicker (note P1 and P2 are not the same random subsets!)
-%  % For me, on one run, T1 was 7.8 seconds, T2 was 1.3 seconds.
+%   k_adjusted
+%       Actual number of returned subsets.
 %
-%  % A more complicated example, related to statistical permutation testing
-%  X = kron(eye(3), ones(4, 1));  % or similar statistical design matrix
-%  [nPerms pInds Xs] = uperms(X, 5000); % unique random permutations of X
-%  % Verify correctness (in this case)
-%  G = nan(12,5000); for n = 1:5000; G(:, n) = Xs(:,:,n)*(1:3)'; end
-%  size(unique(G', 'rows'), 1)    % 5000 as requested.
+% Authority and flow
+%   uperms owns only random fixed-cardinality subset generation and local
+%   progress emission. It does not decide which MLI features are scientifically
+%   eligible and has no dependency on NM2 UI/runtime classes.
 %
-% See also: randperm, perms, perms_m, signs_m, nchoosek_m, sample_no_repl
-% and http://www.fmrib.ox.ac.uk/fsl/randomise/index.html#theory
-% Copyright 2010 Ged Ridgway
-% http://www.mathworks.com/matlabcentral/fileexchange/authors/27434
-%% Usage
+% Invariants
+%   - Every output row contains exactly ulim selected units.
+%   - No two output rows are identical.
+%   - Duplicate detection is exact. Compact fingerprints are only an index:
+%     a fingerprint collision is resolved by comparing the actual subset.
+%   - The random sampling distribution remains uniform over fixed-size subsets
+%     on the normal rejection-sampling path.
+%   - The existing 3-argument call remains valid.
+%
+% Materialization and performance
+%   Let n be the number of available features, m=min(ulim,n-ulim), and k the
+%   number of requested subsets.
+%
+%   The historical implementation rescanned progressively larger k-by-n
+%   logical matrices for every candidate, giving approximately O(n*k^2)
+%   duplicate checking and repeated full-width temporary allocations.
+%
+%   This implementation allocates the final k-by-n logical output once.
+%   Candidate generation and fingerprinting are O(k*m) in the usual
+%   high-dimensional regime. Exact full-width comparison occurs only after a
+%   fingerprint collision. For small combinatorial spaces requested near
+%   saturation, all combinations are materialized once and sampled directly
+%   to avoid rejection slowdown.
+%
+%   Command-window and callback progress reporting are throttled to at most
+%   approximately 200 updates, so reporting does not restore an O(k) stream of
+%   expensive bridge/file writes for very large k.
+%
+% Failure semantics
+%   Invalid X, k, ulim, or progressFcn values fail explicitly. Callback errors
+%   are not suppressed here; NM2 supplies a safe bridge callback whose owner
+%   contains browser-progress failures.
+%
+% Side effects
+%   Advances MATLAB's current random-number generator state through randperm
+%   and reports generation progress in the MATLAB command window.
+%
+% Consumers and dependencies
+%   Used by nk_MLInterpreter to construct unique feature perturbation masks.
+%   Depends only on MATLAB built-ins.
+%
+% Note
+%   Despite the historical name, the active MLI contract is generation of
+%   unique fixed-size subsets, not ordering permutations of all elements.
+%
+% See also: randperm, nchoosek
+%
+% Original uperms concept:
+%   Copyright 2010 Ged Ridgway
+%   http://www.mathworks.com/matlabcentral/fileexchange/authors/27434
+%
+% NeuroMiner optimized MLI implementation, 2026.
+
+%% Validate and normalize inputs
 if isempty(X) || isscalar(X) || ~ismatrix(X)
     error('Input X must be a vector or matrix')
 end
-if nargin > 1 && nargout < 2
-    error('Set number of permutations requested, but no return argument!')
+if nargin < 2 || isempty(k)
+    error('The number of requested subsets k must be specified.')
 end
-if islogical(X), X = find(X); end
+if ~(isscalar(k) && isnumeric(k) && isfinite(k) && k >= 0 && k == floor(k))
+    error('k must be a finite non-negative integer scalar.')
+end
+if nargin < 4
+    progressFcn = [];
+elseif ~isempty(progressFcn) && ~isa(progressFcn,'function_handle')
+    error('progressFcn must be empty or a function handle.')
+end
 
-if ~exist("ulim","var") || isempty(ulim)
+if islogical(X)
+    X = find(X);
+end
+
+if isvector(X)
+    n = numel(X);
+else
+    n = size(X,1);
+end
+
+if nargin < 3 || isempty(ulim)
+    % Preserve the historical default of this implementation family.
     if isvector(X)
         ulim = size(X,1);
     else
         ulim = size(X,2);
     end
 end
-k_adjusted = k;
-%% Count number of repetitions of each unique row, and get representative x
-if isvector(X)
-    [~, ~, x] = unique(X(:)); % x codes unique elements with integers
-else
-    [~, ~, x] = unique(X, 'rows'); % x codes unique rows with integers
+if ~(isscalar(ulim) && isnumeric(ulim) && isfinite(ulim) && ...
+        ulim >= 0 && ulim <= n && ulim == floor(ulim))
+    error('ulim must be an integer scalar between 0 and the number of available units.')
 end
-nPerms = nchoosek(numel(x), ulim);
+if n > double(intmax('uint32'))
+    error('The feature universe exceeds the uint32 indexing capacity of uperms.')
+end
 
-%% Computation of permutations
-% Basics
-n = length(x);
-if nPerms < k 
-    k = nPerms; 
-    k_adjusted = k;
+k = double(k);
+ulim = double(ulim);
+
+%% Normalize k to the exact number of available subsets
+keyWidth = min(ulim, n-ulim);
+useComplement = ulim > n/2;
+
+[totalToK, totalExceedsK] = localCombinationCountCapped(n, keyWidth, k);
+if ~totalExceedsK
+    k = min(k, totalToK);
 end
-if n > uint32(inf), error('Sorry, data is too big!'), end % would be v.slow
-if nargin < 2 || k > nPerms
-    k = nPerms; % default to computing all unique permutations
+k_adjusted = k;
+
+if k == 0
+    pInds = false(0,n);
+    return
 end
-pInds = false(k, n);              
-% Add permutations that are unique
-u = 1; % to start with
-fprintf('Creating unique perms:    \n\n')
-while u <= k
-    fprintf('\b\b\b\b\b\b%6.0f',u);
-    % b=sprintf('%s', repmat('\b',numel(a),1));
-    pInd = sort(uint32(randperm(n, ulim)));
-    % (Note: better data structures could make the next line much faster!)
-    tpInd = false(1, n); tpInd(pInd) = true;
-    out = FastUniqueRows([pInds(1:u, :); tpInd]);
-    if size(out, 1) > u % implying x(pInd) was new to Perms
-        pInds(u, pInd) = true ;
-        u = u + 1;
+
+if keyWidth == 0
+    if useComplement
+        pInds = true(1,n);
+    else
+        pInds = false(1,n);
     end
+    k_adjusted = 1;
+    localReportProgress(progressFcn, 1, 1, true);
+    return
+end
+
+%% Small-space near-saturation path
+ENUM_MAX_COMBINATIONS = 200000;
+ENUM_MAX_ELEMENTS = 5000000;
+
+[enumCount, enumCountExceeded] = ...
+    localCombinationCountCapped(n, keyWidth, ENUM_MAX_COMBINATIONS);
+
+canEnumerate = ~enumCountExceeded && ...
+               enumCount > 0 && ...
+               k >= 0.20 * enumCount && ...
+               enumCount * keyWidth <= ENUM_MAX_ELEMENTS;
+
+if canEnumerate
+    localReportProgress(progressFcn, 0, k, false);
+    allKeys = uint32(nchoosek(1:n, keyWidth));
+    if k < enumCount
+        take = randperm(enumCount, k);
+        keys = allKeys(take,:);
+    else
+        keys = allKeys;
+    end
+    pInds = localMaterializeMasks(keys, k, n, useComplement);
+    localReportProgress(progressFcn, k, k, true);
+    return
+end
+
+%% High-dimensional path: compact fingerprint index + exact collision check
+if useComplement
+    pInds = true(k,n);
+else
+    pInds = false(k,n);
+end
+
+fingerprintRows = containers.Map('KeyType','char','ValueType','any');
+weights = 1:keyWidth;
+accepted = 0;
+progressStep = max(1, ceil(k / 200));
+localReportProgress(progressFcn, accepted, k, false);
+
+while accepted < k
+    pos = sort(uint32(randperm(n, keyWidth)));
+    fp = localFingerprint(pos, weights);
+
+    isDuplicate = false;
+    if isKey(fingerprintRows, fp)
+        candidateRows = fingerprintRows(fp);
+        candidateRows = candidateRows(:).';
+        for rr = candidateRows
+            if localSubsetEqualsRow(pInds, rr, pos, useComplement)
+                isDuplicate = true;
+                break
+            end
+        end
+    end
+
+    if isDuplicate
+        continue
+    end
+
+    accepted = accepted + 1;
+    if useComplement
+        pInds(accepted, double(pos)) = false;
+    else
+        pInds(accepted, double(pos)) = true;
+    end
+
+    if isKey(fingerprintRows, fp)
+        fingerprintRows(fp) = [fingerprintRows(fp), accepted];
+    else
+        fingerprintRows(fp) = accepted;
+    end
+
+    if accepted == k || mod(accepted, progressStep) == 0
+        localReportProgress(progressFcn, accepted, k, accepted == k);
+    end
+end
+
+end
+
+function fp = localFingerprint(pos, weights)
+% Compact deterministic fingerprint for lookup only.
+dpos = double(pos);
+mid = pos(ceil(numel(pos)/2));
+s1 = sum(dpos);
+s2 = sum(dpos .* weights);
+fp = sprintf('%u|%u|%u|%.0f|%.0f', pos(1), mid, pos(end), s1, s2);
+end
+
+function tf = localSubsetEqualsRow(pInds, rowIndex, pos, useComplement)
+% Exact subset comparison used only after a fingerprint collision.
+if useComplement
+    existing = find(~pInds(rowIndex,:));
+else
+    existing = find(pInds(rowIndex,:));
+end
+tf = numel(existing) == numel(pos) && ...
+     all(uint32(existing(:).') == pos);
+end
+
+function pInds = localMaterializeMasks(keys, k, n, useComplement)
+% Materialize the full logical masks exactly once from compact subset keys.
+if useComplement
+    pInds = true(k,n);
+    for r = 1:k
+        pInds(r, double(keys(r,:))) = false;
+    end
+else
+    pInds = false(k,n);
+    for r = 1:k
+        pInds(r, double(keys(r,:))) = true;
+    end
+end
+end
+
+function [count, exceeded] = localCombinationCountCapped(n, m, cap)
+% Compute nchoosek(n,m) exactly while it is <= cap.
+m = min(m, n-m);
+count = 1;
+exceeded = false;
+if m == 0
+    return
+end
+for j = 1:m
+    count = round(count * (n-m+j) / j);
+    if count > cap
+        count = cap + 1;
+        exceeded = true;
+        return
+    end
+end
+end
+
+function localReportProgress(progressFcn, done, total, finished)
+% Report subset-generation progress to the CLI and optional caller callback.
+%
+% No NM2 bridge/UI dependency belongs here. The caller owns that routing.
+if finished
+    fprintf('\rCreating unique perms: %6.0f / %6.0f\n', done, total);
+else
+    fprintf('\rCreating unique perms: %6.0f / %6.0f', done, total);
+end
+if ~isempty(progressFcn)
+    progressFcn(done, total);
+end
 end

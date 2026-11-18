@@ -54,7 +54,7 @@ if iscell(Y)
             end
             
             % Perform ADASYN
-            [ tYsyn, Lsyn ] = ADASYN(tY, L, adasyn_beta, adasyn_kDensity, adasyn_kSMOTE, adasyn_normalized); 
+            [ tYsyn, Lsyn ] = ADASYN(tY, L, adasyn_beta, adasyn_kDensity, adasyn_kSMOTE, adasyn_normalized == 2); 
             
             % Check whether covariates were integrated in training data and
             % split synthetic data into synthetic training and covariate matrices
@@ -102,7 +102,7 @@ else
         tL = [ones(sum(idx1),1); zeros(sum(idx2),1)];
         
         % Perform ADASYN
-        [tYsyn, Lsyn] = ADASYN(tY, tL, adasyn_beta, adasyn_kDensity, adasyn_kSMOTE, adasyn_normalized);
+        [tYsyn, Lsyn] = ADASYN(tY, tL, adasyn_beta, adasyn_kDensity, adasyn_kSMOTE, adasyn_normalized == 2);
         
         % Check whether covariates were integrated in training data and
         % split synthetic data into synthetic training and covariate matrices

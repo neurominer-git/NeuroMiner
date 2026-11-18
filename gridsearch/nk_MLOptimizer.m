@@ -3,6 +3,13 @@
 % =========================================================================
 % This function performs fixed grid search optimization of machine learning
 % parameters (e.g. slack, kernel params).
+%
+% Subject-spatial authority
+%   When no PreprocData/CVdatamat exists, candidate subject-spatial shelves are
+%   materialized once by nk_MaterializeSpatialShelves before the CV loops. The
+%   resulting contract is shelves{binary}{branch} with matching
+%   spatial_branch_table{modality}{binary}. nk_PerfPreprocess only selects from
+%   these shelves; it must not infer branches from matrix dimensions.
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % (c) Nikolaos Koutsouleris, 01/2024
 function GDanalysis = nk_MLOptimizer(inp, strout, id, GridAct, batchflag)
@@ -164,6 +171,10 @@ switch SVM.prog
         GDanalysis.grid.mean_mSEQPL             = nan(nPs(1),nE-1,nclass,ix*jx,nl);
         GDanalysis.grid.sd_mSEQPL               = nan(nPs(1),nE-1,nclass,ix*jx,nl); 
         GDanalysis.grid.mean_SeqPerfGains       = nan(nPs(1),nE,nclass,ix*jx,nl);
+        [~, seqMetricIds] = NMSEQOPTDiagnosticValues({},[]);
+        GDanalysis.grid.SeqDiagnosticMetricNames = seqMetricIds;
+        GDanalysis.grid.mean_SeqDiagnostics = nan(nPs(1),nE,nclass,ix*jx,nl,numel(seqMetricIds));
+        GDanalysis.grid.SeqDiagnosticSequenceCols = cell(nPs(1),nclass,nl);
         GDanalysis.caseprops                    = cell(lx,nclass,nl);
         GDanalysis.decvaltraj                   = cell(lx,nclass,ix,nl);
     case 'WBLCOX'
@@ -236,7 +247,7 @@ if ~batchflag && RFE.dispres
 end
 
 % Parameter flag structure for preprocessing
-paramfl         = struct('use_exist',true,'found', false, 'write', true);
+paramfl         = struct('use_exist',true,'found', false, 'write', true, 'currmodal', inp.P.curmodal );
 
 ol = 0; ll = 1; GridUsed = false(size(GridAct)); 
 
@@ -249,24 +260,57 @@ if GDfl == -1
     label = nk_LabelTransform(PREPROC,MODEFL,label);
     inp.labels = label;
     
-    % Perform spatial ops on the data (imaging only)
-    Y = nk_PerfSpatFilt( inp.Y, PREPROC, inp.P.X );
-
-    % ... the calibration data (Clara), too
+    % Load optional subject-level companion data before the shared spatial
+    % materialization boundary.
+    Cocv = [];
     if isfield(inp, 'C') && inp.C{1,1}.calibflag
-        CYfile = inp.C{1,1}.Y; 
+        CYfile = inp.C{1,1}.Y;
         load(CYfile, 'CY');
-        inp.C{1,1}.Y = CY;
-        inp.C{1,1}.Y = nk_PerfSpatFilt(inp.C{1,1}.Y, PREPROC, inp.P.X);
+        Cocv = CY;
     end
-    % ... and alternative training data (Nikos; not accessible via the NM
-    % menu configuration)
+    AltY = [];
     if isfield(inp,'AltY')
-        inp.AltY = nk_PerfSpatFilt(inp.AltY, PREPROC, inp.P.X);
+        AltY = inp.AltY;
     end
 
-    % Perform required spatial ops on mask image
-    inp = nk_SmoothMask( PREPROC, inp, inp.P );
+    % Materialize the complete candidate shelf set once. The returned contract
+    % is Y{binary}{branch}, shared with nk_PreprocessPrep and trained-model
+    % application.
+    if nk_HasSpatialSteps(PREPROC)
+        paramfl.PV = inp.P.X;
+        [Y, ~, sCocv, sAltY, sYw, branchTables] = ...
+            nk_MaterializeSpatialShelves(inp.Y, [], Cocv, AltY, inp, ...
+            PREPROC, paramfl, nclass);
+        modal = paramfl.currmodal;
+        if ~isfield(inp,'isSpatialPreprocessed') || numel(inp.isSpatialPreprocessed) < modal
+            flags = false(1,modal);
+            if isfield(inp,'isSpatialPreprocessed')
+                flags(1:numel(inp.isSpatialPreprocessed)) = inp.isSpatialPreprocessed;
+            end
+            inp.isSpatialPreprocessed = flags;
+        end
+        inp.isSpatialPreprocessed(modal) = true;
+        if ~isfield(inp,'spatial_branch_table') || numel(inp.spatial_branch_table) < modal
+            tables = cell(1,modal);
+            if isfield(inp,'spatial_branch_table')
+                tables(1:numel(inp.spatial_branch_table)) = inp.spatial_branch_table;
+            end
+            inp.spatial_branch_table = tables;
+        end
+        inp.spatial_branch_table{modal} = branchTables;
+        if ~isempty(sCocv), inp.C{1,1}.Y = sCocv; end
+        if ~isempty(sAltY), inp.AltY = sAltY; end
+        if ~isempty(sYw), inp.iYw = sYw; end
+    else
+        Y = inp.Y;
+        if ~isempty(Cocv), inp.C{1,1}.Y = Cocv; end
+        modal = paramfl.currmodal;
+        if ~isfield(inp,'isSpatialPreprocessed') || numel(inp.isSpatialPreprocessed) < modal
+            inp.isSpatialPreprocessed = false(1,modal);
+        else
+            inp.isSpatialPreprocessed(modal) = false;
+        end
+    end
 
     % Set template flag
     if isfield(PREPROC,'TEMPLPROC') && ~isempty(PREPROC.TEMPLPROC) && PREPROC.TEMPLPROC
@@ -278,6 +322,8 @@ else
     label = nk_LabelTransform(PREPROC,MODEFL,label);
     inp.labels = label;
 end
+
+CVPOS.GridAct = GridAct;    
 
 for f=1:ix % Loop through CV2 permutations
 
@@ -343,7 +389,7 @@ for f=1:ix % Loop through CV2 permutations
                         if inp.stacking
                             mapY = nk_PerfPreprocessMeta(inp, label(:,lsel), paramfl);
                         else
-                            mapY = nk_PerfPreprocess(Y, inp, label(:,lsel), paramfl);
+                            mapY = nk_PerfPreprocess(Y, inp, label, paramfl);
                         end
                         
                     end
@@ -490,6 +536,7 @@ for f=1:ix % Loop through CV2 permutations
                    GD.sdSEQPercThrL = cell(nPs(1), nclass, nl);
                    GD.CasePropagations = cell(nPs(1), nclass, nl);
                    GD.DecValTraj = cell(nPs(1), nclass, nl);
+                   GD.SeqDiagnostics = cell(nPs(1), nclass, nl);
                 case 'WBLCOX'
                    GD.mCutOffPerc = zeros(nPs(1), nclass, nl);
                    GD.sdCutOffPerc = zeros(nPs(1),nclass, nl);
@@ -664,6 +711,28 @@ for f=1:ix % Loop through CV2 permutations
                         GDanalysis.grid.sd_mSEQPL(:,:,curclass,ll,:)   = cell2matpadnan(GD.sdSEQPercThrL(:,curclass));
                         
                         GDanalysis.grid.mean_SeqPerfGains(:,:,curclass,ll,:) = cell2matpadnan(cellfun(@nm_nanmean, GD.SeqPerfIncreases(:,curclass), 'UniformOutput', false), [], nE);
+                        % Keep every complete hyperparameter combination separate,
+                        % including freely optimized propagation thresholds.
+                        for curlabel = 1:nl
+                            for comb = 1:nPs(curclass)
+                                folds = GD.SeqDiagnostics{comb,curclass,curlabel};
+                                if isempty(folds), continue; end
+                                models = [folds{:}];
+                                models = models(~cellfun(@isempty,models));
+                                if isempty(models), continue; end
+                                lengths = cellfun(@(D)D.nStages,models);
+                                [~, longest] = max(lengths);
+                                cols = models{longest}.sequenceCols;
+                                prior = GDanalysis.grid.SeqDiagnosticSequenceCols{comb,curclass,curlabel};
+                                if numel(prior)>numel(cols), cols = prior; end
+                                values = NMSEQOPTDiagnosticValues(models,cols);
+                                GDanalysis.grid.mean_SeqDiagnostics( ...
+                                    comb,1:numel(cols),curclass,ll,curlabel,:) = ...
+                                    reshape(nm_nanmean(values,1), ...
+                                        [1 numel(cols) 1 1 1 numel(seqMetricIds)]);
+                                GDanalysis.grid.SeqDiagnosticSequenceCols{comb,curclass,curlabel} = cols;
+                            end
+                        end
                     end
                 case 'WBLCOX'
                     for curclass = 1 : nclass
@@ -991,7 +1060,10 @@ if GDfl || batchflag == 0 || batchflag == 2
             GDanalysis.grid.se_SeqPercUpper     = nm_nanmean(GDanalysis.grid.sd_mSEQPU,4);
             GDanalysis.grid.mean_SeqPercLower   = nm_nanmean(GDanalysis.grid.mean_mSEQPL,4);
             GDanalysis.grid.se_SeqPercLower     = nm_nanmean(GDanalysis.grid.sd_mSEQPL,4);
+            GDanalysis.grid.se_SeqPerfGains     = nm_nanstd(GDanalysis.grid.mean_SeqPerfGains,4);
             GDanalysis.grid.mean_SeqPerfGains   = nm_nanmean(GDanalysis.grid.mean_SeqPerfGains,4);
+            GDanalysis.grid.se_SeqDiagnostics   = nm_nanstd(GDanalysis.grid.mean_SeqDiagnostics,4);
+            GDanalysis.grid.mean_SeqDiagnostics = nm_nanmean(GDanalysis.grid.mean_SeqDiagnostics,4);
             [GDanalysis.CV2grid.caseprop_freq, GDanalysis.CV2grid.caseprop_node] = ...
                 nk_ComputeEnsembleCasePropagationProbability(GDanalysis.caseprops,size(SVM.SEQOPT.C,2));
             DecValTrajConCat = cell2matpadnan(GDanalysis.decvaltraj);

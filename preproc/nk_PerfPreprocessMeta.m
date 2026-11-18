@@ -20,7 +20,7 @@ function [tY, Pnt, paramfl, tYocv] = nk_PerfPreprocessMeta(inp, labels, paramfl)
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % (c) Nikolaos Koutsouleris, 01/2024
 
-global MODEFL MULTI CV RAND VERBOSE PREPROC STACKING SVM SYNTH
+global MODEFL MULTI CV RAND VERBOSE PREPROC STACKING SVM SYNTH SAV CVPOS
 
 i = inp.f; j = inp.d; kbin = inp.nclass;
 
@@ -207,6 +207,8 @@ else
 end
 
 nCV1p = stp_iy*stp_jy;
+nCV1folds = stp_jy - sta_jy + 1;
+nCV1partitions = (stp_iy - sta_iy + 1) * nCV1folds;
 
 for k=sta_iy:stp_iy % Inner permutation loop
 
@@ -214,6 +216,14 @@ for k=sta_iy:stp_iy % Inner permutation loop
 
         ll = ll+1;
         tElapsed = tic;
+        CVPOS.CV1p = k; CVPOS.CV1f = l;
+        cv1ProgressIndex = (k - sta_iy) * nCV1folds + (l - sta_jy) + 1;
+        cv1ProgressPercent = 100 * (cv1ProgressIndex - 1) / nCV1partitions;
+        NMRuntimeProgressTools.writeLegacyModuleProgressSafe( ...
+            'Preprocessing CV1 progress', ...
+            sprintf('Processing CV1 partition [%d,%d] (%d/%d completed) within CV2 [%d,%d].', ...
+                k, l, cv1ProgressIndex - 1, nCV1partitions, CVPOS.CV2p, CVPOS.CV2f), ...
+            cv1ProgressPercent, CVPOS, 'preprocessing_cv1');
         fprintf('\nWorking on CV1 [ %2g, %2g ]: Prepare data', k, l);
         
         if isempty(tY.Tr{k,l})
@@ -399,36 +409,44 @@ for k=sta_iy:stp_iy % Inner permutation loop
 
                 % generate or load data
                 file_fnd = false;
-                if SYNTH.write2disk
+                if SYNTH.write2disk == 1
                     synthdir = fullfile(inp.maindir,filesep,'synth');
-                    if ~exist("synthdir","dir"), mkdir(synthdir); end
+                    if ~exist(synthdir,"dir"), mkdir(synthdir); end
                     synthfile = nk_GenerateNMFilePath(synthdir, SAV.matname, 'SynthDataMeta','', inp.varstr, inp.id, i, j, k, l );
-                    if exist(synthfile,"file")
-                        file_fnd = true;
+                    % nm2-allow: SYNTH file existence is checked at the disk-cache ingestion site.
+                    file_fnd = exist(synthfile,"file") == 2;
+                end
+                if file_fnd
+                    cached = load(synthfile);
+                    % nm2-allow: Earlier analyses and persisted SYNTH MAT files may lack init_token.
+                    if isfield(inp,'init_token') && (~isfield(cached,'init_token') || ...
+                            ~strcmp(cached.init_token,inp.init_token))
+                        file_fnd = false;
                     end
                 end
                 if file_fnd
                     fprintf('\nLoading synthetic data from file:\n%s', synthfile)
-                    load(synthfile)
+                    vTrSyn = cached.vTrSyn;
+                    LabelSyn = cached.LabelSyn;
+                    CovarsSyn = cached.CovarsSyn;
+                    Synth_activated = cached.Synth_activated;
                 else                    
-                    switch SYNTH.method
-                        case 1
-                            [ vTrSyn, LabelSyn, CovarsSyn ] = nk_SynthDistkNN(InputParam.Tr, TrL, Covs, SYNTH);
-                            Synth_activated = true;
-                        case 2
-                            [ vTrSyn, LabelSyn, CovarsSyn, Synth_activated ] = nk_PerfADASYN( InputParam.Tr, TrL, Covs, SYNTH, true);
-                        case 3
-                            [ vTrSyn, LabelSyn, CovarsSyn ] = nk_SynthPCAGauss(InputParam.Tr, TrL, Covs, SYNTH);
-                            Synth_activated = true;
-                    end 
-                    if SYNTH.write2disk
+                    [vTrSyn, LabelSyn, CovarsSyn, Synth_activated] = ...
+                        nk_SynthGenerate(InputParam.Tr{1}, TrL, Covs, SYNTH, MODEFL, []);
+                    if SYNTH.write2disk == 1
                         fprintf('\nSaving synthetic data to file:\n%s', synthfile)
-                        save(synthfile, "vTrSyn", "LabelSyn", "CovarsSyn", "Synth_activated");
+                        % nm2-allow: Historical analyses have no initialization token to persist.
+                        if isfield(inp,'init_token')
+                            init_token = inp.init_token;
+                            save(synthfile, "vTrSyn", "LabelSyn", "CovarsSyn", "Synth_activated", "init_token");
+                        else
+                            save(synthfile, "vTrSyn", "LabelSyn", "CovarsSyn", "Synth_activated");
+                        end
                     end
                 end
-                InputParam.TrSyn = vTrSyn;
-                SrcParam.TrainLabelSyn = LabelSyn;
-                if ~isempty(SrcParam.covars), SrcParam.covarsSyn = CovarsSyn; end
+                InputParam.TrSyn = {vTrSyn};
+                SrcParam.TrainLabelSyn = {LabelSyn};
+                SrcParam.covarsSyn = {CovarsSyn};
                 SrcParam.synth_activated = Synth_activated;
             end
 
@@ -563,6 +581,12 @@ for k=sta_iy:stp_iy % Inner permutation loop
             if paramfl.write || cv2flag, Pnt(k,l,u).TrainedParam = oTrainedParam; end
             clear InputParam TrainParam SrcParam
         end
+        cv1ProgressPercent = 100 * cv1ProgressIndex / nCV1partitions;
+        NMRuntimeProgressTools.writeLegacyModuleProgressSafe( ...
+            'Preprocessing CV1 progress', ...
+            sprintf('Completed CV1 partition [%d,%d] (%d/%d completed) within CV2 [%d,%d].', ...
+                k, l, cv1ProgressIndex, nCV1partitions, CVPOS.CV2p, CVPOS.CV2f), ...
+            cv1ProgressPercent, CVPOS, 'preprocessing_cv1');
         fprintf('\tCompleted in %1.2fs.',toc(tElapsed)); 
     end
 end

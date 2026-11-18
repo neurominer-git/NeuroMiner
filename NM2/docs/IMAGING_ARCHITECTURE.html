@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Imaging architecture</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#imaging-architecture" id="toc-imaging-architecture">Imaging architecture</a>
+<ul>
+<li><a href="#scope" id="toc-scope">Scope</a></li>
+<li><a href="#cross-layer-flow" id="toc-cross-layer-flow">Cross-layer
+flow</a></li>
+<li><a href="#matlab-side-services" id="toc-matlab-side-services">MATLAB-side services</a></li>
+<li><a href="#browser-viewer" id="toc-browser-viewer">Browser
+viewer</a></li>
+<li><a href="#display-semantics" id="toc-display-semantics">Display
+semantics</a></li>
+<li><a href="#retained-resources-and-cold-start" id="toc-retained-resources-and-cold-start">Retained resources and cold
+start</a></li>
+<li><a href="#surface-projection-and-volumetric-rendering" id="toc-surface-projection-and-volumetric-rendering">Surface projection
+and volumetric rendering</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="imaging-architecture">Imaging architecture</h1>
+<h2 id="scope">Scope</h2>
+<p>The imaging subsystem turns voxel-space scientific feature material
+into 2-D and 3-D representations while preserving one
+spatial-reference/display-semantics authority across interactive
+viewing, Report Builder, montage and video.</p>
+<h2 id="cross-layer-flow">Cross-layer flow</h2>
+<pre class="mermaid"><code>flowchart LR
+    FI[&quot;Feature Inspection vector/material&quot;] --&gt; ADAPT[&quot;Imaging vector/descriptor adapters&quot;]
+    DD[&quot;DataIO imaging provenance&quot;] --&gt; ADAPT
+    ADAPT --&gt; WS[&quot;NMResultsViewerImagingTools workspace&quot;]
+    WS --&gt; CACHE[&quot;Imaging runtime/asset caches&quot;]
+    WS --&gt; VIEW[&quot;NMResultsViewerImagingViewer&quot;]
+    VIEW --&gt; W2D[&quot;2-D WebGL renderer&quot;]
+    VIEW --&gt; W3D[&quot;3-D controller + shared mesh renderer&quot;]
+    VIEW --&gt; ROI[&quot;ROI rows / ROI Mapper&quot;]
+    VIEW --&gt; MV[&quot;Montage / video / capture&quot;]</code></pre>
+<h2 id="matlab-side-services">MATLAB-side services</h2>
+<p>The principal backend authority is
+<code>core/NMResultsViewerImagingTools.m</code>. It combines Feature
+Inspection material with explicit imaging descriptor/vector adapters and
+shared services under <code>dataio/</code> for spatial reference, volume
+access, resampling, templates, atlases, meshes, slices, content identity
+and runtime caching.</p>
+<p>Key adapter boundaries:</p>
+<ul>
+<li><code>core/NMResultsViewerImagingDescriptorAdapter.m</code></li>
+<li><code>core/NMResultsViewerImagingVectorAdapter.m</code></li>
+<li><code>dataio/NMImagingSpatialReference.m</code></li>
+<li><code>dataio/NMImagingVolumeAccess.m</code></li>
+<li><code>dataio/NMImagingRuntimeCache.m</code></li>
+<li><code>dataio/NMImagingAssetCache.m</code></li>
+<li><code>dataio/NMImagingMeshAssetCache.m</code></li>
+</ul>
+<h2 id="browser-viewer">Browser viewer</h2>
+<p><code>ui/NMResultsViewerImagingViewer.js</code> is the browser
+presentation/state authority for imaging. It coordinates 2-D planes, 3-D
+volume/surface-projection representations, atlas/ROI presentation,
+view-state persistence, capture and report publication.</p>
+<p>2-D rendering is delegated to
+<code>ui/NMImaging2DWebGLRenderer.js</code>. Three-dimensional scene
+control uses <code>ui/NMResultsViewerImaging3DController.js</code> over
+the common mesh renderer (<code>ui/NMWebGLMeshRenderer.js</code>).</p>
+<h2 id="display-semantics">Display semantics</h2>
+<p>Display range, threshold and colour semantics are shared rather than
+independently re-derived by each renderer. Browser anchors include
+<code>ui/NMImagingDisplaySemantics.js</code>,
+<code>ui/NMResultsViewerDisplayControls.js</code>, and the shared
+colour/threshold modules. MATLAB-side display-semantic decisions are
+coordinated by <code>core/NMResultsViewerDisplaySemanticsTools.m</code>
+where backend planning requires the same scientific meaning. A
+scientific payload may register an explicit presentation domain when
+comparability requires a range wider than the currently displayed
+vector; the shared semantics authority then uses that declared domain
+for polarity, colour stops and full-range rendering rather than letting
+an individual renderer infer sign/range from only the current subject.
+The MLI viewspace uses this contract to keep its colour scale fixed
+across subject navigation.</p>
+<h2 id="retained-resources-and-cold-start">Retained resources and cold
+start</h2>
+<p>The architecture separates content identity from presentation state.
+Runtime caches and retained browser view resources allow 2-D/3-D
+switching and repeated captures to reuse materialized assets when
+scientific content is unchanged. Cold initialization remains distinct
+from steady-state representation switching.</p>
+<p>A mounted Feature Inspection measure change uses the feature-only
+<code>results_viewer_alpha_imaging_feature_resource</code> boundary
+rather than rebuilding
+<code>results_viewer_alpha_imaging_workspace</code>. The browser
+supplies the exact resident context, grid/scaffold, structural/support,
+native-feature, atlas or surface-geometry identities established by the
+mounted workspace. The backend reuses the resident MATLAB
+materialization and transports only the changed feature arrays. It does
+not reselect or rewrite anatomy, atlas or surface geometry. A full
+workspace is requested only when those explicit resident identities are
+incompatible or their authoritative cached materialization is no longer
+resident.</p>
+<p>Both 2-D and 3-D consume this same scientific-payload boundary.
+Adapter-specific code therefore updates presentation resources only
+after feature materialization has been resolved once; adapter selection
+does not choose a separate scientific feature-acquisition path.</p>
+<p>For canonical volumetric ROI provenance, the feature-space cache
+additionally retains one exact atlas-label-to-canonical-ROI-column
+lookup materialization. That lookup and its support identity are
+invariant across measures. A retained ROI metric switch therefore
+resolves only the compact ROI vector, performs one vectorized dense fill
+required by the current voxel renderers, and transports that changed
+array; it does not repeat atlas membership discovery, generic
+voxel-feature reconstruction/alignment, support hashing, or full-volume
+content hashing. The lookup is a visualization materialization of DataIO
+ROI identity and never becomes a competing ROI authority.</p>
+<h2 id="surface-projection-and-volumetric-rendering">Surface projection
+and volumetric rendering</h2>
+<p>The 3-D viewer can display both volumetric rendering and feature
+projection onto surfaces. These are representations of the same prepared
+scientific/spatial material, not separate scientific payload
+authorities. Shared mesh/program infrastructure is documented in <a href="COMMON_MESH_RENDERING_ARCHITECTURE.html">COMMON_MESH_RENDERING_ARCHITECTURE.md</a>.</p>
+</body>
+</html>

@@ -25,9 +25,9 @@ elseif isfield(inp.PREPROC,'ACTPARAM')
     end
 end
 
-issmoothed = false(1,nx); if isfield(inp,'issmoothed') && any(inp.issmoothed), issmoothed = inp.issmoothed; end
+isSpatialPreprocessed = false(1,nx); if isfield(inp,'isSpatialPreprocessed') && any(inp.isSpatialPreprocessed), isSpatialPreprocessed = inp.isSpatialPreprocessed; end
 
-if issmoothed, sstr='s'; else, sstr=''; end
+if isSpatialPreprocessed, sstr='s'; else, sstr=''; end
 
 OCVstr = 'Y';
 
@@ -66,9 +66,9 @@ switch FUSION.flag
 
             inp.MLI.Modality{nx}.imgops.flag = 0;
 
-            issmoothed = false(1,nx); if isfield(inp,'issmoothed') && any(inp.issmoothed), issmoothed = inp.issmoothed; end
+            isSpatialPreprocessed = false(1,nx); if isfield(inp,'isSpatialPreprocessed') && any(inp.isSpatialPreprocessed), isSpatialPreprocessed = inp.isSpatialPreprocessed; end
 
-            if issmoothed, sstr='s'; else, sstr=''; end
+            if isSpatialPreprocessed, sstr='s'; else, sstr=''; end
 
             % do for original Y data
 

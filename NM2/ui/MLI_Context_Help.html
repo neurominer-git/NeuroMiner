@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NM2 help — Interpretable machine learning</title>
+<style>
+:root {font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;color:#172b40;background:#f6f8fc}
+* {box-sizing:border-box}
+body {margin:0}
+header {background:#172f54;color:#fff;padding:19px 21px}
+header h1 {font-size:21px;margin:0 0 7px}
+header p {margin:0;color:#dce9fa}
+main {padding:16px 18px 60px}
+nav,section {background:white;border:1px solid #d8e1eb;border-radius:10px;padding:13px 16px;margin-bottom:12px}
+nav a {display:inline-block;margin:3px 12px 3px 0}
+a {color:#1956aa;text-decoration:none}
+a:hover {text-decoration:underline}
+section {scroll-margin-top:12px}
+section:target {outline:2px solid #3b82f6}
+h2 {font-size:17px;margin:0 0 7px;color:#10243f}
+p {margin:7px 0}
+.note {border-left:3px solid #3b82f6;background:#eff6ff;padding:9px 11px;margin-top:9px}
+.warn {border-left:3px solid #c97718;background:#fff5e9;padding:9px 11px;margin-top:9px}
+code {background:#edf2f8;padding:1px 4px}
+</style>
+</head>
+<body>
+<header><h1>Interpretable ML: explaining model predictions</h1><p>How feature replacement changes predictions, and how to define the features and reference values used.</p></header>
+<main>
+<nav aria-label="Help topics">
+<a href="#overview">Start here</a>
+<a href="#mliPane_method">Method</a>
+<a href="#mliNPermsText">Iterations</a>
+<a href="#mliPane_map">Feature map</a>
+<a href="#mliPane_norm">Normalization</a>
+<a href="#mliPane_atlas">Atlas binding</a>
+</nav>
+<section id="overview">
+<h2>Start here: interpreting individual predictions</h2>
+<p>Interpretable machine learning (MLI) estimates how a trained model’s prediction changes when selected input features are replaced with reference values. The difference between the original and modified predictions describes the model’s sensitivity to those features for a particular case.</p>
+<p>Feature changes may be evaluated one by one or in subsets. The resulting prediction changes are <strong>model explanations</strong>: they describe the fitted model’s response to modified inputs, not a causal effect of the measurements.</p>
+<p>The four tabs specify <strong>how inputs are modified</strong>, <strong>which features are eligible</strong>, <strong>how prediction changes are scaled</strong>, and—for imaging data—<strong>whether modifications act on atlas-defined regions</strong>.</p>
+</section>
+<section id="mliPane_method">
+<h2>Method: how are features modified?</h2>
+<p>Each occlusion iteration replaces a selected subset of features and compares the model prediction before and after replacement. The method determines which replacement values are used.</p>
+<p>Feature subsets are sampled from the eligible feature space. Their size is set by the feature-fraction control or, when atlas binding is active, by the corresponding fraction of atlas regions.</p>
+</section>
+<section id="mliMethod">
+<h2>Interpretation method</h2>
+<p><strong>Upper/lower percentiles:</strong> replace selected feature values with upper and lower percentiles of the training distribution. <strong>Median:</strong> replace them with the training median.</p>
+<p><strong>Median-span flip:</strong> shift feature values across the training median by a median-quantile amount. <strong>Median-mirror:</strong> mirror values around the median. These methods change the input according to its position in the training distribution.</p>
+<p><strong>Random-value occlusion:</strong> draw replacement values from the feature’s training distribution. <strong>Shapley values:</strong> estimate contributions by comparing predictions across feature coalitions, with training samples serving as reference inputs.</p>
+<div class="note">Replacement methods define different questions about the fitted model. For example, extreme-percentile replacement probes responses to relatively large feature changes; median replacement probes responses to typical training values.</div>
+</section>
+<section id="mliUpperThresh">
+<h2>Upper percentile</h2>
+<p>For upper/lower percentile occlusion, this sets the <strong>upper reference percentile</strong> of each feature’s training values (default: 95). A value of 95 uses the 95th percentile, not the numeric value 95.</p>
+<p>This field is used only with the upper/lower percentile method.</p>
+</section>
+<section id="mliLowerThresh">
+<h2>Lower percentile</h2>
+<p>Sets the <strong>lower reference percentile</strong> of each feature’s training values (default: 5). Together with the upper percentile, it determines the range of perturbations used to assess prediction changes.</p>
+<p>This field is used only with the upper/lower percentile method.</p>
+</section>
+<section id="mliNPermsText">
+<h2>Number of iterations</h2>
+<p>Specifies how many feature subsets or coalitions are evaluated. The default is <strong>1024</strong>. Increasing this number explores more combinations and increases computation.</p>
+<p>For methods that use unique fixed-size subsets, the number may be reduced when fewer distinct combinations exist than requested. <strong>Inf</strong> selects automatic stopping for non-Shapley methods; the minimum-visit and maximum-iteration fields then become available.</p>
+<div class="note">A separate feature-selection step determines which input features are eligible. This field governs how often those eligible features are perturbed, not how many original features are retained in the model.</div>
+</section>
+<section id="mliFeatureFrac">
+<h2>Fraction of features visited per iteration</h2>
+<p>Fraction between 0 and 1 specifying how many eligible input features are changed together in each iteration (default: 0.10). For example, 0.10 changes approximately one tenth of the eligible features at a time.</p>
+<p>If a visualization map restricts the feature space, the fraction applies to the <strong>remaining eligible features</strong>. With atlas binding, it applies to the atlas units selected for modification.</p>
+<p>This control is not used for Shapley values.</p>
+</section>
+<section id="mliNVisited">
+<h2>Minimum visits per feature</h2>
+<p>In automatic-stopping mode, sets the target minimum number of times each eligible feature should be included in a perturbation (default: 100).</p>
+<p>The process stops after the visit target has been reached or after the maximum number of iterations. This field appears when the iteration count is Inf for a non-Shapley method.</p>
+</section>
+<section id="mliMaxIter">
+<h2>Maximum iterations</h2>
+<p>Upper bound on the number of perturbation iterations in automatic-stopping mode (default: 1000). It limits the computational effort even if some features have not reached the requested minimum number of visits.</p>
+<p>This field appears when the iteration count is Inf for a non-Shapley method.</p>
+</section>
+<section id="mliSampleFrac">
+<h2>Fraction of training samples visited per iteration</h2>
+<p>For Shapley values, sets the fraction of training examples used as reference samples for feature replacement (default: 0.25).</p>
+<p>These samples form the background against which a case’s feature contributions are estimated. A larger fraction uses more training examples per iteration and increases the amount of computation.</p>
+</section>
+<section id="mliPane_map">
+<h2>Feature-space restriction: which features are perturbed?</h2>
+<p>A visualization map can restrict interpretation to a selected subset of features. Only features passing the chosen map criterion are eligible for modification.</p>
+<p>The map restricts the <strong>explanation space</strong>; it does not retrain the predictive model or replace its original inputs.</p>
+</section>
+<section id="mliMapFlag">
+<h2>Use map from model visualization</h2>
+<p>Enable this option to use a map produced by the model-visualization analysis to select features for MLI. The next controls determine which map and which values meet the inclusion criterion.</p>
+<p>With the option disabled, MLI operates on the available feature space without this visualization-map restriction.</p>
+</section>
+<section id="mliMapMap">
+<h2>Map type</h2>
+<p><strong>Cross-validation ratio:</strong> expresses the stability of estimated feature weights relative to their variability across cross-validation models.</p>
+<p><strong>Sign-consistency P value, uncorrected:</strong> describes evidence that a feature’s weight direction is consistent across models. <strong>FDR-corrected P value:</strong> applies false-discovery-rate adjustment across features.</p>
+<p>The map type determines how the cutoff value should be interpreted: a cross-validation ratio has different units and direction from a P value.</p>
+</section>
+<section id="mliMapCutoffText">
+<h2>Cutoff value: one or two numbers</h2>
+<p>Enter one threshold (for example <code>2</code>) or two thresholds separated by a space (for example <code>-2 2</code>).</p>
+<p>One number is compared with the selected map using a single operator, such as <strong>greater than</strong>. Two numbers specify a lower/upper interval; the available operators then describe whether to include values inside or outside that interval.</p>
+<p>The cutoff is interpreted as an actual map value in absolute mode or as a percentile boundary in percentile mode.</p>
+</section>
+<section id="mliMapPercentMode">
+<h2>Cutoff mode</h2>
+<p><strong>Absolute:</strong> compare map values directly with the specified cutoff. For example, a cross-validation ratio cutoff of 2 refers to a ratio of 2.</p>
+<p><strong>Percentile:</strong> interpret the cutoff as a percentile boundary of the selected map values. This selects features by their relative position in the map distribution rather than a fixed map value.</p>
+</section>
+<section id="mliMapOperator">
+<h2>Cutoff operator</h2>
+<p>Specifies the comparison used to include features. With one cutoff, the choices are &lt;, ≤, &gt;, ≥, = and ≠.</p>
+<p>With two cutoffs, each operator is a pair of comparisons at the two boundaries: &lt;, &gt;; ≤, ≥; &gt;, &lt;; or ≥, ≤. The feature map is evaluated against both cutoff values. For example, &lt;, &gt; includes values below the first or above the second cutoff.</p>
+</section>
+<section id="mliPane_norm">
+<h2>Normalization: how are prediction changes displayed?</h2>
+<p>MLI produces prediction-change estimates for each case and feature. Case-level normalization changes how these estimates are scaled relative to other features within the same case.</p>
+<p>This control is not available for Shapley values.</p>
+</section>
+<section id="mliZNormData">
+<h2>Normalize prediction-change estimates at the case level</h2>
+<p><strong>Group-level only:</strong> retain the prediction-change estimates without further case-level rescaling. <strong>Mean centering:</strong> subtract the case’s mean prediction change across features.</p>
+<p><strong>Z-normalization:</strong> center and divide by the case’s standard deviation across features. <strong>Scale to [−1, 1]:</strong> rescale the case-level values to that range.</p>
+<p>Case-level normalization changes the relative scale shown for each case. It does not change the fitted predictor or its original predictions.</p>
+</section>
+<section id="mliPane_atlas">
+<h2>Atlas binding: modify brain regions together</h2>
+<p>For imaging data, atlas binding replaces changes to individual voxel or surface features with modifications of features belonging to an atlas-defined region.</p>
+<p>The atlas image identifies regions numerically; the descriptor table associates those numeric IDs with region names. Atlas resources must be imported into the active interpretation configuration.</p>
+</section>
+<section id="mliAtlasFlag">
+<h2>Bind data modification to neuroanatomical atlas</h2>
+<p>Enable atlas binding to perturb all eligible imaging features belonging to a selected atlas region together, rather than changing individual features independently.</p>
+<p>The selected atlas must correspond to the feature space of the current imaging modality. Atlas binding is offered only for imaging modalities.</p>
+</section>
+<section id="mliAtlasFile">
+<h2>Atlas imaging file</h2>
+<p>Select a volume or surface atlas file containing a numeric region identifier for each location. The atlas defines which imaging features belong to each region.</p>
+<p><strong>Select and import atlas image...</strong> chooses a file and imports it. <strong>Import current atlas image</strong> imports the path already shown in the text field. After changing a path manually, importing the file is necessary to construct its feature-to-region mapping.</p>
+</section>
+<section id="mliCsvFile">
+<h2>Atlas descriptor file</h2>
+<p>Select a text table that associates numeric atlas region IDs with their region descriptions. The table usually contains a column of IDs and a column of region names.</p>
+<p><strong>Preview current descriptor file</strong> shows the raw header and how MATLAB interprets the columns with the current delimiter. <strong>Import descriptor table</strong> reads the two selected columns into the atlas configuration.</p>
+<p>The region IDs must correspond to the atlas image labels; otherwise the named regions will not describe the intended image locations.</p>
+</section>
+<section id="mliCsvDelim">
+<h2>Descriptor delimiter</h2>
+<p>Specifies how columns are separated in the atlas descriptor file: semicolon, comma, tab or whitespace.</p>
+<p>Changing this value changes how the header and region columns are parsed. The descriptor preview displays the resulting column names before import.</p>
+</section>
+<section id="mliCsvId">
+<h2>ROI ID column</h2>
+<p>Name of the descriptor-table column that contains the <strong>numeric atlas region identifiers</strong> (default: <code>ROIid</code>). These IDs link rows of the descriptor table to labels in the atlas image.</p>
+<p>Enter the table column name, not an example ID value or a column number.</p>
+</section>
+<section id="mliCsvCol">
+<h2>ROI descriptor column</h2>
+<p>Name of the descriptor-table column that contains the <strong>region names</strong> (default: <code>ROIdesc</code>). The labels appear in region-level interpretation output.</p>
+<p>Enter the table column name as shown in the descriptor preview.</p>
+</section>
+</main>
+</body>
+</html>

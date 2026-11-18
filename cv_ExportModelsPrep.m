@@ -204,6 +204,7 @@ end
 inp1.id              = dat.id;
 stranalysis          = SAV.matname;
 inp1.ngroups         = numel(unique(dat.label(~isnan(dat.label))));
+inp1.maindir         = analysis.rootdir;
 
 if isfield(inp1,'targdir') %%TO DO EXPORTMODELS NECESSARY???
     inp1.rootdir = fullfile(inp1.targdir, inp1.oocvname);

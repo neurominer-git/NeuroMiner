@@ -1,4 +1,4 @@
-function sY = nk_PerfSpatFilt( Y, CURACT, Param )
+function [sY, isSpatialPreprocessed] = nk_PerfSpatFilt( Y, CURACT, Param )
 % nk_PerfSpatFilt - Performs spatial filtering on data with optional fusion
 %
 % Syntax:
@@ -44,9 +44,10 @@ function sY = nk_PerfSpatFilt( Y, CURACT, Param )
 % (c) Nikolaos Koutsouleris, 26/08/2024
 
 if isfield(CURACT,'SPATIAL') && CURACT.SPATIAL.cubetype>1
-    % If data fusion has happened before the smoothing
-    % extract the modality, smooth it and fuse it again 
+    % If data fusion has happened before subject-specific spatial preprocessing
+    % extract the modality, process it and fuse it again 
     S = CURACT.SPATIAL;
+    terminalTypes = [5 7 8]; % waveletSpatial (cubetype 9) is image-preserving and must use mask geometry
     dimvecx = Param.dimvecx;
     if iscell(Param.brainmask), nM = numel(Param.brainmask); else, nM=1; end
     nP = size(CURACT.SPATIAL.PX.opt,1);
@@ -56,8 +57,8 @@ if isfield(CURACT,'SPATIAL') && CURACT.SPATIAL.cubetype>1
     Vm = []; Vmvol = [];
     for zu = 1:nM
         if nM>1
-            brainmask       = nk_RemCommaFromStr(Param.brainmask{zu});
             datatype        = Param.datatype(zu);
+            if datatype == 1, brainmask = nk_RemCommaFromStr(Param.brainmask{zu}); else, brainmask = ''; end
             if isfield(Param,'Vm')
                 Vm          = Param.Vm{zu};
                 Vmvol       = Param.Vmvol{zu};
@@ -66,8 +67,8 @@ if isfield(CURACT,'SPATIAL') && CURACT.SPATIAL.cubetype>1
             LABEL           = Param.threshval{zu};
             LABELOPERATOR   = Param.threshop{zu};
         else
-            brainmask       = nk_RemCommaFromStr(Param.brainmask{1});
             datatype        = Param.datatype;
+            if datatype == 1, brainmask = nk_RemCommaFromStr(Param.brainmask{1}); else, brainmask = ''; end
             if isfield(Param,'Vm')
                 Vm          = Param.Vm;
                 Vmvol       = Param.Vmvol;
@@ -90,11 +91,48 @@ if isfield(CURACT,'SPATIAL') && CURACT.SPATIAL.cubetype>1
             end
             tY                  = Y(:,dimst:dimend);     
         end
-        if datatype ~= 1
+        if datatype == 2 && ismember(double(S.cubetype),[4 9])
+            if nM > 1
+                contract = Param.surfaceGeometryContract{zu};
+            else
+                contract = Param.surfaceGeometryContract;
+            end
+            if size(tY,2) ~= contract.vertexCount
+                error('nk_PerfSpatFilt:surfaceFeatureAxisMismatch', ...
+                    'Surface data contain %d features, but the DataIO mesh contains %d vertices.', ...
+                    size(tY,2),contract.vertexCount);
+            end
+            [masks,~,maskGroup] = unique(isfinite(tY),'rows','stable');
+            for zv = 1:nP
+                fY{zv,zu} = nan(size(tY),'like',tY);
+            end
+            waveletCompleted = 0;
+            waveletTotal = nP * size(tY,1);
+            for group = 1:size(masks,1)
+                rows = maskGroup==group;
+                op = nk_SurfaceHeatKernel(contract,masks(group,:).');
+                for zv = 1:nP
+                    value = S.PX.opt(zv);
+                    switch double(S.cubetype)
+                        case 4
+                            fY{zv,zu}(rows,:) = nk_SurfaceHeatFilter(tY(rows,:),op,value);
+                        case 9
+                            fprintf('\nSurface graph-wavelet level %g: ',value);
+                            completedBefore = waveletCompleted;
+                            onCompleted = @(done,batchSize) report_surface_wavelet_progress( ...
+                                completedBefore+done,waveletTotal,batchSize,zu,nM,zv,nP);
+                            fY{zv,zu}(rows,:) = nk_SurfaceGraphWavelet( ...
+                                tY(rows,:),op,value,S.WAVELET,onCompleted);
+                            waveletCompleted = waveletCompleted + nnz(rows);
+                            fprintf('\n');
+                    end
+                end
+            end
+        elseif datatype ~= 1
             for zv = 1:nP
                 fY{zv, zu} = tY; 
             end
-        elseif CURACT.SPATIAL.cubetype ~= 5 && CURACT.SPATIAL.cubetype ~= 7
+        elseif ~ismember(CURACT.SPATIAL.cubetype, terminalTypes)
             tmpflg = false;
             if ~exist(brainmask,'file')
                 if ~isempty(Vm) && ~isempty(Vmvol)
@@ -120,7 +158,7 @@ if isfield(CURACT,'SPATIAL') && CURACT.SPATIAL.cubetype>1
             indnan                       = any(nanMask,2);
             tY                           = nk_SpatFilt(ttY, S);
             clear ttY
-            % Transfer smoothed data into container and handle NaNs
+            % Transfer image-space processed data into container and handle NaNs
             % properly
             for zv = 1:nP
                 fY{zv,zu} = tY{zv};
@@ -139,6 +177,20 @@ if isfield(CURACT,'SPATIAL') && CURACT.SPATIAL.cubetype>1
         end
     end
     for zv = 1:nP, sY{zv} = cell2mat(fY(zv,:));end
+    isSpatialPreprocessed = true;
 else
     sY = Y;
+    isSpatialPreprocessed = false;
+end
+end
+
+function report_surface_wavelet_progress(completed,total,batchSize,modal,nM,option,nP)
+% Report only completed subjects; computation stays vectorized in the backend.
+global CVPOS
+fprintf('%s',repmat('.',1,batchSize));
+NMRuntimeProgressTools.writeLegacyModuleProgressSafe( ...
+    'Surface wavelet reconstruction', ...
+    sprintf('Surface wavelet, modality %d/%d, option %d/%d: %d/%d subject-branch operations completed.', ...
+        modal,nM,option,nP,completed,total), ...
+    100*completed/total,CVPOS,'surface_wavelet');
 end

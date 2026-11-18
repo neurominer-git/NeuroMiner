@@ -50,8 +50,11 @@ function [act, inp, NMo] = nk_MLOptimizerPrep(act, inp, parentstr)
 %                  ovrwrt      : Overwrite policy for target files (1=Yes,2=No)
 %                  update      : Update/refresh derived files when using precomputed data
 %                  HideGridAct : If true, skip CV2 grid selection
-%                  batchflag   : 0=interactive, 1=batch (non-deployed),
-%                                2=batch with inp.NM / inp.CV supplied
+%                  batchflag   : execution-mode flag:
+%                                0=serial/full analysis, 1=partition batch,
+%                                2=legacy API transport with inp.NM / inp.CV.
+%                                NM2 normalizes 2->0 after context injection;
+%                                progress presentation is controlled by UI.
 %                  debugall    : Save all models and training data (DEV only)
 %                  debugopt    : Save chosen optimum results/models (DEV only)
 %                In batchflag==2, you must provide:
@@ -103,13 +106,20 @@ function [act, inp, NMo] = nk_MLOptimizerPrep(act, inp, parentstr)
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % (c) Nikolaos Koutsouleris 06/2024
 
-global CV NM xNM simFlag JSMEM DEBUG DEV  %xNM for simulation 
+global CV NM xNM simFlag JSMEM DEBUG DEV UI  %xNM for simulation 
 
 JSMEM = []; NMo = [];
-clearNM = false; 
+clearNM = false;
+browserRuntime = isstruct(UI) && isfield(UI,'enabled') && logical(UI.enabled) && ...
+    isfield(UI,'appUI') && logical(UI.appUI) && isfield(UI,'mode') && ...
+    strcmpi(char(string(UI.mode)), 'browser');
 if exist('inp','var') && ~isempty(inp) && inp.batchflag==2
-    NM = inp.NM; inp = rmfield(inp,'NM'); 
-    CV = inp.CV; inp = rmfield(inp,'CV'); 
+    NM = inp.NM; inp = rmfield(inp,'NM');
+    CV = inp.CV; inp = rmfield(inp,'CV');
+    % batchflag==2 remains the legacy API transport for NM/CV injection.
+    % NM2 browser execution itself uses ordinary serial/full-analysis
+    % semantics; progress presentation is controlled independently by UI.
+    if browserRuntime, inp.batchflag = 0; end
 end
 na_str = '?';
 if ~exist('inp','var') || isempty(inp)
@@ -337,9 +347,12 @@ if ~isempty(analysis)
     end
 
     %% Display menu and act on user selections
-    nk_PrintLogo
-    mestr = 'ML Training module run-time configuration'; navistr = [parentstr ' >>> ' mestr]; fprintf('\nYou are here: %s >>>',parentstr);
-    if ~inp.batchflag, act = nk_input(mestr, 0, 'mq', menustr, menuact); end
+    mestr = 'ML Training module run-time configuration'; navistr = [parentstr ' >>> ' mestr];
+    if ~inp.batchflag && ~browserRuntime
+        nk_PrintLogo
+        fprintf('\nYou are here: %s >>>',parentstr);
+        act = nk_input(mestr, 0, 'mq', menustr, menuact);
+    end
     algostr = getAlgoStr(analysis);
     switch act
         case 0
@@ -491,7 +504,7 @@ if clearNM, clear NM; end
 % _________________________________________________________________________
 function analysis = MLOptimizerPrep(dat, analysis, inp1)
 
-global PARMODE MULTI SAV MODEFL CV PREPROC RAND FUSION META SVM
+global PARMODE MULTI SAV MODEFL CV PREPROC RAND FUSION META SVM MULTILABEL
 
 nk_SetupGlobalVariables(analysis.params, 'setup_strat', 0, inp1.varind(1));
 strout = nk_Preprocess_StrCfg([], []);
@@ -514,7 +527,11 @@ ld = 1; if FUSION.flag == 3, ld = numel(inp1.F); end
 inp1.unique_groups = unique(dat.label); 
 inp1.unique_groups(isnan(inp1.unique_groups))=[];
 inp1.ngroups = numel(inp1.unique_groups);
-hx = size(dat.label,2);
+if ~isempty(MULTILABEL) && MULTILABEL.flag == true
+    hx = numel(MULTILABEL.sel);
+else
+    hx = size(dat.label,2);
+end
 analysis.Time                               = zeros(ld,1);
 analysis.TrainPerformanceBin                = zeros(ld,inp1.nclass,hx);
 analysis.TestPerformanceBin                 = zeros(ld,inp1.nclass,hx);

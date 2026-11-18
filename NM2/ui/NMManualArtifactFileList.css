@@ -1,0 +1,90 @@
+/* NMManualArtifactFileList.css
+ * styles the NMManualArtifactFileList browser UI component.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+.nmManualFileListHost {
+  margin-top: 7px;
+}
+.nmManualFileList {
+  border: 1px solid #d6e0ec;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+.nmManualFileList.empty {
+  padding: 8px 10px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.nmManualFileHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 9px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+}
+.nmManualFileHeader strong {
+  color: #1d4ed8;
+}
+.nmManualFileClear,
+.nmManualFileRemove {
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+.nmManualFileClear:hover,
+.nmManualFileRemove:hover {
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+.nmManualFileList ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 168px;
+  overflow-y: auto;
+}
+.nmManualFileItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 9px;
+  border-top: 1px solid #edf2f7;
+}
+.nmManualFileItem:first-child {
+  border-top: 0;
+}
+.nmManualFileText {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.nmManualFileText strong,
+.nmManualFileText small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nmManualFileText strong {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+}
+.nmManualFileText small {
+  color: #64748b;
+  font-size: 11px;
+}

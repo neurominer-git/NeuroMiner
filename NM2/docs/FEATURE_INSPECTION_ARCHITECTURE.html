@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Feature Inspection architecture</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#feature-inspection-architecture" id="toc-feature-inspection-architecture">Feature Inspection
+architecture</a>
+<ul>
+<li><a href="#scientific-role" id="toc-scientific-role">Scientific
+role</a></li>
+<li><a href="#cross-function-flow" id="toc-cross-function-flow">Cross-function flow</a></li>
+<li><a href="#fusion-and-component-semantics" id="toc-fusion-and-component-semantics">Fusion and component
+semantics</a></li>
+<li><a href="#feature-relation-graph" id="toc-feature-relation-graph">Feature relation graph</a></li>
+<li><a href="#spatial-representation-routing" id="toc-spatial-representation-routing">Spatial representation
+routing</a></li>
+<li><a href="#report-builder-relationship" id="toc-report-builder-relationship">Report Builder
+relationship</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="feature-inspection-architecture">Feature Inspection
+architecture</h1>
+<h2 id="scientific-role">Scientific role</h2>
+<p>Feature Inspection connects model-derived feature statistics with
+their original feature-space provenance. It must preserve the
+distinction between scientific selection (analysis, target,
+modality/context, retained component and measure) and presentation
+selection (table, graph, imaging, surface or connectivity
+representation).</p>
+<h2 id="cross-function-flow">Cross-function flow</h2>
+<pre class="mermaid"><code>flowchart LR
+    VIS[&quot;VIS / model feature material&quot;] --&gt; RVT[&quot;NMResultsViewerTools Feature Inspection authority&quot;]
+    DIO[&quot;DataIO modality/provenance metadata&quot;] --&gt; RVT
+    RVT --&gt; ANN[&quot;Scientific Annotation&quot;]
+    RVT --&gt; FP[&quot;Feature Inspection payload&quot;]
+    FP --&gt; SS[&quot;Scientific State&quot;]
+    FP --&gt; TAB[&quot;Tabular/metric views&quot;]
+    FP --&gt; GRAPH[&quot;Feature relation graph&quot;]
+    FP --&gt; IMG[&quot;Voxel imaging adapter&quot;]
+    FP --&gt; SURF[&quot;Native surface adapter&quot;]
+    FP --&gt; CONN[&quot;Connectivity adapter&quot;]
+    FP --&gt; ROI[&quot;ROI rows / ROI Mapper pathway&quot;]</code></pre>
+<h2 id="fusion-and-component-semantics">Fusion and component
+semantics</h2>
+<p>Feature-space meaning is published through the Scientific Annotation
+rather than inferred by consumers from <code>visdata</code> position.
+The architecture distinguishes physical modality contexts from the
+combined fusion projection and keeps retained/back-projection component
+identity explicit. For early/intermediate fusion, the combined result
+namespace is projected onto one virtual modality: the first ordered
+member of the completed analysis <code>FUSION.M</code> contract.
+Scientific Annotation and Scientific State retain that virtual
+projection identity separately from the selected physical VIS member
+identities and feature counts. Thus a 704-feature combined early-fusion
+namespace and its 117-feature first physical member are distinct state
+coordinates. Physical member labels come from the exact analysis-local
+<code>visdata.params.features</code> axis; combined tabular labels are
+the ordered member axes, not the raw namespace of whichever physical
+member is currently selected.</p>
+<p>The backend authority for these semantics is
+<code>core/NMResultsViewerTools.m</code>, with common vocabulary owned
+by <code>core/NMResultsViewerScientificAnnotation.m</code>.</p>
+<h2 id="feature-relation-graph">Feature relation graph</h2>
+<p><code>core/NMResultsViewerFeatureGraphTools.m</code> owns
+construction of canonical feature-relation graph material from the
+bounded Feature Inspection relation input. Browser graph modules own
+presentation, filtering and interaction state. Report Builder consumes
+the same canonical relation material rather than defining an independent
+graph calculation.</p>
+<p>Browser anchors include:</p>
+<ul>
+<li><code>ui/NMResultsViewerFeatureRepresentations.js</code></li>
+<li><code>ui/NMResultsViewerFeatureGraphLabels.js</code></li>
+<li><code>ui/NMResultsViewerFeatureRibbon.js</code></li>
+<li><code>ui/NMResultsViewerGraphPresentationControls.js</code></li>
+</ul>
+<h2 id="spatial-representation-routing">Spatial representation
+routing</h2>
+<p>Spatial Feature Inspection does not use one generic plot for all
+feature spaces. Provenance determines the native family:</p>
+<ul>
+<li>voxel feature maps -&gt; imaging viewer;</li>
+<li>native surface features -&gt; surface viewer;</li>
+<li>connectivity edges -&gt; connectivity representations;</li>
+<li>ROI fields with validated ROI provenance -&gt; ROI-aware
+imaging/surface pathway and ROI Mapper;</li>
+<li>genuinely tabular features -&gt; tabular/metric plots.</li>
+</ul>
+<p>The Scientific State advertises which visualization families are
+available in the current payload context, and the browser admits
+representations from that state.</p>
+<h2 id="report-builder-relationship">Report Builder relationship</h2>
+<p>Report Builder discovers Feature Inspection components from the same
+Scientific State and authoritative Feature Inspection payload metadata.
+Browser-side report preparation reuses the representation adapters and
+retained presentation state rather than re-implementing Feature
+Inspection semantics.</p>
+</body>
+</html>

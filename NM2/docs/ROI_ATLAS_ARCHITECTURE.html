@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>ROI and atlas architecture</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#roi-and-atlas-architecture" id="toc-roi-and-atlas-architecture">ROI and atlas architecture</a>
+<ul>
+<li><a href="#canonical-roi-identity" id="toc-canonical-roi-identity">Canonical ROI identity</a></li>
+<li><a href="#volumetric-atlas-relationship" id="toc-volumetric-atlas-relationship">Volumetric atlas
+relationship</a></li>
+<li><a href="#surface-annotation-relationship" id="toc-surface-annotation-relationship">Surface annotation
+relationship</a></li>
+<li><a href="#direct-roi-import" id="toc-direct-roi-import">Direct ROI
+import</a></li>
+<li><a href="#roi-qc" id="toc-roi-qc">ROI QC</a></li>
+<li><a href="#roi-mapper" id="toc-roi-mapper">ROI Mapper</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="roi-and-atlas-architecture">ROI and atlas architecture</h1>
+<h2 id="canonical-roi-identity">Canonical ROI identity</h2>
+<p>ROI-valued feature matrices may originate from several producer
+pathways, but downstream code consumes one canonical ROI provenance
+boundary owned by <code>dataio/NMDataIOROIProvenanceTools.m</code>.</p>
+<pre class="mermaid"><code>flowchart TD
+    DIRECT[&quot;Direct ROI table/matrix import&quot;] --&gt; CAN[&quot;Canonical ROI provenance&quot;]
+    VOL[&quot;Voxel atlas collapse&quot;] --&gt; CAN
+    SURF[&quot;Surface annotation collapse&quot;] --&gt; CAN
+    CAN --&gt; DD[&quot;Persisted modality descriptor&quot;]
+    DD --&gt; QC[&quot;ROI-aware QC&quot;]
+    DD --&gt; FI[&quot;Feature Inspection / spatial adapters&quot;]
+    FI --&gt; ROWS[&quot;ROI rows in native atlas/annotation order&quot;]
+    ROWS --&gt; MAP[&quot;ROI Mapper presentation&quot;]
+    ROWS --&gt; RB[&quot;Report Builder ROI output&quot;]</code></pre>
+<p>The canonical contract preserves data-column-to-ROI identity and
+explicit spatial references. ROI semantics are therefore declared, not
+guessed from vector size, feature names or generic modality labels.</p>
+<h2 id="volumetric-atlas-relationship">Volumetric atlas
+relationship</h2>
+<p>Volumetric ROI provenance refers to a labelled atlas as the spatial
+reference. Shared atlas descriptor parsing and atlas-derived ROI
+coordinate/label services are owned by
+<code>dataio/NMDataIOAtlasDescriptorTools.m</code>. DataIO establishes
+the provenance; Results Viewer imaging services consume it.</p>
+<p>For interactive imaging, the exact atlas-label→canonical-ROI-column
+relationship may be materialized once as a compact resident voxel lookup
+keyed by the authoritative feature-space identity. Repeated feature
+payloads reuse that lookup and the already-established support identity.
+This is a performance materialization only: canonical ROI IDs/order and
+the labelled atlas remain the scientific authority, and the lookup is
+invalidated rather than repaired if those identities differ.</p>
+<h2 id="surface-annotation-relationship">Surface annotation
+relationship</h2>
+<p>Surface ROI provenance refers to hemisphere-specific annotation
+sources plus surface geometry provenance. DataIO validates and persists
+the correspondence; the Results Viewer surface pathway paints ROI values
+onto the native surface using the retained annotation identity rather
+than displaying them as generic tabular data.</p>
+<h2 id="direct-roi-import">Direct ROI import</h2>
+<p><code>dataio/NMDataIOROIDirectTools.m</code> supports ROI matrices
+whose spatial provenance is supplied directly rather than created by
+voxel/surface collapse. It converges into the same canonical ROI
+contract so OOCV alignment, QC and Results Viewer consumption use one
+ROI identity model.</p>
+<h2 id="roi-qc">ROI QC</h2>
+<p><code>dataio/NMDataIOFeatureQCTools.m</code> prepares resident ROI QC
+reference material from canonical provenance. Volumetric ROI QC uses the
+labelled atlas; surface ROI QC uses annotation/geometry provenance. The
+browser should not rematerialize the atlas/annotation for every subject
+switch.</p>
+<h2 id="roi-mapper">ROI Mapper</h2>
+<p><code>ui/NMResultsViewerROIMapper.js</code> is presentation-only. It
+receives already-computed ROI rows, atlas/annotation identity and parent
+display thresholds from the imaging/surface authority.
+<code>ui/NMResultsViewerImagingViewer.js</code> is the principal
+publication bridge from Feature Inspection into the Mapper. Report
+Builder uses the same publication path.</p>
+<p>ROI Mapper comparisons therefore do not become a second ROI
+materialization authority.</p>
+</body>
+</html>

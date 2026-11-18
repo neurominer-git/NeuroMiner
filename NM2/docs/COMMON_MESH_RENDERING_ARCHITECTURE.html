@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Common mesh and 3-D rendering architecture</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#common-mesh-and-3-d-rendering-architecture" id="toc-common-mesh-and-3-d-rendering-architecture">Common mesh and 3-D
+rendering architecture</a>
+<ul>
+<li><a href="#architectural-scope" id="toc-architectural-scope">Architectural scope</a></li>
+<li><a href="#relationship" id="toc-relationship">Relationship</a></li>
+<li><a href="#browser-renderer-authority" id="toc-browser-renderer-authority">Browser renderer authority</a></li>
+<li><a href="#matlab-materialization-relationship" id="toc-matlab-materialization-relationship">MATLAB materialization
+relationship</a></li>
+<li><a href="#reuse-across-representations" id="toc-reuse-across-representations">Reuse across
+representations</a></li>
+<li><a href="#performance-principle" id="toc-performance-principle">Performance principle</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="common-mesh-and-3-d-rendering-architecture">Common mesh and 3-D
+rendering architecture</h1>
+<h2 id="architectural-scope">Architectural scope</h2>
+<p>NM2 uses one browser mesh-rendering substrate for multiple scientific
+representations instead of maintaining separate WebGL engines for
+imaging surfaces, native cortical surfaces and connectivity 3-D
+scenes.</p>
+<h2 id="relationship">Relationship</h2>
+<pre class="mermaid"><code>flowchart TD
+    IMG[&quot;Imaging 3-D controller&quot;] --&gt; R[&quot;NMWebGLMeshRenderer&quot;]
+    SURF[&quot;Native surface adapter&quot;] --&gt; R
+    CONN[&quot;Connectivity 3-D&quot;] --&gt; R
+    R --&gt; PROG[&quot;NMWebGLMeshPrograms&quot;]
+    R --&gt; INT[&quot;NMWebGLMeshInteraction&quot;]
+    IMG --&gt; CACHE[&quot;MATLAB mesh/assets caches&quot;]
+    SURF --&gt; CACHE
+    CONN --&gt; CACHE</code></pre>
+<h2 id="browser-renderer-authority">Browser renderer authority</h2>
+<p><code>ui/NMWebGLMeshRenderer.js</code> owns the shared scene/object
+renderer, camera/clip/lighting state application, offscreen rendering
+and common mesh object lifecycle. Shader/program specialization is
+separated into <code>ui/NMWebGLMeshPrograms.js</code>; interaction
+support is separated into <code>ui/NMWebGLMeshInteraction.js</code>.</p>
+<p>Representation modules provide prepared geometry/scientific
+attributes and presentation settings. They should not fork renderer
+internals to implement representation-specific behaviour that can be
+expressed through the common scene/object contract.</p>
+<h2 id="matlab-materialization-relationship">MATLAB materialization
+relationship</h2>
+<p>Geometry preparation and binary asset packaging occur through shared
+MATLAB services such as:</p>
+<ul>
+<li><code>dataio/NMImagingMeshService.m</code></li>
+<li><code>dataio/NMImagingMeshAssetCache.m</code></li>
+<li><code>dataio/NMImagingRuntimeCache.m</code></li>
+</ul>
+<p>The browser consumes materialized geometry/assets; it does not
+recreate scientific spatial correspondence.</p>
+<h2 id="reuse-across-representations">Reuse across representations</h2>
+<p>The common renderer is used by:</p>
+<ul>
+<li>volumetric/surface-projection 3-D imaging via
+<code>NMResultsViewerImaging3DController.js</code>;</li>
+<li>native surface viewing via
+<code>NMResultsViewerSurfaceAdapter.js</code>;</li>
+<li>connectivity glass brain via
+<code>NMResultsViewerConnectivity3D.js</code>.</li>
+</ul>
+<p>This shared substrate is also the basis for consistent
+capture/offscreen rendering, montage/video generation and Report Builder
+representation capture.</p>
+<h2 id="performance-principle">Performance principle</h2>
+<p>Compile/program reuse, retained geometry and content-identity caching
+are architectural concerns because they span several representations.
+Exact cache keys, buffer mutation rules and rendering costs belong in
+the implementing renderer/cache functions.</p>
+</body>
+</html>

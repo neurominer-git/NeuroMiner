@@ -1,0 +1,2131 @@
+/* NMDataIOUI.css
+ * styles the DataIO import, preview, QC and commit workflow pages.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+:root {
+  --bg: #f6f8fb;
+  --panel: #ffffff;
+  --line: #d8dee9;
+  --text: #18202a;
+  --muted: #64748b;
+  --primary: #1f5fbf;
+  --ok: #156f3b;
+  --mandatory-ok: #16a34a;
+  --warn: #9a6200;
+  --danger: #a32929;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  box-sizing: border-box;
+  padding: 0 20px;
+  background: #111827;
+  color: #fff;
+  border-bottom: 1px solid #0b1220;
+}
+.crumb { font-size: 12px; color: #cbd5e1; text-transform: uppercase; letter-spacing: .04em; }
+.title { font-size: 20px; font-weight: 700; }
+.headerActions { display: flex; gap: 8px; }
+button {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 18px; }
+body.dataioOverviewActive .wrap {
+  max-width: 1760px;
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.notice {
+  background: #fff7db;
+  border: 1px solid #f2d27a;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.summaryCard {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+}
+.summaryValue { font-size: 24px; font-weight: 700; }
+.summaryLabel { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.panel h1 { margin: 0 0 4px 0; font-size: 18px; }
+.panel h2 { margin: 16px 0 8px 0; font-size: 15px; }
+.panelHead { display: flex; justify-content: space-between; gap: 12px; }
+.panelTitleRow { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.panelTitleRow > h1, .panelTitleRow > h2, .panelTitleRow > h3, .panelTitleRow > b { margin-right: 0; }
+.panelHelpButton {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid #8aa0bd;
+  background: #f8fbff;
+  color: #31557f;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+}
+.panelHelpButton:hover, .panelHelpButton:focus-visible {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #eef5ff;
+}
+.panelHelpButton.isActive {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+.dataIOHelpDrawer {
+  position: fixed;
+  top: 64px;
+  right: 0;
+  bottom: 0;
+  z-index: 1500;
+  width: min(460px, 92vw);
+  display: none;
+  flex-direction: column;
+  background: #f8fafc;
+  border-left: 1px solid var(--line);
+  box-shadow: -16px 0 36px rgba(15, 23, 42, .22);
+}
+body.dataioHelpOpen .dataIOHelpDrawer { display: flex; }
+.dataIOHelpHead {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px 9px 15px;
+  border-bottom: 1px solid var(--line);
+  background: #eef3f9;
+}
+.dataIOHelpEyebrow {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.dataIOHelpTitle { font-size: 14px; font-weight: 750; color: #24364a; }
+.dataIOHelpClose { padding: 6px 10px; white-space: nowrap; }
+.dataIOHelpFrame {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: #f7f9fc;
+}
+@media (min-width: 1680px) {
+  :root { --dataioHelpDockWidth: 440px; --dataioHelpDockGap: 16px; }
+  body.dataioHelpOpen > main.wrap {
+    width: calc(100% - var(--dataioHelpDockWidth) - var(--dataioHelpDockGap));
+    margin-left: 0;
+    margin-right: auto;
+    transition: width .18s ease, max-width .18s ease;
+  }
+  body.dataioHelpOpen .dataIOHelpDrawer {
+    width: var(--dataioHelpDockWidth);
+    box-shadow: -8px 0 24px rgba(15, 23, 42, .14);
+  }
+  body.dataioHelpOpen .taskModalPage.active {
+    right: calc(var(--dataioHelpDockWidth) + var(--dataioHelpDockGap));
+  }
+}
+@media (max-width: 760px) {
+  .dataIOHelpDrawer {
+    top: 64px;
+    bottom: 54px;
+    width: calc(100vw - 12px);
+  }
+  body.nmNavRailRolled .dataIOHelpDrawer { bottom: 0; }
+}
+.muted { color: var(--muted); }
+.message {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #f8fafc;
+}
+.message.ok { border-color: #a7d9b7; background: #edf9f0; color: var(--ok); }
+.message.danger { border-color: #efb0b0; background: #fff1f1; color: var(--danger); }
+.tableWrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { border-bottom: 1px solid var(--line); padding: 9px 10px; text-align: left; vertical-align: top; }
+th { background: #f1f5f9; color: #334155; position: sticky; top: 0; }
+tr.modalityRow, tr.oocvRow { cursor: pointer; }
+tr.modalityRow:hover { background: #eef5ff; }
+tr.oocvRow:hover { background: #ecfdf5; }
+tr.modalityRow.selected { background: #dbeafe; box-shadow: inset 4px 0 0 var(--primary); }
+tr.oocvRow.selected { background: #dcfce7; box-shadow: inset 4px 0 0 var(--ok); }
+.empty { text-align: center; color: var(--muted); padding: 24px; }
+.pill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  background: #f8fafc;
+}
+.pill.ok { color: var(--ok); border-color: #a7d9b7; background: #edf9f0; }
+.pill.warn { color: var(--warn); border-color: #e9c779; background: #fff7db; }
+.pill.danger { color: var(--danger); border-color: #efb0b0; background: #fff1f1; }
+.mutedPill { color: var(--muted); }
+.details { line-height: 1.45; }
+.detailGrid {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) 1fr;
+  gap: 6px 16px;
+}
+.detailKey { color: var(--muted); font-weight: 600; }
+code { background: #f1f5f9; padding: 1px 4px; border-radius: 4px; }
+ul { margin-top: 6px; }
+.message.warn { border-color: #e9c779; background: #fff7db; color: var(--warn); }
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.tab {
+  background: #e8eef7;
+  border-color: #c8d4e6;
+}
+.tab.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.tabPage { display: none; }
+.tabPage.active { display: block; }
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.formGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 650;
+  font-size: 13px;
+  color: #334155;
+}
+.formGrid input, .formGrid select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 9px;
+  font: inherit;
+  background: #fff;
+  color: var(--text);
+}
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.oocvButtonRow {
+  margin-bottom: 12px;
+}
+
+.oocvCreateGrid {
+  margin-bottom: 6px;
+}
+.oocvModalityHint {
+  margin: 4px 0 12px;
+}
+#previewTable th, #previewTable td {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.pill.info { color: #1f5fbf; border-color: #b8c9ee; background: #eef5ff; }
+.checkLabel { display: flex; align-items: center; gap: 8px; }
+.checkLabel input { width: auto; }
+.oocvLabelCheck { justify-content: flex-end; align-self: end; min-height: 58px; flex-direction: row !important; }
+.oocvLabelCheck span { font-weight: 650; color: #334155; }
+
+/* Phase D.6 column-role selector refinements */
+.formGrid label select[multiple] {
+  min-height: 7.5em;
+  font-family: inherit;
+}
+.formGrid label select + input {
+  margin-top: 6px;
+  font-size: 12px;
+}
+#previewTable th {
+  vertical-align: top;
+}
+#previewTable td, #previewTable th {
+  white-space: nowrap;
+}
+
+/* Phase D.6.1 header-role assignment panel */
+.rolePanel {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fbfdff;
+}
+.rolePanel h2 { margin: 0 0 4px; font-size: 16px; }
+.roleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+  align-items: start;
+}
+.roleBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.roleBox label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.roleBox select { width: 100%; min-height: 8.2em; min-width: 0; }
+.roleListScroll {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.roleListScroll > select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+/* Mandatory-state colour belongs to the fixed listbox viewport. Long entries
+ * are clipped inside that viewport so the vertical scrollbar remains visible;
+ * complete source labels are exposed through option tooltips. */
+.roleListScroll:has(> select.nmMandatoryMissing) {
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+}
+.roleListScroll:has(> select.nmMandatoryComplete) {
+  border: 1px solid var(--mandatory-ok);
+  border-radius: 8px;
+}
+.roleListScroll:has(> select.nmMandatoryMissing) > select,
+.roleListScroll:has(> select.nmMandatoryComplete) > select {
+  border-color: transparent !important;
+  border-radius: 7px;
+}
+/* Keep staged source selections visibly selected after focus moves to a Case-ID/role control. */
+#di_sheet_select option:checked,
+#di_sheet_included option:checked,
+#di_var_source option:checked,
+#di_table_var_source option:checked {
+  background: var(--primary) linear-gradient(0deg, var(--primary) 0%, var(--primary) 100%) !important;
+  color: #fff !important;
+}
+.roleButtons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  width: 100%;
+}
+.roleButtons button {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 7px;
+  font-size: 12px;
+  white-space: normal;
+}
+.hint {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Header-role assignment refinement: keep control labels prominent but control text regular. */
+.formGrid label,
+.roleBox label {
+  font-weight: 650;
+}
+.formGrid input,
+.formGrid select,
+.roleBox input,
+.roleBox select,
+button {
+  font-weight: 400;
+}
+.importButtonRow {
+  grid-column: 1 / -1;
+  margin: 4px 0 8px;
+}
+.roleButtons button {
+  font-weight: 400;
+}
+
+.variableRoleGrid {
+  grid-template-columns: minmax(230px, 1.35fr) repeat(5, minmax(160px, 1fr));
+}
+.variableSourceBox { min-width: 0; }
+.variableSourceBox .roleListScroll > select,
+.tableSourceBox .roleListScroll > select { min-height: 16.4em; }
+#tableObjectRoleBox .tabularObjectListScroll > select { min-height: 6.1em; }
+.tabularObjectMoveButton { width:100%; padding:5px 7px; font-size:12px; }
+.variableBlockCaseField select,
+.variableFeatureNameTargetField select { min-height: 0; height: auto; }
+.compactRoleField { margin-top: 2px; }
+.compactRoleField input { width: 100%; box-sizing: border-box; }
+.rowOrderCaseBar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(120px, 180px);
+  gap: 8px;
+  align-items: end;
+  margin-top: 10px;
+  max-width: 620px;
+}
+.rowOrderCaseBar label { display:flex; flex-direction:column; gap:4px; font-weight:650; }
+.rowOrderCaseBar select { min-height: 3.2em; width:100%; }
+.rowOrderCaseBar .roleListScroll > select { width:100%; min-width:0; }
+/* Resize assignment list boxes vertically; fixed widths preserve the column layout. */
+#variableRolePanel select[size] { resize: vertical; overflow: auto; }
+#variableSharedKeyBox { align-items: start; }
+#variableSharedKeyBox .sharedKeyActionColumn { align-self: start; margin-top: 22px; }
+.appliedSharedKeyStatus {
+  margin-top: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  font-weight: 700;
+  font-size: 12px;
+}
+.variableRoleGrid.tableFileRoleGrid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) repeat(3, minmax(0, 1fr));
+  width: 100%;
+}
+.variableRoleGrid.tableFileRoleGrid > .roleBox { width: 100%; }
+.variableRoleGrid.tableFileRoleGrid .roleButtons { width: 100%; }
+.tableRoleGrid { grid-template-columns: minmax(260px, 1.45fr) repeat(4, minmax(170px, 1fr)); }
+.labelDefinitionPanel { margin-top: 2px; }
+.labelDefinitionRows {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 12px;
+  margin-top: 10px;
+}
+.labelDefinitionRows label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 650;
+}
+@media (max-width: 1320px) {
+  .variableRoleGrid,
+  .tableRoleGrid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+}
+@media (max-width: 760px) {
+  body.nmHasNavRail .taskModalPage.active { left: 18px; }
+  .rowOrderCaseBar { grid-template-columns: 1fr; max-width: none; }
+}
+
+/* Phase D.6.5 source-type provenance panels and state gating */
+.sourceGrid {
+  align-items: start;
+}
+.wideField {
+  grid-column: 1 / -1;
+}
+.sourcePanel {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fbfdff;
+}
+.sourcePanel h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 650;
+}
+.sourcePanel label {
+  margin-top: 8px;
+}
+.databasePanel {
+  background: #f8fafc;
+}
+button:disabled,
+select:disabled,
+input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.rolePanel[style*="display: none"],
+.sourcePanel[style*="display: none"] {
+  margin: 0;
+}
+.compactSummary {
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+#modalityTable th,
+#modalityTable td {
+  white-space: nowrap;
+}
+#modalityTable td:nth-child(2) {
+  white-space: normal;
+  min-width: 160px;
+}
+
+#trainingModalityOverviewPanel .tableWrap {
+  overflow-x: auto;
+}
+#modalityTable {
+  min-width: 1540px;
+  font-size: 12px;
+}
+#modalityTable th,
+#modalityTable td {
+  padding: 7px 8px;
+}
+#modalityTable th:last-child,
+#modalityTable td:last-child {
+  position: sticky;
+  right: 0;
+  min-width: 88px;
+  background: #fff;
+  z-index: 3;
+  box-shadow: -1px 0 0 var(--line);
+}
+#modalityTable th:nth-last-child(2),
+#modalityTable td:nth-last-child(2) {
+  position: sticky;
+  right: 88px;
+  min-width: 96px;
+  background: #fff;
+  z-index: 2;
+  box-shadow: -1px 0 0 var(--line);
+}
+#modalityTable th:last-child,
+#modalityTable th:nth-last-child(2) {
+  background: #f1f5f9;
+  z-index: 4;
+}
+#modalityTable tr.modalityRow:hover td:last-child,
+#modalityTable tr.modalityRow:hover td:nth-last-child(2) {
+  background: #eef5ff;
+}
+#modalityTable tr.modalityRow.selected td:last-child,
+#modalityTable tr.modalityRow.selected td:nth-last-child(2) {
+  background: #dbeafe;
+}
+
+/* Phase F: overview-first modality management */
+.importTaskHeader {
+  border-color: #b8c9ee;
+  background: #f8fbff;
+}
+.contextMenu {
+  display: none;
+  position: fixed;
+  z-index: 10000;
+  min-width: 210px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, .18);
+  padding: 6px;
+}
+.contextMenu.open { display: block; }
+.contextMenu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 8px 10px;
+}
+.contextMenu button:hover:not(:disabled) { background: #eef5ff; }
+.contextMenu button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Browser port of nk_ItemSelector AppDesigner layout. */
+.selectorOverlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:18px}
+.selectorOverlay.hidden{display:none}
+.itemSelectorBox{width:1120px;height:min(820px,calc(100vh - 36px));max-width:calc(100vw - 36px);max-height:calc(100vh - 36px);min-width:780px;min-height:580px;overflow:auto;background:#fff;border:1px solid #cbd5e1;border-radius:14px;box-shadow:0 16px 50px rgba(15,23,42,.28);resize:both}
+.selectorHead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid #e5e7eb;background:#f8fafc;position:sticky;top:0;z-index:2}
+.itemSelectorGrid{display:grid;grid-template-columns:minmax(590px,1.15fr) minmax(430px,.85fr);gap:12px;padding:12px;min-height:calc(100% - 60px)}
+.isPanel{border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:10px}
+.inspectorPanel{display:flex;flex-direction:column;min-height:520px}
+.manualPanel{min-height:420px}
+.isPanel h2{margin:0 0 8px;font-size:14px}
+.isInspectorLayout{display:grid;grid-template-columns:minmax(390px,1fr) minmax(150px,.38fr);grid-template-rows:minmax(145px,.34fr) minmax(285px,1fr);gap:8px;align-items:stretch;justify-content:stretch;min-height:430px;flex:1 1 auto}
+#isFeatCanvas{grid-column:1;grid-row:1;background:#fff;width:100%;height:100%}
+#isMatCanvas{grid-column:1;grid-row:2;background:#fff;width:100%;height:100%;cursor:crosshair}
+#isCaseCanvas{grid-column:2;grid-row:2;background:#fff;width:100%;height:100%}
+.isControls{display:grid;grid-template-columns:minmax(150px,1fr) minmax(130px,160px) minmax(130px,160px) auto;gap:8px;align-items:stretch;margin-top:10px}
+.isControls label{font-size:12px;margin:0}
+.isControls select,.isControls input{width:100%}
+.isMeasureBlock{display:grid;grid-template-rows:auto auto;gap:5px;align-items:stretch}
+.isFilterBlock{display:grid;grid-template-rows:auto auto auto;gap:4px;align-items:stretch}
+.isFilterBlock>label{font-weight:600;color:#334155}
+.isFilterRow{display:grid;grid-template-columns:46px 1fr;gap:4px;align-items:center}
+.wideFilterButton{width:100%;min-width:120px;white-space:normal;line-height:1.15;padding:6px 8px}
+#isReset{align-self:end;min-width:96px}
+#isScale{width:100%;align-self:stretch}
+#isScale.active{background:#dbeafe;border-color:#60a5fa}
+.hoverLine{min-height:20px;margin-top:6px;text-align:center}
+.isListGrid{display:grid;grid-template-columns:1fr 50px 1fr;grid-template-rows:auto auto;gap:8px;align-items:start}
+.isListGrid select{width:100%;min-height:150px;font-size:12px}
+.isMoveBtns{display:flex;flex-direction:column;gap:6px;align-items:stretch;padding-top:20px}
+.isMoveBtns button{font-weight:700}
+@media (max-width:1150px){.itemSelectorGrid{grid-template-columns:1fr}.itemSelectorBox{width:760px}.isControls{grid-template-columns:1fr 1fr}.isInspectorLayout{grid-template-columns:minmax(390px,1fr) minmax(150px,.38fr)}}
+
+/* Phase H database connector panel */
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px 12px;
+}
+.inlineInput {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.inlineInput input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.formGrid textarea {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 9px;
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  background: #fff;
+  color: var(--text);
+  resize: vertical;
+}
+.databasePanel .buttonRow {
+  margin-top: 8px;
+}
+
+
+
+/* Atlas descriptor controls */
+.imageAtlasControls {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.atlasMainGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 10px 12px;
+  align-items: end;
+}
+.atlasDescriptorGrid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.35fr) minmax(260px, 1.55fr) repeat(4, minmax(135px, 0.8fr));
+  gap: 10px 12px;
+  align-items: end;
+}
+.atlasDescriptorGrid label {
+  min-width: 0;
+}
+.atlasDescriptorFileField,
+.atlasDescriptorCandidateField {
+  grid-column: span 2;
+  min-width: 0;
+}
+.atlasDescriptorHeader {
+  margin-bottom: 6px;
+}
+.atlasDescriptorHeader h3 {
+  margin-bottom: 0;
+}
+#imageAtlasDescriptorStatus {
+  margin-top: 6px;
+}
+.atlasDescriptorPreview {
+  width: 100%;
+  max-width: 100%;
+  overflow: auto;
+}
+@media (max-width: 1050px) {
+  .atlasMainGrid,
+  .atlasDescriptorGrid {
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  }
+}
+
+
+#imageAtlasDescriptorBox {
+  width: 100%;
+  max-width: 100%;
+}
+#imageAtlasDescriptorPreview {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+}
+#imageAtlasDescriptorPreview[hidden] {
+  display: none !important;
+}
+#imageAtlasDescriptorPreview .tableScroll {
+  width: 100%;
+  max-width: 100%;
+}
+#imageAtlasDescriptorPreview table {
+  width: 100%;
+  min-width: 680px;
+}
+
+/* OOCV selected-container modality coverage panel */
+tr.oocvModalityRow { cursor: pointer; }
+tr.oocvModalityRow:hover { background: #fff7ed; }
+tr.oocvModalityRow.selected { background: #ffedd5; box-shadow: inset 4px 0 0 var(--warn); }
+#oocvModalityPanel .tableWrap { margin-top: 4px; }
+
+/* DataIO task-modal navigation refinement */
+.hidden { display: none !important; }
+.panelActionRow { margin-top: 0; align-items: flex-start; justify-content: flex-end; }
+.compactSelectionLine { margin: 8px 0 0; }
+.taskModalPage.active {
+  display: block;
+  position: fixed;
+  z-index: 900;
+  inset: 76px 18px 18px 18px;
+  overflow: auto;
+  background: rgba(15, 23, 42, 0.24);
+  border-radius: 14px;
+  padding: 18px;
+}
+body.nmHasNavRail .taskModalPage.active { left: calc(var(--nmNavRailCollapsed) + 18px); }
+body.nmHasNavRail.nmNavRailRolled .taskModalPage.active { left: 18px; }
+.taskModalBox {
+  width: 100%;
+  max-width: 1760px;
+  box-sizing: border-box;
+  min-height: calc(100vh - 140px);
+  margin: 0 auto;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.28);
+}
+.taskModalHead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--panel) 84%, var(--primary) 16%);
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--primary) 28%);
+  border-radius: 10px;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--text) 10%, transparent);
+  padding: 10px 12px 12px;
+  margin-bottom: 12px;
+}
+.taskModalHead > div:first-child { min-width: 0; flex: 1 1 auto; }
+.taskModalHead .panelActionRow { flex: 0 0 auto; flex-wrap: nowrap; align-items: center; }
+.taskModalHead .panelActionRow button { white-space: nowrap; }
+#probeDiagnostics {
+  max-height: calc(100vh - 240px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+/* Imaging DataIO Stage UI-A */
+.imageSourcePanel textarea,
+.imageMetadataPanel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+}
+.imageMetadataPanel {
+  border-left: 4px solid #2563eb;
+}
+.pathCell {
+  max-width: 520px;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+}
+tr.warningRow td {
+  background: #fff7db !important;
+}
+tr.blockingRow td {
+  background: #ffe4e6 !important;
+}
+tr.excludedRow td {
+  background: #eef2f7 !important;
+  color: #64748b;
+}
+tr.excludedRow .pathCell,
+tr.excludedRow td {
+  opacity: 0.82;
+}
+.subjectIncludeToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  white-space: nowrap;
+  font-size: 12px;
+  color: #334155;
+}
+.subjectIncludeViewerToggle {
+  font-weight: 600;
+}
+
+.imageViewBtn { white-space: nowrap; }
+.imageViewerBox {
+  width: min(1360px, 98vw);
+  max-height: 96vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  padding: 14px;
+}
+.imageViewerRowSummary {
+  margin: 10px 0 12px;
+  padding: 10px;
+  border: 1px solid #d6dce8;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.imageViewerGrid,
+.caseQCViewerGrid {
+  display: grid;
+  grid-template-columns: 132px minmax(620px, 1fr) 132px;
+  gap: 14px;
+  align-items: center;
+}
+.caseQCNavRail {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 10px;
+}
+.caseQCFlaggedButton {
+  min-height: 44px;
+  white-space: normal;
+  font-size: 11px;
+  line-height: 1.2;
+}
+.imageNavButton {
+  width: 100%;
+  height: 72px;
+  font-size: 30px;
+  border-radius: 10px;
+}
+.caseQCCenter { min-width: 0; grid-column: 2; }
+.imageCanvasBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+}
+.imageCanvasBox img,
+.imageCanvasBox canvas {
+  width: min(820px, 88vw);
+  min-width: min(520px, 88vw);
+  max-width: 100%;
+  max-height: 74vh;
+  height: auto;
+  object-fit: contain;
+  border: 1px solid #cbd5e1;
+  background: #111827;
+  image-rendering: auto;
+}
+.imageCanvasBox canvas {
+  image-rendering: pixelated;
+}
+.imageCanvasBox canvas.surfaceCanvas {
+  width: min(900px, 88vw);
+  min-width: min(520px, 88vw);
+  height: min(700px, 72vh);
+  cursor: grab;
+  touch-action: none;
+  image-rendering: auto;
+}
+.imageCanvasBox canvas.surfaceCanvas:active {
+  cursor: grabbing;
+}
+.imageViewerMessage { min-height: 18px; }
+.imageViewerToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  width: min(820px, 92%);
+  padding: 8px 10px;
+  border: 1px solid #d6dce8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.imageViewerToolbar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.imageViewerToolbar input[type="number"] {
+  width: 72px;
+}
+.imageViewerToolbar input[type="range"] {
+  width: 130px;
+}
+.imageViewerQCColorbar {
+  width: min(820px, 92%);
+  padding: 8px 10px;
+  border: 1px solid #d6dce8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(15,23,42,.03);
+}
+.qcLegendTitle {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.qcLegendSigned,
+.qcLegendAbsolute,
+.qcLegendSequential {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #475569;
+}
+.qcGradient {
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+}
+.qcLegendBound {
+  min-width: 30px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.qcThresholdScale {
+  position: relative;
+  min-width: 0;
+  height: 34px;
+}
+.qcThresholdMark {
+  position: absolute;
+  top: 18px;
+  font-size: 10px;
+  color: #475569;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.qcThresholdNegative { transform: translateX(-100%); }
+.qcThresholdPositive, .qcThresholdAbsolute { transform: translateX(0); }
+.qcLegendNote:empty { display: none; }
+.qcGradientSigned {
+  background: linear-gradient(90deg, #40a0ff 0%, #e5e7eb 50%, #ff5050 100%);
+}
+.qcGradientAbsolute {
+  background: linear-gradient(90deg, #f8fafc 0%, #ffc040 55%, #ff7a00 100%);
+}
+.qcGradientSequential {
+  background: linear-gradient(90deg, #f8fafc 0%, #ffd166 50%, #e85d04 100%);
+}
+.qcLegendNote {
+  margin-top: 5px;
+  font-size: 11px;
+  color: #64748b;
+}
+.imageViewerSurfaceColorbar {
+  width: min(820px, 92%);
+  padding: 8px 10px;
+  border: 1px solid #d6dce8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(15,23,42,.03);
+}
+.surfaceLegendTitle {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.surfaceLegendRow {
+  display: grid;
+  grid-template-columns: minmax(62px, auto) minmax(180px, 1fr) minmax(62px, auto);
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #475569;
+}
+.surfaceLegendRow span:last-child {
+  text-align: right;
+}
+.surfaceGradient {
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: linear-gradient(90deg, #0f33b8 0%, #0bb0d0 34%, #efcc3d 67%, #c72e1f 100%);
+}
+.surfaceLegendNote {
+  margin-top: 5px;
+  font-size: 11px;
+  color: #64748b;
+}
+.imageSliceControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(760px, 92%);
+}
+.imageSliceControls label {
+  flex: 1;
+}
+.imageSliceControls input[type="range"] {
+  width: 100%;
+}
+@media (max-width: 800px) {
+  .imageViewerGrid,
+  .caseQCViewerGrid { grid-template-columns: 1fr; }
+  .caseQCNavRail { flex-direction: row; }
+  .caseQCFlaggedButton { flex: 1; }
+  .caseQCCenter { grid-column: 1; }
+  .imageNavButton { flex: 0 0 64px; height: 44px; }
+}
+
+.featureProfileBox {
+  width: min(1320px, 98vw);
+  max-height: 94vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  padding: 14px;
+}
+.featureProfileControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 10px 0;
+  padding: 8px 10px;
+  border: 1px solid #d6dce8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.featureProfileControls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.featureProfileControls input[type="number"] { width: 72px; }
+.featureProfileControls select { min-width: 190px; }
+#fpCanvas {
+  width: min(1100px, 94vw);
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+}
+.featureProfileMessage { min-height: 20px; margin-top: 8px; }
+.featureProfileHover { min-height: 20px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.featureProfileMetrics { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 8px; margin: 8px 0 12px; }
+.featureProfileMetric { border: 1px solid #d6dce8; border-radius: 8px; padding: 8px 10px; background: #fff; }
+.featureProfileMetric span, .featureProfileMetric small { display: block; font-size: 11px; color: #64748b; }
+.featureProfileMetric b { display: block; margin: 2px 0; font-size: 18px; font-variant-numeric: tabular-nums; }
+.featureProfileDetailGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
+.featureProfilePanel, .featureProfileDecision { border: 1px solid #d6dce8; border-radius: 8px; background: #fff; padding: 10px; }
+.featureProfilePanel h3 { margin: 0 0 4px; font-size: 14px; }
+.featureProfilePanel p { margin: 0 0 8px; }
+.featureProfileTableWrap { overflow: auto; max-height: 260px; }
+.featureProfileTable { width: 100%; border-collapse: collapse; font-size: 12px; }
+.featureProfileTable th, .featureProfileTable td { padding: 5px 6px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+.featureProfileTable th { position: sticky; top: 0; background: #f8fafc; z-index: 1; }
+.featureProfileTable .fpFeatureFocus { min-width: 44px; }
+.featureProfileSearch { display: flex; gap: 8px; margin: 8px 0; }
+.featureProfileSearch input { flex: 1; min-width: 0; }
+.featureProfileDecision { margin-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+#featureProfileModal { z-index: 1300; }
+@media (max-width: 900px) {
+  .featureProfileMetrics { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+  .featureProfileDecision { align-items: flex-start; flex-direction: column; }
+}
+#itemSelectorModal { z-index: 1300; }
+
+.imageFilePickerRow { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 10px; align-items: stretch; }
+.imageFilePickerRow .wideField { grid-column: auto; min-width: 0; }
+.imageFilePickerRow textarea { min-height: 130px; }
+.imageListButtons { display: flex; flex-direction: column; gap: 8px; justify-content: flex-start; padding-top: 22px; }
+.imageListButtons button { width: 100%; white-space: normal; }
+@media (max-width: 900px) { .imageFilePickerRow { grid-template-columns: 1fr; } .imageFilePickerRow .wideField { grid-column: 1 / -1; } .imageListButtons { flex-direction: row; flex-wrap: wrap; padding-top: 0; } .imageListButtons button { width: auto; } }
+
+/* Imaging DataIO class-list UI */
+.imageLabelPanel { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fbfdff; }
+.panelSubhead h3 { margin: 0 0 4px 0; font-size: 14px; }
+.panelSubhead p { margin: 0 0 10px 0; }
+.smallField { max-width: 190px; display: block; }
+.imageClassNames { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin: 10px 0; }
+.imageClassTabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 10px 0; }
+.imageClassTabs button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 10px; }
+.imageClassTabs button.active { background: #0f5dd8; color: #fff; border-color: #0f5dd8; }
+.imageClassCoverage.ok { color: #0f6b3a; }
+.imageClassCoverage.warn { color: #9a5b00; }
+
+/* Imaging DataIO auxiliary-role UI: shared source -> alignment -> assignment structure. */
+.imageMetadataRows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+.imageMetadataSection {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.imageMetadataSectionTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.imageMetadataSectionTitle h3 { margin: 0; font-size: 15px; }
+.imageMetadataSectionTitle span { color: var(--muted); font-size: 12px; }
+.imageMetadataSubhead { font-weight: 650; font-size: 13px; color: #334155; margin-bottom: 6px; }
+.imageControlRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+.imageControlRow label,
+.imageFileSourceGrid label,
+.imageAlignmentBlock label,
+.imageRoleBlock label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 650;
+  font-size: 13px;
+  color: #334155;
+  min-width: 0;
+}
+.imageControlRow input,
+.imageControlRow select,
+.imageControlRow textarea,
+.imageFileSourceGrid input,
+.imageFileSourceGrid select,
+.imageAlignmentBlock select,
+.imageRoleBlock select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 9px;
+  font: inherit;
+  font-weight: 400;
+  background: #fff;
+  color: var(--text);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.imageControlRow textarea {
+  min-height: 58px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+}
+.imageAuxSourceRow,
+.imageGlobalUserSetupRow { grid-template-columns: minmax(220px, 300px) minmax(220px, 300px); }
+.imageLabelRow { grid-template-columns: minmax(300px, 1fr) minmax(260px, .9fr); }
+.imageCovariateRow { grid-template-columns: minmax(280px, 1.2fr) minmax(180px, .8fr) minmax(240px, 1fr); }
+.imageCovariateNamesRow { grid-template-columns: minmax(280px, 1fr) max-content; max-width: 890px; }
+.imageCovariateManagementRow { grid-template-columns: minmax(220px, 320px); }
+.imageGlobalRow { grid-template-columns: minmax(220px, 300px) minmax(220px, 360px); }
+.imageGlobalSettingsRow { grid-template-columns: minmax(220px, 320px) minmax(180px, 240px); }
+.imageGlobalWorkspaceRow { grid-template-columns: minmax(280px, 1fr) minmax(260px, .9fr); }
+.imageAuxSubpanel { display: flex; flex-direction: column; gap: 12px; }
+.imageFileSourceGrid {
+  display: grid;
+  grid-template-columns: minmax(320px, 2fr) auto minmax(260px, 1fr);
+  gap: 10px;
+  align-items: end;
+  max-width: 1180px;
+}
+.imageAuxButtons { display: flex; gap: 6px; align-items: end; padding-bottom: 1px; }
+.imageAuxButtons button { white-space: nowrap; }
+.imageAlignmentBlock {
+  max-width: 980px;
+  padding-top: 2px;
+}
+.imageAlignmentBlock select[multiple] { min-height: 104px; }
+.imageRoleBlock { max-width: 980px; }
+.imageRoleAssignmentGrid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) 96px minmax(280px, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+.imageRoleAssignmentGrid select[multiple],
+.imageRoleAssignmentGrid select[size] { height: 132px; min-height: 132px; font-weight: 400; }
+.imageAssignmentButtons {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  width: 96px;
+}
+.imageAssignmentButtons button { width: 100%; white-space: nowrap; }
+.imageRowOrderNote {
+  max-width: 900px;
+  border-left: 3px solid var(--line);
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  background: #fbfcfe;
+}
+.imageAuxSubpanel select[multiple] { font-weight: 400; }
+@media (max-width: 1000px) {
+  .imageAuxSourceRow,
+  .imageLabelRow,
+  .imageCovariateRow,
+  .imageCovariateNamesRow,
+  .imageGlobalRow,
+  .imageGlobalUserSetupRow,
+  .imageGlobalSettingsRow,
+  .imageGlobalWorkspaceRow,
+  .imageFileSourceGrid,
+  .imageRoleAssignmentGrid { grid-template-columns: 1fr; }
+  .imageAssignmentButtons { width: 100%; flex-direction: row; justify-content: flex-start; }
+  .imageAssignmentButtons button { width: auto; }
+}
+
+/* Imaging DataIO UI-P: keep label-definition selector fixed next to case-ID mode. */
+.imageCaseLabelRow {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(260px, 320px);
+  gap: 12px;
+  align-items: start;
+}
+.imageCaseIdStack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.imageCaseLabelRow label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 650;
+  font-size: 13px;
+  color: #334155;
+  margin-top: 0;
+  min-width: 0;
+}
+.imageCaseLabelRow select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 9px;
+  font: inherit;
+  background: #fff;
+  color: var(--text);
+  width: 100%;
+}
+@media (max-width: 720px) {
+  .imageCaseLabelRow { grid-template-columns: 1fr; }
+}
+
+/* DataIO imaging structural fixes: viewer overlays the import modal and file paths remain readable. */
+#imageViewerModal { z-index: 1300; }
+
+/* Connectivity QC viewer must overlay the active DataIO task modal, matching image/surface QC viewers. */
+#connectivityQCModal { z-index: 1300; }
+#dataIOProgressModal { z-index: 2400; }
+#previewTable td.pathCell { font-size: 12px; max-width: 640px; }
+
+.progressBox{width:min(620px,calc(100vw - 36px));background:#fff;border:1px solid #cbd5e1;border-radius:14px;box-shadow:0 16px 50px rgba(15,23,42,.28);overflow:hidden}
+.progressBody{padding:16px}
+.progressPercent{min-width:58px;text-align:right;font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums}
+.progressTrack{height:14px;border:1px solid #cbd5e1;border-radius:999px;background:#f1f5f9;overflow:hidden}
+.progressBar{height:100%;width:42%;border-radius:999px;background:var(--primary);transition:width .18s linear;transform:none}
+.progressBar.indeterminate{animation:nmProgressIndeterminate 1.25s infinite linear;width:42%}
+.progressDetails{margin-top:10px;line-height:1.4}
+.sortHeader{border:0;background:transparent;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left}
+.sortHeader:hover{text-decoration:underline}
+@keyframes nmProgressIndeterminate{0%{transform:translateX(-120%)}100%{transform:translateX(260%)}}
+.atlasDescriptorPreview {
+  margin-top: 8px;
+  max-width: 100%;
+}
+.atlasDescriptorPreviewTitle {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.atlasDescriptorPreview .tableScroll {
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.atlasDescriptorPreview table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.atlasDescriptorPreview th,
+.atlasDescriptorPreview td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Weighting/ranking map controls */
+.imageWeightingControls {
+  margin-top: 10px;
+  width: 100%;
+}
+.imageWeightingRow {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) 170px;
+  gap: 10px 12px;
+  align-items: stretch;
+}
+.imageWeightingListField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 650;
+  font-size: 13px;
+  color: #334155;
+  min-width: 0;
+}
+.imageWeightingRow textarea {
+  min-height: 82px;
+}
+.imageWeightingButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: flex-start;
+  padding-top: 22px;
+}
+.imageWeightingButtons button {
+  width: 100%;
+  white-space: normal;
+}
+@media (max-width: 760px) {
+  .imageWeightingRow {
+    grid-template-columns: 1fr;
+  }
+  .imageWeightingButtons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding-top: 0;
+  }
+  .imageWeightingButtons button {
+    width: auto;
+  }
+}
+
+/* Atlas descriptor full-width restoration (JM22): keep JM18 layout after weighting-map UI patches. */
+.imageAtlasControls {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+.atlasMainGrid {
+  width: 100%;
+  min-width: 0;
+}
+.atlasDescriptorGrid {
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  width: 100%;
+  min-width: 0;
+}
+.atlasDescriptorPreview,
+#imageAtlasDescriptorPreview {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto;
+}
+.atlasDescriptorPreview .tableScroll,
+#imageAtlasDescriptorPreview .tableScroll {
+  width: 100%;
+  max-width: 100%;
+  max-height: 180px;
+  overflow: auto;
+}
+.atlasDescriptorPreview table,
+#imageAtlasDescriptorPreview table {
+  width: max-content;
+  min-width: 100%;
+}
+@media (max-width: 1050px) {
+  .atlasMainGrid,
+  .atlasDescriptorGrid {
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  }
+  .atlasDescriptorFileField,
+  .atlasDescriptorCandidateField {
+    grid-column: 1 / -1;
+  }
+}
+
+
+/* Surface feature-space controls */
+.surfaceFeatureSpacePanel {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.surfaceFeatureGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 10px 12px;
+  align-items: end;
+}
+.surfaceFeatureGrid label {
+  min-width: 0;
+}
+.surfaceGeometryField {
+  grid-column: span 2;
+}
+#imageSpaceDefField {
+  min-width: 0;
+}
+@media (max-width: 1050px) {
+  .surfaceFeatureGrid {
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  }
+  .surfaceGeometryField {
+    grid-column: 1 / -1;
+  }
+}
+
+.surfaceRoiNativePanel {
+  grid-column: 1 / -1;
+  border: 1px solid var(--border, #d7dce2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  background: var(--panel-bg, #fff);
+}
+.surfaceRoiGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 10px 12px;
+  align-items: start;
+}
+.surfaceRoiGrid textarea {
+  width: 100%;
+  min-height: 7em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (max-width: 900px) {
+  .surfaceRoiGrid { grid-template-columns: 1fr; }
+}
+
+/* Diagnostics/QC report: novice-facing summary first, bounded technical detail below. */
+.diagnosticStatusCard {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-left-width: 5px;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  background: #fff;
+}
+.diagnosticStatusCard h2 { margin: 0 0 4px; font-size: 16px; }
+.diagnosticStatusCard p { margin: 0; }
+.diagnosticStatusIcon { font-size: 20px; line-height: 1; font-weight: 800; margin-top: 1px; }
+.diagnosticStatusCard.ok { border-left-color: #16a34a; background: #f0fdf4; color: #166534; }
+.diagnosticStatusCard.info { border-left-color: #2563eb; background: #eff6ff; color: #1e40af; }
+.diagnosticStatusCard.warning { border-left-color: #f59e0b; background: #fffbeb; color: #92400e; }
+.diagnosticStatusCard.error { border-left-color: #dc2626; background: #fef2f2; color: #991b1b; }
+.diagnosticSection,
+.diagnosticDisclosure {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  background: var(--panel);
+}
+.diagnosticSection > h2 { margin: 0 0 4px; font-size: 16px; }
+.diagnosticSectionIntro { margin: 0 0 10px; color: var(--muted); }
+.diagnosticSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  gap: 10px;
+}
+.diagnosticCountCard {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+.diagnosticCountValue { font-size: 22px; font-weight: 750; line-height: 1.1; color: var(--text); }
+.diagnosticCountLabel { margin-top: 3px; font-size: 12px; color: var(--muted); }
+.diagnosticMetricGrid {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) minmax(0, 1fr);
+  gap: 6px 16px;
+  align-items: start;
+}
+.diagnosticMetricLabel { color: var(--muted); font-weight: 650; }
+.diagnosticMetricValue { min-width: 0; overflow-wrap: anywhere; }
+.diagnosticMetricAction { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.diagnosticMetricAction button { padding: 5px 9px; }
+.diagnosticDisclosure > summary,
+.diagnosticTechnical > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.diagnosticDisclosure[open] > summary { margin-bottom: 10px; }
+.diagnosticTechnical {
+  margin-top: 9px;
+  color: var(--muted);
+}
+.diagnosticTechnical pre {
+  margin: 7px 0 0;
+  padding: 8px 10px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #f8fafc;
+  color: var(--text);
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.diagnosticProblemSection { border-left: 5px solid #dc2626; background: #fffafa; }
+.diagnosticSummary { border: 1px solid var(--line); border-left-width: 4px; border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+.diagnosticSummaryOk { border-left-color: #16a34a; background: #f0fdf4; }
+.diagnosticSummaryWarn { border-left-color: #f59e0b; background: #fffbeb; }
+.diagnosticSummaryDanger { border-left-color: #dc2626; background: #fef2f2; }
+.diagnosticFilterBar { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 10px; }
+.diagnosticFilterButton {
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #fff;
+}
+.diagnosticFilterButton.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.diagnosticMessageList { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.diagnosticMessage {
+  border: 1px solid var(--line);
+  border-left-width: 5px;
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: var(--text);
+}
+.diagnosticMessage.diagOk { border-left-color: #16a34a; background: #f0fdf4; }
+.diagnosticMessage.diagInfo { border-left-color: #2563eb; background: #eff6ff; }
+.diagnosticMessage.diagWarning { border-left-color: #f59e0b; background: #fffbeb; }
+.diagnosticMessage.diagError { border-left-color: #dc2626; background: #fef2f2; }
+.diagnosticMessageHead { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.diagnosticSeverity { font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.diagOk .diagnosticSeverity { color: #15803d; }
+.diagInfo .diagnosticSeverity { color: #1d4ed8; }
+.diagWarning .diagnosticSeverity { color: #b45309; }
+.diagError .diagnosticSeverity { color: #b91c1c; }
+.diagnosticRepeat { font-size: 11px; color: var(--muted); }
+.diagnosticMessageText { line-height: 1.45; }
+.diagnosticEmpty { color: var(--muted); padding: 8px 0; }
+.qcLargeFeatureNotice { border-left: 4px solid #2563eb; padding-left: 10px; }
+@media (max-width: 820px) {
+  .diagnosticSummaryGrid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+  .diagnosticMetricGrid { grid-template-columns: 1fr; gap: 2px; }
+  .diagnosticMetricValue { margin-bottom: 6px; }
+}
+
+/* Enriched DataIO QC display */
+.qcMetricControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.qcMetricControl select {
+  min-width: 210px;
+}
+.qcDiagnostics {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.qcDiagnosticBlock {
+  margin-top: 10px;
+}
+.qcDiagnosticBlock h2 {
+  margin-bottom: 4px;
+}
+.qcDiagnosticTable {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+  background: #fff;
+}
+.qcDiagnosticTable th,
+.qcDiagnosticTable td {
+  border: 1px solid var(--line);
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+.qcDiagnosticTable th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+/* Connectivity DataIO spacing: keep source, atlas, metadata and weighting blocks visually separated. */
+.connectivityPanel .panelSubhead {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.connectivityPanel .buttonRow + .panelSubhead,
+.connectivityPanel .hint + .panelSubhead,
+.connectivityPanel .details + .panelSubhead {
+  margin-top: 22px;
+}
+.connectivityPanel #connAutoLabelPanel {
+  margin-top: 10px;
+}
+.connectivityPanel .matVariablePanel {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fafb;
+}
+.connectivityPanel .matVariablePanel label {
+  display: block;
+  max-width: 520px;
+}
+.exprControl { display:flex; gap:0.5rem; align-items:flex-end; flex-wrap:wrap; }
+.exprControl label { flex:1 1 260px; }
+.exprControl .hint { flex-basis:100%; }
+.exprHelpBtn { min-width:2rem; }
+
+.connectivityPanel .connectivitySubspacePanel {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.connectivityPanel .connectivitySubspacePanel textarea {
+  min-height: 68px;
+}
+.hiddenControl { display: none !important; }
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  padding: 24px;
+}
+.connectivitySelectorModal {
+  width: min(1280px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.28);
+  padding: 18px;
+}
+.modalHeader,
+.modalFooter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.modalFooter {
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.smallButton { min-width: auto; }
+.connSelectorGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(260px, 0.9fr) minmax(420px, 1.4fr);
+  gap: 14px;
+  margin-top: 12px;
+}
+.connSelectorNodePanel,
+.connSelectorListPanel,
+.connSelectorMatrixPanel {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  background: #f9fafb;
+}
+.connSelectorNodePanel select,
+.connSelectorListPanel select {
+  width: 100%;
+  margin-top: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+#connSelectorMatrix {
+  width: 100%;
+  max-width: 620px;
+  height: auto;
+  border: 1px solid var(--line);
+  background: #fff;
+  cursor: crosshair;
+}
+.connSelectorHover {
+  min-height: 24px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+@media (max-width: 1100px) {
+  .connSelectorGrid { grid-template-columns: 1fr; }
+}
+
+.connectivityQCBox {
+  width: min(1360px, 98vw);
+  max-height: 96vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  padding: 14px;
+}
+.connectivityQCToolbar {
+  width: min(960px, 94%);
+  margin: 0 auto 12px;
+}
+.connectivityQCToolbar label {
+  white-space: nowrap;
+}
+.connectivityQCToolbar select {
+  min-width: 210px;
+}
+.connectivityQCToolbar input[type="number"] {
+  width: 72px;
+}
+.connectivityQCViewerGrid { grid-template-columns: 132px minmax(604px, 984px) 132px; }
+.connectivityQCFigure {
+  display: grid;
+  grid-template-columns: minmax(520px, 900px) 84px;
+  gap: 14px;
+  align-items: stretch;
+  justify-content: center;
+}
+.connectivityQCCanvasPane {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+#cqMatrix {
+  width: min(900px, 86vw);
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  background: #fff;
+  cursor: crosshair;
+  image-rendering: pixelated;
+}
+.connectivityQCColorbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 72px;
+  padding: 4px 2px;
+  background: transparent;
+  font-size: 11px;
+  color: #475569;
+}
+.connectivityQCColorbarTitle {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  color: #334155;
+}
+.connectivityQCColorbarScale {
+  display: grid;
+  grid-template-columns: 38px 18px;
+  grid-template-rows: auto 1fr auto;
+  gap: 3px 5px;
+  align-items: stretch;
+  justify-items: stretch;
+  min-height: 240px;
+}
+.connectivityQCColorbarScale span {
+  grid-column: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: #334155;
+}
+#cqColorbarMax { grid-row: 1; align-self: start; }
+#cqColorbarMid { display: none; }
+#cqColorbarMin { grid-row: 3; align-self: end; }
+.connectivityQCColorbarGradient {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  width: 18px;
+  min-height: 240px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+}
+.connectivityQCColorbarGradient.signed {
+  background: linear-gradient(180deg, #ff5050 0%, #ffffff 50%, #40a0ff 100%);
+}
+.connectivityQCColorbarGradient.sequential {
+  background: linear-gradient(180deg, #ff9a9a 0%, #ffffff 100%);
+}
+.connectivityQCColorbarGradient.rate {
+  background: linear-gradient(180deg, #ff87ff 0%, #ffffff 100%);
+}
+.connectivityQCColorbarNote {
+  display: none;
+}
+.connectivityQCSummary {
+  width: min(960px, 94%);
+  margin: 8px auto 0;
+  line-height: 1.4;
+}
+@media (max-width: 900px) {
+  .connectivityQCFigure { grid-template-columns: 1fr; }
+  .connectivityQCColorbar { margin: 0 auto; }
+}
+
+/* DataIO UI cleanup: user-facing option grouping. */
+.importOptionsPanel {
+  background: #f8fafc;
+}
+.importOptionsPanel .compactOptionsGrid {
+  margin: 10px 0 0;
+}
+.connectivityOptionalPanel {
+  margin-top: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.connectivityOptionalPanel summary {
+  cursor: pointer;
+  font-weight: 650;
+  color: #334155;
+}
+.connectivityOptionalPanel summary + .muted {
+  margin-top: 8px;
+}
+
+/* Existing NM defaults shown while modifying the first modality. */
+.nmInheritedDefaultControl {
+  color: #64748b !important;
+  background: #f8fafc !important;
+}
+.nmInheritedDefaultControl[readonly] {
+  cursor: default;
+}
+
+/* Generic image-slice viewer integration: DataIO spatial/QC preview. */
+.imageCanvasBox {
+  position: relative;
+}
+.imageCanvasBox .imageSliceFrame {
+  max-width: calc(100% - 48px);
+  max-height: 74vh;
+}
+.imageCanvasBox .imageSliceFrame #ivCanvas,
+.imageCanvasBox .imageSliceFrame #ivImage {
+  min-width: 0;
+  max-width: none;
+  max-height: none;
+  width: 100%;
+  height: 100%;
+}
+.imageCanvasBox .nmSliceZoom {
+  top: 12px;
+  bottom: 12px;
+  right: 4px;
+}
+.imageCanvasBox .nmSliceZoomSlider {
+  min-height: 0;
+  flex: none;
+}
+.imageCanvasBox .imageSliceViewport {
+  position: relative;
+  width: min(860px, 92%);
+  height: min(560px, calc(100vh - 390px));
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding-right: 42px;
+  box-sizing: border-box;
+}
+
+/* ROI provenance layout: separate the import contract into adjacent semantic panels. */
+#roiSourcePanel {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+#roiSourcePanel > h2 {
+  margin: 0;
+  padding: 12px 14px 0;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background: #fbfdff;
+}
+#roiSourcePanel > h2 + p {
+  margin: 0;
+  padding: 6px 14px 4px;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  background: #fbfdff;
+}
+#roiSourcePanel > h2 + p + .grid2 {
+  margin: 0;
+  padding: 0 14px 14px;
+  border: 0 solid var(--line);
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+  border-radius: 0 0 10px 10px;
+  background: #fbfdff;
+}
+#roiSidecarPanel,
+#roiGlobalPanel,
+#roiWeightingPanel {
+  margin-top: 10px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfdff;
+}
+#roiSidecarPanel > .panelSubhead,
+#roiGlobalPanel > .panelSubhead,
+#roiWeightingPanel > .panelSubhead {
+  margin-top: 0;
+}
+#roiSidecarPanel + .panelSubhead,
+#roiSidecarPanel + .panelSubhead + .grid2 + .panelSubhead {
+  margin: 10px 0 0;
+  padding: 12px 14px 10px;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background: #fbfdff;
+}
+#roiSidecarPanel + .panelSubhead > p,
+#roiSidecarPanel + .panelSubhead + .grid2 + .panelSubhead > p {
+  margin-bottom: 0;
+}
+#roiSidecarPanel + .panelSubhead + .grid2,
+#roiSidecarPanel + .panelSubhead + .grid2 + .panelSubhead + .grid2 {
+  margin: 0;
+  padding: 0 14px 14px;
+  border: 0 solid var(--line);
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+  border-radius: 0 0 10px 10px;
+  background: #fbfdff;
+}
+
+/* Stage-0C7: visually separate first-axis policy from the alignment control above. */
+#caseAxisPolicyField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 14px;
+  font-weight: 650;
+}
+
+#di_var_source option.keyInUse { color: #8b9099; font-style: italic; }
+
+/* T2.7 table-file source layout */
+.tableFilePickerLayout{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
+.tableFilePickerLayout>label{margin-top:0}
+.tableFileButtonStack{display:flex;flex-direction:column;gap:8px;padding-top:26px}
+.tableFileButtonStack button{width:100%}
+.tableFileOptionRow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+@media(max-width:760px){.tableFilePickerLayout,.tableFileOptionRow{grid-template-columns:1fr}.tableFileButtonStack{flex-direction:row;padding-top:0}}
+
+/* Generic tabular provenance row-filter controls. */
+.tabularFilterActionRow { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:6px; }
+.tabularFilterButton { width: 100%; min-width:0; }
+.tabularFilterSummary { margin-top: 8px; padding: 8px 10px; border:1px solid var(--line); border-radius:8px; background:#f8fafc; }
+.tabularFilterSummary.active { font-weight:700; color:var(--text); }
+#tabularFilterModal { z-index: 1300; }
+
+.tabularFilterModalBox { width: min(1120px, calc(100vw - 36px)); max-height: calc(100vh - 36px); overflow: auto; background: #fff; border: 1px solid #cbd5e1; border-radius: 14px; box-shadow: 0 16px 50px rgba(15,23,42,.28); }
+.tabularFilterTopRow { display: grid; grid-template-columns: minmax(300px,1.4fr) minmax(220px,1fr) minmax(220px,1fr); gap: 10px 12px; align-items: end; padding: 12px 14px 6px; }
+.tabularFilterTopRow label { display: flex; flex-direction: column; gap: 4px; font-weight: 650; }
+.tabularFilterCase { flex-direction: row !important; align-items: center; padding-bottom: 7px; }
+.tabularFilterEditor { display:grid; grid-template-columns:minmax(220px,1.2fr) minmax(180px,.9fr) minmax(300px,1.5fr) minmax(170px,.8fr); gap:8px; align-items:end; padding:10px 14px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:#fbfdff; }
+.tabularFilterEditor label { display:flex; flex-direction:column; gap:4px; font-weight:650; min-width:0; }
+.tabularFilterEditor select,.tabularFilterEditor input { width:100%; min-width:0; }
+.tabularFilterEditorButtons { display:grid; grid-template-columns:1fr; gap:6px; }
+.tabularFilterRuleListHead { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:12px 14px 6px; }
+.tabularFilterRuleList { display:flex; flex-direction:column; gap:6px; padding:0 14px 10px; max-height:260px; overflow:auto; }
+.tabularFilterLedgerRow { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; align-items:stretch; }
+.tabularFilterLedgerRow > button:first-child { text-align:left; white-space:normal; }
+.tabularFilterLedgerRow.selected > button:first-child { outline:2px solid var(--primary); outline-offset:0; }
+.tabularFilterModalBox > .buttonRow, .tabularFilterModalBox > p { margin-left: 14px; margin-right: 14px; }
+@media (max-width: 860px) {
+  .tabularFilterTopRow,.tabularFilterEditor { grid-template-columns: 1fr; }
+  .tabularFilterActionRow { grid-template-columns:1fr; }
+}
+
+
+/* OOCV study-group editor: keep source controls compact and group naming readable. */
+.oocvGroupsModalBox { width: min(980px, calc(100vw - 36px)); }
+.oocvGroupsModalBox > .selectorHead { padding: 14px 18px; }
+.oocvGroupsModalBox > .formGrid,
+.oocvGroupsModalBox > #oocvGroupWorkspacePanel,
+.oocvGroupsModalBox > #oocvGroupFilePanel,
+.oocvGroupsModalBox > .buttonRow,
+.oocvGroupsModalBox > #oocvGroupStatus { margin-left: 18px; margin-right: 18px; }
+.oocvGroupsModalBox > #oocvGroupFilePanel .formGrid { margin-left: 0; margin-right: 0; }
+.oocvGroupNamesPanel { margin: 18px 18px 0; padding-top: 14px; border-top: 1px solid var(--line); }
+.oocvGroupNamesPanel h3 { margin: 0 0 4px; }
+.oocvGroupNameGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 12px; margin-top: 12px; }
+.oocvGroupNameCard { min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fbfdff; }
+.oocvGroupNameMeta { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
+.oocvGroupNameMeta span:last-child { white-space: nowrap; }
+.oocvGroupNameField { display: flex; flex-direction: column; gap: 4px; font-weight: 650; font-size: 13px; color: #334155; }
+.oocvGroupNameField input, .oocvGroupReferenceRow select { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 9px; font: inherit; background: #fff; color: var(--text); }
+.oocvGroupReferenceRow { display: grid; grid-template-columns: minmax(220px, 360px); margin-top: 12px; }
+.oocvGroupReferenceRow label { display: flex; flex-direction: column; gap: 4px; font-weight: 650; font-size: 13px; color: #334155; }
+@media (max-width: 640px) { .oocvGroupNameGrid, .oocvGroupReferenceRow { grid-template-columns: 1fr; } }
+
+/* Mandatory-field navigation: color the actual editable controls only.
+ * Container/panel borders and backgrounds remain untouched. */
+input.nmMandatoryMissing,
+select.nmMandatoryMissing,
+textarea.nmMandatoryMissing,
+button.nmMandatoryMissing {
+  border-color: var(--danger) !important;
+}
+input.nmMandatoryComplete,
+select.nmMandatoryComplete,
+textarea.nmMandatoryComplete,
+button.nmMandatoryComplete {
+  border-color: var(--mandatory-ok) !important;
+}
+
+/* OOCV discrepancy attribution: highlight threshold-crossing metrics and keep ranked evidence readable. */
+.diagnosticMetricWarning { background: #fff7ed; color: #9a3412; }
+.diagnosticMetricLabel.diagnosticMetricWarning { border-left: 3px solid #f59e0b; padding-left: 7px; }
+.diagnosticMetricValue.diagnosticMetricWarning { font-weight: 700; }
+.diagnosticContributionBlock { margin-top: 16px; }
+.diagnosticContributionBlock h3 { margin: 0 0 4px; font-size: 14px; }
+.diagnosticContributionTableWrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+.diagnosticContributionTable { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; }
+.diagnosticContributionTable th,
+.diagnosticContributionTable td { padding: 7px 9px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.diagnosticContributionTable th { background: #f8fafc; color: #334155; font-weight: 700; }
+.diagnosticContributionTable tr:last-child td { border-bottom: 0; }
+
+/* Modality resource relinking follows the existing DataIO selector/modal language. */
+.resourceRelinkModalBox { width: min(1180px, calc(100vw - 36px)); }
+.resourceRelinkModalBox > .selectorHead { padding: 14px 18px; }
+.resourceRelinkSummary { margin: 14px 18px 10px; }
+.resourceRelinkTableWrap { margin: 0 18px; max-height: min(52vh, 520px); overflow: auto; }
+#resourceRelinkTable { min-width: 920px; }
+#resourceRelinkTable tbody tr { cursor: pointer; }
+#resourceRelinkTable tbody tr.selected { outline: 2px solid var(--primary); outline-offset: -2px; background: #f8fbff; }
+#resourceRelinkTable td.resourcePathCell { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; }
+.resourceRelinkModalBox > #resourceRelinkDetails { margin: 12px 18px 0; }
+.resourceRelinkModalBox > .buttonRow { margin-top: 12px; }
+
+/* Training-import-only global covariate management. */
+.covariateManagementModalBox { width: min(620px, calc(100vw - 36px)); }
+.covariateManagementModalBox > .selectorHead { padding: 14px 18px; }
+.covariateManagementToolbar { display:flex; align-items:center; gap:9px; padding:12px 18px; flex-wrap:wrap; }
+.covariateManagementToolbar .muted { margin-left:auto; }
+.covariateManagementRows { margin:0 18px; max-height:min(48vh, 430px); overflow:auto; border:1px solid var(--line); border-radius:8px; }
+.covariateManagementRow { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:12px; padding:9px 12px; border-bottom:1px solid var(--line); cursor:pointer; }
+.covariateManagementRow:last-child { border-bottom:0; }
+.covariateManagementRow:hover { background:#f8fafc; }
+.covariateManagementRow > span:nth-child(2) { overflow-wrap:anywhere; }
+.covariateManagementModalBox > .buttonRow { padding-bottom:14px; }

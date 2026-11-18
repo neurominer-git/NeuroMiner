@@ -66,12 +66,7 @@ switch MODEFL
         end
         % Ensure [0,1]
         if all(ismember(u, [-1, 1]))
-            lab = lab == max(u);  % -1->0, +1->1
-        elseif all(ismember(u, [0, 1]))
-            % ok
-        else
-            % map to {0,1} using the order of unique values
-            lab = lab == max(u);
+            lab = lab == max(u);  % -1->0, +1->1       
         end
 
         switch mdltype 

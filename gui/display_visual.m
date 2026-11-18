@@ -2,8 +2,7 @@
 % =                        VISUALIZATION PLOT                             =
 % =========================================================================
 function handles = display_visual(handles)
-global st
-st.ParentFig    = handles.figure1;
+
 varind          = handles.curmodal;
 measind         = handles.selVisMeas.Value;
 meas            = handles.selVisMeas.String;
@@ -259,7 +258,7 @@ if multiflag && isfield(v,'PermModel_Crit_Global_Multi')
     meas{measind} = 'Model P value histogram';
 end
 
-if ~strcmp(meas{measind}, 'Model P value histogram')
+if ~strcmp(meas{measind}, 'Model P value histogram') && ~strcmp(meas{measind}, 'Volcano plot: CVR × Sign-based consistency -log10(P value)')
     y(~isfinite(y))=0;
     if width(y)>1 
         % Multiple components used
@@ -420,8 +419,12 @@ switch meas{measind}
          catch ERR
              errordlg(sprintf('Matrix cannot be displayed!\n%s', ERR.message));
          end
-         
+
+    case 'Volcano plot: CVR × Sign-based consistency -log10(P value)'
+         handles = plot_volcano_cvr_sbc(handles, v, curclass, multiflag, posColor, negColor);
+    
     case 'Model P value histogram'
+         box(handles.axes33,'on'); set(handles.axes33,'Color','w');
          cb = findobj(handles.axes33.Parent, 'Type', 'ColorBar', 'Axes', handles.axes33);
          delete(cb)
          yh = y(handles.curclass,:);
@@ -633,10 +636,14 @@ switch meas{measind}
          end
          
     otherwise 
+         box(handles.axes33,'on'); set(handles.axes33,'Color','w');
         cb = findobj(handles.axes33.Parent, 'Type', 'ColorBar', 'Axes', handles.axes33);
         delete(cb)
-        ind = get_sort_index(y(:,selC), sortfl);     % sort by y according to drop-down
+
+        % sort by y according to drop-down
+        ind = get_sort_index(y(:,selC), sortfl);     
         y   = y(ind,selC);  y = y(featind);
+
         % enable/disable color pickers based on sign content
         btnPos = findobj(hFig,'Tag','btnPosColor');
         btnNeg = findobj(hFig,'Tag','btnNegColor');

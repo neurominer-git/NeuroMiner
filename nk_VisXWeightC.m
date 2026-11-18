@@ -1,6 +1,6 @@
-function [ mW, mP, mR, mSR, mC, W, mPA, mD ] = nk_VisXWeightC(inp, MD, Y, L, varind, P, F, VI, decompfl, memprob, procfl, compwise, Fadd, for_share, Yts)
+function [ mW, mP, mR, mSR, mC, W, mPA, mD, mCCombined ] = nk_VisXWeightC(inp, MD, Y, L, varind, P, F, VI, decompfl, memprob, procfl, compwise, Fadd, for_share, Yts, permutationActive)
 % =========================================================================
-% [mW, mP, mR, mSR, mC, W, mPA ] = nk_VisXWeightC(inp, MD, Y, L, varind, ...
+% [mW, mP, mR, mSR, mC, W, mPA, mD, mCCombined] = nk_VisXWeightC(inp, MD, Y, L, varind, ...
 %                                          P, F, VI, decompfl, memprob, procfl, Fadd)
 % =========================================================================
 %   Prepare model weights for visualisation by:
@@ -18,9 +18,9 @@ function [ mW, mP, mR, mSR, mC, W, mPA, mD ] = nk_VisXWeightC(inp, MD, Y, L, var
 %   decompose the model decision into component-specific contributions.
 %
 % SYNTAX:
-%   [mW, mP, mR, mSR, mC, W, mPA, mD] = nk_VisXWeightC( ...
+%   [mW, mP, mR, mSR, mC, W, mPA, mD, mCCombined] = nk_VisXWeightC( ...
 %       inp, MD, Y, L, varind, P, F, VI, decompfl, memprob, procfl, ...
-%       compwise, Fadd, for_share, modelTs )
+%       compwise, Fadd, for_share, modelTs, permutationActive )
 %
 % INPUT:
 %   inp        : main input/option struct for the current analysis.
@@ -51,10 +51,13 @@ function [ mW, mP, mR, mSR, mC, W, mPA, mD ] = nk_VisXWeightC(inp, MD, Y, L, var
 %                purposes (e.g. to include previously dropped components).
 %   for_share  : flag indicating whether the result is prepared for
 %                sharing across CV folds (global reference space).
+%   permutationActive : true when extracting the observed or permuted statistic
+%                for permutation inference; bypasses descriptive L2 scaling.
 %   Yts        : CV2 test data features in model space (currently only DR) 
 %                for the current classifier:
 %                  - rows: CV2 test subjects used in this vis run
-%                  - cols: active reduced-space dimensions (matching F)
+%                  - cols: preselected reduced-space dimensions; F selects
+%                    the fitted-model input columns before Dx computation
 %                For early fusion, this is typically a single matrix with
 %                all DR components. For intermediate fusion, it may be a
 %                single matrix (to be split by VI) or already a cell array
@@ -84,11 +87,21 @@ function [ mW, mP, mR, mSR, mC, W, mPA, mD ] = nk_VisXWeightC(inp, MD, Y, L, var
 %
 %   W    : full weight vector in the *current* processed (reduced) space,
 %          extended to all active reduced-space dimensions (matching F).
-%          This is the same W used to derive mW and Dx.
+%          This W is used for mW. For linear SVMs the identical effective
+%          vector is also used for Dx; other eligible exact affine models
+%          use xV and nonlinear Dx uses fitted MD.
 %
 %   mPA  : 1×nM cell array; modality-specific pattern-related information
 %          (e.g. PCA loadings, projection matrices) as required by the vis
 %          and back-projection routines. 
+%
+%   mCCombined : Combined native-space Pearson correlation matrix for an
+%                eligible early- or intermediate-fusion model. Early fusion
+%                retains the common-chain matrix; intermediate fusion adds
+%                only cross-modality blocks after each modality-specific
+%                feature-axis-preserving preprocessing path has been applied.
+%                Feature-mixing DR, low-memory and late-fusion analyses return
+%                []. Existing modality-specific outputs are unchanged.
 %
 %   mD   : 1×nM cell array of fractionated decision scores for CV2
 %          subjects in DR/model space:
@@ -97,21 +110,25 @@ function [ mW, mP, mR, mSR, mC, W, mPA, mD ] = nk_VisXWeightC(inp, MD, Y, L, var
 %               - columns are modality-specific DR components used by the
 %                 model (matching the component indexing in mW{n} / mP{n}).
 %
-%          Each entry Dx{n}(s,k) represents the *per-component* contribution
-%          of component k in modality n to the decision score of subject s:
-%
-%               Dx{n}(s,k) = modelTs(s,k_mod) * w_mod(k_mod)
-%
-%          where w_mod are the modality-specific model weights in DR space.
-%          Summing Dx over all components and modalities (plus the model
-%          bias) reconstructs the usual decision score:
-%
-%               DS(s) ≈ sum_n sum_k Dx{n}(s,k) + bias
+%          For eligible affine models, Dx(s,k) = modelTs(s,k)*w(k).
+%          Trees use node-path contributions; neural networks use
+%          reference-relative layerwise secants. Full unfiltered Dx plus
+%          its native-score reference reconstructs the model raw score.
+%          The Fadd-selected and aligned Dx need not reconstruct it.
 %
 %          For non-DR models (decompfl(n) == false) or when modelTs is
-%          empty, Dx{n} is returned as [] for that modality.
+%          empty, Dx{n} is returned as [] for that modality. Mixed
+%          intermediate-fusion DR/non-DR models disable fractionated
+%          decision scores entirely because the classifier score belongs
+%          to the joint fused feature space; in that case mD = [].
 %
 % NOTES:
+%   - Non-SVM Dx is computed by nk_ComputeDx from the complete fitted
+%     input coordinates before Fadd selection. Existing SVM Dx retains
+%     the original per-modality coordinate selection and normalization. The established
+%     model weight maps, alignment and many-to-one merging are unchanged.
+%   - The network reference is the zero vector in fitted model coordinates;
+%     the reference score is not yet persisted by this surgical hook.
 %   - mD is intended to be passed into nk_VisXRealignComponents in parallel
 %     to mW (Tx), where the same alignment and sign-correction derived from
 %     the component maps is applied to mD (Dx), yielding globally aligned,
@@ -123,13 +140,13 @@ function [ mW, mP, mR, mSR, mC, W, mPA, mD ] = nk_VisXWeightC(inp, MD, Y, L, var
 % =========================================================================
 % (c) Nikolaos Koutsouleris, 11/2025
 
-global SVM 
+global SVM MODEFL 
 if ~exist('memprob','var') || isempty(memprob), memprob = false; end
 if ~exist('procfl','var') || isempty(procfl), procfl = true; end
 if ~exist('compwise','var') || isempty(compwise), compwise = false; end
 if ~exist('Fadd','var') || isempty(Fadd), Fadd = true(size(F)); end
 if ~exist('for_share','var') || isempty(for_share), for_share = false; end
-computeFracDecScores = true; 
+computeFracDecScores = inp.fractionatedDecisionScores; 
 if ~exist('Yts', 'var') || isempty(Yts), Yts = []; computeFracDecScores = false; end
 mPA = []; PA = []; warning off
 
@@ -153,7 +170,7 @@ mM = numel(inp.tF);
 % Normalize weight vector for SVM (per Gaonkar et al. 2015). The default is
 % no normalization because this interferes with permutation-based testing
 % and results in unfair comparisons between observed and permuted weights
-if inp.norm == 1 && any(strcmp({'LIBSVM','LIBLIN'},SVM.prog))
+if ~permutationActive && inp.norm == 1 && any(strcmp({'LIBSVM','LIBLIN'},SVM.prog))
     W = W/(norm(W,2));
 end
 
@@ -164,9 +181,48 @@ if computeFracDecScores, if inp.isInter, mD = cell(1,mM); end; end
 if ~isempty(PA)
     mPA = cell(1,mM);
 end
-mP = []; mR = []; mSR = []; mC = [];
+mP = []; mR = []; mSR = []; mC = []; mCCombined = [];
+combinedInter = procfl && isfield(inp,'isInter') && logical(inp.isInter) && nM > 1 && ...
+    isfield(inp,'combinedCorrEligible') && ~isempty(inp.combinedCorrEligible) && ...
+    logical(inp.combinedCorrEligible(1)) && ~memprob;
+if combinedInter
+    combinedCorrData = cell(1,nM);
+    combinedCorrWithin = cell(1,nM);
+    combinedCorrValidCount = zeros(1,nM);
+end
 if procfl
     mP = cell(1,mM); mR = cell(1,mM); mSR = cell(1,mM); mC = cell(1,nM);
+end
+
+% Compute Dx once on the COMPLETE fitted-model feature axis. Fadd belongs
+% to visualization selection, never to the nonlinear predictor input.
+% The existing weight-map extraction/back-projection remains untouched.
+if any(decompfl) && ~isempty(Yts) && ...
+        ~any(strcmp(SVM.prog,{'LIBSVM','LIBLIN'}))
+    Zmodel = Yts(:,F);
+    % Eligible affine models use the original, unfiltered xV coefficients.
+    switch SVM.prog
+        case {'GLMFIT','ELASVM','WBLCOX'}
+            dxWeights = xV;
+        case 'matLRN'
+            % MatLearn affine weights share the native fitted feature axis.
+            % Tree/MLP weights do not, and must be derived from MD.
+            if any(strcmp(SVM.matLRN.algo{1}, ...
+                    {'L1','L2','leastSquares','NB','Huber','ARD','student', ...
+                     'SVM','HSVM','SSVM','logistic','elastic_net','exponential'}))
+                dxWeights = xV;
+            else
+                dxWeights = [];
+            end
+        otherwise
+            % GLMNET paths, BAYLIN surrogates, tree importances and
+            % nonlinear model weights are not exact Dx coefficients.
+            dxWeights = [];
+    end
+    dxContext = struct('mode',MODEFL,'trainZ',Y,'reference',zeros(1,size(Zmodel,2)));
+    [modelDx, ~, ~] = nk_ComputeDx(SVM,MD,Zmodel,dxWeights,dxContext);
+    assert(isequal(size(modelDx),size(Zmodel)), 'nk:dxShape', ...
+        'Dx must have one column for each fitted model input feature.');
 end
 
 % Loop through modalities.
@@ -210,28 +266,26 @@ for n = 1:nM
         % We only do this currently for DR-based models (decompfl(n)=true)
         % and when CV2 test subjects' factor scores (Yts) were provided.
 
-        % All active reduced-space dims in the model
-        cols_all = find(Fu);             % e.g. size = [K_totalDR x 1]
-
-        % Reduced dims for THIS modality n that are active
-        idx_mod = find(Fu & lVI);        % indices in full reduced-space index
-
+        idx_mod = find(Fu & lVI);
         if isempty(idx_mod)
-            mD{n} = [];  % no DR dims assigned to this modality
+            mD{n} = [];
+        elseif any(strcmp(SVM.prog,{'LIBSVM','LIBLIN'}))
+            % Preserve the established SVM Dx columns, Fadd order and
+            % post-Fadd normalization exactly (original SVM calculation).
+            cols_all = find(Fu);
+            [~,colpos] = ismember(idx_mod,cols_all);
+            Zmod = Yts(:,colpos);
+            w_mod = W(idx_mod);
+            dxContext = struct();
+            [mD{n},~,~] = nk_ComputeDx(SVM,MD,Zmod,w_mod,dxContext);
         else
-            % Map idx_mod to column positions in modelTs.
-            % Assumption: modelTs columns are ordered like cols_all = find(Fu).
-            [~, colpos] = ismember(idx_mod, cols_all);
-            colpos = colpos(colpos > 0);     % safety
-
-            % DR scores for CV2 subjects, this modality only
-            Zmod = Yts(:, colpos);       % [nSubj_cv2 x nModDRdims]
-
-            % Corresponding weights (same dims)
-            w_mod = W(idx_mod);              % [nModDRdims x 1]
-
-            % Fractionated decision scores: D(s,k) = Zmod(s,k) * w_mod(k)
-            mD{n} = bsxfun(@times, Zmod, w_mod(:).');   % [nSubj_cv2 x nModDRdims]
+            % For nonlinear learners, this selects contributions AFTER
+            % evaluating the complete, unfiltered fitted-model input.
+            cols_all = find(F);
+            [~,colpos] = ismember(idx_mod,cols_all);
+            assert(all(colpos>0), 'nk:dxModalityAxis', ...
+                'Visualized component has no fitted-model input column.');
+            mD{n} = modelDx(:,colpos);
         end
     end
     
@@ -451,7 +505,7 @@ for n = 1:nM
                             tcorr_mask(pIND) = corr_mask;
                             corr_mask = tcorr_mask;
                         end
-                    % (Note: If needed, adjust the feature masks lFuVI, fVI here.)
+                        % (Note: If needed, adjust the feature masks lFuVI, fVI here.)
                     end
             end
         end
@@ -467,6 +521,11 @@ for n = 1:nM
         %-----------------------------------------------------------
         % CORRELATION ANALYSIS
         %-----------------------------------------------------------
+        % The established low-memory mode skips construction of nmC.
+        % Initialize it for every modality so later output branches
+        % receive an explicit empty matrix rather than an undefined
+        % or stale value.
+        nmC = [];
         if ~decompfl(n)
             nmPx = Fu(fVI);
             tY = zeros(size(Y,1), numel(nmPx));
@@ -496,10 +555,24 @@ for n = 1:nM
             SRfull(idx) = nmSR(nmPx).';
             nmR  = Rfull;
             nmSR = SRfull;
+            if combinedInter
+                combinedCorrData{n} = tY(:,nmPx);
+                combinedCorrValidCount(n) = numel(idx);
+            end
             if ~memprob && ~isempty(nmC)
+                if combinedInter
+                    combinedCorrWithin{n} = nmC(nmPx,nmPx);
+                end
                 Cfull = nan(size(nmW,1));
                 Cfull(idx, idx) = nmC(nmPx, nmPx);
                 nmC = Cfull;
+                % In early fusion the complete native-space matrix exists here
+                % before it is split into modality-specific diagonal blocks.
+                % Retaining this matrix does not alter the established local
+                % outputs or any preprocessing-reversal logic.
+                if inp.isEarly && nM == 1 && mM > 1
+                    mCCombined = nmC;
+                end
             end
         else
             % DR is active: Create correlation outputs as matrices with the same
@@ -569,6 +642,27 @@ for n = 1:nM
                 mSR{n} = nmSR; 
                 mC{n} = nmC;
             end
+        end
+    end
+end
+
+if combinedInter
+    offsets = [0 cumsum(combinedCorrValidCount)];
+    mCCombined = nan(offsets(end));
+    for n = 1:nM
+        rows = offsets(n) + (1:combinedCorrValidCount(n));
+        if ~isempty(rows) && ~isempty(combinedCorrWithin{n})
+            mCCombined(rows,rows) = combinedCorrWithin{n};
+        end
+        for m = n+1:nM
+            cols = offsets(m) + (1:combinedCorrValidCount(m));
+            if isempty(rows) || isempty(cols) || isempty(combinedCorrData{n}) || isempty(combinedCorrData{m})
+                continue;
+            end
+            crossCorr = corr(combinedCorrData{n},combinedCorrData{m}, ...
+                'Type','Pearson','Rows','pairwise');
+            mCCombined(rows,cols) = crossCorr;
+            mCCombined(cols,rows) = crossCorr.';
         end
     end
 end

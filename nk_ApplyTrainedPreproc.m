@@ -5,7 +5,8 @@ function [ inp, contfl, analysis, mapY, GD, MD, Param, P, mapYocv ] = nk_ApplyTr
 % =========================================================================
 % Main function to compute /load and return preprocessing parameters and
 % preprocessed data for trained analysis chains. The functions is used by
-% nk_VisModels and nk_OOCV. It identifies the smallest number of preprocessing 
+% nk_VisModels, nk_OOCV, nk_MLInterpreter, and model export. It identifies the
+% smallest number of preprocessing
 % parameter combinations needed for a trained model, for which the preprocessing 
 % chains have to be computed. This set of parameter combinations is then
 % forwarded to nk_PerfPreprocess or nk_Prepwhere the actual computations are
@@ -59,13 +60,13 @@ end
 if smoothonly
     inp = nk_PerfInitSpatial(analysis, inp, paramfl);
     nM = numel(inp.PREPROC);
-    inp.issmoothed = true(1,nM);
+    inp.isSpatialPreprocessed = true(1,nM);
     inp.smoothonly = false;
     Param = [];
 else
     Yocv = []; 
     nM = numel(inp.PREPROC);
-    issmoothed = false(1,nM); if isfield(inp,'issmoothed') && any(inp.issmoothed), issmoothed = inp.issmoothed; end
+    isSpatialPreprocessed = false(1,nM); if isfield(inp,'isSpatialPreprocessed') && any(inp.isSpatialPreprocessed), isSpatialPreprocessed = inp.isSpatialPreprocessed; end
     if ~isfield(inp,'saveparam'), inp.saveparam = false; end
 
     P = cell(1, nM); mapY = cell(1, nM); mapYocv = cell(1,nM); 
@@ -102,7 +103,7 @@ else
         % consist of NaN
 
         % Has the [imaging] data been smoothed already?
-        if issmoothed(n), sstr='s'; else, sstr=''; end
+        if isSpatialPreprocessed(n), sstr='s'; else, sstr=''; end
 
         % Training/CV data extraction from container
         Y = inp.X(n).([ sstr 'Y']);
@@ -118,6 +119,32 @@ else
         % Do we need to extract a weighting mask, too?
         if isfield(inp.X(n), [ sstr 'Yw']) && ~isempty(inp.X(n).([ sstr 'Yw']))
             inp.iYw = inp.X(n).([ sstr 'Yw']);
+        elseif isfield(inp,'iYw')
+            inp = rmfield(inp,'iYw');
+        end
+
+        % Restore modality-local companion shelves at the same boundary as Y.
+        % Downstream consumers must not interpret spatial shelf containers.
+        if isSpatialPreprocessed(n)
+            if isfield(inp.X(n),'sAltY') && ~isempty(inp.X(n).sAltY)
+                inp.AltY = inp.X(n).sAltY;
+            elseif isfield(inp,'AltY')
+                inp = rmfield(inp,'AltY');
+            end
+            if isfield(inp,'C') && ~isempty(inp.C) && inp.C{1,1}.calibflag
+                if ~isfield(inp.X(n),'sCocv') || isempty(inp.X(n).sCocv)
+                    error('nk_ApplyTrainedPreproc:MissingCalibrationShelves', ...
+                        ['Spatial shelves are resident for modality #%g, but its ' ...
+                         'calibration shelves are missing.'], n);
+                end
+                inp.C{1,1}.Y = inp.X(n).sCocv;
+            end
+        else
+            if isfield(inp.X(n),'altY') && ~isempty(inp.X(n).altY)
+                inp.AltY = inp.X(n).altY;
+            elseif isfield(inp,'AltY')
+                inp = rmfield(inp,'AltY');
+            end
         end
     
         % Are there modality-specific runtime parameters that should be extracted?
@@ -132,6 +159,19 @@ else
             PREPROC = inp.PREPROC{n};
         else
             PREPROC = inp.PREPROC;
+        end
+        % nm2-allow: current NM2 optionally supplies OOCV-only preprocessing at this legacy ingress boundary.
+        if isfield(inp,'OOCVApplicationPreprocByIndex')
+            preprocIndex = inp.tF(n);
+            runtimeProjection = inp.OOCVApplicationPreprocByIndex{preprocIndex};
+            if ~isempty(runtimeProjection)
+                if runtimeProjection.preprocIndex ~= preprocIndex
+                    error('nk_ApplyTrainedPreproc:InvalidOOCVApplicationProjection', ...
+                        'OOCV application preprocessing projection does not match PREPROC{%d}.', preprocIndex);
+                end
+                PREPROC = runtimeProjection.PREPROC;
+                PREPROC.OOCVAPP_RUNTIME = runtimeProjection;
+            end
         end
         tparamfl.PV = inp.X(n);
 
@@ -180,10 +220,11 @@ else
     if nM > 1
        [mapY, Param] = nk_mapY2Struct(mapY, Param, P, inp);
        [iy,jy] = size(mapY.Tr);
-       mapY = nk_DealWithNaNCases(mapY, iy, jy, inp.nclass, true);
+       DealWithCompleteNanCases = 1; %2 = Impute missing cases
+       mapY = nk_DealWithNaNCases(mapY, iy, jy, inp.nclass, DealWithCompleteNanCases );
        if (iscell(mapYocv) && ~sum(cellfun(@isempty,mapYocv))) || ( ~iscell(mapYocv) && ~isempty(mapYocv))
            mapYocv = nk_mapY2Struct(mapYocv, Param, P, inp); 
-           mapYocv = nk_DealWithNaNCases_OOCV(mapYocv, iy, jy, inp.nclass, true);
+           mapYocv = nk_DealWithNaNCases_OOCV(mapYocv, iy, jy, inp.nclass, DealWithCompleteNanCases );
        end
     else
         mapY = mapY{n};

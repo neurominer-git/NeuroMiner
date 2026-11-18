@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>NM2 `/docs` consolidation audit and validation</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#nm2-docs-consolidation-audit-and-validation" id="toc-nm2-docs-consolidation-audit-and-validation">NM2
+<code>/docs</code> consolidation audit and validation</a>
+<ul>
+<li><a href="#scope" id="toc-scope">Scope</a></li>
+<li><a href="#before--after" id="toc-before--after">Before /
+after</a></li>
+<li><a href="#canonical-replacement-structure" id="toc-canonical-replacement-structure">Canonical replacement
+structure</a></li>
+<li><a href="#old-document-disposition" id="toc-old-document-disposition">Old-document disposition</a></li>
+<li><a href="#structural-validation-of-replacement-docs" id="toc-structural-validation-of-replacement-docs">Structural validation
+of replacement docs</a></li>
+<li><a href="#baseline-sourcetest-coupling-discovered-by-replacement" id="toc-baseline-sourcetest-coupling-discovered-by-replacement">Baseline
+source/test coupling discovered by replacement</a></li>
+<li><a href="#staticruntime-validation-independent-of-deleted-docs" id="toc-staticruntime-validation-independent-of-deleted-docs">Static/runtime
+validation independent of deleted docs</a></li>
+<li><a href="#installation" id="toc-installation">Installation</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="nm2-docs-consolidation-audit-and-validation">NM2
+<code>/docs</code> consolidation audit and validation</h1>
+<p>Baseline: <code>NMModular_common_v4.598_docs_audit(2).zip</code></p>
+<p>Date: 2026-08-27</p>
+<h2 id="scope">Scope</h2>
+<p>This deliverable performs only the conceptual <code>/docs</code>
+consolidation. It does not modify production source or tests. That
+separation is intentional because the subsequent in-code RAG pass will
+be performed against a newer consolidated codebase supplied by the
+user.</p>
+<p>The replacement directory must therefore be treated as the canonical
+conceptual documentation set, while the source/test reference migration
+listed below is a required task for the subsequent in-code pass.</p>
+<h2 id="before--after">Before / after</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Measure</th>
+<th style="text-align: right;">Baseline</th>
+<th style="text-align: right;">Replacement</th>
+<th style="text-align: right;">Delta</th>
+<th style="text-align: right;">Reduction</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Total files in <code>/docs</code></td>
+<td style="text-align: right;">292</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">-278</td>
+<td style="text-align: right;">95.2%</td>
+</tr>
+<tr class="even">
+<td>Markdown files</td>
+<td style="text-align: right;">230</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">-216</td>
+<td style="text-align: right;">93.9%</td>
+</tr>
+<tr class="odd">
+<td>Markdown physical LOC</td>
+<td style="text-align: right;">21,888</td>
+<td style="text-align: right;">724</td>
+<td style="text-align: right;">-21,164</td>
+<td style="text-align: right;">96.7%</td>
+</tr>
+<tr class="even">
+<td>Production source physical LOC</td>
+<td style="text-align: right;">203,325</td>
+<td style="text-align: right;">203,325</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0%</td>
+</tr>
+<tr class="odd">
+<td>Test physical LOC</td>
+<td style="text-align: right;">77,160</td>
+<td style="text-align: right;">77,160</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0%</td>
+</tr>
+</tbody>
+</table>
+<p>No production or test file is changed by this docs-only package.</p>
+<h2 id="canonical-replacement-structure">Canonical replacement
+structure</h2>
+<p>The replacement contains 14 concept-oriented Markdown documents. They
+are named by stable architectural concepts rather than patch/stage
+chronology. The documents cover system architecture, Scientific
+State/semantics, Results Viewer, Feature Inspection, DataIO, ROI/atlas,
+imaging, surface, connectivity, common mesh rendering, Report Builder,
+runtime bridge, and output/export/reproducibility.</p>
+<p>Function-local contracts are explicitly excluded from
+<code>/docs</code>. Accepted arguments, return structures, exact
+validation, materialization/performance costs, mutation, failure
+semantics, side effects and consumers/dependencies belong inside the
+implementing function using the standardized 11-section RAG/NOVA
+template.</p>
+<h2 id="old-document-disposition">Old-document disposition</h2>
+<p><code>deleted_docs_manifest.csv</code> records the disposition of all
+292 baseline <code>/docs</code> files:</p>
+<ul>
+<li>21: <code>MERGED</code> — useful cross-function concepts retained
+after source verification;</li>
+<li>87: <code>MOVE_TO_CODE</code> — implementation/function contract
+material to be reconstructed inside source during the in-code RAG
+pass;</li>
+<li>122: <code>DELETE</code> — stage/patch/acceptance/history
+material;</li>
+<li>62: <code>DELETE_FROM_DOCS</code> — non-conceptual provenance,
+audit, test-result, JSON or workspace artefacts.</li>
+</ul>
+<p>Historical material is not copied into a <code>deprecated/</code>
+subdirectory. Version control / the retained baseline archive is the
+history source.</p>
+<h2 id="structural-validation-of-replacement-docs">Structural validation
+of replacement docs</h2>
+<p>PASS:</p>
+<ul>
+<li>14 Markdown files, 724 physical lines.</li>
+<li>All internal Markdown links resolve.</li>
+<li>114 source-anchor occurrences resolve to live source paths (66
+unique source files).</li>
+<li>No C18/G/PORT/S stage identifiers are present in the canonical
+docs.</li>
+<li>No conceptual document uses the standardized function-local template
+headings. The only template list appears in <code>README.md</code> to
+define what must remain in source.</li>
+<li>23 targeted source-claim checks pass, including current Scientific
+Annotation/Capability/Directory/State contract versions, Report Builder
+use of Scientific State, browser active Scientific State, canonical ROI
+provenance, ROI Mapper presentation-only ownership, common mesh renderer
+reuse, output artifact authority, and bridge/service boundaries.</li>
+</ul>
+<h2 id="baseline-sourcetest-coupling-discovered-by-replacement">Baseline
+source/test coupling discovered by replacement</h2>
+<p>Replacing <code>/docs</code> exposes obsolete documentation-authority
+coupling in the baseline:</p>
+<ul>
+<li>21 production files still point to old Markdown contracts/knowledge
+indexes.</li>
+<li>74 test files/manifests still read old Markdown/JSON documentation
+artefacts.</li>
+<li>Total migration backlog: 95 files.</li>
+</ul>
+<p>These files are listed in
+<code>RAG_INCODE_MIGRATION_BACKLOG.csv</code> with the exact old
+documentation references.</p>
+<p>They are deliberately <strong>not edited in v4.598</strong>. The next
+in-code RAG pass will run on the newer consolidated codebase, where
+these pointers can be removed or redirected to actual source-level
+documentation without creating a temporary fork.</p>
+<p>Consequently, a historical full regression suite containing those
+documentation-coupled tests is not expected to pass immediately after
+deleting the old <code>/docs</code> tree. Those tests must be
+migrated/retired during the in-code documentation pass; otherwise they
+would continue to make Markdown a competing authority.</p>
+<h2 id="staticruntime-validation-independent-of-deleted-docs">Static/runtime
+validation independent of deleted docs</h2>
+<p>PASS:</p>
+<ul>
+<li>Node syntax: 388 JavaScript files checked, 0 failures.</li>
+<li>Python syntax: 57 Python test files compiled, 0 failures.</li>
+<li>Representative source/runtime tests, all PASS:
+<ul>
+<li><code>tests/run_nm_results_viewer_g1a_scientific_selection_source.py</code></li>
+<li><code>tests/run_nm_results_viewer_g1c_scientific_contract_source.py</code></li>
+<li><code>tests/run_nm_results_viewer_g8e2_scientific_state_admission.js</code></li>
+<li><code>tests/run_nm_results_viewer_roi_mapper_port1_r1o_c.js</code></li>
+<li><code>tests/run_nm_results_viewer_report_builder_output_plan_race_perf4_r4.js</code></li>
+<li><code>tests/run_nm_results_viewer_connectivity_g6b_r6.js</code></li>
+<li><code>tests/run_nm_imaging_2d_gpu_single_overlay_r1.js</code></li>
+</ul></li>
+</ul>
+<p>The GPU imaging test executed successfully through Chromium/Xvfb.</p>
+<p>MATLAB/Octave is not installed in the validation environment, so
+MATLAB runtime tests were not executed. No claim of MATLAB runtime
+validation is made.</p>
+<h2 id="installation">Installation</h2>
+<p>For the conceptual-docs replacement itself:</p>
+<ol type="1">
+<li>Delete the existing <code>docs/</code> directory.</li>
+<li>Extract/copy the supplied replacement <code>docs/</code> directory
+into the project root.</li>
+<li>Do <strong>not</strong> copy the audit ledgers into
+<code>docs/</code>; they are development/audit artefacts, not canonical
+conceptual documentation.</li>
+<li>During the subsequent in-code RAG pass on the newest consolidated
+codebase, use <code>RAG_INCODE_MIGRATION_BACKLOG.csv</code> to remove
+old Markdown pointers and migrate/retire documentation-coupled
+tests.</li>
+<li>Run the final complete regression suite after that source/test
+migration.</li>
+</ol>
+</body>
+</html>

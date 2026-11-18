@@ -20,14 +20,17 @@ else
     handles.calibflag = false;
 end
 
-if iscell(handles.selYaxis.String)
-    if strcmp(handles.selYaxis.String{handles.selYaxis.Value},'Multi-group probabilities derived from similarity averaging')
-        fld = 'MultiClassProb';
+if strcmp(handles.modeflag,'classification')
+    if iscell(handles.selYaxis.String)
+    
+        if strcmp(handles.selYaxis.String{handles.selYaxis.Value},'Multi-group probabilities derived from similarity averaging')
+            fld = 'MultiClassProb';
+        else
+            fld = 'MultiClass';
+        end
     else
         fld = 'MultiClass';
     end
-else
-    fld = 'MultiClass';
 end
 
 if isfield(handles,'SubIndex') && ~handles.oocvview, I = handles.SubIndex; else, I = true(size(handles.NM.label,1),1); end

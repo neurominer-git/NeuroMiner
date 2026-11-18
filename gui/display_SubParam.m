@@ -85,8 +85,8 @@ if ~isPairwise
         
         apply_yaxis_style(handles.axes17, ystyle);
         handles.axes17.XLabel.String = sprintf('Parameter subspace selection: %s', selLabel);
+        apply_categorical_xticks(handles.axes17, lbs, 'MaxTicks', 30);
     end
-    apply_categorical_xticks(handles.axes17, lbs, 'MaxTicks', 30);
     handles.axes17.Legend.Visible = 'on';
     handles.axes17.Title.Visible = 'on';
     handles.axes17.YAxis.Label.String = ctx.ylb;

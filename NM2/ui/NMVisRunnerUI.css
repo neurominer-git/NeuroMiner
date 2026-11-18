@@ -1,0 +1,21 @@
+/* NMVisRunnerUI.css
+ * styles the NMVisRunnerUI browser UI component.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+.visWrap { max-width: none; align-items: flex-start; }
+.panel.visPanel { width: calc(100vw - 32px); max-width: none; }
+.visPanelHead { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+.visLayout { display:grid; grid-template-columns:minmax(430px, 0.95fr) minmax(520px, 1.05fr); gap:16px; align-items:stretch; }
+.visConfigPanel, .visAnalysisPanel { min-width:0; }
+.visAnalysisPanel { display:flex; flex-direction:column; min-height:0; }
+.visAnalysisList { display:flex; flex-direction:column; gap:8px; min-height:0; max-height:calc(100vh - 250px); overflow:auto; padding-right:6px; }
+.visSectionHeader { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; }
+.visSectionHeader h2 { margin:0; }
+.visArtifactOverride { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; }
+.visOptionGroup { display:grid; gap:7px; }
+.visNestedOptions { display:grid; grid-template-columns:repeat(2, minmax(160px, 1fr)); gap:8px 12px; margin-top:8px; padding:10px; border:1px solid #dbe3ef; border-radius:10px; background:#f8fafc; }
+.visNestedOptions label { display:grid; gap:4px; font-size:12px; color:#334155; }
+.visRunRow { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+#runVisualization:disabled, button.primary:disabled { background:#cbd5e1; border-color:#cbd5e1; color:#f8fafc; cursor:not-allowed; box-shadow:none; opacity:1; }
+@media (max-width: 1100px){ .visLayout { grid-template-columns:1fr; } .visAnalysisList { max-height:none; } }

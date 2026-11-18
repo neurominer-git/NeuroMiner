@@ -1,0 +1,1203 @@
+/* NMTrainTemplateUI.css
+ * styles the training-template configurator and its module panels.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial,
+    sans-serif;
+  background: #f6f7f9;
+  color: #1f2933;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 64px;
+  box-sizing: border-box;
+  padding: 0 22px;
+  background: #17202a;
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+.headerActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.headerActions button {
+  white-space: nowrap;
+}
+.canvasView {
+  padding: 0 22px 28px;
+}
+.appMenuStrip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid #d8dee4;
+  padding: 10px 0;
+  margin-bottom: 18px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.appMenuStrip button {
+  font-size: 13px;
+  padding: 7px 10px;
+}
+.appMenuStrip button.analysisBtn {
+  background: #2563eb;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+.appMenuStrip button.analysisBtn:hover {
+  background: #1d4ed8;
+}
+.appMenuStrip button.utilityBtn {
+  background: #fff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+.appMenuStrip button.utilityBtn:hover {
+  background: #eff6ff;
+}
+.appMenuStrip button.hidden {
+  display: none !important;
+}
+.canvasLayout {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 16px;
+}
+.canvasLayout.inspectorCollapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+.canvasLayout.inspectorCollapsed .canvasDetails {
+  display: none;
+}
+.flowCanvas {
+  position: relative;
+  min-height: 560px;
+  overflow: auto;
+  border: 1px solid #d8dee4;
+  border-radius: 14px;
+  background:
+    linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px), #fff;
+  background-size: 36px 36px;
+  padding: 12px;
+}
+.flowSvg {
+  min-width: 1080px;
+  min-height: 560px;
+  display: block;
+}
+.flowLink {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 2;
+}
+.cvScopeBox {
+  fill: #f8fafc;
+  stroke: #0f5c78;
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
+  opacity: 0.42;
+}
+.cvScopeTitle {
+  font-size: 14px;
+  font-weight: 800;
+  fill: #0f3750;
+}
+.cvScopeHint {
+  font-size: 11px;
+  fill: #475569;
+}
+.cvScopeG {
+  cursor: pointer;
+}
+.cvScopeG.warning .cvScopeBox {
+  stroke: #f59e0b;
+  fill: #fffbeb;
+}
+.cvScopeG.error .cvScopeBox {
+  stroke: #dc2626;
+  fill: #fef2f2;
+}
+.flowLink.augmentation_input {
+  stroke: #60a5fa;
+}
+.flowLink.late_fusion,
+.flowLink.stacking_input {
+  stroke-width: 2.5;
+}
+.flowLinkLabel {
+  font-size: 10px;
+  fill: #64748b;
+}
+.flowNodeG {
+  cursor: pointer;
+}
+.flowNodeInfoCircle {
+  fill: #eef2f7;
+  stroke: #b7c3d0;
+  stroke-width: 1.2;
+}
+.flowNodeInfoText {
+  font: 700 11px system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+  fill: #334155;
+  dominant-baseline: middle;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.flowNodeInfo {
+  cursor: help;
+}
+.flowNodeInfo:hover .flowNodeInfoCircle {
+  fill: #dbeafe;
+  stroke: #3b82f6;
+}
+
+.flowNodeBox {
+  fill: #fff;
+  stroke: #cbd5e1;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.12));
+}
+.flowNodeG.roundbox .flowNodeBox {
+  rx: 14;
+  ry: 14;
+}
+.flowNodeG.diamond .flowNodeBox {
+  filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.12));
+}
+.flowNodeStripe {
+  stroke-width: 5;
+}
+.flowNodeTextTitle {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #1f2933;
+}
+.flowNodeTextSub {
+  font-size: 10.5px;
+  fill: #667085;
+}
+.flowNodeTextSum {
+  font-size: 10.5px;
+  fill: #344054;
+}
+.flowNodeG.ok .flowNodeStripe {
+  stroke: #3b82f6;
+}
+.flowNodeG.committed .flowNodeStripe, .flowNodeG.data:not(.warning):not(.error) .flowNodeStripe {
+  stroke: #22c55e;
+}
+.cvScopeG.committed .cvScopeBox {
+  stroke: #22c55e;
+  fill: #f0fdf4;
+}
+.flowNodeG.info .flowNodeStripe {
+  stroke: #3b82f6;
+}
+.flowNodeG.warning .flowNodeStripe {
+  stroke: #f59e0b;
+}
+.flowNodeG.error .flowNodeStripe {
+  stroke: #dc2626;
+}
+.flowNodeG.inactive {
+  opacity: 0.55;
+}
+.flowNodeG.stacking .flowNodeStripe {
+  stroke: #f97316;
+}
+.flowNodeG.stacking .flowNodeBox {
+  fill: #fff7ed;
+}
+.flowNodeG.warning .flowNodeBox {
+  fill: #fffbeb;
+}
+.flowNodeG.error .flowNodeBox {
+  fill: #fef2f2;
+}
+.laneLabel {
+  font-size: 11px;
+  font-weight: 700;
+  fill: #64748b;
+  text-transform: uppercase;
+}
+.laneHeaderBox {
+  fill: #f8fafc;
+  stroke: #d8dee4;
+  stroke-width: 1;
+}
+.canvasDetails {
+  position: relative;
+  border: 1px solid #d8dee4;
+  border-radius: 12px;
+  background: #fff;
+  padding: 14px;
+  min-height: 220px;
+  white-space: pre-wrap;
+}
+.canvasDetails h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+.canvasDetails .auditLine {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.canvasInspectorToggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font: 700 15px/1 system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+  cursor: pointer;
+  padding: 0;
+}
+.canvasInspectorToggle:hover,
+.canvasInspectorFloatingToggle:hover,
+.canvasNodeInfoClose:hover {
+  background: #eef2ff;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+.canvasInspectorFloatingToggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 8;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1d4ed8;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.16);
+  font: 800 14px/1 system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+  cursor: pointer;
+  padding: 0;
+}
+.canvasInspectorFloatingToggle.hidden {
+  display: none !important;
+}
+.canvasNodeInfo {
+  position: absolute;
+  z-index: 12;
+  width: min(420px, calc(100% - 48px));
+  max-height: min(520px, calc(100% - 36px));
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #c7d2e0;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
+  padding: 10px 12px;
+  white-space: normal;
+}
+.canvasNodeInfo.hidden {
+  display: none !important;
+}
+.canvasNodeInfoHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.canvasNodeInfoTitle {
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.canvasNodeInfoClose {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  border-radius: 999px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: #475569;
+  cursor: pointer;
+}
+.canvasNodeInfo h2 {
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+.canvasNodeInfo .auditLine {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 7px;
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.38;
+  overflow-wrap: anywhere;
+}
+.canvasNodeInfo p {
+  margin: 8px 0 0;
+}
+.snapshotPreview {
+  white-space: pre-wrap;
+}
+.canvasMode #menuView {
+  display: none !important;
+}
+.canvasMode #canvasView {
+  display: block !important;
+}
+@media (max-width: 960px) {
+  .canvasLayout {
+    grid-template-columns: 1fr;
+  }
+  .canvasDetails {
+    order: -1;
+  }
+  .flowSvg {
+    min-width: 760px;
+  }
+}
+.rfeLayout {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  gap: 14px;
+}
+.rfeTab {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+.rfeMini {
+  border: 1px solid #d8dee4;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 10px 0;
+  background: #fbfcfd;
+}
+.rfeMini h3 {
+  margin: 0 0 8px;
+}
+.rfePlot {
+  width: 100%;
+  max-width: 520px;
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  background: #fff;
+}
+.rfePane h2 {
+  margin-top: 0;
+}
+.rfeMethodBlock {
+  border-left: 3px solid #d8dee4;
+  padding-left: 10px;
+  margin-top: 10px;
+}
+.crumb {
+  font-size: 13px;
+  color: #d0d7de;
+}
+.title {
+  font-size: 18px;
+  font-weight: 700;
+}
+.hidden {
+  display: none !important;
+}
+.wrap {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+}
+.panel {
+  width: min(960px, 94vw);
+  background: #fff;
+  border: 1px solid #d8dee4;
+  border-radius: 14px;
+  box-shadow: 0 10px 26px rgba(27, 31, 35, 0.08);
+  padding: 28px;
+}
+.panel h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+.muted {
+  color: #667085;
+  font-size: 13px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 22px;
+}
+.card {
+  border: 1px solid #d8dee4;
+  border-radius: 12px;
+  padding: 16px;
+  background: #fbfcfd;
+}
+.card h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+.field {
+  margin: 12px 0;
+}
+.field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.twocol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.inlineActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.inlineActions button {
+  width: auto;
+  text-align: center;
+}
+.savPrefixRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.savPrefixRow input { min-width: 0; flex: 1; }
+.savPrefixRow button { width: auto; white-space: nowrap; }
+select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #c9d1d9;
+  border-radius: 8px;
+  background: #fff;
+}
+button {
+  border: 1px solid #c9d1d9;
+  border-radius: 8px;
+  background: #fff;
+  padding: 9px 13px;
+  cursor: pointer;
+}
+
+/* C7i: central action-button typography.  Runner action buttons may differ
+   by colour or width, but not by font metrics. */
+button.nmActionButton {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+button.primary {
+  background: #1f6feb;
+  color: #fff;
+  border-color: #1f6feb;
+}
+button.primary:disabled,
+.appMenuStrip button.analysisBtn:disabled,
+.appMenuStrip button.analysisBtn:disabled:hover {
+  background: #cbd5e1;
+  border-color: #cbd5e1;
+  color: #475569;
+  cursor: not-allowed;
+}
+button.primary.dangerButton {
+  background: #b91c1c;
+  border-color: #991b1b;
+  color: #fff;
+}
+button.primary.warningButton {
+  background: #b45309;
+  border-color: #92400e;
+  color: #fff;
+}
+.field.dangerField .summary {
+  border-color: #dc2626;
+  background: #fef2f2;
+  color: #7f1d1d;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+}
+.field.warningField .summary {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #78350f;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.12);
+}
+.field.okField .summary {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #14532d;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.card > .actions {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+.card > .actions button {
+  width: 100%;
+  text-align: left;
+}
+.status {
+  margin-top: 14px;
+  color: #57606a;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+.summary {
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  background: #fff;
+  padding: 9px 10px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #344054;
+}
+.warn {
+  color: #9a3412;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.selectorStatusStrip {
+  border-bottom: 1px solid #d8dee4;
+  background: #fff;
+  padding: 8px 16px;
+  font-size: 13px;
+}
+.selectorStatusStrip .warn,
+.selectorStatusStrip .ok,
+.selectorStatusStrip .danger {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-size: 13px;
+}
+.selectorStatusStrip .ok {
+  color: #166534;
+}
+.selectorStatusStrip .warn {
+  color: #9a3412;
+}
+.selectorStatusStrip .danger {
+  color: #b91c1c;
+}
+.selectorModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+}
+.selectorModal.open {
+  display: flex;
+}
+.selectorBox {
+  width: min(780px, 92vw);
+  max-height: 84vh;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+}
+.selectorBox.wide {
+  width: min(920px, 94vw);
+}
+.selectorHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f6f8fa;
+  border-bottom: 1px solid #d8dee4;
+}
+.selectorBody {
+  padding: 14px 16px;
+  overflow: auto;
+}
+.selectorList {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  margin-top: 10px;
+}
+.checkitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  white-space: nowrap;
+}
+.checkitem input {
+  flex: 0 0 auto;
+}
+.textInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #c7d0d9;
+  border-radius: 8px;
+  padding: 8px;
+}
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+.modal.open {
+  display: flex;
+}
+.modalBox {
+  width: 96vw;
+  height: 92vh;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+}
+.modalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #17202a;
+  color: #fff;
+}
+.modalHead .path {
+  font-size: 13px;
+  color: #d0d7de;
+}
+.modal iframe {
+  border: 0;
+  flex: 1;
+  width: 100%;
+}
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .wrap {
+    align-items: flex-start;
+  }
+}
+.canvasDirtyNotice {
+  margin: 0 0 8px 0;
+  border-style: dashed;
+}
+
+.copyPreprocButton {
+  margin-top: 8px;
+  width: 100%;
+}
+.preprocChain {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px;
+  background: #f8fafc;
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+}
+.preprocChip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.preprocArrow {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.canvasModalityDiagBox {
+  width: min(1120px, 94vw);
+  height: min(820px, 90vh);
+}
+.canvasModalityDiagBody {
+  padding: 18px;
+  overflow: auto;
+  background: #f8fafc;
+}
+.canvasDiagSection {
+  background: #fff;
+  border: 1px solid #d8dee4;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.canvasDiagSection h3 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+}
+.detailGrid.canvasDiagGrid {
+  display: grid;
+  grid-template-columns: minmax(160px, 260px) 1fr;
+  gap: 8px 14px;
+}
+.detailGrid.canvasDiagGrid .detailKey {
+  font-weight: 700;
+  color: #334155;
+}
+.canvasDiagTableWrap {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  background: #fff;
+}
+.canvasDiagTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.canvasDiagTable th,
+.canvasDiagTable td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.canvasDiagTable th {
+  position: sticky;
+  top: 0;
+  background: #f1f5f9;
+  z-index: 1;
+}
+
+.canvasInspectionArea {
+  margin-top: 0.75rem;
+}
+.canvasQCSummaryStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px 0;
+}
+.canvasQCStatPill {
+  border: 1px solid #d8dee4;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 8px 10px;
+  min-width: 120px;
+}
+.canvasQCStatKey {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.canvasQCStatValue {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+}
+.canvasQCMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+.canvasQCMetricCard {
+  border: 1px solid #d8dee4;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+.canvasQCPrimaryMetric {
+  border-width: 2px;
+}
+.canvasQCMetricTitle {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.canvasQCPrimaryBadge {
+  display: inline-block;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+.canvasQCHistogram {
+  margin: 6px 0 8px 0;
+}
+.canvasQCHistBars {
+  height: 60px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  border-bottom: 1px solid #cbd5e1;
+}
+.canvasQCHistBar {
+  flex: 1 1 0;
+  min-width: 3px;
+  background: #64748b;
+  border-radius: 2px 2px 0 0;
+}
+.canvasQCHistAxis {
+  display: flex;
+  justify-content: space-between;
+  color: #64748b;
+  font-size: 11px;
+  margin-top: 2px;
+}
+.canvasQCMetricStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+  color: #334155;
+  font-size: 12px;
+}
+.canvasQCTopOutliers {
+  margin-top: 14px;
+}
+.canvasQCTopOutliers h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+}
+.canvasMetadataGrid {
+  margin-top: 4px;
+}
+.canvasMetadataCard {
+  background: #fefefe;
+}
+.canvasMetadataRole {
+  display: inline-block;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 6px;
+  color: #475569;
+}
+.canvasMetadataLevels {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 10px 0;
+}
+.canvasMetadataLevel {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) 2fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+.canvasMetadataLevelLabel {
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvasMetadataLevelBar {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.canvasMetadataLevelBar i {
+  display: block;
+  height: 100%;
+  background: #64748b;
+  border-radius: 999px;
+}
+.canvasMetadataLevelCount {
+  color: #475569;
+  white-space: nowrap;
+}
+.canvasMetadataNote {
+  margin: 8px 0 0 0;
+  font-size: 12px;
+}
+
+.canvasPieWrap {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0 10px 0;
+}
+.canvasPieChart {
+  width: 88px;
+  height: 88px;
+}
+.canvasPieLegend {
+  display: grid;
+  gap: 4px;
+}
+.canvasPieLegendRow {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+.canvasPieLegendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+.canvasPieLegendLabel {
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvasPieLegendValue {
+  color: #475569;
+  white-space: nowrap;
+}
+
+/* Canvas data-dashboard chart refinements */
+.canvasDataVariableStack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.canvasDataDashboardLabelGrid {
+  grid-template-columns: minmax(360px, 1fr);
+}
+.canvasDataDashboardLabels .canvasDataVariableCard,
+.canvasDataDashboardCovariates .canvasDataVariableCard {
+  padding: 14px;
+}
+.canvasDataDashboardLabels .canvasQCMetricTitle,
+.canvasDataDashboardCovariates .canvasQCMetricTitle,
+.canvasQCDashboardModality .canvasQCMetricTitle {
+  margin-bottom: 12px;
+}
+.canvasDataDashboardLabels .canvasQCHistogram,
+.canvasDataDashboardCovariates .canvasQCHistogram {
+  margin-top: 10px;
+}
+.canvasDataDashboardLabels .canvasQCHistBars,
+.canvasDataDashboardCovariates .canvasQCHistBars {
+  padding-top: 22px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+.canvasDataDashboardLabels .canvasQCHistBars {
+  height: 430px;
+}
+.canvasDataDashboardCovariates .canvasQCHistBars {
+  height: 180px;
+}
+.canvasQCDashboardModality .canvasQCHistBars {
+  height: 86px;
+}
+.canvasDataDashboardLabels .canvasQCHistAxis,
+.canvasDataDashboardCovariates .canvasQCHistAxis,
+.canvasQCDashboardModality .canvasQCHistAxis {
+  font-size: 12px;
+  line-height: 1.25;
+}
+.canvasDataDashboardLabels .canvasDataVariableStats,
+.canvasDataDashboardCovariates .canvasDataVariableStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.canvasDataDashboardLabels .canvasDataVariableStats span:not(:last-child)::after,
+.canvasDataDashboardCovariates .canvasDataVariableStats span:not(:last-child)::after {
+  content: ";";
+}
+.canvasDataDashboardCovariates .canvasPieWrap {
+  grid-template-columns: 520px minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+.canvasDataDashboardCovariates .canvasPieChart {
+  width: 500px;
+  height: 500px;
+}
+.canvasDataDashboardCovariates .canvasPieLegend {
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 4px;
+}
+.canvasDataDashboardCovariates .canvasPieLegendRow {
+  font-size: 14px;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 8px;
+}
+.canvasDataDashboardCovariates .canvasPieLegendSwatch {
+  width: 12px;
+  height: 12px;
+}
+.canvasDataDashboardCovariates .canvasPieLegendLabel {
+  white-space: normal;
+}
+.canvasChartSwitch {
+  display: flex;
+  gap: 6px;
+  margin: -2px 0 8px 0;
+}
+.canvasChartSwitchButton {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.canvasChartSwitchButton.active {
+  background: #17202a;
+  border-color: #17202a;
+  color: #fff;
+}
+.canvasChartPane.hidden {
+  display: none;
+}
+.canvasQCHistBar {
+  position: relative;
+}
+.canvasDataDashboardLabels .canvasQCHistBar em,
+.canvasDataDashboardCovariates .canvasQCHistBar em {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  transform-origin: bottom center;
+  font-style: normal;
+  font-size: 11px;
+  color: #475569;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.flowEnsembleContainerG {
+  cursor: pointer;
+}
+.flowEnsembleContainerBox {
+  fill: rgba(248, 250, 252, 0.82);
+  stroke: #7c3aed;
+  stroke-width: 1.7;
+  filter: drop-shadow(0 4px 10px rgba(76, 29, 149, 0.12));
+}
+.flowEnsembleContainerTitle {
+  font-size: 13px;
+  font-weight: 800;
+  fill: #4c1d95;
+}
+.flowEnsembleContainerSub {
+  font-size: 11px;
+  fill: #6d28d9;
+}
+
+/* RFE presentation shares the ML editor's navigable cards and contextual side help. */
+#rfeConfigModal .selectorBox.wide { width: min(1520px, 96%); max-height: 94vh; }
+#rfeConfigModal .selectorBody { padding: 0; min-height: 0; }
+#rfeConfigModal .rfeLayout { grid-template-columns: 235px minmax(0,1fr); gap: 0; align-items: stretch; }
+#rfeConfigModal.nmHelpOpen .rfeLayout { grid-template-columns: 215px minmax(0,1fr) minmax(270px, 32%); }
+#rfeConfigModal .rfeSide { position: sticky; top: 0; align-self: stretch; padding: 20px 12px; background: #f8fafc; border-right: 1px solid #dfe6ef; }
+#rfeConfigModal .rfeTab { padding: 13px 14px; border-radius: 10px; border: 1px solid #d5dfeb; background: white; margin-bottom: 9px; font-weight: 600; }
+#rfeConfigModal .rfeTab.active { background: #1d4ed8; border-color: #1d4ed8; color: white; }
+#rfeConfigModal .rfeLayout > div:nth-child(2) { min-width: 0; padding: 20px 24px 34px; }
+#rfeConfigModal .rfeMini { padding: 17px 19px; margin: 14px 0; background: #fff; border-color: #d9e3ed; }
+#rfeConfigModal .rfeMini h3 { font-size: 15px; }
+#rfeConfigModal .rfePane h2 { font-size: 20px; margin-bottom: 17px; }
+#rfeConfigModal .rfePane .field { min-width: 0; }
+.nmHelpPanel { position: sticky; top: 0; align-self: start; height: calc(94vh - 80px); display: flex; min-width: 0; flex-direction: column; border-left: 1px solid #dbe3ee; background: #f8fafc; }
+.nmHelpHeader { padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #dbe3ee; font-weight: 700; }
+.nmHelpFrame { flex: 1; min-height: 400px; width: 100%; border: 0; background: white; }
+.nmHelpButton { margin-left: 7px; width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 1px solid #c5d5e7; background: #f1f6ff; color: #1957a4; font-size: 12px; font-weight: 400; cursor: pointer; vertical-align: middle; }
+.nmHelpButton:hover { background: #dceaff; }
+.nmHelpButton:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+@media(max-width:1050px) { #rfeConfigModal.nmHelpOpen .rfeLayout { grid-template-columns: 185px minmax(0,1fr); } .nmHelpPanel { grid-column: 1 / -1; min-height: 290px; } .nmHelpFrame { min-height: 260px; } }
+@media(max-width:700px) { #rfeConfigModal .rfeLayout, #rfeConfigModal.nmHelpOpen .rfeLayout { grid-template-columns: 1fr; } #rfeConfigModal .rfeSide { border-right: 0; border-bottom: 1px solid #dfe6ef; } #rfeConfigModal .rfeLayout > div:nth-child(2) { padding: 15px; } }
+
+/* Disabled feature-stability card remains visible but cannot be opened. */
+.rfeTab:disabled { opacity: .46; cursor: not-allowed; }
+
+/* Form editors preserve their controls and share the contextual help layout. */
+.nmFormHelpLayout { display: grid; grid-template-columns: minmax(0,1fr); min-height: 0; overflow: auto; }
+.nmFormHelpLayout > .selectorBody { min-width: 0; }
+.selectorModal.nmHelpOpen .nmFormHelpLayout { grid-template-columns: minmax(0,1fr) minmax(290px,38%); }
+#synthConfigModal.nmHelpOpen .selectorBox.wide, #cvConfigModal.nmHelpOpen .selectorBox.wide, #stackingConfigModal.nmHelpOpen .selectorBox.wide, #altLabelModal.nmHelpOpen .selectorBox.wide, #mliConfigModal.nmHelpOpen .selectorBox.wide, #visConfigModal.nmHelpOpen .selectorBox.wide { width: min(1430px,96vw); max-height: 94vh; }
+.nmFormHelpLayout .nmHelpPanel { height: calc(94vh - 80px); }
+@media (max-width: 1050px) { .selectorModal.nmHelpOpen .nmFormHelpLayout { grid-template-columns: 1fr; } .nmFormHelpLayout .nmHelpPanel { order: -1; min-height: 340px; height: 48vh; } }
+
+/* Runtime runner section headings are explicit; control labels stay regular. */
+:is(.prConfigPanel, .mlrConfigPanel, .mliConfigPanel,
+    .visConfigPanel, .modelExportConfigPanel, .oocvConfigPanel) .field label { font-weight: 400; }
+:is(.prConfigPanel, .mlrConfigPanel, .mliConfigPanel,
+    .visConfigPanel, .modelExportConfigPanel, .oocvConfigPanel) .field label.nmRunnerSectionTitle {
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+/* Shared artifact inventory presentation for runtime runners. Rows and columns stay runner-owned. */
+.nmRuntimeArtifactSummary { border:1px solid #dbe3ef; border-radius:12px; background:#f8fafc; padding:10px 12px; margin:10px 0 12px; overflow-x:auto; }
+.nmRuntimeArtifactTitle { font-family:inherit; font-size:13px; font-weight:700; color:#334155; margin-bottom:7px; }
+.nmRuntimeArtifactEmpty { color:#64748b; font-size:12px; }
+.nmRuntimeArtifactTable { width:100%; border-collapse:collapse; font-family:inherit; font-size:12px; line-height:1.45; color:#334155; }
+.nmRuntimeArtifactTable th, .nmRuntimeArtifactTable td { padding:5px 6px; border-bottom:1px solid #dbe3ef; text-align:left; vertical-align:top; }
+.nmRuntimeArtifactTable th { font-size:12px; font-weight:700; white-space:nowrap; }
+.nmRuntimeArtifactTable td { font-size:12px; font-weight:400; overflow-wrap:anywhere; }
+.nmRuntimeArtifactTable .nmRuntimeArtifactPath { max-width:300px; color:#64748b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

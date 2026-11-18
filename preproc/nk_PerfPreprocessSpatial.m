@@ -1,201 +1,212 @@
-function [sY, sYocv, sCocv, sAltY, sYw, inp, optfl] = nk_PerfPreprocessSpatial( Y, Yocv, Cocv, AltY, inp, paramfl, kbin)
+function [sY, sYocv, sCocv, sAltY, sYw, inp, optfl] = ...
+    nk_PerfPreprocessSpatial(Y, Yocv, Cocv, AltY, inp, paramfl, kbin)
+% nk_PerfPreprocessSpatial - Materialize or select subject-spatial shelves.
+%
+% Purpose
+%   Coordinate subject-spatial preprocessing at the boundary of CV-bound
+%   preprocessing. Raw data are delegated to nk_MaterializeSpatialShelves;
+%   resident canonical shelves are reduced to the branches required by the
+%   current trained or candidate preprocessing parameters.
+%
+% Syntax
+%   [sY,sYocv,sCocv,sAltY,sYw,inp,optfl] = ...
+%       nk_PerfPreprocessSpatial(Y,Yocv,Cocv,AltY,inp,paramfl,kbin)
+%
+% Inputs
+%   Y, Yocv, Cocv, AltY
+%       Raw data or canonical shelves{binary,instance}{branch}, according to
+%       inp.isSpatialPreprocessed for paramfl.currmodal.
+%   inp
+%       Runtime state carrying materialization flags, branch tables, and optional
+%       weighting-map shelves.
+%   paramfl
+%       Current preprocessing parameter state. PREPROC/PXfull/PXunique identify
+%       the current classifier-specific chain and PV supplies spatial geometry.
+%   kbin
+%       Number of binary/regression preprocessing containers.
+%
+% Outputs
+%   sY, sYocv, sCocv, sAltY, sYw
+%       Canonical materialized or selected shelves.
+%   inp
+%       Updated materialization state when raw data were processed.
+%   optfl
+%       True when subject-spatial preprocessing is configured.
+%
+% Authority and flow
+%   nk_MaterializeSpatialShelves owns execution and shelf construction.
+%   nk_SelectSpatialBranches owns metadata-driven selection. This function owns
+%   only the materialized-versus-resident state transition used by
+%   nk_PerfPreprocess and nk_ApplyTrainedPreproc.
+%
+% Scientific/state contract and invariants
+%   Resident data must use shelves{binary,instance}{branch}; branch metadata must
+%   use spatial_branch_table{modality}{binary}. A true materialization flag with
+%   any other shape is invalid. Branch identity is never inferred from numeric
+%   matrix size.
+%
+% Materialization and performance
+%   Raw execution may scan all data and invoke SPM via the materializer. Resident
+%   selection is metadata-only plus cell-shelf indexing and is safe inside CV
+%   loops.
+%
+% Failure semantics
+%   Invalid state/container shapes or missing binary-specific metadata raise
+%   explicit errors before preprocessing continues.
+%
+% Side effects
+%   Updates inp.isSpatialPreprocessed, inp.spatial_branch_table, and inp.iYw only
+%   when raw data are materialized.
+%
+% Consumers and dependencies
+%   Called by nk_PerfPreprocess. Indirect consumers include training,
+%   nk_ApplyTrainedPreproc, OOCV, model visualization, MLI, and model export.
 
 global PREPROC
-sYocv = []; sCocv = []; sAltY = []; sYw = [];
+sYocv = [];
+sCocv = [];
+sAltY = [];
+sYw = [];
 
-%Eventually, apply spatial operations on image data
-if isfield(paramfl,'PREPROC') && isfield(paramfl.PREPROC,'SPATIAL') && paramfl.PREPROC.SPATIAL.cubetype>1 
-
-    % Filter the data (imaging only)
-    smoothfl = true; if isfield(inp,'issmoothed') && inp.issmoothed(paramfl.currmodal), smoothfl = false; end
-    sY = cell(kbin,1); 
-    if ~isempty(Yocv), sYocv = cell(kbin,1); end
-    if ~isempty(Cocv), sCocv = cell(kbin,1); end
-    if ~isempty(AltY), sAltY = cell(kbin,1); end
-    if isfield(inp,'iYw'), sYw = cell(kbin,1); end
-    optfl = true; 
-
-    if smoothfl
-
-        if inp.multiflag % All binary containers are treated equally.
-            
-            uPREPROC = nk_SetParamChain(paramfl, 1, PREPROC);
-            tP = nk_ReturnParamChain(uPREPROC, 1); 
-
-            % Smooth training/CV data
-            [tsY, inp, paramfl] = smooth_container(Y, [], inp, 'training/CV', PREPROC, paramfl);
-
-            % Smoothing of out-of-crossvalidation data (can be multiple containers)
-            if ~isempty(Yocv), tsYocv = smooth_container(Yocv, [], inp, 'independent test', PREPROC, paramfl, true); end
-
-            % Smoothing of calibration data (can be multiple containers)
-            if ~isempty(Cocv), tsCocv = smooth_container(Cocv, [], inp, 'calibration', PREPROC, paramfl); end
-            
-            % Smoothing of alternative training/CV data (can be multiple containers)
-            if ~isempty(AltY), tsAltY = smooth_container(AltY, [], inp, 'alternative training/CV', PREPROC, paramfl); end
-
-            % Is there a weighting mask that must be smoothed, too?
-            inp = nk_SmoothMask( uPREPROC, inp, paramfl );
-
-            for u=1:kbin
-                paramfl.P{u} = tP;
-                sY{u} = tsY;
-                if ~inp.PREPROC.BINMOD
-                    if isfield(inp,'iYw'), sYw{u} = inp.iYw; end
-                else
-                    if isfield(inp,'iYw'), sYw{u} = inp.iYw{u}; end
-                end
-                if ~isempty(Yocv), sYocv{u} = tsYocv; end
-                if ~isempty(Cocv), sCocv{u} = tsCocv; end
-                if ~isempty(AltY), sAltY{u} = tsAltY; end
-            end
-
-        else
-            
-            % Smooth training/CV data
-            [sY, inp, paramfl] = smooth_container( Y, kbin, inp, 'training/CV', PREPROC, paramfl ); 
-
-            % Processing of out-of-crossvalidation data (can be multiple containers)
-            if ~isempty(Yocv), sYocv = smooth_container(Yocv, kbin, inp, 'independent test', PREPROC, paramfl, true); end
-
-            % Processing of calibration data (can be multiple containers)
-            if ~isempty(Cocv), sCocv = smooth_container(Cocv, kbin, inp, 'calibration', PREPROC, paramfl); end
-            
-            % Processing of alternative training/CV data (can be multiple containers)
-            if ~isempty(AltY), sAltY = smooth_container(AltY, kbin, inp, 'alternative training/CV', PREPROC, paramfl); end
-            
-            % Smooth weighting map, if needed
-            sYw = cell(kbin,1);
-            for u=1:kbin
-                uPREPROC = nk_SetParamChain(paramfl, u, PREPROC); 
-                inp = nk_SmoothMask( uPREPROC, inp, paramfl, u );
-                if isfield(inp,'iYw') && ~isempty(inp.iYw), sYw{u} = inp.iYw; end
-            end
-            
-        end
-    else
-        % Check whether only some of the pre-smoothed data shelves are needed. 
-        % If so extract, extract only the smoothed data shelves needed for the 
-        % current CV2 partition
-        sY = cell(kbin,1); 
-        if ~isempty(Yocv), sYocv = cell(kbin,1); end
-        if ~isempty(Cocv), sCocv = cell(kbin,1); end
-        if ~isempty(AltY), sAltY = cell(kbin,1); end
-        if isfield(inp,'iYw'), sYw = cell(kbin,1); end
-        if ~iscell(Y)
-            tY{1} = Y;
-            if ~isempty(Yocv), tYocv{1} = Yocv; end
-            if ~isempty(Cocv), tCocv{1} = Cocv; end
-            if ~isempty(AltY), tAltY{1} = AltY; end
-        else
-            tY = Y;
-            if ~isempty(Yocv), tYocv = Yocv; end
-            if ~isempty(Cocv), tCocv = Cocv; end
-            if ~isempty(AltY), tAltY = AltY; end
-        end
-        for u=1:kbin
-            uPREPROC = nk_SetParamChain(paramfl, u, PREPROC);
-            if uPREPROC.SPATIAL.cubetype == 4 && numel(tY{u}) ~= numel(uPREPROC.SPATIAL.PX.opt)
-                idx = ismember(inp.smoothing_kernels, uPREPROC.SPATIAL.PX.opt);
-                fprintf('\nChoosing smoothing kernel %g',inp.smoothing_kernels(idx));
-            else
-                if uPREPROC.SPATIAL.cubetype == 4 && numel(uPREPROC.SPATIAL.PX.opt)>1
-                    fprintf('\nAll smoothing kernels needed');
-                end
-                idx = true(numel(tY{u}),1);
-            end
-            sY{u} = tY{u}(idx);
-            if ~isempty(Yocv), sYocv{u} = tYocv{u}(idx); end
-            if ~isempty(Cocv), sCocv{u} = tCocv{u}(idx); end
-            if ~isempty(AltY), sAltY{u} = tAltY{u}(idx); end
-            if isfield(inp,'iYw') &&  ~isempty(inp.iYw{u})
-                if iscell(inp.iYw{u})
-                    sYw{u} = inp.iYw{u}(idx); 
-                else
-                    sYw{u} = inp.iYw(idx);
-                end
-            end
-        end
-    end
+if isfield(paramfl,'PREPROC')
+    activePreproc = paramfl.PREPROC;
 else
+    activePreproc = PREPROC;
+end
+
+if ~nk_HasSpatialSteps(activePreproc)
     optfl = false;
     sY = Y;
     if ~isempty(Yocv), sYocv = Yocv; end
     if ~isempty(Cocv), sCocv = Cocv; end
     if ~isempty(AltY), sAltY = AltY; end
     if isfield(inp,'iYw'), sYw = inp.iYw; end
+    return
 end
 
-function [sY, inp, paramfl] = smooth_container(Y, kbin, inp, typestr, PREPROC, paramfl, oocvmode)
+optfl = true;
+modal = paramfl.currmodal;
+runSpatialPreproc = ~nk_IsSpatialPreprocessed(inp, modal);
+preprocByBinary = current_binary_preproc(activePreproc, paramfl, kbin, inp);
 
-if ~exist("oocvmode","var") || isempty(oocvmode)
-    oocvmode = false;
+if runSpatialPreproc
+    [sY, sYocv, sCocv, sAltY, sYw, branchTables] = ...
+        nk_MaterializeSpatialShelves(Y, Yocv, Cocv, AltY, inp, ...
+        preprocByBinary, paramfl, kbin);
+    inp = store_materialization(inp, modal, branchTables, sYw);
+    return
 end
 
-spatialstropts =   {'no spatial operation' , ...
-                    'absolute difference weighting (6 neighbors)', ...
-                    'spatial variance weighting (27 neighbors)', ...
-                    'gaussian smoothing', ...
-                    'neurotransmitter correlations', ...
-                    'reslicing', ...
-                    'ROI means computation'}; 
+branchTables = get_branch_tables(inp, modal, kbin);
+sY = select_dataset(Y, branchTables, preprocByBinary, kbin, 'training/CV');
+if ~isempty(Yocv)
+    sYocv = select_dataset(Yocv, branchTables, preprocByBinary, kbin, 'independent-test');
+end
+if ~isempty(Cocv)
+    sCocv = select_dataset(Cocv, branchTables, preprocByBinary, kbin, 'calibration');
+end
+if ~isempty(AltY)
+    sAltY = select_dataset(AltY, branchTables, preprocByBinary, kbin, 'alternative training/CV');
+end
+if isfield(inp,'iYw') && ~isempty(inp.iYw)
+    sYw = select_weight_shelves(inp.iYw, branchTables, preprocByBinary, kbin);
+end
+end
 
-if iscell(Y)
-    nY = numel(Y);
-    if isempty(kbin)
-        sY = cell(numel(Y),1);
-        uPREPROC = nk_SetParamChain(paramfl, 1, PREPROC);
-        for n=1:nY
-            sY{n} = nk_PerfSpatFilt( Y{n}, uPREPROC, paramfl.PV ); 
-        end
-        if nargout>1
-            inp.smoothing_kernels = uPREPROC.SPATIAL.PX.opt;    
-        end
-    else
-        sY = cell(kbin,numel(Y));
-        for u=1:kbin
-            uPREPROC = nk_SetParamChain(paramfl, u, PREPROC);
-            if nargout>1
-                paramfl.P{u} = nk_ReturnParamChain(uPREPROC, 1); 
-                inp.smoothing_kernels = uPREPROC.SPATIAL.PX.opt;    
-            end
-            for n=1:nY
-                if isempty(inp.desc_oocv{n}) || ~oocvmode
-                    fprintf('\nPerforming %s on %s data for binary comparison #%g', spatialstropts{uPREPROC.SPATIAL.cubetype}, typestr,  u);
-                else
-                    fprintf('\nPerforming %s on %s data (%s) for binary comparison #%g', spatialstropts{uPREPROC.SPATIAL.cubetype}, typestr, inp.desc_oocv{n}, u);
-                end
-                sY{u,n} = nk_PerfSpatFilt( Y{n}, uPREPROC, paramfl.PV ); 
-            end
-        end
+function preprocByBinary = current_binary_preproc(PREPROC, paramfl, kbin, inp)
+if isfield(inp,'multiflag') && inp.multiflag
+    preprocByBinary = nk_SetParamChain(paramfl, 1, PREPROC);
+    return
+end
+preprocByBinary = cell(kbin,1);
+for u = 1:kbin
+    preprocByBinary{u} = nk_SetParamChain(paramfl, u, PREPROC);
+end
+end
+
+function inp = store_materialization(inp, modal, branchTables, sYw)
+if ~isfield(inp,'isSpatialPreprocessed') || numel(inp.isSpatialPreprocessed) < modal
+    flags = false(1,modal);
+    if isfield(inp,'isSpatialPreprocessed')
+        flags(1:numel(inp.isSpatialPreprocessed)) = inp.isSpatialPreprocessed;
     end
-    
+    inp.isSpatialPreprocessed = flags;
+end
+inp.isSpatialPreprocessed(modal) = true;
+
+if ~isfield(inp,'spatial_branch_table') || numel(inp.spatial_branch_table) < modal
+    tables = cell(1,modal);
+    if isfield(inp,'spatial_branch_table')
+        tables(1:numel(inp.spatial_branch_table)) = inp.spatial_branch_table;
+    end
+    inp.spatial_branch_table = tables;
+end
+inp.spatial_branch_table{modal} = branchTables;
+if ~isempty(sYw)
+    inp.iYw = sYw;
+end
+end
+
+function branchTables = get_branch_tables(inp, modal, kbin)
+if ~isfield(inp,'spatial_branch_table') || numel(inp.spatial_branch_table) < modal
+    error('nk_PerfPreprocessSpatial:MissingBranchTables', ...
+        'Spatial shelves are marked as materialized, but modality #%g has no branch metadata.', modal);
+end
+branchTables = inp.spatial_branch_table{modal};
+if ~iscell(branchTables) || numel(branchTables) ~= kbin
+    error('nk_PerfPreprocessSpatial:InvalidBranchTableContainer', ...
+        ['Modality #%g requires one spatial branch table per binary classifier ' ...
+         '(%g expected).'], modal, kbin);
+end
+branchTables = branchTables(:);
+end
+
+function selected = select_dataset(data, branchTables, preprocByBinary, kbin, dataName)
+if ~iscell(data) || size(data,1) ~= kbin
+    error('nk_PerfPreprocessSpatial:InvalidShelfContainer', ...
+        ['The %s data are marked as spatially materialized but do not use ' ...
+         'shelves{binary,instance}{branch}.'], dataName);
+end
+nInstances = size(data,2);
+selected = cell(kbin,nInstances);
+for u = 1:kbin
+    for n = 1:nInstances
+        shelf = data{u,n};
+        if ~iscell(shelf) || isempty(shelf)
+            error('nk_PerfPreprocessSpatial:InvalidBranchShelf', ...
+                'The %s shelf for binary #%g, instance #%g is not a nonempty branch cell.', ...
+                dataName, u, n);
+        end
+        idx = nk_SelectSpatialBranches(branchTables{u}, get_binary_preproc(preprocByBinary,u), numel(shelf));
+        selected{u,n} = shelf(idx);
+    end
+end
+if nInstances == 1
+    selected = selected(:,1);
+end
+end
+
+function selected = select_weight_shelves(weightShelves, branchTables, preprocByBinary, kbin)
+if ~iscell(weightShelves) || numel(weightShelves) ~= kbin
+    error('nk_PerfPreprocessSpatial:InvalidWeightShelfContainer', ...
+        'Spatial weighting maps must use one branch shelf per binary classifier.');
+end
+selected = cell(kbin,1);
+for u = 1:kbin
+    shelf = weightShelves{u};
+    if ~iscell(shelf) || isempty(shelf)
+        error('nk_PerfPreprocessSpatial:InvalidWeightShelf', ...
+            'The weighting-map shelf for binary classifier #%g is invalid.', u);
+    end
+    idx = nk_SelectSpatialBranches(branchTables{u}, get_binary_preproc(preprocByBinary,u), numel(shelf));
+    selected{u} = shelf(idx);
+end
+end
+
+function PREPROC = get_binary_preproc(preprocByBinary, u)
+if iscell(preprocByBinary)
+    PREPROC = preprocByBinary{u};
 else
-    if isempty(kbin)
-        uPREPROC = nk_SetParamChain(paramfl, 1, PREPROC);
-        if isempty(inp.desc_oocv) || ~oocvmode
-            fprintf('\nPerforming %s on %s data', spatialstropts{uPREPROC.SPATIAL.cubetype}, typestr);
-        else
-            fprintf('\nPerforming %s on %s data (%s)', spatialstropts{uPREPROC.SPATIAL.cubetype}, typestr, inp.desc_oocv);
-        end
-        sY = nk_PerfSpatFilt( Y, uPREPROC, paramfl.PV ); 
-        if nargout>1
-            inp.smoothing_kernels = uPREPROC.SPATIAL.PX.opt;  
-        end
-    else
-        sY = cell(kbin,1);
-        for u=1:kbin
-            uPREPROC = nk_SetParamChain(paramfl, u, PREPROC);
-            if isempty(inp.desc_oocv) || ~oocvmode
-                fprintf('\nPerforming %s on %s data', spatialstropts{uPREPROC.SPATIAL.cubetype}, typestr);
-            else
-                fprintf('\nPerforming %s on %s data (%s)', spatialstropts{uPREPROC.SPATIAL.cubetype}, typestr, inp.desc_oocv);
-            end
-            sY{u} = nk_PerfSpatFilt( Y, uPREPROC, paramfl.PV ); 
-            if nargout>1
-                inp.smoothing_kernels = uPREPROC.SPATIAL.PX.opt;  
-            end
-        end
-    end
+    PREPROC = preprocByBinary;
 end
-
+end

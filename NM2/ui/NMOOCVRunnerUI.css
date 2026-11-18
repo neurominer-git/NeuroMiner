@@ -1,0 +1,115 @@
+/* NMOOCVRunnerUI.css
+ * OOCV/application runner styling.
+ * The page follows the same viewport-bounded two-column runner geometry as
+ * preprocessing and ML training: runtime configuration on the left and the
+ * shared AnalysisCardSelector on the right.
+ */
+
+.oocvRunnerWrap {
+  max-width: none;
+  align-items: flex-start;
+  height: calc(100vh - 64px);
+  min-height: 0;
+  overflow: hidden;
+}
+.panel.oocvRunnerPanel {
+  width: calc(100vw - 32px);
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.oocvRunnerLayout {
+  display: grid;
+  grid-template-columns: minmax(500px, 0.95fr) minmax(520px, 1.05fr);
+  gap: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.oocvConfigPanel,
+.oocvAnalysisPanel {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+.oocvAnalysisPanel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.oocvAnalysisList {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.oocvInlineOption {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+.oocvInlineOption input[type=number] {
+  width: 100px;
+}
+.oocvRunRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 14px;
+}
+#runOOCV:disabled {
+  background: #cbd5e1;
+  border-color: #cbd5e1;
+  color: #f8fafc;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 1;
+}
+#runHint {
+  margin-top: 8px;
+}
+
+/* Browser-side OOCV progress plots hosted by the shared runtime-progress viewer. */
+.oocvRuntimePerformance{margin-top:6px}
+.oocvRuntimePerformanceBody{min-height:54px}
+.oocvProgressLegend{font-size:9px;line-height:1.25;color:var(--nm-muted,#667085);margin-bottom:4px}
+.oocvProgressChartGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:6px}
+.oocvProgressGroup{border:1px solid var(--nm-border,#dfe3ea);border-radius:8px;padding:5px;background:rgba(49,108,236,.025)}
+.oocvProgressGroupTitle{font-weight:650;font-size:10.5px;margin-bottom:1px;color:#153552}
+.oocvProgressAxis{margin-top:2px}
+.oocvProgressAxisTitle{font-size:9px;font-weight:650;margin-bottom:0;color:#334155}
+.oocvProgressAxis svg{width:100%;height:auto;display:block;background:rgba(255,255,255,.52);border-radius:5px}
+.oocvProgressGridLine{stroke:rgba(100,116,139,.22);stroke-width:.8}
+.oocvProgressAxisLine{stroke:rgba(51,65,85,.55);stroke-width:.9}
+.oocvProgressTick{font-size:6.6px;fill:#64748b}
+.oocvProgressAxisLabel{font-size:7.1px;fill:#64748b}
+.oocvProgressYAxisLabel{font-size:7px;font-weight:600;fill:#475569}
+.oocvProgressSeries{fill:none;stroke:var(--series-color);stroke-width:1.7;vector-effect:non-scaling-stroke}
+.oocvProgressSeries.target{stroke-dasharray:4 2.7;stroke-width:2.05}
+.oocvProgressSeries.multiclass{stroke:#153552;stroke-width:2.35}
+.oocvProgressMarker{vector-effect:non-scaling-stroke}
+.oocvProgressMarker.score{fill:var(--series-color);stroke:#fff;stroke-width:.75}
+.oocvProgressMarker.target{fill:#fff;fill-opacity:.88;stroke:var(--series-color);stroke-width:1.25}
+.oocvProgressMarker.multiclass{fill:none;stroke:#153552;stroke-width:1.35}
+.oocvProgressSeriesLabels{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:1px;align-items:center}
+.oocvProgressSeriesLabel{display:inline-flex;align-items:center;gap:4px;font-size:9.3px;font-weight:550;color:#334155;white-space:nowrap}
+.oocvProgressLegendSwatch{display:inline-block;width:15px;height:0;border-top:2px solid var(--series-color);position:relative;flex:0 0 auto}
+.oocvProgressLegendSwatch.score:after{content:'';position:absolute;width:4px;height:4px;border:1px solid #fff;background:var(--series-color);border-radius:50%;left:5px;top:-3.5px;box-shadow:0 0 0 1px var(--series-color)}
+.oocvProgressLegendSwatch.target{border-top-style:dashed}
+.oocvProgressLegendSwatch.target:after{content:'';position:absolute;width:5px;height:5px;border:1.25px solid var(--series-color);background:#fff;transform:rotate(45deg);left:4.5px;top:-3.7px}
+.oocvProgressLegendSwatch.multiclass{border-top-color:#153552;border-top-width:2.5px}
+.oocvProgressLegendSwatch.multiclass:after{content:'+';position:absolute;color:#153552;font-weight:800;font-size:9px;line-height:8px;left:5px;top:-6px;background:#fff}
+.oocvProgressEmpty{padding:7px;font-size:10px;color:var(--nm-muted,#667085);text-align:center}
+.hidden{display:none!important}
+.muted{color:var(--nm-muted,#667085)}
+.empty{padding:12px;color:var(--nm-muted,#667085);text-align:center}
+
+@media (max-width: 1000px) {
+  .oocvRunnerLayout { grid-template-columns: 1fr; }
+  .oocvRunnerWrap { height: auto; overflow: auto; }
+  .panel.oocvRunnerPanel { height: auto; overflow: visible; }
+  .oocvAnalysisList { max-height: 420px; }
+}

@@ -22,10 +22,13 @@ if ~defaultsfl
         ACMATSTR = 'Each feature independently'; ACMATDEF = 2;
     end
     
-    if ZeroOne == 1
-        ZEROONESTR = '0, 1'; 
-    else
-        ZEROONESTR = '-1, 1';
+    switch ZeroOne
+        case 1
+            ZEROONESTR = '0, 1';
+        case 2
+            ZEROONESTR = '-1, 1 (min-max)';
+        case 3
+            ZEROONESTR = '-1, 1 (symmetric, zero-preserving)';
     end
     
     if ZeroOut == 1
@@ -50,7 +53,7 @@ if ~defaultsfl
            AcMatFl = nk_input('Scale across matrix or each feature independently',0, 'm', ...
                 'Across Matrix|Each Feature Independently',[1 0],ACMATDEF);
         case 2         
-           ZeroOne = nk_input('Scaling range',0, 'm', 'from 0 to 1|from -1 to 1',[1 2],ZeroOne);
+           ZeroOne = nk_input('Scaling range',0, 'm', 'from 0 to 1|from -1 to 1 (min-max)|from -1 to 1 (symmetric, zero-preserving)',[1 2 3],ZeroOne);
         case 3
            if ZeroOut == 1, ZeroOut = 2; elseif ZeroOut == 2, ZeroOut = 1; end
         case 1000

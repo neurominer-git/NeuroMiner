@@ -36,8 +36,21 @@ try
                 t_label = evalin('base', label_edit{j}); 
             case 2
                 load(IO.M_edit, label_edit{j}); t_label = eval(label_edit{j}); 
-            case {3,4}
+            case {3,4,5}
                 t_label = table2array(t_Y(:,label_edit(j)));
+        end
+        if isa(t_label,'string') || iscategorical(t_label)
+            t_label = cellstr(t_label);
+        elseif ischar(t_label)
+            t_label = cellstr(t_label);
+        elseif strcmp(IO.modeflag,'classification') && (isnumeric(t_label) || islogical(t_label))
+            if size(t_label,2) > 1
+                mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Classification label variable ''%s'' must be a vector, not a multi-column numeric matrix.', act, label_edit{j}));
+                return;
+            end
+            num_label = double(t_label(:));
+            t_label = arrayfun(@(x) sprintf('%g', x), num_label, 'UniformOutput', false);
+            t_label(~isfinite(num_label)) = {''};
         end
         
         % Check whether unlabeled datapoints have to be added to the label
@@ -52,17 +65,18 @@ try
         else 
             ind_nan = logical(sum(isnan(t_label),2));
         end
+        ind_nan = ind_nan(:);
         IO.nonnan_label = ~ind_nan;
 
         switch IO.modeflag
             case 'classification'
                 if ~iscell(t_label) 
-                    mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Var ''%s'' is not a cell array of strings!', act, IO.label_edit));
+                    mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Var ''%s'' is not a cell array of strings!', act, label_edit{j}));
                     return; 
                 end    
             case 'regression'
                 if ~isnumeric(t_label) 
-                    mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Var ''%s'' is not a numeric array!', act, IO.label_edit)); 
+                    mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Var ''%s'' is not a numeric array!', act, label_edit{j})); 
                     return; 
                 end
         end
@@ -73,26 +87,32 @@ try
         end
         
         if isfield(IO,'selCases') && ~isempty(IO.selCases)
-            selCases = IO.selCases;
+            selCases = logical(IO.selCases(:));
+            if numel(selCases) ~= size(t_label,1)
+                mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Case-selection vector has %g entries, but label array ''%s'' has %g cases.', ...
+                    act, numel(selCases), label_edit{j}, size(t_label,1)));
+                return;
+            end
         else
             selCases = true(size(t_label,1),1);
         end
+        validCases = IO.nonnan_label(:) & selCases;
 
         if strcmp(IO.modeflag,'classification') 
             if IO.oocvflag && isfield (IO,'desc_groups')
                 desc_groups = IO.desc_groups;
             else
-                desc_groups = unique(t_label(IO.nonnan_label),'stable');
+                desc_groups = unique(t_label(validCases),'stable');
             end
             IO.desc_groups = desc_groups;
             n_samples = numel(desc_groups);
             n_subjects = zeros(n_samples,1);
             for i=1:n_samples
-                n_subjects(i) = sum(strcmp(t_label(IO.nonnan_label),desc_groups{i}) & selCases);
+                n_subjects(i) = sum(strcmp(t_label(validCases),desc_groups{i}));
             end
         else
             desc_groups = IO.desc_groups;
-            n_samples = 1; n_subjects = size(t_label(IO.nonnan_label & selCases,:),1);
+            n_samples = 1; n_subjects = size(t_label(validCases,:),1);
         end
         
         % Perform a series of label checks if previous modalities exist
@@ -124,7 +144,7 @@ try
                        case 2
                            curr_iID = load(IO.M_edit, IO.case_edit); 
                            curr_iID = curr_iID.(IO.case_edit)(II); 
-                       case {3,4}
+                       case {3,4,5}
                            IDcol = strcmp(t_Y.Properties.VariableNames, IO.case_edit);
                            if isnumeric(t_Y{II,IDcol})
                                curr_iID = cellstr(num2str(t_Y{II,IDcol}));
@@ -148,7 +168,7 @@ try
         
         if any(ind_nan)
             mess = GenerateMessageEntry(mess, sprintf(['WARNING in %s: label array ''%s'' contains %g label(s) with non-finite entries!\n' ...
-                                     'Consider activating label imputation methods in the NM workspace setup'], act, IO.label_edit, sum(ind_nan)), 2, 'SystemCommands'); 
+                                     'Consider activating label imputation methods in the NM workspace setup'], act, label_edit{j}, sum(ind_nan)), 2, 'SystemCommands'); 
         end
 
         

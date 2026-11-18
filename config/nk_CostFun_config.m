@@ -8,7 +8,7 @@ else
 end
 
 if isfield(param,'CostFun'), CostFun = param.CostFun; end
-if ~exist('defaultsfl','var'), defaultsfl = 0; end;
+if ~exist('defaultsfl','var'), defaultsfl = 0; end
 
 if ~defaultsfl
     

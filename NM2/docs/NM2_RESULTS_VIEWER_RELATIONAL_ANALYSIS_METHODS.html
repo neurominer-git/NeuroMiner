@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>NeuroMiner 2 Results Viewer: relational analysis of tabular-like feature spaces</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#neurominer-2-results-viewer-relational-analysis-of-tabular-like-feature-spaces" id="toc-neurominer-2-results-viewer-relational-analysis-of-tabular-like-feature-spaces">NeuroMiner
+2 Results Viewer: relational analysis of tabular-like feature spaces</a>
+<ul>
+<li><a href="#1-purpose-and-conceptual-overview" id="toc-1-purpose-and-conceptual-overview">1. Purpose and conceptual
+overview</a>
+<ul>
+<li><a href="#analysis-flow" id="toc-analysis-flow">Analysis
+flow</a></li>
+</ul></li>
+<li><a href="#2-the-authoritative-relation-data" id="toc-2-the-authoritative-relation-data">2. The authoritative relation
+data</a>
+<ul>
+<li><a href="#21-feature-correlation" id="toc-21-feature-correlation">2.1 Feature correlation</a></li>
+<li><a href="#22-evidence-layers" id="toc-22-evidence-layers">2.2
+Evidence layers</a></li>
+<li><a href="#23-combined-earlyintermediate-fusion-relations" id="toc-23-combined-earlyintermediate-fusion-relations">2.3 Combined
+early/intermediate-fusion relations</a></li>
+</ul></li>
+<li><a href="#3-feature-selection-occurs-before-relational-structure-is-derived" id="toc-3-feature-selection-occurs-before-relational-structure-is-derived">3.
+Feature selection occurs before relational structure is derived</a></li>
+</ul></li>
+<li><a href="#part-i--hierarchical-feature-clustering" id="toc-part-i--hierarchical-feature-clustering">Part I — Hierarchical
+feature clustering</a>
+<ul>
+<li><a href="#4-what-feature-clustering-is-intended-to-show" id="toc-4-what-feature-clustering-is-intended-to-show">4. What feature
+clustering is intended to show</a></li>
+<li><a href="#5-signed-co-variation-clustering" id="toc-5-signed-co-variation-clustering">5. Signed co-variation
+clustering</a></li>
+<li><a href="#6-absolute-dependency-clustering" id="toc-6-absolute-dependency-clustering">6. Absolute-dependency
+clustering</a></li>
+<li><a href="#7-average-linkage-agglomeration" id="toc-7-average-linkage-agglomeration">7. Average-linkage
+agglomeration</a></li>
+<li><a href="#8-optimal-leaf-ordering" id="toc-8-optimal-leaf-ordering">8. Optimal leaf ordering</a></li>
+<li><a href="#9-optional-extraction-of-explicit-feature-clusters" id="toc-9-optional-extraction-of-explicit-feature-clusters">9. Optional
+extraction of explicit feature clusters</a>
+<ul>
+<li><a href="#91-fixed-cluster-count" id="toc-91-fixed-cluster-count">9.1 Fixed cluster count</a></li>
+<li><a href="#92-cut-height" id="toc-92-cut-height">9.2 Cut
+height</a></li>
+<li><a href="#93-cluster-numbering" id="toc-93-cluster-numbering">9.3
+Cluster numbering</a></li>
+</ul></li>
+<li><a href="#10-conditions-under-which-clustering-is-disabled" id="toc-10-conditions-under-which-clustering-is-disabled">10. Conditions
+under which clustering is disabled</a></li>
+</ul></li>
+<li><a href="#part-ii--feature-graphs" id="toc-part-ii--feature-graphs">Part II — Feature graphs</a>
+<ul>
+<li><a href="#11-from-a-dense-relation-matrix-to-a-sparse-graph" id="toc-11-from-a-dense-relation-matrix-to-a-sparse-graph">11. From a
+dense relation matrix to a sparse graph</a></li>
+<li><a href="#12-graph-sparsification-modes" id="toc-12-graph-sparsification-modes">12. Graph sparsification
+modes</a>
+<ul>
+<li><a href="#121-legacy-strongest-edge-union" id="toc-121-legacy-strongest-edge-union">12.1 Legacy strongest-edge
+union</a></li>
+<li><a href="#122-fixed-density" id="toc-122-fixed-density">12.2 Fixed
+density</a></li>
+<li><a href="#123-absolute-threshold" id="toc-123-absolute-threshold">12.3 Absolute threshold</a></li>
+</ul></li>
+<li><a href="#13-internal-graph-statistics" id="toc-13-internal-graph-statistics">13. Internal graph statistics</a>
+<ul>
+<li><a href="#131-weighted-betweenness-centrality--is-this-feature-a-bridge" id="toc-131-weighted-betweenness-centrality--is-this-feature-a-bridge">13.1
+Weighted betweenness centrality — “Is this feature a bridge?”</a></li>
+<li><a href="#132-harmonic-closeness--how-centrally-located-is-this-feature" id="toc-132-harmonic-closeness--how-centrally-located-is-this-feature">13.2
+Harmonic closeness — “How centrally located is this feature?”</a></li>
+<li><a href="#133-eigenvector-centrality--is-this-feature-connected-to-other-central-features" id="toc-133-eigenvector-centrality--is-this-feature-connected-to-other-central-features">13.3
+Eigenvector centrality — “Is this feature connected to other central
+features?”</a></li>
+<li><a href="#134-connected-component-membership--which-graph-island-does-this-feature-belong-to" id="toc-134-connected-component-membership--which-graph-island-does-this-feature-belong-to">13.4
+Connected-component membership — “Which graph island does this feature
+belong to?”</a></li>
+<li><a href="#135-practical-distinction" id="toc-135-practical-distinction">13.5 Practical distinction</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#part-iii--relation-patterns-edge-communities" id="toc-part-iii--relation-patterns-edge-communities">Part III —
+Relation patterns: edge communities</a>
+<ul>
+<li><a href="#14-what-a-relation-pattern-means" id="toc-14-what-a-relation-pattern-means">14. What a relation pattern
+means</a></li>
+<li><a href="#15-relation-patterns-are-derived-from-the-final-pruned-graph" id="toc-15-relation-patterns-are-derived-from-the-final-pruned-graph">15.
+Relation patterns are derived from the final pruned graph</a></li>
+<li><a href="#16-jaccard-similarity-between-adjacent-edges" id="toc-16-jaccard-similarity-between-adjacent-edges">16. Jaccard
+similarity between adjacent edges</a>
+<ul>
+<li><a href="#methodological-implication" id="toc-methodological-implication">Methodological implication</a></li>
+</ul></li>
+<li><a href="#17-hierarchical-link-community-construction" id="toc-17-hierarchical-link-community-construction">17. Hierarchical
+link-community construction</a>
+<ul>
+<li><a href="#171-automatic-cut-maximum-partition-density" id="toc-171-automatic-cut-maximum-partition-density">17.1 Automatic cut:
+maximum partition density</a></li>
+<li><a href="#172-manual-jaccard-similarity-cut" id="toc-172-manual-jaccard-similarity-cut">17.2 Manual
+Jaccard-similarity cut</a></li>
+</ul></li>
+<li><a href="#18-minimum-relation-pattern-size" id="toc-18-minimum-relation-pattern-size">18. Minimum relation-pattern
+size</a></li>
+</ul></li>
+<li><a href="#part-iv--why-feature-clusters-and-relation-patterns-can-disagree" id="toc-part-iv--why-feature-clusters-and-relation-patterns-can-disagree">Part
+IV — Why feature clusters and relation patterns can disagree</a>
+<ul>
+<li><a href="#19-they-encode-different-structure" id="toc-19-they-encode-different-structure">19. They encode different
+structure</a>
+<ul>
+<li><a href="#feature-clustering" id="toc-feature-clustering">Feature
+clustering</a></li>
+<li><a href="#relation-patterns" id="toc-relation-patterns">Relation
+patterns</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#part-v--automated-graph-sparsification-robustness" id="toc-part-v--automated-graph-sparsification-robustness">Part V —
+Automated graph-sparsification robustness</a>
+<ul>
+<li><a href="#20-identify-robust-structure-does-not-test-sampling-robustness" id="toc-20-identify-robust-structure-does-not-test-sampling-robustness">20.
+“Identify robust structure” does not test sampling robustness</a>
+<ul>
+<li><a href="#201-density-grid" id="toc-201-density-grid">20.1 Density
+grid</a></li>
+<li><a href="#202-centrality-rank-concordance" id="toc-202-centrality-rank-concordance">20.2 Centrality-rank
+concordance</a></li>
+<li><a href="#203-topology-similarity" id="toc-203-topology-similarity">20.3 Topology similarity</a></li>
+<li><a href="#204-composite-stability-score" id="toc-204-composite-stability-score">20.4 Composite stability
+score</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#part-vi--practical-interpretation-for-hackathon-participants" id="toc-part-vi--practical-interpretation-for-hackathon-participants">Part
+VI — Practical interpretation for hackathon participants</a>
+<ul>
+<li><a href="#21-a-60-second-explanation" id="toc-21-a-60-second-explanation">21. A 60-second explanation</a></li>
+<li><a href="#22-which-clustering-mode-should-participants-choose" id="toc-22-which-clustering-mode-should-participants-choose">22. Which
+clustering mode should participants choose?</a>
+<ul>
+<li><a href="#signed-co-variation" id="toc-signed-co-variation">Signed
+co-variation</a></li>
+<li><a href="#absolute-dependency" id="toc-absolute-dependency">Absolute
+dependency</a></li>
+</ul></li>
+<li><a href="#23-how-to-think-about-graph-density" id="toc-23-how-to-think-about-graph-density">23. How to think about
+graph density</a></li>
+</ul></li>
+<li><a href="#part-vii--methodological-cautions" id="toc-part-vii--methodological-cautions">Part VII — Methodological
+cautions</a>
+<ul>
+<li><a href="#24-what-these-analyses-do-not-establish" id="toc-24-what-these-analyses-do-not-establish">24. What these analyses
+do <strong>not</strong> establish</a>
+<ul>
+<li><a href="#specific-cautions" id="toc-specific-cautions">Specific
+cautions</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#part-viii--suggested-methods-text-for-reportspublications" id="toc-part-viii--suggested-methods-text-for-reportspublications">Part
+VIII — Suggested Methods text for reports/publications</a>
+<ul>
+<li><a href="#25-feature-relation-matrix-and-hierarchical-clustering" id="toc-25-feature-relation-matrix-and-hierarchical-clustering">25.
+Feature-relation matrix and hierarchical clustering</a></li>
+<li><a href="#26-feature-graph-and-relation-pattern-analysis" id="toc-26-feature-graph-and-relation-pattern-analysis">26. Feature
+graph and relation-pattern analysis</a></li>
+<li><a href="#27-graph-sparsification-robustness" id="toc-27-graph-sparsification-robustness">27. Graph-sparsification
+robustness</a></li>
+</ul></li>
+<li><a href="#part-ix--implementation-anchors-in-nm2" id="toc-part-ix--implementation-anchors-in-nm2">Part IX — Implementation
+anchors in NM2</a></li>
+<li><a href="#references" id="toc-references">References</a>
+<ul>
+<li><a href="#one-line-distinction-to-remember" id="toc-one-line-distinction-to-remember">One-line distinction to
+remember</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="neurominer-2-results-viewer-relational-analysis-of-tabular-like-feature-spaces">NeuroMiner
+2 Results Viewer: relational analysis of tabular-like feature
+spaces</h1>
+<p><strong>Methodological note for the NM2 Results Viewer</strong><br />
+<strong>Implementation basis:</strong> pre-hackathon NM2 codebase
+supplied on 2026-09-06 (<code>NM_4.9995</code>)<br />
+<strong>Scope:</strong> feature-relation matrices, hierarchical feature
+clustering, sparsified feature graphs, graph-derived relation patterns,
+and graph-sparsification robustness.</p>
+<hr />
+<h2 id="1-purpose-and-conceptual-overview">1. Purpose and conceptual
+overview</h2>
+<p>For tabular-like feature spaces, the NM2 Results Viewer can analyse
+<strong>relations between input features</strong>, rather than only
+showing feature-wise model statistics. The starting point is a stored
+feature-by-feature relation matrix derived during the visualization
+stage from <strong>preprocessed training-space feature
+values</strong>.</p>
+<p>The most important conceptual distinction is that NM2 contains
+<strong>two different kinds of grouping</strong>:</p>
+<ol type="1">
+<li><strong>Feature clusters</strong> are groups of <em>features
+(nodes)</em> obtained by hierarchical clustering of a
+correlation-derived dissimilarity matrix. Their main role is to
+organize/reorder the relation matrix and, optionally, to define
+contiguous feature groups.</li>
+<li><strong>Relation patterns</strong> are groups of <em>relationships
+(edges)</em> obtained from the final sparsified feature graph by
+hierarchical link-community analysis. They describe irregular
+network-like patterns of retained pairwise relations and may overlap at
+the feature level.</li>
+</ol>
+<p>These are not alternative names for the same analysis.</p>
+<h3 id="analysis-flow">Analysis flow</h3>
+<pre class="text"><code>Stored CV-aggregated relation layers
+        |
+        v
+Stable feature subset + optional feature-level secondary filter
+        |
+        +------------------------------+
+        |                              |
+        v                              v
+Feature-correlation layer       Selected primary relation layer
+        |                              |
+Correlation-derived            Graph sparsification
+hierarchical clustering               |
+        |                              v
+Optimal leaf ordering           Final retained graph
+        |                              |
+Optional cluster extraction            +--&gt; internal graph statistics
+        |                              |
+Matrix ordering / cluster bands        v
+                               Hierarchical link communities
+                                      |
+                                      v
+                                Relation patterns</code></pre>
+<p><strong>Pagination and alternative labels are
+presentation-only.</strong> They do not change the underlying relation
+matrix, graph edge universe, feature clusters, or relation-pattern
+membership.</p>
+<hr />
+<h2 id="2-the-authoritative-relation-data">2. The authoritative relation
+data</h2>
+<h3 id="21-feature-correlation">2.1 Feature correlation</h3>
+<p>The principal relation layer is stored as <code>CorrMat_CV2</code>.
+In the Results Viewer it is interpreted as the <strong>CV-aggregated
+feature-by-feature Pearson correlation matrix of preprocessed
+training-space feature values</strong>.</p>
+<p>For a feature pair
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i,j</annotation></semantics></math>,
+the stored value can be understood schematically as</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>r</mi><mo accent="true">‾</mo></mover><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><msub><mo>mean</mo><mrow><mi mathvariant="normal">C</mi><mi mathvariant="normal">V</mi><mn mathvariant="normal">2</mn></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mo>mean</mo><mrow><mi mathvariant="normal">C</mi><mi mathvariant="normal">V</mi><mn mathvariant="normal">1</mn></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>r</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo></mrow><annotation encoding="application/x-tex">
+\bar r_{ij}=\operatorname{mean}_{\mathrm{CV2}}\left(\operatorname{mean}_{\mathrm{CV1}}(r_{ij})\right),
+</annotation></semantics></math></p>
+<p>with unavailable/non-estimable values omitted by the visualization
+generator. The Results Viewer does not re-estimate these correlations
+from the original data.</p>
+<p>Important details:</p>
+<ul>
+<li>The aggregation is an <strong>arithmetic mean of the stored
+fold/model correlations</strong>; the Results Viewer does not apply a
+Fisher-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+transformation during display or clustering.</li>
+<li>Non-finite or non-estimable pairs remain unavailable. NM2 does
+<strong>not</strong> replace them by zero.</li>
+<li>The matrix is validated as symmetric; a single finite triangle can
+be mirrored, but material asymmetry is treated as a contract
+violation.</li>
+<li>Feature relations are available only where the visualization backend
+has stored a valid non-decomposed feature-space relation matrix.</li>
+</ul>
+<h3 id="22-evidence-layers">2.2 Evidence layers</h3>
+<p>Two additional pairwise layers may be available:</p>
+<ul>
+<li><code>CorrMat_CV2_p_uncorr</code>: arithmetic mean of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>log</mo><mn>10</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>P</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log_{10}(P)</annotation></semantics></math>
+evidence across CV models.</li>
+<li><code>CorrMat_CV2_p_fdr</code>: arithmetic mean of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>log</mo><mn>10</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log_{10}(q)</annotation></semantics></math>
+FDR-adjusted evidence across CV models.</li>
+</ul>
+<p>The upper triangle is authoritative and is mirrored for display.</p>
+<p>These layers must be interpreted carefully. A mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>log</mo><mn>10</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>P</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log_{10}(P)</annotation></semantics></math>
+or mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>log</mo><mn>10</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log_{10}(q)</annotation></semantics></math>
+is an <strong>aggregated evidence descriptor</strong>. It is
+<strong>not</strong> the P value or q value of the final averaged
+correlation and should not be interpreted as a formal meta-analytic
+combined significance test.</p>
+<p>For example, a displayed mean FDR-evidence value of 1.301 corresponds
+numerically to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>log</mo><mn>10</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.05</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log_{10}(0.05)</annotation></semantics></math>,
+but it does <strong>not</strong> imply that every CV model had
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>≤</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">q\le0.05</annotation></semantics></math>,
+nor that the averaged correlation itself has a final
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>=</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">q=0.05</annotation></semantics></math>.</p>
+<h3 id="23-combined-earlyintermediate-fusion-relations">2.3 Combined
+early/intermediate-fusion relations</h3>
+<p>For early- or intermediate-fusion analyses, NM2 can display a
+persisted <strong>CombinedRelation</strong> containing within- and
+cross-modality feature relations. The Results Viewer consumes that
+persisted relation object directly. It does <strong>not</strong>
+concatenate modality-specific matrices in the browser.</p>
+<p>Thus, cross-modality relations shown in a combined feature view are
+part of the stored scientific result, not a visualization-time
+reconstruction.</p>
+<hr />
+<h2 id="3-feature-selection-occurs-before-relational-structure-is-derived">3.
+Feature selection occurs before relational structure is derived</h2>
+<p>The user can first define a stable feature subset and can optionally
+apply a <strong>secondary feature-level metric filter</strong>. This
+filter acts on features/nodes, not on individual pairwise edges.</p>
+<p>The resulting admissible feature set is then used by both branches of
+the relational analysis:</p>
+<ul>
+<li>hierarchical feature clustering; and</li>
+<li>graph construction / relation-pattern detection.</li>
+</ul>
+<p>This distinction matters because changing the feature universe
+changes both the clustering problem and the graph topology.</p>
+<hr />
+<h1 id="part-i--hierarchical-feature-clustering">Part I — Hierarchical
+feature clustering</h1>
+<h2 id="4-what-feature-clustering-is-intended-to-show">4. What feature
+clustering is intended to show</h2>
+<p>Feature clustering asks:</p>
+<blockquote>
+<p><strong>Which features are mutually close according to a
+correlation-derived dissimilarity?</strong></p>
+</blockquote>
+<p>It is a node/feature clustering method. It is not a graph-community
+analysis and it is not derived from model importance scores.</p>
+<p>NM2 always uses the <strong>feature-correlation layer</strong> for
+hierarchical feature clustering, even if the matrix/graph is currently
+displaying an evidence layer.</p>
+<p>Two distance definitions are available.</p>
+<hr />
+<h2 id="5-signed-co-variation-clustering">5. Signed co-variation
+clustering</h2>
+<p>For correlation
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>r</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">r_{ij}</annotation></semantics></math>,
+NM2 defines</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mfrac><mrow><mn>1</mn><mo>−</mo><msub><mi>r</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow><mn>2</mn></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+d_{ij}=\frac{1-r_{ij}}{2}.
+</annotation></semantics></math></p>
+<p>This maps correlation to the interval
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0,1]</annotation></semantics></math>:</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Correlation</th>
+<th style="text-align: right;">Distance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mi>+</mi><mn>1</mn></mrow><annotation encoding="application/x-tex">r=+1</annotation></semantics></math></td>
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">d=0</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">r=0</annotation></semantics></math></td>
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">d=0.5</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mi>−</mi><mn>1</mn></mrow><annotation encoding="application/x-tex">r=-1</annotation></semantics></math></td>
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">d=1</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table>
+<p>Therefore, <strong>strong positive co-variation produces
+proximity</strong>, whereas strong negative correlation produces large
+separation.</p>
+<p>Use this mode when the scientific question is whether features tend
+to vary <strong>in the same direction</strong>.</p>
+<hr />
+<h2 id="6-absolute-dependency-clustering">6. Absolute-dependency
+clustering</h2>
+<p>NM2 alternatively defines</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn><mo>−</mo><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>r</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">|</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+d_{ij}=1-|r_{ij}|.
+</annotation></semantics></math></p>
+<p>Here both strong positive and strong negative correlations imply
+proximity:</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Correlation</th>
+<th style="text-align: right;">Distance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mi>+</mi><mn>1</mn></mrow><annotation encoding="application/x-tex">r=+1</annotation></semantics></math></td>
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">d=0</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mi>−</mi><mn>1</mn></mrow><annotation encoding="application/x-tex">r=-1</annotation></semantics></math></td>
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">d=0</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">r=0</annotation></semantics></math></td>
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">d=1</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table>
+<p>Use this mode when the scientific question is whether features are
+<strong>strongly statistically dependent in a linear sense</strong>,
+irrespective of direction.</p>
+<p>A pair with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mi>+</mi><mn>0.9</mn></mrow><annotation encoding="application/x-tex">r=+0.9</annotation></semantics></math>
+and a pair with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mi>−</mi><mn>0.9</mn></mrow><annotation encoding="application/x-tex">r=-0.9</annotation></semantics></math>
+are equally close in this mode.</p>
+<hr />
+<h2 id="7-average-linkage-agglomeration">7. Average-linkage
+agglomeration</h2>
+<p>NM2 uses deterministic <strong>average-linkage hierarchical
+clustering</strong> (UPGMA-style agglomeration).</p>
+<p>Initially each feature is its own cluster. At each step NM2 merges
+the two currently closest clusters. For clusters
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math>,
+the average-linkage distance is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>A</mi><mo>,</mo><mi>B</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>A</mi><mo stretchy="true" form="postfix">|</mo></mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>B</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow></mfrac><munder><mo>∑</mo><mrow><mi>i</mi><mo>∈</mo><mi>A</mi></mrow></munder><munder><mo>∑</mo><mrow><mi>j</mi><mo>∈</mo><mi>B</mi></mrow></munder><msub><mi>d</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+d(A,B)=\frac{1}{|A||B|}\sum_{i\in A}\sum_{j\in B} d_{ij}.
+</annotation></semantics></math></p>
+<p>The implementation updates cluster distances by cluster-size-weighted
+averaging, which is algebraically equivalent to the expression
+above.</p>
+<p>Consequences:</p>
+<ul>
+<li>clustering reflects the <strong>average separation between two
+groups</strong>, not the single closest feature pair;</li>
+<li>a cluster does not imply that every within-cluster pair exceeds a
+fixed correlation threshold;</li>
+<li>the dendrogram merge height is a cluster-level average
+dissimilarity.</li>
+</ul>
+<p>The implementation is deterministic and toolbox-independent. Ties are
+resolved using stable source feature indices.</p>
+<hr />
+<h2 id="8-optimal-leaf-ordering">8. Optimal leaf ordering</h2>
+<p>After constructing the hierarchical tree, NM2 computes an
+<strong>exact optimal leaf ordering</strong> compatible with that
+tree.</p>
+<p>Among all left/right orientations allowed by the fixed hierarchical
+tree, NM2 selects the feature order
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>π</mi><annotation encoding="application/x-tex">\pi</annotation></semantics></math>
+minimizing</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>π</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munderover><mo>∑</mo><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow></munderover><msub><mi>d</mi><mrow><msub><mi>π</mi><mi>t</mi></msub><mo>,</mo><msub><mi>π</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub></mrow></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+J(\pi)=\sum_{t=1}^{n-1} d_{\pi_t,\pi_{t+1}}.
+</annotation></semantics></math></p>
+<p>In practical terms, features that are close under the selected
+dissimilarity are placed next to one another as much as the dendrogram
+permits. This makes block structure easier to see in the relation
+matrix.</p>
+<p><strong>Optimal leaf ordering changes only the display order. It does
+not change the hierarchical tree or the cluster
+memberships.</strong></p>
+<hr />
+<h2 id="9-optional-extraction-of-explicit-feature-clusters">9. Optional
+extraction of explicit feature clusters</h2>
+<p>Hierarchical clustering can be used solely for ordering, or the
+dendrogram can be cut to produce explicit feature groups.</p>
+<h3 id="91-fixed-cluster-count">9.1 Fixed cluster count</h3>
+<p>If the user requests
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+clusters, NM2 retains the first</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>−</mo><mi>K</mi></mrow><annotation encoding="application/x-tex">
+n-K
+</annotation></semantics></math></p>
+<p>agglomerative merges and treats the resulting connected branches as
+the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+feature clusters.</p>
+<p>This is a <strong>forced partition</strong>. Choosing
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">K=4</annotation></semantics></math>
+does not mean that the data provide evidence that four is the uniquely
+correct number of clusters.</p>
+<h3 id="92-cut-height">9.2 Cut height</h3>
+<p>Alternatively the user can specify a dissimilarity cut height
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mo>∈</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">h\in[0,1]</annotation></semantics></math>.
+All dendrogram merges with linkage height
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≤</mo><mi>h</mi></mrow><annotation encoding="application/x-tex">\le h</annotation></semantics></math>
+are retained.</p>
+<p>For individual feature pairs, the distance definitions provide an
+intuitive scale. For example:</p>
+<ul>
+<li>signed mode:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mo>=</mo><mn>0.25</mn></mrow><annotation encoding="application/x-tex">h=0.25</annotation></semantics></math>
+corresponds pairwise to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">r=0.5</annotation></semantics></math>;</li>
+<li>absolute mode:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mo>=</mo><mn>0.25</mn></mrow><annotation encoding="application/x-tex">h=0.25</annotation></semantics></math>
+corresponds pairwise to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>r</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>=</mo><mn>0.75</mn></mrow><annotation encoding="application/x-tex">|r|=0.75</annotation></semantics></math>.</li>
+</ul>
+<p>However, once clusters contain multiple features, the linkage height
+is an <strong>average inter-cluster distance</strong>. A cut height must
+therefore <strong>not</strong> be interpreted as a minimum correlation
+that every pair inside a cluster satisfies.</p>
+<h3 id="93-cluster-numbering">9.3 Cluster numbering</h3>
+<p>Cluster IDs are normalized according to the deterministic leaf order.
+They are convenient labels for one particular clustering state, not
+immutable biological identities.</p>
+<hr />
+<h2 id="10-conditions-under-which-clustering-is-disabled">10. Conditions
+under which clustering is disabled</h2>
+<p>NM2 deliberately refuses to fabricate a clustering solution when the
+correlation dissimilarity is not complete.</p>
+<p>Hierarchical feature clustering requires:</p>
+<ul>
+<li>at least two admissible features;</li>
+<li>no more than 500 admissible features per request;</li>
+<li>a finite valid correlation for every off-diagonal pair in the
+selected feature subset.</li>
+</ul>
+<p>If pairwise correlations are unavailable, NM2 does
+<strong>not</strong> impute them and does not replace them by zero.</p>
+<hr />
+<h1 id="part-ii--feature-graphs">Part II — Feature graphs</h1>
+<h2 id="11-from-a-dense-relation-matrix-to-a-sparse-graph">11. From a
+dense relation matrix to a sparse graph</h2>
+<p>A complete relation matrix contains up to</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac><mrow><mi>n</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>−</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mn>2</mn></mfrac><annotation encoding="application/x-tex">
+\frac{n(n-1)}{2}
+</annotation></semantics></math></p>
+<p>undirected feature pairs. For moderate numbers of features this is
+already too dense to interpret as a network. NM2 therefore constructs a
+<strong>sparsified graph</strong>.</p>
+<ul>
+<li><strong>Nodes:</strong> admissible features.</li>
+<li><strong>Candidate edges:</strong> valid, finite, non-zero
+off-diagonal pairs from the selected primary relation layer.</li>
+<li><strong>Edge source:</strong> the currently selected physical
+relation layer: feature correlation, mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>log</mo><mn>10</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>P</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log_{10}(P)</annotation></semantics></math>,
+or mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>log</mo><mn>10</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log_{10}(q)</annotation></semantics></math>,
+when available.</li>
+</ul>
+<p>The graph is constructed <strong>before</strong> relation patterns
+are identified. Relation-pattern analysis never adds an edge that was
+not retained by graph construction.</p>
+<hr />
+<h2 id="12-graph-sparsification-modes">12. Graph sparsification
+modes</h2>
+<h3 id="121-legacy-strongest-edge-union">12.1 Legacy strongest-edge
+union</h3>
+<p>The default compatibility mode retains the union of:</p>
+<ol type="1">
+<li>the strongest
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+admissible incident edges for each feature; and</li>
+<li>the strongest
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+admissible edges globally.</li>
+</ol>
+<p>Current defaults are:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">K=5</annotation></semantics></math>
+per node;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mo>=</mo><mn>250</mn></mrow><annotation encoding="application/x-tex">G=250</annotation></semantics></math>
+globally.</li>
+</ul>
+<p>“Strongest” means descending <strong>absolute magnitude of the
+selected relation layer</strong>, with stable feature-index tie
+breaking.</p>
+<p>This rule helps prevent less-connected features from disappearing
+solely because a small set of very strong global relationships dominates
+the matrix.</p>
+<h3 id="122-fixed-density">12.2 Fixed density</h3>
+<p>For
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+nodes and requested density
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>,
+the requested edge count is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>M</mi><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">q</mi></mrow></msub><mo>=</mo><mo>round</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>ρ</mi><mfrac><mrow><mi>n</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>−</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+M_{\mathrm{req}}=\operatorname{round}\left(\rho\frac{n(n-1)}{2}\right).
+</annotation></semantics></math></p>
+<p>NM2 retains exactly that many strongest candidate edges when
+possible. If fewer valid non-zero candidates exist, the realized graph
+is candidate-limited and this is reported explicitly.</p>
+<h3 id="123-absolute-threshold">12.3 Absolute threshold</h3>
+<p>NM2 retains every candidate edge satisfying</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>w</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">|</mo></mrow><mo>≥</mo><mi>τ</mi><mo>,</mo></mrow><annotation encoding="application/x-tex">
+|w_{ij}|\ge \tau,
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">w_{ij}</annotation></semantics></math>
+is the value in the selected primary relation layer.</p>
+<p>For correlation this is an absolute correlation threshold. For a
+non-negative evidence layer, it is simply a threshold on that evidence
+value.</p>
+<p>Again, thresholding a mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>log</mo><mn>10</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>P</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log_{10}(P)</annotation></semantics></math>
+or mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>log</mo><mn>10</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log_{10}(q)</annotation></semantics></math>
+layer should be interpreted as thresholding the stored
+<strong>CV-aggregated evidence descriptor</strong>, not as a
+conventional significance test on the final mean correlation.</p>
+<hr />
+<h2 id="13-internal-graph-statistics">13. Internal graph statistics</h2>
+<p>After sparsification, NM2 attaches the aligned correlation and
+evidence values to every retained edge. The backend then computes graph
+statistics using <strong>absolute correlation as the affinity</strong>,
+even when the graph edge universe was selected using a different
+physical layer. These statistics support graph inspection, node ranking,
+and the fixed-density robustness analysis. <strong>They are not
+currently exposed as a dedicated graph-statistics data export and should
+not be presented as an exported NM2 result product.</strong></p>
+<p>For feature
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>,
+the internal graph contract can contain quantities including:</p>
+<ul>
+<li>degree;</li>
+<li>absolute strength
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>r</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">\sum_j |r_{ij}|</annotation></semantics></math>;</li>
+<li>positive correlation strength
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>j</mi></msub><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>r</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sum_j \max(r_{ij},0)</annotation></semantics></math>;</li>
+<li>negative correlation strength
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">|</mo><mo>min</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>r</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">\sum_j |\min(r_{ij},0)|</annotation></semantics></math>;</li>
+<li>weighted betweenness centrality;</li>
+<li>harmonic closeness;</li>
+<li>eigenvector centrality;</li>
+<li>connected-component membership.</li>
+</ul>
+<p>Weighted shortest paths use</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>ℓ</mo><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mfrac><mn>1</mn><mrow><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>r</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">|</mo></mrow><mo>+</mo><msup><mn>10</mn><mrow><mi>−</mi><mn>12</mn></mrow></msup></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\ell_{ij}=\frac{1}{|r_{ij}|+10^{-12}}.
+</annotation></semantics></math></p>
+<p>Thus stronger absolute correlations correspond to shorter graph
+distances.</p>
+<p>The four graph-topological quantities below answer <strong>different
+questions about the position of a feature in the sparsified
+graph</strong>.</p>
+<h3 id="131-weighted-betweenness-centrality--is-this-feature-a-bridge">13.1
+Weighted betweenness centrality — “Is this feature a bridge?”</h3>
+<p>Betweenness centrality measures how often a node lies on shortest
+paths <strong>between other nodes</strong>. In NM2, shortest paths are
+weighted by the inverse of absolute correlation strength, so routes
+preferentially pass through strong retained feature-feature
+relations.</p>
+<p>A simple schematic is:</p>
+<pre class="text"><code>A — B — C — X — D — E — F
+              ^
+           bridge</code></pre>
+<p>Feature <code>X</code> may have only a modest number of direct
+connections, but if many of the strongest/shortest routes linking the
+left-hand and right-hand parts of the graph must pass through it, its
+weighted betweenness is high.</p>
+<p>Conceptually:</p>
+<blockquote>
+<p><strong>High weighted betweenness identifies connector features that
+link otherwise more separated parts of the retained relation
+network.</strong></p>
+</blockquote>
+<p>This should not be interpreted as causal mediation or predictive
+importance. It is a property of the current sparsified graph.</p>
+<h3 id="132-harmonic-closeness--how-centrally-located-is-this-feature">13.2
+Harmonic closeness — “How centrally located is this feature?”</h3>
+<p>Harmonic closeness asks how easily a node can reach the other nodes
+through short weighted paths. It is based on reciprocal shortest-path
+distances:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mi>H</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∝</mo><munder><mo>∑</mo><mrow><mi>j</mi><mo>≠</mo><mi>i</mi></mrow></munder><mfrac><mn>1</mn><mrow><mi>d</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
+C_H(i) \propto \sum_{j\ne i}\frac{1}{d(i,j)},
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">d(i,j)</annotation></semantics></math>
+is the weighted shortest-path distance between features
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>.</p>
+<p>A node has high harmonic closeness when many other features can be
+reached through only a small amount of graph distance:</p>
+<pre class="text"><code>        B
+        |
+    C — A — D
+        |
+        E</code></pre>
+<p>If <code>A</code> is only a few strong connections away from much of
+the network, it has high harmonic closeness.</p>
+<p>The distinction from betweenness is important:</p>
+<ul>
+<li><strong>betweenness:</strong> do routes <strong>between other
+features</strong> pass through this feature?</li>
+<li><strong>closeness:</strong> how <strong>near is this feature to the
+rest of the graph</strong>?</li>
+</ul>
+<p>The harmonic formulation is useful for sparse graphs because
+disconnected nodes contribute zero rather than making the measure
+undefined.</p>
+<h3 id="133-eigenvector-centrality--is-this-feature-connected-to-other-central-features">13.3
+Eigenvector centrality — “Is this feature connected to other central
+features?”</h3>
+<p>Eigenvector centrality implements a recursive concept of network
+prominence:</p>
+<blockquote>
+<p>A connection to a highly connected/central node contributes more than
+a connection to a peripheral node.</p>
+</blockquote>
+<p>For example:</p>
+<pre class="text"><code>        B
+        |
+    C — A — D
+        |
+        E</code></pre>
+<p>If <code>B</code>, <code>C</code>, <code>D</code>, and <code>E</code>
+are themselves strongly embedded in a highly interconnected region of
+the graph, <code>A</code> receives high eigenvector centrality.</p>
+<p>A feature can therefore have relatively few direct links yet still
+obtain high eigenvector centrality if those links lead to features that
+are themselves central.</p>
+<p>In NM2, the graph-statistics affinity is based on <strong>absolute
+correlation</strong>, so strong positive and strong negative retained
+correlations both contribute to this notion of network prominence.</p>
+<p>Conceptually:</p>
+<blockquote>
+<p><strong>High eigenvector centrality identifies features embedded in a
+strongly interconnected network core.</strong></p>
+</blockquote>
+<p>Again, this is not a feature-importance score for the prediction
+model.</p>
+<h3 id="134-connected-component-membership--which-graph-island-does-this-feature-belong-to">13.4
+Connected-component membership — “Which graph island does this feature
+belong to?”</h3>
+<p>Connected-component membership is fundamentally different from the
+three centrality measures above. It is <strong>categorical</strong>, not
+a continuous score.</p>
+<p>A connected component is a maximal set of nodes in which every
+feature can be reached from every other feature through some path of
+retained edges:</p>
+<pre class="text"><code>A — B — C       D — E — F       G
+component 1     component 2    component 3</code></pre>
+<p>Here:</p>
+<ul>
+<li><code>A</code>, <code>B</code>, <code>C</code> belong to component
+1;</li>
+<li><code>D</code>, <code>E</code>, <code>F</code> belong to component
+2;</li>
+<li>isolated feature <code>G</code> forms its own component.</li>
+</ul>
+<p>Connected components therefore identify <strong>disconnected islands
+of the sparsified relation graph</strong>.</p>
+<p>Component membership can change substantially when graph
+sparsification changes: removing a small number of bridging edges may
+split one large component into several smaller components.</p>
+<h3 id="135-practical-distinction">13.5 Practical distinction</h3>
+<p>A useful shorthand for participants is:</p>
+<blockquote>
+<p><strong>Betweenness finds bridges; harmonic closeness finds centrally
+located features; eigenvector centrality finds features embedded in an
+influential network core; connected components identify disconnected
+islands of the graph.</strong></p>
+</blockquote>
+<p>These quantities are all properties of the <strong>sparsified
+graph</strong>, not of the original dense correlation matrix in
+isolation. Consequently, changing the graph-pruning rule or density can
+alter all of them. This is one reason NM2&#39;s fixed-density robustness
+analysis evaluates graph structure across several sparsification
+levels.</p>
+<p>These graph statistics describe <strong>topological position within
+the sparsified feature-relation graph</strong>. They are <strong>not
+measures of predictive feature importance</strong>, model coefficients,
+causal influence, or feature relevance to the target variable. For the
+hackathon, they are best understood as internal/diagnostic quantities
+supporting graph characterization and robustness, not as standalone
+exportable scientific endpoints.</p>
+<hr />
+<h1 id="part-iii--relation-patterns-edge-communities">Part III —
+Relation patterns: edge communities</h1>
+<h2 id="14-what-a-relation-pattern-means">14. What a relation pattern
+means</h2>
+<p>Relation patterns answer a different question from feature
+clustering:</p>
+<blockquote>
+<p><strong>Which retained pairwise relationships participate in similar
+local network neighbourhoods?</strong></p>
+</blockquote>
+<p>NM2 uses <strong>hierarchical link communities</strong>. The
+clustering objects are graph <strong>edges</strong>, not feature
+nodes.</p>
+<p>This has an important consequence: because edges are clustered, a
+single feature can participate in <strong>multiple relation
+patterns</strong> through different incident edges. Relation patterns
+can therefore overlap in their node/feature membership even though each
+retained edge has one pattern assignment at the selected cut.</p>
+<p>This is why relation patterns appear as potentially irregular
+silhouettes on the relation matrix rather than as simple square diagonal
+blocks.</p>
+<hr />
+<h2 id="15-relation-patterns-are-derived-from-the-final-pruned-graph">15.
+Relation patterns are derived from the final pruned graph</h2>
+<p>The relation-pattern analysis uses exactly the graph produced by the
+selected primary relation layer and graph-sparsification rule.</p>
+<p>Therefore a relation pattern depends on:</p>
+<ul>
+<li>the admissible feature set;</li>
+<li>the selected primary relation layer;</li>
+<li>the graph-pruning mode and its parameters;</li>
+<li>the resulting retained edge universe.</li>
+</ul>
+<p>Changing any of these can change the patterns. NM2 consequently
+treats pattern IDs as <strong>local to the current graph
+identity</strong> and resets the selected pattern when graph
+construction changes.</p>
+<p>There is no separate hidden correlation-only pattern graph.</p>
+<hr />
+<h2 id="16-jaccard-similarity-between-adjacent-edges">16. Jaccard
+similarity between adjacent edges</h2>
+<p>Consider two graph edges sharing one feature
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>e</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>e</mi><mrow><mi>j</mi><mi>k</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo>,</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+e_{ik}=(i,k),\qquad e_{jk}=(j,k).
+</annotation></semantics></math></p>
+<p>For each non-shared endpoint, NM2 constructs its <strong>inclusive
+neighbourhood</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mo>+</mo></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="prefix">{</mo><mi>i</mi><mo stretchy="false" form="postfix">}</mo><mo>∪</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo></mrow><annotation encoding="application/x-tex">
+N_+(i)=\{i\}\cup N(i),
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">N(i)</annotation></semantics></math>
+is the set of graph neighbours of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>.</p>
+<p>The similarity between the two adjacent edges is the Jaccard
+similarity</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>e</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo>,</mo><msub><mi>e</mi><mrow><mi>j</mi><mi>k</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>N</mi><mo>+</mo></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∩</mo><msub><mi>N</mi><mo>+</mo></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">|</mo></mrow><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>N</mi><mo>+</mo></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∪</mo><msub><mi>N</mi><mo>+</mo></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">|</mo></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+S(e_{ik},e_{jk})=
+\frac{|N_+(i)\cap N_+(j)|}
+{|N_+(i)\cup N_+(j)|}.
+</annotation></semantics></math></p>
+<p>Only edge pairs that share an endpoint contribute to the
+link-similarity hierarchy.</p>
+<h3 id="methodological-implication">Methodological implication</h3>
+<p>Once the graph has been pruned, <strong>relation-pattern similarity
+uses graph topology, not edge magnitude or correlation sign</strong>.
+Edge weights influence patterns indirectly because they determine which
+edges survive sparsification, but the Jaccard link-community step itself
+uses the neighbourhood structure of the retained graph.</p>
+<p>Consequently, positively and negatively correlated edges can occur in
+the same relation pattern if they participate in the same local graph
+topology.</p>
+<hr />
+<h2 id="17-hierarchical-link-community-construction">17. Hierarchical
+link-community construction</h2>
+<p>NM2 sorts adjacent edge pairs from highest to lowest Jaccard
+similarity and progressively joins edge sets as the similarity threshold
+is lowered. This creates a deterministic hierarchical family of edge
+communities, equivalent to thresholding a single-linkage hierarchy on
+link similarity.</p>
+<p>Two cut strategies are available.</p>
+<h3 id="171-automatic-cut-maximum-partition-density">17.1 Automatic cut:
+maximum partition density</h3>
+<p>The default mode chooses the link-similarity cut that maximizes
+<strong>partition density</strong>.</p>
+<p>For one edge community
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+with</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>m</mi><mi>c</mi></msub><annotation encoding="application/x-tex">m_c</annotation></semantics></math>
+edges and</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mi>c</mi></msub><annotation encoding="application/x-tex">n_c</annotation></semantics></math>
+distinct nodes,</li>
+</ul>
+<p>the community density used by NM2 is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>D</mi><mi>c</mi></msub><mo>=</mo><mfrac><mrow><mn>2</mn><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>m</mi><mi>c</mi></msub><mo>−</mo><msub><mi>n</mi><mi>c</mi></msub><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>n</mi><mi>c</mi></msub><mo>−</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>n</mi><mi>c</mi></msub><mo>−</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mspace width="2.0em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>n</mi><mi>c</mi></msub><mo>&gt;</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+D_c=
+\frac{2(m_c-n_c+1)}{(n_c-2)(n_c-1)}
+\qquad (n_c&gt;2).
+</annotation></semantics></math></p>
+<p>Communities with insufficient nodes/edges contribute zero.</p>
+<p>The global partition density is the edge-count-weighted average</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>=</mo><mfrac><mn>1</mn><mi>M</mi></mfrac><munder><mo>∑</mo><mi>c</mi></munder><msub><mi>m</mi><mi>c</mi></msub><msub><mi>D</mi><mi>c</mi></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">
+D=\frac{1}{M}\sum_c m_c D_c,
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+is the total number of retained graph edges.</p>
+<p>Intuitively:</p>
+<ul>
+<li>a tree-like community has little or no excess connectivity and
+therefore low partition density;</li>
+<li>a densely interconnected community has higher partition
+density;</li>
+<li>a triangle has maximal local density under this normalization.</li>
+</ul>
+<p>NM2 evaluates the hierarchy and retains the cut with the highest
+partition density. Deterministic tie handling preserves
+reproducibility.</p>
+<h3 id="172-manual-jaccard-similarity-cut">17.2 Manual
+Jaccard-similarity cut</h3>
+<p>The user can instead choose a threshold
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>∈</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">s\in[0,1]</annotation></semantics></math>.
+Adjacent edge pairs with</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mo>≥</mo><mi>s</mi></mrow><annotation encoding="application/x-tex">
+S\ge s
+</annotation></semantics></math></p>
+<p>are joined transitively into edge communities.</p>
+<p>Higher thresholds require more similar local neighbourhoods and
+generally produce smaller/more fragmented edge communities. Lower
+thresholds permit broader patterns.</p>
+<hr />
+<h2 id="18-minimum-relation-pattern-size">18. Minimum relation-pattern
+size</h2>
+<p>The default minimum is <strong>two retained edges</strong> per
+selectable relation pattern.</p>
+<p>Communities smaller than the selected minimum are assigned pattern ID
+0 and shown as <strong>unclustered edges</strong> rather than being
+presented as substantive multi-edge patterns.</p>
+<p>Because relation patterns are graph-local, “Pattern 1” in one graph
+is not assumed to correspond to “Pattern 1” after changing density,
+threshold, feature filtering, or relation layer.</p>
+<hr />
+<h1 id="part-iv--why-feature-clusters-and-relation-patterns-can-disagree">Part
+IV — Why feature clusters and relation patterns can disagree</h1>
+<h2 id="19-they-encode-different-structure">19. They encode different
+structure</h2>
+<p>It is scientifically legitimate—and often informative—for feature
+clusters and relation patterns not to coincide.</p>
+<h3 id="feature-clustering">Feature clustering</h3>
+<ul>
+<li>clusters <strong>features</strong>;</li>
+<li>always uses the Pearson-correlation layer;</li>
+<li>uses correlation magnitude and sign through one of two explicit
+distance functions;</li>
+<li>is based on average-linkage distances across all selected feature
+pairs;</li>
+<li>produces a tree and optionally a non-overlapping feature
+partition.</li>
+</ul>
+<h3 id="relation-patterns">Relation patterns</h3>
+<ul>
+<li>cluster <strong>retained graph edges</strong>;</li>
+<li>use whichever physical relation layer defined the graph edge
+universe;</li>
+<li>are calculated only after graph sparsification;</li>
+<li>use Jaccard similarity of local graph neighbourhoods;</li>
+<li>can overlap at the feature/node level.</li>
+</ul>
+<p>A useful shorthand is:</p>
+<blockquote>
+<p><strong>Feature clusters describe blocks of mutually related
+variables; relation patterns describe network motifs of selected
+relationships.</strong></p>
+</blockquote>
+<p>The first tends to appear as contiguous block structure after matrix
+reordering. The second can trace irregular, overlapping structures
+across those blocks.</p>
+<hr />
+<h1 id="part-v--automated-graph-sparsification-robustness">Part V —
+Automated graph-sparsification robustness</h1>
+<h2 id="20-identify-robust-structure-does-not-test-sampling-robustness">20.
+“Identify robust structure” does not test sampling robustness</h2>
+<p>For fixed-density graphs, NM2 provides a deterministic sensitivity
+analysis intended to answer:</p>
+<blockquote>
+<p><strong>Is the graph topology reasonably stable across nearby
+sparsification densities?</strong></p>
+</blockquote>
+<p>This is a graph-construction sensitivity analysis. It does
+<strong>not</strong> assess test-retest reliability, bootstrap
+stability, CV reproducibility, statistical significance, causal
+stability, or predictive feature importance.</p>
+<h3 id="201-density-grid">20.1 Density grid</h3>
+<p>By default NM2 evaluates fixed-density graphs at:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mi>%</mi><mo>,</mo><mspace width="0.222em"></mspace><mn>7.5</mn><mi>%</mi><mo>,</mo><mspace width="0.222em"></mspace><mn>10</mn><mi>%</mi><mo>,</mo><mspace width="0.222em"></mspace><mn>12.5</mn><mi>%</mi><mo>,</mo><mspace width="0.222em"></mspace><mn>15</mn><mi>%</mi><mo>,</mo><mspace width="0.222em"></mspace><mn>20</mn><mi>%</mi><mo>,</mo><mspace width="0.222em"></mspace><mn>25</mn><mi>%</mi><mo>,</mo><mspace width="0.222em"></mspace><mn>30</mn><mi>%</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
+5\%,\ 7.5\%,\ 10\%,\ 12.5\%,\ 15\%,\ 20\%,\ 25\%,\ 30\%.
+</annotation></semantics></math></p>
+<p>Duplicate realized edge counts are removed. At least five admissible
+features and at least three distinct graph structures are required.</p>
+<h3 id="202-centrality-rank-concordance">20.2 Centrality-rank
+concordance</h3>
+<p>For each pair of adjacent density settings, NM2 computes tie-aware
+Spearman rank concordance for:</p>
+<ul>
+<li>degree;</li>
+<li>absolute correlation strength;</li>
+<li>betweenness;</li>
+<li>harmonic closeness;</li>
+<li>eigenvector centrality.</li>
+</ul>
+<p>The finite correlations are averaged to obtain a
+centrality-concordance score.</p>
+<h3 id="203-topology-similarity">20.3 Topology similarity</h3>
+<p>NM2 also compares:</p>
+<ul>
+<li>connected-node fraction;</li>
+<li>largest-component fraction;</li>
+<li>component count.</li>
+</ul>
+<p>Their normalized similarities are averaged.</p>
+<h3 id="204-composite-stability-score">20.4 Composite stability
+score</h3>
+<p>The score is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">b</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">e</mi></mrow></msub><mo>=</mo><mn>0.75</mn><mspace width="0.167em"></mspace><msub><mi>S</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">y</mi></mrow></msub><mo>+</mo><mn>0.25</mn><mspace width="0.167em"></mspace><msub><mi>S</mi><mrow><mi mathvariant="normal">t</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">y</mi></mrow></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+S_{\mathrm{stable}}
+=0.75\,S_{\mathrm{centrality}}
++0.25\,S_{\mathrm{topology}}.
+</annotation></semantics></math></p>
+<p>A setting is eligible when all of the following hold:</p>
+<ul>
+<li>stability score
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>0.82</mn></mrow><annotation encoding="application/x-tex">\ge0.82</annotation></semantics></math>;</li>
+<li>connected-node fraction
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>0.80</mn></mrow><annotation encoding="application/x-tex">\ge0.80</annotation></semantics></math>;</li>
+<li>largest-component fraction
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>0.75</mn></mrow><annotation encoding="application/x-tex">\ge0.75</annotation></semantics></math>;</li>
+<li>requested density was not candidate-limited;</li>
+<li>graph statistics are available.</li>
+</ul>
+<p>At least <strong>three consecutive eligible settings</strong> are
+required to form a stable plateau.</p>
+<p>NM2 selects the <strong>longest eligible plateau</strong>; ties are
+resolved by higher mean stability and then lower starting density. The
+representative graph is the <strong>sparsest density in the selected
+plateau</strong>.</p>
+<p>After that density is applied, relation patterns are recomputed from
+the newly pruned graph.</p>
+<hr />
+<h1 id="part-vi--practical-interpretation-for-hackathon-participants">Part
+VI — Practical interpretation for hackathon participants</h1>
+<h2 id="21-a-60-second-explanation">21. A 60-second explanation</h2>
+<p>A concise explanation of the relational tools is:</p>
+<blockquote>
+<p>NM2 first stores a cross-validated correlation structure between
+preprocessed training features. The matrix can be reordered by
+hierarchical clustering. In signed mode, positively co-varying features
+are placed together; in absolute-dependency mode, strong positive and
+negative relations are both considered close. The clustering uses
+average linkage, and the final matrix order is optimized so related
+features sit next to each other.</p>
+<p>The graph view answers a different question. NM2 first keeps only a
+reproducible subset of the strongest or threshold-passing relationships.
+It then looks for <em>communities of edges</em> whose endpoints have
+similar local neighbourhoods. These are the relation patterns. Because
+the edges rather than the features are clustered, one feature can
+participate in several patterns. The patterns therefore reveal
+network-like relational structure that need not match the block-like
+feature clusters.</p>
+</blockquote>
+<hr />
+<h2 id="22-which-clustering-mode-should-participants-choose">22. Which
+clustering mode should participants choose?</h2>
+<h3 id="signed-co-variation">Signed co-variation</h3>
+<p>Prefer when:</p>
+<ul>
+<li>the direction of association is scientifically meaningful;</li>
+<li>positively co-varying features should cluster together;</li>
+<li>anticorrelated features should be separated.</li>
+</ul>
+<h3 id="absolute-dependency">Absolute dependency</h3>
+<p>Prefer when:</p>
+<ul>
+<li>the main question is redundancy/dependence irrespective of
+sign;</li>
+<li>strongly anticorrelated features should be considered closely
+related;</li>
+<li>one is exploring tightly coupled but oppositely directed
+variables.</li>
+</ul>
+<p>For exploratory work, comparing both is often more informative than
+treating one as universally correct.</p>
+<hr />
+<h2 id="23-how-to-think-about-graph-density">23. How to think about
+graph density</h2>
+<p>A graph with too many edges approaches the complete correlation
+matrix and becomes visually/topologically uninformative. A graph with
+too few edges can fragment and make patterns unstable.</p>
+<p>Therefore:</p>
+<ol type="1">
+<li>use the default strongest-edge union for a quick descriptive
+overview;</li>
+<li>use fixed density when comparing graphs across analyses/settings,
+because it controls edge count explicitly;</li>
+<li>use <strong>Identify robust structure</strong> when you want a
+principled sensitivity check across a predefined density range;</li>
+<li>interpret relation patterns only in the context of the
+graph-sparsification rule that generated them.</li>
+</ol>
+<hr />
+<h1 id="part-vii--methodological-cautions">Part VII — Methodological
+cautions</h1>
+<h2 id="24-what-these-analyses-do-not-establish">24. What these analyses
+do <strong>not</strong> establish</h2>
+<p>The relational tools are descriptive/exploratory analyses of the
+model-specific preprocessed training feature space. They do not by
+themselves establish:</p>
+<ul>
+<li>causal relationships between features;</li>
+<li>predictive importance of a feature for the model target;</li>
+<li>an independently replicated network;</li>
+<li>statistical significance of a feature cluster or relation
+pattern;</li>
+<li>uniqueness of the selected number of feature clusters;</li>
+<li>sampling stability of a relation pattern;</li>
+<li>biological validity of a graph community.</li>
+</ul>
+<h3 id="specific-cautions">Specific cautions</h3>
+<ol type="1">
+<li><strong>CV averaging is not external validation.</strong> Averaging
+pairwise relations across CV models reduces dependence on a single fold
+but does not create an independent replication sample.</li>
+<li><strong>Mean evidence is not a final combined hypothesis
+test.</strong> Mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>log</mo><mn>10</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>P</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log_{10}(P)</annotation></semantics></math>
+and mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>log</mo><mn>10</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log_{10}(q)</annotation></semantics></math>
+should be treated as descriptive CV-aggregated evidence layers.</li>
+<li><strong>Feature clusters are parameter-dependent.</strong> Signed
+versus absolute distance and the dendrogram cut can materially change
+the result.</li>
+<li><strong>Relation patterns are sparsification-dependent.</strong>
+Their edge universe changes when graph density, threshold, layer, or
+feature selection changes.</li>
+<li><strong>Pattern IDs are local.</strong> Numeric IDs should not be
+matched across graphs as though they were persistent biological
+entities.</li>
+<li><strong>Centrality is graph topology, not model salience.</strong> A
+highly central feature is not necessarily highly predictive; the
+centrality measures are internal graph-characterization quantities
+rather than standalone exported outputs.</li>
+<li><strong>Absolute-dependency clustering loses sign by
+design.</strong> A positive and a negative correlation of equal
+magnitude are treated as equally close.</li>
+<li><strong>Link communities are topological after pruning.</strong>
+Correlation magnitude/sign are not used directly by the Jaccard
+community step once the graph edge set is fixed.</li>
+</ol>
+<hr />
+<h1 id="part-viii--suggested-methods-text-for-reportspublications">Part
+VIII — Suggested Methods text for reports/publications</h1>
+<h2 id="25-feature-relation-matrix-and-hierarchical-clustering">25.
+Feature-relation matrix and hierarchical clustering</h2>
+<blockquote>
+<p>Pairwise relations between preprocessed training-space features were
+summarized using the NeuroMiner 2 visualization-stage feature-relation
+matrices. Pearson correlations were aggregated arithmetically across
+cross-validation models/partitions, with non-estimable pairs retained as
+unavailable. For visualization, features were hierarchically clustered
+using deterministic average linkage. Dissimilarity was defined either as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>r</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">d=(1-r)/2</annotation></semantics></math>
+for signed co-variation or as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>1</mn><mo>−</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>r</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">d=1-|r|</annotation></semantics></math>
+for absolute dependency. The resulting tree was displayed using an exact
+optimal leaf ordering that minimized the sum of dissimilarities between
+adjacent leaves while preserving the hierarchical topology. Where
+explicit feature groups were requested, the tree was cut either to a
+predefined number of clusters or at a predefined linkage height.</p>
+</blockquote>
+<h2 id="26-feature-graph-and-relation-pattern-analysis">26. Feature
+graph and relation-pattern analysis</h2>
+<blockquote>
+<p>A sparse feature-relation graph was constructed from the selected
+relation layer after feature-level filtering. Edges were retained using
+either a strongest-edge union rule, a fixed graph density, or an
+absolute relation threshold. Relation patterns were subsequently
+identified from the exact retained graph by hierarchical link-community
+analysis. Similarity between adjacent edges sharing a node was defined
+as the Jaccard overlap between the inclusive neighbourhoods of their
+non-shared endpoints. The automatic community cut maximized
+link-community partition density; alternatively, a prespecified
+Jaccard-similarity threshold was used. Communities containing fewer than
+the configured minimum number of edges were treated as unclustered.
+Because communities were defined over edges, individual features could
+participate in more than one relation pattern.</p>
+</blockquote>
+<h2 id="27-graph-sparsification-robustness">27. Graph-sparsification
+robustness</h2>
+<blockquote>
+<p>For fixed-density graphs, sparsification sensitivity was assessed
+over a predefined density grid. Adjacent densities were compared using
+tie-aware Spearman concordance of node centrality rankings and
+similarity of global connectivity summaries. A composite stability score
+weighted centrality concordance by 0.75 and topology similarity by 0.25.
+Stable plateaus required at least three consecutive eligible density
+settings satisfying prespecified stability and connectivity criteria;
+the sparsest graph within the selected plateau was used as the
+representative structure. This procedure assesses sensitivity to graph
+sparsification and is not a measure of sampling reliability or
+statistical significance.</p>
+</blockquote>
+<hr />
+<h1 id="part-ix--implementation-anchors-in-nm2">Part IX — Implementation
+anchors in NM2</h1>
+<p>The methodological behavior described above is implemented in three
+main backend authorities:</p>
+<ul>
+<li><p><code>core/NMResultsViewerFeatureRelationTools.m</code><br />
+Relation-matrix normalization, feature filtering, relation-view
+construction, correlation-derived clustering, cluster extraction, common
+matrix ordering, and projection of relation patterns onto matrix
+views.</p></li>
+<li><p><code>core/NMHierarchicalClusteringTools.m</code><br />
+Toolbox-independent deterministic average-linkage agglomeration and
+exact optimal leaf ordering.</p></li>
+<li><p><code>core/NMResultsViewerFeatureGraphTools.m</code><br />
+Graph sparsification, pairwise evidence attachment, connected
+components, graph statistics, hierarchical link communities,
+partition-density optimization, and fixed-density robustness
+analysis.</p></li>
+</ul>
+<p>The browser UI consumes these backend contracts and does not
+independently infer scientific clustering or graph structure.</p>
+<hr />
+<h1 id="references">References</h1>
+<ol type="1">
+<li>Ahn YY, Bagrow JP, Lehmann S. <strong>Link communities reveal
+multiscale complexity in networks.</strong> <em>Nature</em>.
+2010;466:761-764. doi:10.1038/nature09182.</li>
+<li>Bar-Joseph Z, Gifford DK, Jaakkola TS. <strong>Fast optimal leaf
+ordering for hierarchical clustering.</strong> <em>Bioinformatics</em>.
+2001;17(Suppl 1):S22-S29.
+doi:10.1093/bioinformatics/17.suppl_1.S22.</li>
+<li>Sokal RR, Michener CD. <strong>A statistical method for evaluating
+systematic relationships.</strong> <em>University of Kansas Science
+Bulletin</em>. 1958;38:1409-1438.</li>
+</ol>
+<hr />
+<h2 id="one-line-distinction-to-remember">One-line distinction to
+remember</h2>
+<blockquote>
+<p><strong>Feature clustering groups variables using correlation-derived
+distance; relation-pattern analysis groups retained relationships using
+graph-neighbourhood similarity.</strong></p>
+</blockquote>
+</body>
+</html>

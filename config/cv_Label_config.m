@@ -159,6 +159,7 @@ for i = 1:numel(groups)
 
 end
 
+
 function cc = containsGroup(cvin, groupind)
 testfolds = cvin.TestInd;
 

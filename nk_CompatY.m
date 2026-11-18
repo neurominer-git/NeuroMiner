@@ -116,6 +116,9 @@ switch FUSION.flag
         X.dimsizes  = size(X.Y,2);
         X.datadesc = NM.datadescriptor{varind}.desc;
         X.datatype = NM.datadescriptor{varind}.type;
+        if X.datatype == 2
+            X.surfaceGeometryContract = NM.datadescriptor{varind}.input_settings.surfaceGeometryContract;
+        end
         if isfield(NM.datadescriptor{varind},'Vm')
             X.Vm = NM.datadescriptor{varind}.Vm;
             X.Vmvol = NM.datadescriptor{varind}.Vmvol;
@@ -147,9 +150,9 @@ switch FUSION.flag
             % features must be replaced by follow-up features at the CV2 level)
             if isfield(NM,'altY') && ALTY.flag == 1
                 if i==1
-                    X.altY = NM.altY{varind}; 
+                    X.altY = NM.altY{varind(i)}; 
                 else
-                    X.altY = [X.altY NM.altY{varind}]; 
+                    X.altY = [X.altY NM.altY{varind(i)}]; 
                 end
             end
             X.brainmask{i} = nk_RemCommaFromStr( NM.brainmask{varind(i)} );
@@ -172,6 +175,11 @@ switch FUSION.flag
                 end
             end
             X.datatype(i) = NM.datadescriptor{varind(i)}.type;
+            if X.datatype(i) == 2
+                X.surfaceGeometryContract{i} = NM.datadescriptor{varind(i)}.input_settings.surfaceGeometryContract;
+            else
+                X.surfaceGeometryContract{i} = [];
+            end
             X.datadesc{i} = NM.datadescriptor{varind(i)}.desc;
             if isfield(NM.datadescriptor{varind(i)},'Vm')
                 X.Vm{i} = NM.datadescriptor{varind(i)}.Vm;
@@ -206,7 +214,8 @@ switch FUSION.flag
             X(i).fulldimsizes(i) = size(NM.badcoords{varind(i)},2);
             X(i).dimvecx   = [ 0 X(i).dimsizes ];
             X(i).Y         = NM.Y{varind(i)};
-            if isfield(NM,'altY') && ALTY.flag == 1, X(i).altY = NM.altY{varind}; end
+            % nm2-allow: The inherited optional AltY representation is present only when a source supplies alternative CV2 features.
+            if isfield(NM,'altY') && ALTY.flag == 1, X(i).altY = NM.altY{varind(i)}; end
             X(i).brainmask{1} = nk_RemCommaFromStr( NM.brainmask{varind(i)} );
             if ~isempty(oocvind) && isfield(NM,'OOCV')  && oocvind <= numel(NM.OOCV)
                 X(i).Yocv = NM.OOCV{oocvind}.Y{varind(i)};
@@ -222,6 +231,9 @@ switch FUSION.flag
             end
            
             X(i).datatype = NM.datadescriptor{varind(i)}.type;
+            if X(i).datatype == 2
+                X(i).surfaceGeometryContract = NM.datadescriptor{varind(i)}.input_settings.surfaceGeometryContract;
+            end
             X(i).datadesc = NM.datadescriptor{varind(i)}.desc;
             if isfield(NM.datadescriptor{varind(i)},'Vm')
                 X(i).Vm = NM.datadescriptor{varind(i)}.Vm;

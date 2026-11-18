@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NeuroMiner — Machine learning context help</title>
+<style>
+
+:root{font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;color:#172b40;background:#f5f8fc}
+*{box-sizing:border-box}body{margin:0}header{padding:20px 22px;background:#173153;color:white}header h1{font-size:20px;margin:0 0 6px}header p{margin:0;color:#e2ecf8}
+main{padding:14px 18px 50px}nav,.chapter,.topic{background:white;border:1px solid #d9e2ed;border-radius:9px;padding:12px 15px;margin-bottom:10px}
+nav a{display:inline-block;margin:2px 12px 2px 0;color:#1358a6;text-decoration:none}nav a:hover{text-decoration:underline}a{color:#1358a6}
+.chapter{border-left:4px solid #738fb3}.chapter h2{font-size:17px;margin:0 0 7px}.chapter p{margin:0}
+.topic{scroll-margin-top:12px}.topic:target{outline:2px solid #407fd3}.topic h3{font-size:15px;margin:0 0 6px}.topic p{margin:0 0 4px}
+.context{color:#54657b;font-size:12px;margin-bottom:6px}.sectionGroup h2{font-size:16px;margin:24px 0 10px}
+@media(prefers-color-scheme:dark){:root{color:#e2e8f0;background:#111b2d}nav,.chapter,.topic{background:#1a293e;border-color:#344966}nav a,a{color:#92c2ff}.context{color:#b4c4dc}}
+
+</style>
+</head>
+<body>
+<header><h1>Machine learning: settings and scientific meaning</h1><p>Context help for prediction criteria, learners, model optimization, and selection.</p></header>
+<main>
+<nav aria-label="ML help sections">
+<a href="#ml-section-criterion">Optimization criterion</a>
+<a href="#ml-section-learner">Learner selection and fixed settings</a>
+<a href="#ml-section-hyperparameters">Hyperparameter ranges</a>
+<a href="#ml-section-optimization">Model optimization</a>
+<a href="#ml-section-selection">Model-selection strategy</a>
+<a href="#ml-section-postprocessing">Prediction post-processing</a>
+</nav>
+<div class="sectionGroup">
+<section class="chapter" id="ml-section-criterion"><h2>Optimization criterion</h2><p>The selected performance criterion determines how candidate models are compared during hyperparameter optimization. The criterion is evaluated on cross-validation predictions; its direction of improvement (higher or lower) follows the chosen measure.</p></section>
+<section class="topic" id="ml-criterion-performancecriterion"><h3>Model performance criterion</h3>
+<p>Select the performance measure used to compare candidate models in the optimization procedure. The optimization direction follows the measure: for example, prediction errors are minimized, while accuracy measures are maximized. Expected calibration error requires probability estimates.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="ml-section-learner"><h2>Learner selection and fixed settings</h2><p>Choose the learning algorithm and its fixed settings. Different algorithms expose different solvers, kernels and parameters; changing the algorithm replaces dependent defaults and parameter ranges.</p></section>
+<section class="topic" id="ml-learner-fixedsettings-weighting"><h3>Automatic hyperplane weighting</h3>
+<p>Enable automatic weighting of cases or outcome classes for learners that support it. Weighting changes the contribution of observations to the fitting objective, including when the training classes have unequal sizes.</p></section>
+<section class="topic" id="ml-learner-kernelsettings-kernstr"><h3>Kernel type</h3>
+<p>Select the kernel function used to compare observations in kernel-based learners. Linear kernels operate without a nonlinear kernel transformation; polynomial and radial-basis kernels introduce additional parameters defining their shape.</p></section>
+<section class="topic" id="ml-learner-algorithm"><h3>Learning algorithm</h3>
+<p>Select the learning algorithm used to train the predictive model. Available fixed settings and hyperparameter ranges change with this selection; previously entered dependent settings are replaced by those of the selected algorithm.</p></section>
+<section class="topic" id="ml-learner-glmnet-fixedsettings-family"><h3>GLMNET family</h3>
+<div class="context">For GLMNET.</div>
+<p>Select the response distribution and corresponding model family for GLMNET. The available families depend on the prediction task.</p></section>
+<section class="topic" id="ml-learner-imrelf-fixedsettings-distance"><h3>IMRelief distance</h3>
+<div class="context">For IMRELF.</div>
+<p>Choose the distance definition used by IMRelief when comparing observations. The available choices include block and Euclidean distance.</p></section>
+<section class="topic" id="ml-learner-imrelief-maximum-iterations-fixedsettings-maxiter"><h3>IMRelief maximum iterations</h3>
+<div class="context">For IMRELF.</div>
+<p>Set the maximum number of IMRelief iterations. This bounds its iterative feature-weight optimization.</p></section>
+<span id="ml-learner-imrelf-fixedsettings-maxiter"></span>
+<section class="topic" id="ml-learner-liblin-fixedsettings-classifier"><h3>LIBLINEAR classifier / regressor</h3>
+<div class="context">For LIBLIN.</div>
+<p>Choose the classifier or regression solver for the selected library. Solver families differ in optimization objective and supported options; the available entries follow the current classification or regression task.</p></section>
+<section class="topic" id="ml-learner-liblin-fixedsettings-b"><h3>Output probability scores</h3>
+<div class="context">For LIBLIN.</div>
+<p>Request probability scores when the selected LIBLINEAR solver supports them. Some solvers return decision scores rather than calibrated probabilities.</p></section>
+<section class="topic" id="ml-learner-liblin-fixedsettings-tolerance"><h3>LIBLINEAR tolerance</h3>
+<div class="context">For LIBLIN.</div>
+<p>Set the convergence tolerance of the LIBLINEAR solver. Smaller tolerances can require more optimizer iterations.</p></section>
+<section class="topic" id="ml-learner-liblin-fixedsettings-bias"><h3>Use bias term</h3>
+<div class="context">For LIBLIN.</div>
+<p>Choose whether LIBLINEAR includes an intercept or bias feature. The negative setting disables that feature.</p></section>
+<section class="topic" id="ml-learner-liblin-fixedsettings-nonregbias"><h3>Do not regularize bias</h3>
+<div class="context">For LIBLIN.</div>
+<p>Exclude the intercept term from regularization where supported by the selected LIBLINEAR solver. Other coefficients remain subject to the specified regularization.</p></section>
+<section class="topic" id="ml-learner-liblin-fixedsettings-autoc"><h3>Auto-optimize LIBLINEAR hyperparameters</h3>
+<div class="context">For LIBLIN.</div>
+<p>Enable automatic selection of the LIBLINEAR regularization constant for the supported solver families.</p></section>
+<section class="topic" id="ml-learner-libsvm-fixedsettings-libsvmver"><h3>LIBSVM version</h3>
+<div class="context">For LIBSVM.</div>
+<p>Select the LIBSVM implementation used for fitting. The implementation version may affect available solver behaviour without changing the target or cross-validation structure.</p></section>
+<section class="topic" id="ml-learner-libsvm-fixedsettings-classifier"><h3>LIBSVM classifier / regressor</h3>
+<div class="context">For LIBSVM.</div>
+<p>Choose the classifier or regression solver for the selected library. Solver families differ in optimization objective and supported options; the available entries follow the current classification or regression task.</p></section>
+<section class="topic" id="ml-learner-libsvm-fixedsettings-optimization-b"><h3>Probability estimation</h3>
+<div class="context">For LIBSVM.</div>
+<p>Request class-probability estimates from a supported LIBSVM classifier. The resulting probability scores can be used by performance criteria that evaluate prediction calibration.</p></section>
+<section class="topic" id="ml-learner-libsvm-fixedsettings-optimization-m"><h3>Cache size [MB]</h3>
+<div class="context">For LIBSVM.</div>
+<p>Set the memory cache available for LIBSVM optimization, in megabytes. This changes the resources available for repeated kernel evaluations, not the number of training examples.</p></section>
+<section class="topic" id="ml-learner-libsvm-fixedsettings-optimization-e"><h3>Termination criterion</h3>
+<div class="context">For LIBSVM.</div>
+<p>Set the stopping tolerance for the LIBSVM solver. This controls when iterative optimization is considered sufficiently converged.</p></section>
+<section class="topic" id="ml-learner-libsvm-fixedsettings-optimization-h"><h3>Shrinking heuristics</h3>
+<div class="context">For LIBSVM.</div>
+<p>Enable the LIBSVM shrinking heuristic, which temporarily excludes variables judged unlikely to change the current solution and can reduce solver work.</p></section>
+<section class="topic" id="ml-learner-libsvm-fixedsettings-w"><h3>Case-level weighting vector</h3>
+<div class="context">For LIBSVM.</div>
+<p>Provide an individual case-weight vector for LIBSVM. Each weight changes the corresponding training case’s contribution to the fitted objective.</p></section>
+<section class="topic" id="ml-learner-libsvm-kernelsettings-customfunc"><h3>Custom kernel function</h3>
+<div class="context">For LIBSVM.</div>
+<p>Name the user-defined kernel function used when a custom LIBSVM kernel is selected.</p></section>
+<section class="topic" id="ml-learner-libsvm-kernelsettings-customfunc-nargin"><h3>Number of custom kernel arguments</h3>
+<div class="context">For LIBSVM.</div>
+<p>Specify how many input arguments the selected custom kernel function accepts.</p></section>
+<section class="topic" id="ml-learner-mklrvm-fixedsettings-converg"><h3>MKL-RVM convergence criterion</h3>
+<div class="context">For MKLRVM.</div>
+<p>Set the convergence criterion for MKL-RVM fitting, controlling when its iterative parameter updates stop.</p></section>
+<section class="topic" id="ml-learner-mklrvm-fixedsettings-plot-flag"><h3>MKL-RVM plotting</h3>
+<div class="context">For MKLRVM.</div>
+<p>Enable plotting of the MKL-RVM fitting progress. This affects diagnostic display rather than the cross-validation design.</p></section>
+<section class="topic" id="ml-learner-mklrvm-fixedsettings-standardize-flag"><h3>MKL-RVM standardize data</h3>
+<div class="context">For MKLRVM.</div>
+<p>Control internal standardization of the input data within the MKL-RVM learner.</p></section>
+<section class="topic" id="ml-learner-mklrvm-fixedsettings-nmax"><h3>MKL-RVM maximum iterations</h3>
+<div class="context">For MKLRVM.</div>
+<p>Set the maximum number of MKL-RVM iterations.</p></section>
+<section class="topic" id="ml-learner-mklrvm-fixedsettings-rvmalgo"><h3>MKL-RVM algorithm</h3>
+<div class="context">For MKLRVM.</div>
+<p>Select the MKL-RVM fitting algorithm among the available implementations.</p></section>
+<section class="topic" id="ml-learner-mvtrvr-fixedsettings-iter"><h3>MVTRVR iterations</h3>
+<div class="context">For MVTRVR.</div>
+<p>Set the iteration count used by MVTRVR fitting.</p></section>
+<section class="topic" id="ml-learner-seqopt-fixedsettings-mode"><h3>SEQOPT optimization population</h3>
+<div class="context">For SEQOPT.</div>
+<p>Define which sequential-prediction population is used for SEQOPT deferral optimization.</p></section>
+<section class="topic" id="ml-learner-seqopt-fixedsettings-replacemode"><h3>SEQOPT prediction combination</h3>
+<div class="context">For SEQOPT.</div>
+<p>Choose how predictions are combined across the sequence in SEQOPT.</p></section>
+<section class="topic" id="ml-learner-seqopt-fixedsettings-anchortype"><h3>SEQOPT deferral-window anchor</h3>
+<div class="context">For SEQOPT.</div>
+<p>Specify how SEQOPT positions the deferral window within each sequence.</p></section>
+<section class="topic" id="ml-learner-seqopt-fixedsettings-perfmode"><h3>SEQOPT deferral optimization criterion</h3>
+<div class="context">For SEQOPT.</div>
+<p>Select the performance criterion used to optimize sequential deferral decisions.</p></section>
+<section class="topic" id="ml-learner-seqopt-fixedsettings-c"><h3>Prognostic sequences</h3>
+<div class="context">For SEQOPT.</div>
+<p>Select the prognostic sequences included in SEQOPT optimization.</p></section>
+<section class="topic" id="ml-learner-wblcox-fixedsettings-interval"><h3>WBLCOX risk-estimation interval [days]</h3>
+<div class="context">For WBLCOX.</div>
+<p>Specify the time interval, in days, over which WBLCOX risk estimates are calculated.</p></section>
+<section class="topic" id="ml-learner-wblcox-fixedsettings-predict-time"><h3>Predict time to event</h3>
+<div class="context">For WBLCOX.</div>
+<p>Control whether WBLCOX reports predicted time to event rather than a risk score at the specified interval.</p></section>
+<section class="topic" id="ml-learner-wblcox-maximum-iterations-fixedsettings-maxiter"><h3>WBLCOX maximum iterations</h3>
+<div class="context">For WBLCOX.</div>
+<p>Set the maximum number of iterations allowed in WBLCOX parameter fitting.</p></section>
+<span id="ml-learner-wblcox-fixedsettings-maxiter"></span>
+<section class="topic" id="ml-learner-wblcox-fixedsettings-maxfunevals"><h3>WBLCOX maximum function evaluations</h3>
+<div class="context">For WBLCOX.</div>
+<p>Bound the number of objective-function evaluations during WBLCOX optimization.</p></section>
+<section class="topic" id="ml-learner-wblcox-fixedsettings-tolx"><h3>WBLCOX TolX</h3>
+<div class="context">For WBLCOX.</div>
+<p>Set the WBLCOX optimizer tolerance for changes in parameter values.</p></section>
+<section class="topic" id="ml-learner-wblcox-fixedsettings-tolfun"><h3>WBLCOX TolFun</h3>
+<div class="context">For WBLCOX.</div>
+<p>Set the WBLCOX optimizer tolerance for changes in the objective function.</p></section>
+<section class="topic" id="ml-learner-wblcox-fixedsettings-algorithm"><h3>WBLCOX optimizer algorithm</h3>
+<div class="context">For WBLCOX.</div>
+<p>Select the numerical optimization algorithm used to fit the WBLCOX model.</p></section>
+<section class="topic" id="ml-learner-matlrn-fixedsettings-algo"><h3>matLearn algorithm</h3>
+<div class="context">For matLRN.</div>
+<p>Select the matLearn algorithm within the matLearn wrapper. This changes the available learner-specific parameters and their defaults.</p></section>
+<section class="topic" id="ml-learner-matlrn-fixedsettings-learner-framework"><h3>matLearn framework</h3>
+<div class="context">For matLRN.</div>
+<p>Shows the matLearn task framework derived from the current classification or regression setup. The framework is determined by the target and is not edited independently.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="ml-section-hyperparameters"><h2>Hyperparameter ranges</h2><p>The listed values or ranges define candidate settings for the selected learner. Optimization evaluates the resulting configurations using the selected performance criterion. Available rows depend on learner, kernel and nested selections.</p></section>
+<section class="topic" id="ml-hyperparameters-hyperparameters-learnerparams"><h3>Trainable hyperparameters</h3>
+<p>Specify the candidate values or ranges of the active learner’s trainable parameters. Rows appear according to the selected algorithm and its parameter schema. Values hidden by the current selection are retained.</p></section>
+<h2>BLOREG parameters</h2>
+<section class="topic" id="ml-param-bloreg-tolparams"><h3>Bayesian logistic-regression tolerance range</h3>
+<div class="context">For BLOREG.</div>
+<p>Set the candidate convergence tolerances for Bayesian logistic-regression fitting. These tolerances determine when the fitting algorithm stops updating its estimates.</p></section>
+<h2>DECTRE parameters</h2>
+<section class="topic" id="ml-param-dectre-leafparams"><h3>Decision-tree leafness range</h3>
+<div class="context">For DECTRE.</div>
+<p>Specify the candidate leafness values controlling how the decision tree is partitioned into terminal leaves.</p></section>
+<h2>IMRELF parameters</h2>
+<section class="topic" id="ml-param-imrelf-cparams"><h3>IMRelief lambda range</h3>
+<div class="context">For IMRELF.</div>
+<p>Defines the cost or regularization penalty used by the learner. The candidate values determine the strength of the fit–penalty trade-off.</p></section>
+<section class="topic" id="ml-param-imrelf-gparams"><h3>IMRelief sigma range</h3>
+<div class="context">For IMRELF.</div>
+<p>Controls the width of the selected kernel transformation; this changes how rapidly similarity decreases with distance.</p></section>
+<h2>LIBLIN parameters</h2>
+<section class="topic" id="ml-param-liblin-cparams"><h3>C / regularization range</h3>
+<div class="context">For LIBLIN.</div>
+<p>Defines the cost or regularization penalty used by the learner. The candidate values determine the strength of the fit–penalty trade-off.</p></section>
+<section class="topic" id="ml-param-liblin-epsparams"><h3>Epsilon-SVR range</h3>
+<div class="context">For LIBLIN.</div>
+<p>Sets the epsilon parameter of the selected learner. Its effect depends on the loss or support-vector formulation.</p></section>
+<section class="topic" id="ml-param-liblin-weightparams"><h3>Class / case weighting exponent range</h3>
+<div class="context">For LIBLIN.</div>
+<p>Define the candidate exponents used for class or case weighting during LIBLINEAR fitting. These values change the relative influence of observations in the training objective.</p></section>
+<h2>LIBSVM parameters</h2>
+<section class="topic" id="ml-param-libsvm-cparams"><h3>C / slack-regularization range</h3>
+<div class="context">For LIBSVM.</div>
+<p>Defines the cost or regularization penalty used by the learner. The candidate values determine the strength of the fit–penalty trade-off.</p></section>
+<section class="topic" id="ml-param-libsvm-nuparams"><h3>Nu range</h3>
+<div class="context">For LIBSVM.</div>
+<p>Sets the nu parameter of a nu-based support-vector formulation; it governs constraints on the solution.</p></section>
+<section class="topic" id="ml-param-libsvm-epsparams"><h3>Epsilon-SVR range</h3>
+<div class="context">For LIBSVM.</div>
+<p>Sets the epsilon parameter of the selected learner. Its effect depends on the loss or support-vector formulation.</p></section>
+<section class="topic" id="ml-param-libsvm-gparams"><h3>Kernel / sigma range</h3>
+<div class="context">For LIBSVM.</div>
+<p>Controls the width of the selected kernel transformation; this changes how rapidly similarity decreases with distance.</p></section>
+<section class="topic" id="ml-param-libsvm-polycoefparams"><h3>Polynomial / sigmoid coefficient range</h3>
+<div class="context">For LIBSVM.</div>
+<p>Sets the additive coefficient of a polynomial kernel before exponentiation.</p></section>
+<section class="topic" id="ml-param-libsvm-polydegrparams"><h3>Polynomial degree range</h3>
+<div class="context">For LIBSVM.</div>
+<p>Sets the degree of the polynomial kernel, controlling its nonlinear order.</p></section>
+<section class="topic" id="ml-param-libsvm-wliters"><h3>Weisfeiler-Lehman iterations</h3>
+<div class="context">For LIBSVM.</div>
+<p>Define the candidate number of Weisfeiler–Lehman refinement iterations in the graph kernel. The iteration count determines how many rounds of neighborhood information contribute to the graph representation.</p></section>
+<section class="topic" id="ml-param-libsvm-weightparams"><h3>Class / case weighting exponent range</h3>
+<div class="context">For LIBSVM.</div>
+<p>Define the candidate exponents used for class or case weighting during LIBSVM fitting. These values change the relative influence of observations in the training objective.</p></section>
+<h2>MEXELM parameters</h2>
+<section class="topic" id="ml-param-mexelm-cparams"><h3>Slack / regularization range</h3>
+<div class="context">For MEXELM.</div>
+<p>Defines the cost or regularization penalty used by the learner. The candidate values determine the strength of the fit–penalty trade-off.</p></section>
+<section class="topic" id="ml-param-mexelm-neuronparams"><h3>Extreme-learning-machine hidden neurons</h3>
+<div class="context">For MEXELM.</div>
+<p>Specify candidate numbers of hidden neurons in the extreme learning machine. The neuron count determines the capacity of its hidden representation.</p></section>
+<h2>MKLRVM parameters</h2>
+<section class="topic" id="ml-param-mklrvm-gparams"><h3>Kernel / sigma range</h3>
+<div class="context">For MKLRVM.</div>
+<p>Controls the width of the selected kernel transformation; this changes how rapidly similarity decreases with distance.</p></section>
+<section class="topic" id="ml-param-mklrvm-polycoefparams"><h3>Polynomial coefficient range</h3>
+<div class="context">For MKLRVM.</div>
+<p>Sets the additive coefficient of a polynomial kernel before exponentiation.</p></section>
+<section class="topic" id="ml-param-mklrvm-polydegrparams"><h3>Polynomial degree range</h3>
+<div class="context">For MKLRVM.</div>
+<p>Sets the degree of the polynomial kernel, controlling its nonlinear order.</p></section>
+<h2>MVTRVR parameters</h2>
+<section class="topic" id="ml-param-mvtrvr-gparams"><h3>Kernel / sigma range</h3>
+<div class="context">For MVTRVR.</div>
+<p>Controls the width of the selected kernel transformation; this changes how rapidly similarity decreases with distance.</p></section>
+<section class="topic" id="ml-param-mvtrvr-polycoefparams"><h3>Polynomial coefficient range</h3>
+<div class="context">For MVTRVR.</div>
+<p>Sets the additive coefficient of a polynomial kernel before exponentiation.</p></section>
+<section class="topic" id="ml-param-mvtrvr-polydegrparams"><h3>Polynomial degree range</h3>
+<div class="context">For MVTRVR.</div>
+<p>Sets the degree of the polynomial kernel, controlling its nonlinear order.</p></section>
+<h2>MikRVM parameters</h2>
+<section class="topic" id="ml-param-mikrvm-gparams"><h3>Kernel / sigma range</h3>
+<div class="context">For MikRVM.</div>
+<p>Controls the width of the selected kernel transformation; this changes how rapidly similarity decreases with distance.</p></section>
+<section class="topic" id="ml-param-mikrvm-polycoefparams"><h3>Polynomial coefficient range</h3>
+<div class="context">For MikRVM.</div>
+<p>Sets the additive coefficient of a polynomial kernel before exponentiation.</p></section>
+<section class="topic" id="ml-param-mikrvm-polydegrparams"><h3>Polynomial degree range</h3>
+<div class="context">For MikRVM.</div>
+<p>Sets the degree of the polynomial kernel, controlling its nonlinear order.</p></section>
+<h2>RNDFOR parameters</h2>
+<section class="topic" id="ml-param-rndfor-treeparams"><h3>Number of decision trees</h3>
+<div class="context">For RNDFOR.</div>
+<p>Specifies the number of trees or base models assembled into the ensemble.</p></section>
+<section class="topic" id="ml-param-rndfor-numdparams"><h3>Maximum number of features</h3>
+<div class="context">For RNDFOR.</div>
+<p>Controls how many input features are considered when selecting a tree split.</p></section>
+<section class="topic" id="ml-param-rndfor-rfcritdefsparams"><h3>Split-quality criterion</h3>
+<div class="context">For RNDFOR.</div>
+<p>Chooses the score used to evaluate candidate decision-tree splits.</p></section>
+<section class="topic" id="ml-param-rndfor-rfmaxdparams"><h3>Maximum tree depth</h3>
+<div class="context">For RNDFOR.</div>
+<p>Limits the depth of each decision tree and thereby the complexity of individual tree partitions.</p></section>
+<section class="topic" id="ml-param-rndfor-rfminssplitparams"><h3>Minimum samples to split</h3>
+<div class="context">For RNDFOR.</div>
+<p>Sets the minimum number of observations required before a tree node can be split.</p></section>
+<section class="topic" id="ml-param-rndfor-rfminsleafparams"><h3>Minimum samples per leaf</h3>
+<div class="context">For RNDFOR.</div>
+<p>Sets the minimum number of training observations that can occupy a terminal tree leaf.</p></section>
+<section class="topic" id="ml-param-rndfor-rfminwfleafparams"><h3>Minimum weighted fraction per leaf</h3>
+<div class="context">For RNDFOR.</div>
+<p>Sets the minimum weighted fraction of training observations required in a tree leaf.</p></section>
+<section class="topic" id="ml-param-rndfor-rfmaxleafnparams"><h3>Maximum leaf nodes</h3>
+<div class="context">For RNDFOR.</div>
+<p>Sets the maximum number of terminal nodes allowed in an individual decision tree.</p></section>
+<section class="topic" id="ml-param-rndfor-rfminimpdecrparams"><h3>Minimum impurity decrease</h3>
+<div class="context">For RNDFOR.</div>
+<p>Defines the minimum reduction in node impurity needed to permit a split.</p></section>
+<section class="topic" id="ml-param-rndfor-rfbootstrapparams"><h3>Bootstrap samples</h3>
+<div class="context">For RNDFOR.</div>
+<p>Controls sampling of training observations when constructing ensemble members.</p></section>
+<section class="topic" id="ml-param-rndfor-rfoobscoreparams"><h3>Out-of-bag score</h3>
+<div class="context">For RNDFOR.</div>
+<p>Controls calculation of an out-of-bag prediction score from observations not sampled for each tree.</p></section>
+<section class="topic" id="ml-param-rndfor-rfccpalphaparams"><h3>Minimal cost-complexity pruning alpha</h3>
+<div class="context">For RNDFOR.</div>
+<p>Sets the cost-complexity pruning parameter used to remove weakly supported tree branches.</p></section>
+<section class="topic" id="ml-param-rndfor-rfmaxsampparams"><h3>Maximum bootstrap sample count</h3>
+<div class="context">For RNDFOR.</div>
+<p>Controls sampling of training observations when constructing ensemble members.</p></section>
+<section class="topic" id="ml-param-rndfor-rfclassweightparams"><h3>Class weights</h3>
+<div class="context">For RNDFOR.</div>
+<p>Sets the relative weight of outcome classes during ensemble fitting.</p></section>
+<h2>SEQOPT parameters</h2>
+<section class="topic" id="ml-param-seqopt-cutoffparams"><h3>SEQOPT threshold count range</h3>
+<div class="context">For SEQOPT.</div>
+<p>Specify the candidate number of decision thresholds tested when optimizing sequential prediction deferral.</p></section>
+<section class="topic" id="ml-param-seqopt-limslparams"><h3>SEQOPT lower population percentage range</h3>
+<div class="context">For SEQOPT.</div>
+<p>Specify candidate lower population-percentage limits for SEQOPT. These bounds restrict which cases are considered in the sequential optimization.</p></section>
+<section class="topic" id="ml-param-seqopt-limsuparams"><h3>SEQOPT upper population percentage range</h3>
+<div class="context">For SEQOPT.</div>
+<p>Specify candidate upper population-percentage limits for SEQOPT. These bounds restrict which cases are considered in the sequential optimization.</p></section>
+<h2>WBLCOX parameters</h2>
+<section class="topic" id="ml-param-wblcox-coxcutoffparams"><h3>WBLCOX class-assignment percentile thresholds</h3>
+<div class="context">For WBLCOX.</div>
+<p>Define the candidate percentile thresholds used to assign predicted WBLCOX risk scores to outcome classes.</p></section>
+<h2>kNNMEX parameters</h2>
+<section class="topic" id="ml-param-knnmex-kparams"><h3>Nearest-neighbour range</h3>
+<div class="context">For kNNMEX.</div>
+<p>Specifies how many neighbouring observations enter the local or nearest-neighbour prediction.</p></section>
+<h2>BAYLIN parameters</h2>
+<section class="topic" id="ml-param-baylin-baylin-alpha-1"><h3>BAYLIN_alpha_1</h3>
+<div class="context">For BAYLIN.</div>
+<p>Sets alpha 1 in the Bayesian linear regression prior. It affects the prior distribution of the model precision or coefficient precision.</p></section>
+<section class="topic" id="ml-param-baylin-baylin-alpha-2"><h3>BAYLIN_alpha_2</h3>
+<div class="context">For BAYLIN.</div>
+<p>Sets alpha 2 in the Bayesian linear regression prior. It affects the prior distribution of the model precision or coefficient precision.</p></section>
+<section class="topic" id="ml-param-baylin-baylin-compute-score"><h3>BAYLIN_compute_score</h3>
+<div class="context">For BAYLIN.</div>
+<p>Control whether the Bayesian linear model evaluates its objective score during fitting.</p></section>
+<section class="topic" id="ml-param-baylin-baylin-estimator"><h3>BAYLIN_estimator</h3>
+<div class="context">For BAYLIN.</div>
+<p>Select the Bayesian linear regression estimator used for fitting.</p></section>
+<section class="topic" id="ml-param-baylin-baylin-fit-intercept"><h3>BAYLIN_fit_intercept</h3>
+<div class="context">For BAYLIN.</div>
+<p>Control inclusion of an intercept term in Bayesian linear regression.</p></section>
+<section class="topic" id="ml-param-baylin-baylin-lambda-1"><h3>BAYLIN_lambda_1</h3>
+<div class="context">For BAYLIN.</div>
+<p>Sets lambda 1 in the Bayesian linear regression prior. It affects the prior distribution of the model precision or coefficient precision.</p></section>
+<section class="topic" id="ml-param-baylin-baylin-lambda-2"><h3>BAYLIN_lambda_2</h3>
+<div class="context">For BAYLIN.</div>
+<p>Sets lambda 2 in the Bayesian linear regression prior. It affects the prior distribution of the model precision or coefficient precision.</p></section>
+<section class="topic" id="ml-param-baylin-baylin-n-iter"><h3>BAYLIN_n_iter</h3>
+<div class="context">For BAYLIN.</div>
+<p>Limits the number of iterations used by the fitting algorithm.</p></section>
+<section class="topic" id="ml-param-baylin-baylin-threshold-lambda"><h3>BAYLIN_threshold_lambda</h3>
+<div class="context">For BAYLIN.</div>
+<p>Set the coefficient-precision threshold used by the Bayesian linear learner.</p></section>
+<section class="topic" id="ml-param-baylin-baylin-tol"><h3>BAYLIN_tol</h3>
+<div class="context">For BAYLIN.</div>
+<p>Specifies the solver convergence tolerance used to stop parameter updates.</p></section>
+<h2>GLMNET parameters</h2>
+<section class="topic" id="ml-param-glmnet-alpha"><h3>alpha</h3>
+<div class="context">For GLMNET.</div>
+<p>Set the mixing parameter of the elastic-net penalty: the two endpoints correspond to purely L2 and purely L1 penalization.</p></section>
+<section class="topic" id="ml-param-glmnet-dfmax"><h3>dfmax</h3>
+<div class="context">For GLMNET.</div>
+<p>Limit how many features may retain nonzero coefficients in the GLMNET fit.</p></section>
+<section class="topic" id="ml-param-glmnet-lambda-min"><h3>lambda_min</h3>
+<div class="context">For GLMNET.</div>
+<p>Sets the lower end of the regularization path examined by GLMNET.</p></section>
+<section class="topic" id="ml-param-glmnet-nlambda"><h3>nlambda</h3>
+<div class="context">For GLMNET.</div>
+<p>Sets how many regularization strengths are included in the GLMNET path.</p></section>
+<section class="topic" id="ml-param-glmnet-standardize"><h3>standardize</h3>
+<div class="context">For GLMNET.</div>
+<p>Controls feature standardization inside the learner.</p></section>
+<h2>GRDBST parameters</h2>
+<section class="topic" id="ml-param-grdbst-learningrate"><h3>learningRate</h3>
+<div class="context">For GRDBST.</div>
+<p>Set the contribution of each newly fitted tree to the gradient-boosted ensemble.</p></section>
+<section class="topic" id="ml-param-grdbst-loss"><h3>loss</h3>
+<div class="context">For GRDBST.</div>
+<p>Select the loss function minimized by the selected learner.</p></section>
+<section class="topic" id="ml-param-grdbst-maxiters"><h3>maxIters</h3>
+<div class="context">For GRDBST.</div>
+<p>Set the maximum number of boosting iterations, each adding another fitted component to the ensemble.</p></section>
+<section class="topic" id="ml-param-grdbst-maxtreedepth"><h3>maxTreeDepth</h3>
+<div class="context">For GRDBST.</div>
+<p>Limit the depth of individual trees used by gradient boosting.</p></section>
+<section class="topic" id="ml-param-grdbst-subsamplingfactor"><h3>subsamplingFactor</h3>
+<div class="context">For GRDBST.</div>
+<p>Sets the fraction of fitting observations sampled for each boosting iteration.</p></section>
+<h2>MLPERC parameters</h2>
+<section class="topic" id="ml-param-mlperc-mlperc-activation"><h3>MLPERC_activation</h3>
+<div class="context">For MLPERC.</div>
+<p>Chooses the nonlinear activation function applied by the neural network.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-alpha"><h3>MLPERC_alpha</h3>
+<div class="context">For MLPERC.</div>
+<p>Specify the L2 regularization coefficient applied to the neural-network weights.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-batch-size"><h3>MLPERC_batch_size</h3>
+<div class="context">For MLPERC.</div>
+<p>Sets the number of training observations used for each minibatch update.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-beta-1"><h3>MLPERC_beta_1</h3>
+<div class="context">For MLPERC.</div>
+<p>Controls the first-moment decay coefficient of the Adam optimizer.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-beta-2"><h3>MLPERC_beta_2</h3>
+<div class="context">For MLPERC.</div>
+<p>Controls the second-moment decay coefficient of the Adam optimizer.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-early-stopping"><h3>MLPERC_early_stopping</h3>
+<div class="context">For MLPERC.</div>
+<p>Enables stopping model fitting when the monitored validation criterion no longer improves.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-epsilon"><h3>MLPERC_epsilon</h3>
+<div class="context">For MLPERC.</div>
+<p>Sets the epsilon parameter of the selected learner. Its effect depends on the loss or support-vector formulation.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-hidden-layer-sizes"><h3>MLPERC_hidden_layer_sizes</h3>
+<div class="context">For MLPERC.</div>
+<p>Defines the number and sizes of the hidden layers in the neural network.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-learning-rate"><h3>MLPERC_learning_rate</h3>
+<div class="context">For MLPERC.</div>
+<p>Specifies the update step size in iterative fitting, including boosting or neural-network optimization.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-learning-rate-init"><h3>MLPERC_learning_rate_init</h3>
+<div class="context">For MLPERC.</div>
+<p>Specifies the update step size in iterative fitting, including boosting or neural-network optimization.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-max-fun"><h3>MLPERC_max_fun</h3>
+<div class="context">For MLPERC.</div>
+<p>Limits the number of objective-function evaluations performed by the optimizer.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-max-iter"><h3>MLPERC_max_iter</h3>
+<div class="context">For MLPERC.</div>
+<p>Limits the number of iterations used by the fitting algorithm.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-momentum"><h3>MLPERC_momentum</h3>
+<div class="context">For MLPERC.</div>
+<p>Controls how much of the previous update direction is carried into the next optimization step.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-n-iter-no-change"><h3>MLPERC_n_iter_no_change</h3>
+<div class="context">For MLPERC.</div>
+<p>Sets how many consecutive iterations without sufficient validation improvement are tolerated before stopping.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-nesterovs-momentum"><h3>MLPERC_nesterovs_momentum</h3>
+<div class="context">For MLPERC.</div>
+<p>Controls how much of the previous update direction is carried into the next optimization step.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-power-t"><h3>MLPERC_power_t</h3>
+<div class="context">For MLPERC.</div>
+<p>Sets the inverse-scaling exponent of the learning-rate schedule.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-random-state"><h3>MLPERC_random_state</h3>
+<div class="context">For MLPERC.</div>
+<p>Sets the random seed used by stochastic fitting operations.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-solver"><h3>MLPERC_solver</h3>
+<div class="context">For MLPERC.</div>
+<p>Selects the numerical optimization algorithm used to fit the learner.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-tol"><h3>MLPERC_tol</h3>
+<div class="context">For MLPERC.</div>
+<p>Specifies the solver convergence tolerance used to stop parameter updates.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-validation-fraction"><h3>MLPERC_validation_fraction</h3>
+<div class="context">For MLPERC.</div>
+<p>Sets the fraction of available fitting observations assigned to internal validation for early stopping.</p></section>
+<section class="topic" id="ml-param-mlperc-mlperc-warm-start"><h3>MLPERC_warm_start</h3>
+<div class="context">For MLPERC.</div>
+<p>Controls whether fitting reuses an existing parameter solution as an initialization.</p></section>
+<h2>ROBSVM parameters</h2>
+<section class="topic" id="ml-param-robsvm-cost"><h3>cost</h3>
+<div class="context">For ROBSVM.</div>
+<p>Defines the cost or regularization penalty used by the learner. The candidate values determine the strength of the fit–penalty trade-off.</p></section>
+<section class="topic" id="ml-param-robsvm-epsilon"><h3>epsilon</h3>
+<div class="context">For ROBSVM.</div>
+<p>Sets the epsilon parameter of the selected learner. Its effect depends on the loss or support-vector formulation.</p></section>
+<section class="topic" id="ml-param-robsvm-kernelfunc"><h3>kernelFunc</h3>
+<div class="context">For ROBSVM.</div>
+<p>Selects the kernel function used for nonlinear similarity calculations.</p></section>
+<section class="topic" id="ml-param-robsvm-kerneloptions"><h3>kernelOptions</h3>
+<div class="context">For ROBSVM.</div>
+<p>Sets the parameters belonging to the selected kernel function.</p></section>
+<section class="topic" id="ml-param-robsvm-learner"><h3>learner</h3>
+<div class="context">For ROBSVM.</div>
+<p>Select the robust SVM learner formulation used to fit the data.</p></section>
+<section class="topic" id="ml-param-robsvm-nsplit"><h3>nsplit</h3>
+<div class="context">For ROBSVM.</div>
+<p>Sets the number of partitions used by the robust SVM procedure.</p></section>
+<section class="topic" id="ml-param-robsvm-nu"><h3>nu</h3>
+<div class="context">For ROBSVM.</div>
+<p>Sets the nu parameter of a nu-based support-vector formulation; it governs constraints on the solution.</p></section>
+<section class="topic" id="ml-param-robsvm-wins"><h3>wins</h3>
+<div class="context">For ROBSVM.</div>
+<p>Controls the winsorization setting used by robust support-vector fitting.</p></section>
+<h2>TFDEEP parameters</h2>
+<section class="topic" id="ml-param-tfdeep-tfdeep-activation"><h3>TFDEEP_activation</h3>
+<div class="context">For TFDEEP.</div>
+<p>Chooses the nonlinear activation function applied by the neural network.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-alpha"><h3>TFDEEP_alpha</h3>
+<div class="context">For TFDEEP.</div>
+<p>Specify the regularization parameter supplied to the TensorFlow learner.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-batch-size"><h3>TFDEEP_batch_size</h3>
+<div class="context">For TFDEEP.</div>
+<p>Sets the number of training observations used for each minibatch update.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-class-weighting"><h3>TFDEEP_class_weighting</h3>
+<div class="context">For TFDEEP.</div>
+<p>Control class weighting in the TensorFlow training objective.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-early-stopping"><h3>TFDEEP_early_stopping</h3>
+<div class="context">For TFDEEP.</div>
+<p>Enables stopping model fitting when the monitored validation criterion no longer improves.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-files"><h3>TFDEEP_files</h3>
+<div class="context">For TFDEEP.</div>
+<p>Specify the files used to initialize or configure the TensorFlow learner.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-framework"><h3>TFDEEP_framework</h3>
+<div class="context">For TFDEEP.</div>
+<p>Select the neural-network training framework used by the TensorFlow learner.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-hidden-layer-sizes"><h3>TFDEEP_hidden_layer_sizes</h3>
+<div class="context">For TFDEEP.</div>
+<p>Defines the number and sizes of the hidden layers in the neural network.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-learning-rate-init"><h3>TFDEEP_learning_rate_init</h3>
+<div class="context">For TFDEEP.</div>
+<p>Specifies the update step size in iterative fitting, including boosting or neural-network optimization.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-loss"><h3>TFDEEP_loss</h3>
+<div class="context">For TFDEEP.</div>
+<p>Select the loss function minimized by the selected learner.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-max-iter"><h3>TFDEEP_max_iter</h3>
+<div class="context">For TFDEEP.</div>
+<p>Limits the number of iterations used by the fitting algorithm.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-patience"><h3>TFDEEP_patience</h3>
+<div class="context">For TFDEEP.</div>
+<p>Sets how many consecutive iterations without sufficient validation improvement are tolerated before stopping.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-random-state"><h3>TFDEEP_random_state</h3>
+<div class="context">For TFDEEP.</div>
+<p>Sets the random seed used by stochastic fitting operations.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-solver"><h3>TFDEEP_solver</h3>
+<div class="context">For TFDEEP.</div>
+<p>Selects the numerical optimization algorithm used to fit the learner.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-validation"><h3>TFDEEP_validation</h3>
+<div class="context">For TFDEEP.</div>
+<p>Controls whether the learner uses its internal validation procedure during fitting.</p></section>
+<section class="topic" id="ml-param-tfdeep-tfdeep-validation-fraction"><h3>TFDEEP_validation_fraction</h3>
+<div class="context">For TFDEEP.</div>
+<p>Sets the fraction of available fitting observations assigned to internal validation for early stopping.</p></section>
+<h2>matLRN/ARD parameters</h2>
+<section class="topic" id="ml-matlearn-ard-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/ARD.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-ard-sigma2"><h3>Define sigma2 parameter</h3>
+<div class="context">For matLRN/ARD.</div>
+<p>Sets a scale or variance parameter used by the selected learner or kernel.</p></section>
+<h2>matLRN/Cauchit parameters</h2>
+<section class="topic" id="ml-matlearn-cauchit-dist"><h3>Choose distribution</h3>
+<div class="context">For matLRN/Cauchit.</div>
+<p>Selects the distributional assumption used in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-cauchit-thresh"><h3>Define threshold</h3>
+<div class="context">For matLRN/Cauchit.</div>
+<p>Sets the threshold used by the selected distribution-based model.</p></section>
+<h2>matLRN/GAM parameters</h2>
+<section class="topic" id="ml-matlearn-gam-deg"><h3>Define highest exponent degree</h3>
+<div class="context">For matLRN/GAM.</div>
+<p>Sets the highest polynomial exponent used by the model.</p></section>
+<section class="topic" id="ml-matlearn-gam-maxiter"><h3>Define max iterations</h3>
+<div class="context">For matLRN/GAM.</div>
+<p>Limits the number of iterations used by the fitting algorithm.</p></section>
+<section class="topic" id="ml-matlearn-gam-numiter"><h3>Define number of iterations</h3>
+<div class="context">For matLRN/GAM.</div>
+<p>Limits the number of iterations used by the fitting algorithm.</p></section>
+<section class="topic" id="ml-matlearn-gam-smoothing"><h3>Define smoothness</h3>
+<div class="context">For matLRN/GAM.</div>
+<p>Controls the smoothness imposed on the fitted function.</p></section>
+<section class="topic" id="ml-matlearn-gam-subfunc"><h3>Define function used to determine f&#x27;&#x27;s</h3>
+<div class="context">For matLRN/GAM.</div>
+<p>Selects the function form used by the generalized additive model.</p></section>
+<h2>matLRN/HSVM parameters</h2>
+<section class="topic" id="ml-matlearn-hsvm-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/HSVM.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-hsvm-epsilon"><h3>epsilon range</h3>
+<div class="context">For matLRN/HSVM.</div>
+<p>Sets the epsilon parameter of the selected learner. Its effect depends on the loss or support-vector formulation.</p></section>
+<section class="topic" id="ml-matlearn-hsvm-kernelfunc"><h3>Select kernel function</h3>
+<div class="context">For matLRN/HSVM.</div>
+<p>Selects the kernel function used for nonlinear similarity calculations.</p></section>
+<section class="topic" id="ml-matlearn-hsvm-kerneloptions"><h3>Kernel parameters</h3>
+<div class="context">For matLRN/HSVM.</div>
+<p>Sets the parameters belonging to the selected kernel function.</p></section>
+<section class="topic" id="ml-matlearn-hsvm-kernel"><h3>Enable kernelization</h3>
+<div class="context">For matLRN/HSVM.</div>
+<p>Enables kernel-based fitting in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-hsvm-lambdal1"><h3>L1-lambda range</h3>
+<div class="context">For matLRN/HSVM.</div>
+<p>Controls the strength of L1 regularization, which can shrink some fitted coefficients to zero.</p></section>
+<section class="topic" id="ml-matlearn-hsvm-lambdal2"><h3>L2-lambda range</h3>
+<div class="context">For matLRN/HSVM.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<h2>matLRN/Huber parameters</h2>
+<section class="topic" id="ml-matlearn-huber-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/Huber.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-huber-epsilon"><h3>Define epsilon parameter range</h3>
+<div class="context">For matLRN/Huber.</div>
+<p>Sets the epsilon parameter of the selected learner. Its effect depends on the loss or support-vector formulation.</p></section>
+<section class="topic" id="ml-matlearn-huber-lambdal2"><h3>Define L2-lambda parameter range</h3>
+<div class="context">For matLRN/Huber.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<h2>matLRN/L1 parameters</h2>
+<section class="topic" id="ml-matlearn-l1-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/L1.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-l1-lambdal2"><h3>Define L2-lambda parameter range</h3>
+<div class="context">For matLRN/L1.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<h2>matLRN/L2 parameters</h2>
+<section class="topic" id="ml-matlearn-l2-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/L2.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-l2-lambdal2"><h3>Define L2-lambda parameter range</h3>
+<div class="context">For matLRN/L2.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<h2>matLRN/MLP parameters</h2>
+<section class="topic" id="ml-matlearn-mlp-nhidden"><h3>Define vector of the size of each hidden layer</h3>
+<div class="context">For matLRN/MLP.</div>
+<p>Defines the number and sizes of the hidden layers in the neural network.</p></section>
+<h2>matLRN/NB parameters</h2>
+<section class="topic" id="ml-matlearn-nb-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/NB.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-nb-lambdal2"><h3>Define L2-lambda parameter range</h3>
+<div class="context">For matLRN/NB.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<h2>matLRN/SSVM parameters</h2>
+<section class="topic" id="ml-matlearn-ssvm-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/SSVM.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-ssvm-kernelfunc"><h3>Select kernel function</h3>
+<div class="context">For matLRN/SSVM.</div>
+<p>Selects the kernel function used for nonlinear similarity calculations.</p></section>
+<section class="topic" id="ml-matlearn-ssvm-kerneloptions"><h3>Kernel parameters</h3>
+<div class="context">For matLRN/SSVM.</div>
+<p>Sets the parameters belonging to the selected kernel function.</p></section>
+<section class="topic" id="ml-matlearn-ssvm-kernel"><h3>Enable kernelization</h3>
+<div class="context">For matLRN/SSVM.</div>
+<p>Enables kernel-based fitting in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-ssvm-lambdal2"><h3>L2-lambda range</h3>
+<div class="context">For matLRN/SSVM.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<h2>matLRN/SVM parameters</h2>
+<section class="topic" id="ml-matlearn-svm-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/SVM.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-svm-lambdal2"><h3>Define L2-lambda parameter range</h3>
+<div class="context">For matLRN/SVM.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<h2>matLRN/boosting parameters</h2>
+<section class="topic" id="ml-matlearn-boosting-booster"><h3>Select boosting algorithm</h3>
+<div class="context">For matLRN/boosting.</div>
+<p>Selects the boosting procedure used to combine weak learners.</p></section>
+<section class="topic" id="ml-matlearn-boosting-nboosts"><h3>Number of weak learners</h3>
+<div class="context">For matLRN/boosting.</div>
+<p>Specifies how many weak learners are added to the boosting ensemble.</p></section>
+<section class="topic" id="ml-matlearn-boosting-submodel"><h3>Select base classifier</h3>
+<div class="context">For matLRN/boosting.</div>
+<p>Chooses the learning algorithm used as the nested or base model.</p></section>
+<section class="topic" id="ml-matlearn-boosting-suboptions"><h3>Base classifier parameters</h3>
+<div class="context">For matLRN/boosting.</div>
+<p>Sets the options of the nested learner selected in the corresponding submodel control.</p></section>
+<h2>matLRN/elastic_net parameters</h2>
+<section class="topic" id="ml-matlearn-elastic-net-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/elastic_net.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-elastic-net-lambdal1"><h3>Define L1-lambda parameter range</h3>
+<div class="context">For matLRN/elastic_net.</div>
+<p>Controls the strength of L1 regularization, which can shrink some fitted coefficients to zero.</p></section>
+<section class="topic" id="ml-matlearn-elastic-net-lambdal2"><h3>Define L2-lambda parameter range</h3>
+<div class="context">For matLRN/elastic_net.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<h2>matLRN/exponential parameters</h2>
+<section class="topic" id="ml-matlearn-exponential-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/exponential.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-exponential-lambdal2"><h3>Define L2-lambda parameter range</h3>
+<div class="context">For matLRN/exponential.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<h2>matLRN/extreme parameters</h2>
+<section class="topic" id="ml-matlearn-extreme-dist"><h3>Choose distribution</h3>
+<div class="context">For matLRN/extreme.</div>
+<p>Selects the distributional assumption used in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-extreme-thresh"><h3>Define threshold</h3>
+<div class="context">For matLRN/extreme.</div>
+<p>Sets the threshold used by the selected distribution-based model.</p></section>
+<h2>matLRN/leastSquares parameters</h2>
+<section class="topic" id="ml-matlearn-leastsquares-lambdal2"><h3>Define L2-lambda parameter range</h3>
+<div class="context">For matLRN/leastSquares.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<h2>matLRN/local parameters</h2>
+<section class="topic" id="ml-matlearn-local-k"><h3>Number of neighbours</h3>
+<div class="context">For matLRN/local.</div>
+<p>Specifies how many neighbouring observations enter the local or nearest-neighbour prediction.</p></section>
+<section class="topic" id="ml-matlearn-local-submodel"><h3>Select submodel learner</h3>
+<div class="context">For matLRN/local.</div>
+<p>Chooses the learning algorithm used as the nested or base model.</p></section>
+<section class="topic" id="ml-matlearn-local-suboptions"><h3>Define submodel options</h3>
+<div class="context">For matLRN/local.</div>
+<p>Sets the options of the nested learner selected in the corresponding submodel control.</p></section>
+<section class="topic" id="ml-matlearn-local-weightingfunc"><h3>Weighting function</h3>
+<div class="context">For matLRN/local.</div>
+<p>Selects how neighbouring observations are weighted in a local learner.</p></section>
+<h2>matLRN/logistic parameters</h2>
+<section class="topic" id="ml-matlearn-logistic-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/logistic.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-logistic-lambdal2"><h3>Define L2-lambda parameter range</h3>
+<div class="context">For matLRN/logistic.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<h2>matLRN/randomForest parameters</h2>
+<section class="topic" id="ml-matlearn-randomforest-maxdepth"><h3>Maximum tree depth</h3>
+<div class="context">For matLRN/randomForest.</div>
+<p>Limits the depth of each decision tree and thereby the complexity of individual tree partitions.</p></section>
+<section class="topic" id="ml-matlearn-randomforest-maxfeatures"><h3>Feature fraction</h3>
+<div class="context">For matLRN/randomForest.</div>
+<p>Controls how many input features are considered when selecting a tree split.</p></section>
+<section class="topic" id="ml-matlearn-randomforest-minleafsize"><h3>Minimum leaf size</h3>
+<div class="context">For matLRN/randomForest.</div>
+<p>Sets the minimum number of training observations that can occupy a terminal tree leaf.</p></section>
+<section class="topic" id="ml-matlearn-randomforest-nmodels"><h3>Number of models</h3>
+<div class="context">For matLRN/randomForest.</div>
+<p>Specifies the number of trees or base models assembled into the ensemble.</p></section>
+<section class="topic" id="ml-matlearn-randomforest-nsample"><h3>Bootstrap sample size</h3>
+<div class="context">For matLRN/randomForest.</div>
+<p>Controls sampling of training observations when constructing ensemble members.</p></section>
+<h2>matLRN/student parameters</h2>
+<section class="topic" id="ml-matlearn-student-addbias"><h3>Add bias</h3>
+<div class="context">For matLRN/student.</div>
+<p>Controls whether an intercept term is fitted in the selected learner.</p></section>
+<section class="topic" id="ml-matlearn-student-lambdal2"><h3>Define L2-lambda parameter range</h3>
+<div class="context">For matLRN/student.</div>
+<p>Controls the strength of L2 regularization, which shrinks fitted coefficient magnitudes.</p></section>
+<section class="topic" id="ml-matlearn-student-poly"><h3>Define polynomial coefficient range</h3>
+<div class="context">For matLRN/student.</div>
+<p>Sets the polynomial coefficient used by the selected robust regression model.</p></section>
+<h2>ROBSVM/-t 1 parameters</h2>
+<section class="topic" id="ml-kernel-t-1-coef0"><h3>Polynomial kernel coefficient</h3>
+<div class="context">For ROBSVM/-t 1.</div>
+<p>Sets the additive coefficient of a polynomial kernel before exponentiation.</p></section>
+<section class="topic" id="ml-kernel-t-1-degree"><h3>Polynomial kernel degree</h3>
+<div class="context">For ROBSVM/-t 1.</div>
+<p>Sets the degree of the polynomial kernel, controlling its nonlinear order.</p></section>
+<h2>ROBSVM/-t 2 parameters</h2>
+<section class="topic" id="ml-kernel-t-2-gamma"><h3>RBF kernel gamma</h3>
+<div class="context">For ROBSVM/-t 2.</div>
+<p>Controls the width of the selected kernel transformation; this changes how rapidly similarity decreases with distance.</p></section>
+<h2>matLRN/@ml_kernel_poly parameters</h2>
+<section class="topic" id="ml-kernel-ml-kernel-poly-bias"><h3>Polynomial kernel bias</h3>
+<div class="context">For matLRN/@ml_kernel_poly.</div>
+<p>Sets the additive coefficient of a polynomial kernel before exponentiation.</p></section>
+<section class="topic" id="ml-kernel-ml-kernel-poly-order"><h3>Polynomial kernel order</h3>
+<div class="context">For matLRN/@ml_kernel_poly.</div>
+<p>Sets the degree of the polynomial kernel, controlling its nonlinear order.</p></section>
+<h2>matLRN/@ml_kernel_rbf parameters</h2>
+<section class="topic" id="ml-kernel-ml-kernel-rbf-sigma"><h3>RBF kernel sigma</h3>
+<div class="context">For matLRN/@ml_kernel_rbf.</div>
+<p>Sets a scale or variance parameter used by the selected learner or kernel.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="ml-section-optimization"><h2>Model optimization</h2><p>Choose how candidate hyperparameter configurations are explored: direct grid enumeration, simulated annealing or Bayesian optimization. Search controls affect exploration and computational cost, not the outer cross-validation test partition.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-simaneal-t"><h3>Initial temperature</h3>
+<p>Initial temperature controls how readily simulated annealing accepts candidate moves with worse optimization scores. This helps the search move beyond a locally best configuration.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-simaneal-max-initial-jump"><h3>Maximum initial jump</h3>
+<p>Limits how far the search can move through the parameter grid at the start of simulated annealing.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-simaneal-alpha"><h3>Cooling factor alpha</h3>
+<p>Temperature multiplier applied during cooling. It controls how rapidly the simulated annealing search becomes less exploratory.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-simaneal-random-jump-prob"><h3>Random jump probability</h3>
+<p>Probability that a simulated annealing proposal is chosen randomly rather than as a local step on the parameter grid.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-simaneal-max-iter"><h3>Maximum iterations</h3>
+<p>Maximum number of simulated annealing iterations, limiting the number of search proposals.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-simaneal-reheating-iter"><h3>Iterations until reheating</h3>
+<p>Number of iterations between temperature-reheating operations in simulated annealing.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-simaneal-reheating-alpha"><h3>Reheating factor</h3>
+<p>Temperature multiplier used when the simulated annealing schedule reheats.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-bayes-max-iter"><h3>Bayesian optimization maximum iterations</h3>
+<p>Maximum number of Bayesian optimization iterations after setting up the search.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-bayes-max-iter-no-change"><h3>Maximum iterations without improvement</h3>
+<p>Number of consecutive iterations without improvement allowed before Bayesian optimization stops.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-bayes-num-seed"><h3>Seed iterations</h3>
+<p>Number of initial configurations evaluated to initialize the Bayesian optimization surrogate.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-bayes-kernel-function"><h3>Gaussian-process kernel</h3>
+<p>Choose the covariance kernel of the Gaussian-process surrogate used to model performance over the hyperparameter search space.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-bayes-mode"><h3>Bayesian optimization acquisition</h3>
+<p>Choose the acquisition function used to propose new configurations. The available strategies include lower confidence bound and expected improvement.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-bayes-lcbkappa"><h3>LCB kappa</h3>
+<p>Set the exploration weight in lower-confidence-bound acquisition, balancing predicted performance against uncertainty in the surrogate.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-bayes-eijitter"><h3>EI jitter</h3>
+<p>Set the jitter parameter used by expected-improvement acquisition when evaluating candidate configurations.</p></section>
+<section class="topic" id="ml-optimization-optimizationsettings-type"><h3>Hyperparameter optimization method</h3>
+<p>Choose the method used to search candidate hyperparameter configurations: exhaustive grid search, simulated annealing, or Bayesian optimization. The search method changes which candidates are evaluated and in what order.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="ml-section-selection"><h2>Model-selection strategy</h2><p>Choose how the cross-validated performance of candidate hyperparameter configurations is used to select a model or ensemble. Percentile settings determine which configurations enter an ensemble.</p></section>
+<section class="topic" id="ml-selection-modelselectionsettings-nodeselect-mode"><h3>Cross-parameter model selection</h3>
+<p>Select either a single best-performing configuration or an ensemble of configurations based on their cross-validated performance.</p></section>
+<section class="topic" id="ml-selection-modelselectionsettings-nodeselect-perc"><h3>Fixed ensemble percentile</h3>
+<p>Set the performance percentile used to determine which configurations enter a fixed-threshold ensemble.</p></section>
+<section class="topic" id="ml-selection-modelselectionsettings-nodeselect-percvec"><h3>Percentile search vector</h3>
+<p>Specify candidate performance percentile thresholds when the ensemble threshold is optimized rather than fixed.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="ml-section-postprocessing"><h2>Prediction post-processing</h2><p>Configure optional changes to predicted scores or targets after fitting. The effect depends on whether the analysis predicts categorical classes or a continuous outcome.</p></section>
+<section class="topic" id="ml-postprocessing-postprocessingsettings-detrendorthresholdoptimization"><h3>Detrend targets / optimize decision threshold</h3>
+<p>Enable the task-dependent post-processing stage. In regression it applies output detrending; in classification it optimizes the decision threshold on the relevant training-side predictions.</p></section>
+</div>
+</main>
+</body>
+</html>

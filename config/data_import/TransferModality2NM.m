@@ -12,6 +12,7 @@ if isfield(I,'Y')
         nM = 0; m = size(I.Y,1);
     end
     cnt = 1;
+    returnedModalityInfo = [];
     
     % Select cases based on index vector 'selCases'
     if ~isfield(I,'selCases') || isempty(I.selCases) || numel(I.selCases)~=numel(I.ID)
@@ -96,9 +97,22 @@ if isfield(I,'Y')
         end
         if isfield(I,'brainmask'), D.brainmask{i} = I.brainmask; end;
         D.badcoords{i} = false(1,size(D.Y{i},2)); 
-        D.datadescriptor{i}.input_settings = I;
-        D.datadescriptor{i}.input_settings = rmfield(D.datadescriptor{i}.input_settings,'Y');
         if isfield(I,'PP'), D.files{i} = I.PP; else, D.files{i} = []; end
+
+        % Persist the legacy IO provenance object, but add a clean lightweight
+        % modality metadata substructure for browser/API consumers. The metadata
+        % scan is deliberately done here because the selected feature matrix is
+        % already in memory during import; later UI rendering must not load
+        % externalized feature containers merely to rediscover these facts.
+        D.datadescriptor{i}.input_settings = localStripHeavyInputFields(I);
+        modalityInfo = localBuildModalityInfo(I, D, i, D.Y{i}, cnt);
+        if ~isempty(modalityInfo)
+            D.datadescriptor{i}.input_settings.modalityInfo = modalityInfo;
+            if i == varind
+                returnedModalityInfo = modalityInfo;
+            end
+        end
+
         cnt = cnt+1;
     end
     
@@ -164,12 +178,36 @@ if isfield(I,'Y')
         D.defs.matlab_ver = version;
     end
     if nargout==2
-        I = rmfield(I,'Y');
-        if isfield(I,'s_ID'); I = rmfield(I,'s_ID'); end
-        if isfield(I,'s_label'); I = rmfield(I,'s_label'); end
-        if isfield(I,'label'); I = rmfield(I,'label'); end
-        if isfield(I,'t_Y'); I = rmfield(I,'t_Y'); end
-        if isfield(I,'s_featnames'); I = rmfield(I,'s_featnames'); end
-        if isfield(I,'Yw'), I=rmfield(I,'Yw'); end
+        I = localStripHeavyInputFields(I);
+        if ~isempty(returnedModalityInfo)
+            I.modalityInfo = returnedModalityInfo;
+        end
     end
+end
+end
+
+function S = localStripHeavyInputFields(S)
+% Preserve legacy input_settings semantics while removing heavy/transient fields.
+if ~isstruct(S), return; end
+heavyFields = {'Y','s_ID','s_label','label','t_Y','s_featnames','Yw'};
+for k = 1:numel(heavyFields)
+    if isfield(S, heavyFields{k})
+        S = rmfield(S, heavyFields{k});
+    end
+end
+end
+
+function info = localBuildModalityInfo(I, D, varind, Y, cnt)
+info = [];
+try
+    if exist('NMModalityInfoTools','class') == 8 || exist('NMModalityInfoTools','file') == 2
+        opts = struct();
+        opts.ModalityCounter = cnt;
+        info = NMModalityInfoTools.fromImportIO(I, D, varind, Y, opts);
+    end
+catch ME
+    warning('TransferModality2NM:modalityInfoFailed', ...
+        'Could not derive input_settings.modalityInfo for modality %d: %s', varind, ME.message);
+    info = [];
+end
 end

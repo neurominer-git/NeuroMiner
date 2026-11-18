@@ -313,7 +313,6 @@ handles.axes17.YAxis.Label.Rotation=90;
 handles.axes35.Title.FontWeight = "bold";
 handles.axes37.Title.FontWeight = "bold";
 
-
 set(handles.figure1,'Visible','on'); % show whole UI
 
 % --- Outputs from this function are returned to the command line.

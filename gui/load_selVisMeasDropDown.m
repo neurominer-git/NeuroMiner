@@ -40,6 +40,8 @@ if ~isMulti
         if isfield(v,'PermZ_CV2'),              L{end+1} = 'Permutation-based Z Score [CV2 Mean]';                          end
         if isfield(v,'Analytical_p'),           L{end+1} = 'Analytical -log10(P Value) for Linear SVM [CV2 Mean]';          end
         if isfield(v,'Analyitcal_p_fdr'),       L{end+1} = 'Analytical -log10(P Value, FDR) for Linear SVM [CV2 Mean]';     end
+        if isfield(v,'CVRatio') && isfield(v,'SignBased_CV2_p_fdr') 
+                                                L{end+1} = 'Volcano plot: CVR × Sign-based consistency -log10(P value)';            end
         if isfield(v,'PermModel_Eval_Global'),  L{end+1} = 'Model P value histogram';                                       end
         if isfield(v,'ExtraL')
             for i = 1:numel(v.ExtraL)

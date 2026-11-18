@@ -1,0 +1,91 @@
+/* NMRuntimeProgressViewer.css
+ * styles the NMRuntimeProgressViewer browser UI component.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+.nmRuntimeProgressPanel {
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+.nmModalDialog.nmModal-wide:has(.nmRuntimeProgressPanel) {
+  width: min(980px, 96vw);
+}
+.nmModalDialog.nmModal-wide:has(.nmRuntimeProgressPanel) .nmModalBody {
+  padding: 12px 14px 16px;
+}
+.nmRuntimeProgressSection {
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.nmRuntimeProgressSection:last-child { margin-bottom: 0; }
+.nmRuntimeProgressLabel {
+  font-size: 12px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 800;
+  color: #475569;
+  margin-bottom: 8px;
+}
+.nmRuntimeProgressHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+.nmRuntimeProgressText {
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.nmRuntimeProgressPercent {
+  min-width: 48px;
+  text-align: right;
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 13px;
+}
+.nmRuntimeProgressTrack {
+  height: 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+.nmRuntimeProgressBar {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: #2563eb;
+  transition: width .12s linear;
+}
+.nmRuntimeProgressBarStage { background: #153552; }
+.nmRuntimeProgressBarLower { background: #0ea5e9; }
+.nmRuntimeProgressMeta {
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.nmRuntimeProgressFailed .nmRuntimeProgressBar,
+.nmRuntimeProgressFailed .nmRuntimeProgressBarLower { background: #dc2626; }
+
+/* Indeterminate lower progress for legacy tasks that do not expose intra-analysis
+   completion callbacks. The overall bar remains determinate. */
+.nmRuntimeProgressTrack:has(.nmRuntimeProgressIndeterminate) { position: relative; }
+.nmRuntimeProgressIndeterminate {
+  width: 34% !important;
+  animation: nmRuntimeProgressSweep 1.05s ease-in-out infinite;
+}
+@keyframes nmRuntimeProgressSweep {
+  0% { transform: translateX(-110%); }
+  50% { transform: translateX(95%); }
+  100% { transform: translateX(285%); }
+}

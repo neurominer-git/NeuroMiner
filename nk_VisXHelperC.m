@@ -1,6 +1,22 @@
 function [I2, I1, filefound] = nk_VisXHelperC(act, nM, nclass, decompfl, permfl, sigfl, ix, jx, I2, inp, ll, nperms, I1, compwise, ill)
+% nk_VisXHelperC  Maintain hierarchical model-visualization state.
+%
+% The action dispatcher initializes, aligns, prunes, accumulates, merges,
+% reports, and finalizes CV1/CV2 visualization containers. Correlation
+% matrices use two-level fixed-size accumulators: CV1 model units are
+% averaged within each CV2 partition, then CV2 partition means are combined
+% with equal weight. The 'accum' action accepts both the new accumulator
+% schema and legacy D-by-D-by-CV1 VISdatamats. The 'finalize_corr' action
+% materializes the established public CorrMat_CV2 fields without retaining
+% D-by-D-by-CV2 stacks. CorrMat STD fields preserve the legacy observable
+% zero/NaN semantics and are not reinterpreted in this storage-only patch.
+%
+% Component-reference alignment and pruning actions do not transform native
+% correlation accumulators. Combined native relations use the run-level
+% eligibility contract supplied by nk_VisModelsC.
 global FUSION SVM CV CVPOS
 
+fractionatedDecisionScores = inp.fractionatedDecisionScores;
 linsvmfl = determine_linsvm_flag(SVM);
 filefound = false;
 
@@ -30,9 +46,28 @@ switch act
                 I2.VCV2PVAL_ANALYTICAL = cell(nclass,nM);
                 I2.VCV2PVAL_ANALYTICAL_FDR = cell(nclass,nM);
             end
+            % Public correlation outputs retain their established field names.
+            % Internally, CV2 partitions are accumulated as fixed-size sums/counts
+            % instead of D-by-D-by-CV2 stacks.
             I2.VCV2CORRMAT              = cell(nclass,nM);
             I2.VCV2CORRMAT_UNCORR_PVAL  = cell(nclass,nM);
             I2.VCV2CORRMAT_FDR_PVAL     = cell(nclass,nM);
+            I2.VCV2CORRMAT_SUM              = cell(nclass,nM);
+            I2.VCV2CORRMAT_N                = cell(nclass,nM);
+            I2.VCV2CORRMAT_UNCORR_LOGP_SUM  = cell(nclass,nM);
+            I2.VCV2CORRMAT_UNCORR_LOGP_N    = cell(nclass,nM);
+            I2.VCV2CORRMAT_FDR_LOGP_SUM     = cell(nclass,nM);
+            I2.VCV2CORRMAT_FDR_LOGP_N       = cell(nclass,nM);
+            if nm_combined_relation_requested(inp)
+                I2.VCV2CORRMAT_COMBINED_SUM               = cell(nclass,1);
+                I2.VCV2CORRMAT_COMBINED_N                 = cell(nclass,1);
+                I2.VCV2CORRMAT_COMBINED_UNCORR_LOGP_SUM   = cell(nclass,1);
+                I2.VCV2CORRMAT_COMBINED_UNCORR_LOGP_N     = cell(nclass,1);
+                I2.VCV2CORRMAT_COMBINED_FDR_LOGP_SUM      = cell(nclass,1);
+                I2.VCV2CORRMAT_COMBINED_FDR_LOGP_N        = cell(nclass,1);
+                I2.VCV2CORRMAT_COMBINED_COMPLETE          = true(nclass,1);
+                I2.VCV2CORRMAT_COMBINED_SEEN              = zeros(nclass,1);
+            end
         end
         if compwise
             I2.VCV1REF                  = cell(nclass,1); 
@@ -53,19 +88,9 @@ switch act
             % Global per-component L2 in combined space
             % {h}: [nRef_combined × nCV2_models]
             I2.ModComp_L2n              = cell(nclass,1);
-            % --- CV2-level fractionated decision scores (per class × modality) ---
-            % store sums + counts (handles different #components per classifier)
-            if compwise
-                I2.DxSUM                    = cell(nclass, 1);   % sums over CV2 models
-                I2.DxSQSUM                    = cell(nclass, 1);   % sums of squares over CV2 models
-                I2.DxN                      = cell(nclass, 1);   % counts per subject × component
-                if inp.isInter
-                    for h = 1:nclass 
-                        I2.DxSUM{h}  = cell(1, nM); 
-                        I2.DxSQSUM{h}  = cell(1, nM); 
-                        I2.DxN{h} = cell(1, nM); 
-                    end
-                end
+            % Retain aligned model-wise contributions until the final reference merge.
+            if fractionatedDecisionScores
+                I2.DxParts = cell(nclass,nM);
             end
         end
         I2.SignPosCount     = cell(nclass,nM);
@@ -105,7 +130,26 @@ switch act
                 I1.VCV1PVAL_ANALYTICAL      = cell(nclass, nM);
                 I1.VCV1PVAL_ANALYTICAL_FDR  = cell(nclass, nM);
             end
-            I1.VCV1CORRMAT              = cell(nclass, nM);
+            % Legacy fields remain declared so saved VISdatamats from older
+            % releases can still be recognized. New runs use the fixed-size
+            % CV1 accumulators below.
+            I1.VCV1CORRMAT                   = cell(nclass, nM);
+            I1.VCV1CORRMAT_UNCORR_PVAL       = cell(nclass, nM);
+            I1.VCV1CORRMAT_FDR_PVAL          = cell(nclass, nM);
+            I1.VCV1CORRMAT_SUM               = cell(nclass, nM);
+            I1.VCV1CORRMAT_N                 = cell(nclass, nM);
+            I1.VCV1CORRMAT_UNCORR_LOGP_SUM   = cell(nclass, nM);
+            I1.VCV1CORRMAT_UNCORR_LOGP_N     = cell(nclass, nM);
+            I1.VCV1CORRMAT_FDR_LOGP_SUM      = cell(nclass, nM);
+            I1.VCV1CORRMAT_FDR_LOGP_N        = cell(nclass, nM);
+            if nm_combined_relation_requested(inp)
+                I1.VCV1CORRMAT_COMBINED_SUM               = cell(nclass,1);
+                I1.VCV1CORRMAT_COMBINED_N                 = cell(nclass,1);
+                I1.VCV1CORRMAT_COMBINED_UNCORR_LOGP_SUM   = cell(nclass,1);
+                I1.VCV1CORRMAT_COMBINED_UNCORR_LOGP_N     = cell(nclass,1);
+                I1.VCV1CORRMAT_COMBINED_FDR_LOGP_SUM      = cell(nclass,1);
+                I1.VCV1CORRMAT_COMBINED_FDR_LOGP_N        = cell(nclass,1);
+            end
         end
         
         % --- Permutation-related containers ---
@@ -133,8 +177,8 @@ switch act
         I1.VCV1WCORRREF   = cell(nclass, 1);  % [nRef_combined × nFolds]
         
         % --- Fractionated decision scores (CV1-level; already aligned to ref) ---
-        % Dx{h,n} will be [nSubj_fold × nRef_mod] for that CV2 file
-        if compwise
+        % Dx{h,n} will be [nSubj_fold × nRef_mod] only when scientifically defined.
+        if fractionatedDecisionScores
             I1.Dx = cell(nclass, 1); 
             if inp.isInter
                 for h = 1:nclass, I1.Dx{h} = cell(1, nM); end
@@ -215,18 +259,8 @@ switch act
                     if isfield(I2,'VCV2WCORRREF') && numel(I2.VCV2WCORRREF) >= h && numel(I2.VCV2WCORRREF{h}) >= n && ~isempty(I2.VCV2WCORRREF{h}{n})
                         I2.VCV2WCORRREF{h}{n} = I2.VCV2WCORRREF{h}{n}(keep{n}, :);
                     end
-                    if isfield(I2,'DxSUM') 
-                        if ~decompfl(n), continue; end
-                        if ~isempty(I2.DxSUM{h}{n})
-                            keepCols = keep{n};
-                            nComp = size(I2.DxSUM{h}{n},2);
-                            if numel(keepCols) > nComp
-                                keepCols = keepCols(1:nComp);
-                            end
-                            I2.DxSUM{h}{n}  = I2.DxSUM{h}{n}(:, keepCols);
-                            I2.DxSQSUM{h}{n}  = I2.DxSQSUM{h}{n}(:, keepCols);
-                            I2.DxN{h}{n} = I2.DxN{h}{n}(:, keepCols);
-                        end
+                    if fractionatedDecisionScores
+                        I2.DxParts{h,n} = prune_dx_parts(I2.DxParts{h,n}, keep{n});
                     end
                 end
             else
@@ -246,18 +280,9 @@ switch act
                 if isfield(I2,'VCV2WCORRREF') && numel(I2.VCV2WCORRREF) >= h && ~isempty(I2.VCV2WCORRREF{h})
                     I2.VCV2WCORRREF{h} = I2.VCV2WCORRREF{h}(keep{1}, :);
                 end
-                % ----- Prune Dx / DxN after merge+prune (intermediate) -----
-                if isfield(I2,'DxSUM') 
-                    if ~isempty(I2.DxSUM{h})
-                        keepCols = keep{1};
-                        nComp = size(I2.DxSUM{h},2);
-                        if numel(keepCols) > nComp
-                            keepCols = keepCols(1:nComp);
-                        end
-                        I2.DxSUM{h}  = I2.DxSUM{h}(:, keepCols);
-                        I2.DxSQSUM{h}  = I2.DxSQSUM{h}(:, keepCols);
-                        I2.DxN{h} = I2.DxN{h}(:, keepCols);
-                    end
+                % ----- Prune model-wise Dx along the reference axis -----
+                if fractionatedDecisionScores
+                    I2.DxParts{h,1} = prune_dx_parts(I2.DxParts{h,1}, keep{1});
                 end
             end
             % NOTE: Do NOT prune ModAgg_L2nShare{h} (nM × ll) – no component dimension.
@@ -343,13 +368,9 @@ switch act
                             % In your early-fusion cube, components are along dim-2 — adjust if different
                             I2.ModComp_L2nCube{h} = apply_map_3dfirst(I2.ModComp_L2nCube{h}, map_old2new, w_old, 'mean');
                         end
-                        % ----- Remap Dx and DxN (subject × component) -----
-                        if isfield(I2,'DxSUM') && ~isempty(I2.DxSUM{h}) 
-                            % map columns (components) with same grouping as WPERMREF
-                            I2.DxSUM{h} = apply_map_colwise(I2.DxSUM{h},  map_old2new, w_old, 'sum');
-                            I2.DxSQSUM{h} = apply_map_colwise(I2.DxSQSUM{h},  map_old2new, w_old, 'sum');
-                            % counts: sum over grouped old components
-                            I2.DxN{h} = apply_map_colwise(I2.DxN{h}, map_old2new, w_old, 'sum');
+                        % ----- Merge signed Dx contributions within each model -----
+                        if fractionatedDecisionScores
+                            I2.DxParts{h,1} = remap_dx_parts(I2.DxParts{h,1}, map_old2new);
                         end
                     end
             
@@ -401,13 +422,9 @@ switch act
                             I2.VCV2WCORRREF{h}{n} = apply_map_rowwise(I2.VCV2WCORRREF{h}{n}, map_old2newn, w_old, 'zmean');
                             I2.ModComp_L2n{h}{n}  = apply_map_rowwise(I2.ModComp_L2n{h}{n},  map_old2newn, w_old, 'mean');
 
-                            % ----- Remap Dx and DxN (subject × component) -----
-                            if isfield(I2,'DxSUM') && ~isempty(I2.DxSUM{h}{n}) && numel(I2.DxSUM{h}) >= n && ~isempty(I2.DxSUM{h}{n})
-                                % map columns (components) with same grouping as WPERMREF
-                                I2.DxSUM{h}{n}  = apply_map_colwise(I2.DxSUM{h}{n},  map_old2newn, w_old, 'sum');
-                                I2.DxSQSUM{h}{n}  = apply_map_colwise(I2.DxSQSUM{h}{n},  map_old2newn, w_old, 'sum');
-                                % counts: sum over grouped old components
-                                I2.DxN{h}{n} = apply_map_colwise(I2.DxN{h}{n}, map_old2newn, w_old, 'sum');
+                            % ----- Merge signed Dx contributions within each model -----
+                            if fractionatedDecisionScores
+                                I2.DxParts{h,n} = remap_dx_parts(I2.DxParts{h,n}, map_old2newn);
                             end
                         end
                     end
@@ -532,19 +549,9 @@ switch act
                         I2.VCV2WPERMREF{h}{n} = I2.VCV2WPERMREF{h}{n}(keep{n}, :);
                         I2.VCV2WCORRREF{h}{n} = I2.VCV2WCORRREF{h}{n}(keep{n}, :);
                         I2.ModComp_L2n{h}{n}  = I2.ModComp_L2n{h}{n}(keep{n}, :);
-                        % ----- Prune Dx / DxN after merge+prune (intermediate) -----
-                        if isfield(I2,'DxSUM') 
-                            if ~decompfl(n), continue; end
-                            if ~isempty(I2.DxSUM{h}{n})
-                                keepCols = keep{n};
-                                nComp = size(I2.DxSUM{h}{n},2);
-                                if numel(keepCols) > nComp
-                                    keepCols = keepCols(1:nComp);
-                                end
-                                I2.DxSUM{h}{n}  = I2.DxSUM{h}{n}(:, keepCols);
-                                I2.DxSQSUM{h}{n}  = I2.DxSQSUM{h}{n}(:, keepCols);
-                                I2.DxN{h}{n} = I2.DxN{h}{n}(:, keepCols);
-                            end
+                        % ----- Prune model-wise Dx along the reference axis -----
+                        if fractionatedDecisionScores
+                            I2.DxParts{h,n} = prune_dx_parts(I2.DxParts{h,n}, keep{n});
                         end
                     end
                 else
@@ -552,18 +559,9 @@ switch act
                     I2.VCV2WCORRREF{h} = I2.VCV2WCORRREF{h}(keep{1}, :);
                     I2.ModComp_L2n{h}  = I2.ModComp_L2n{h}(keep{1}, :);
                     if nM>1, I2.ModComp_L2nCube{h} = I2.ModComp_L2nCube{h}(keep{1}, :, :); end
-                    % ----- Prune Dx / DxN after merge+prune (intermediate) -----
-                    if isfield(I2,'DxSUM') 
-                        if ~isempty(I2.DxSUM{h})
-                            keepCols = keep{1};
-                            nComp = size(I2.DxSUM{h},2);
-                            if numel(keepCols) > nComp
-                                keepCols = keepCols(1:nComp);
-                            end
-                            I2.DxSUM{h}  = I2.DxSUM{h}(:, keepCols);
-                            I2.DxSQSUM{h}  = I2.DxSQSUM{h}(:, keepCols);
-                            I2.DxN{h} = I2.DxN{h}(:, keepCols);
-                        end
+                    % ----- Prune model-wise Dx along the reference axis -----
+                    if fractionatedDecisionScores
+                        I2.DxParts{h,1} = prune_dx_parts(I2.DxParts{h,1}, keep{1});
                     end
                 end
             end
@@ -690,19 +688,9 @@ switch act
                     I2.VCV2WPERMREF{h}{n} = I2.VCV2WPERMREF{h}{n}(keep{n},:);
                     I2.VCV2WCORRREF{h}{n} = I2.VCV2WCORRREF{h}{n}(keep{n},:);
                     I2.ModComp_L2n{h}{n} = I2.ModComp_L2n{h}{n}(keep{n},:);
-                    % ----- Prune Dx / DxN after merge+prune (intermediate) -----
-                    if isfield(I2,'DxSUM') 
-                        if ~decompfl(n), continue; end
-                        if ~isempty(I2.DxSUM{h}{n})
-                            keepCols = keep{n};
-                            nComp = size(I2.DxSUM{h}{n},2);
-                            if numel(keepCols) > nComp
-                                keepCols = keepCols(1:nComp);
-                            end
-                            I2.DxSUM{h}{n}  = I2.DxSUM{h}{n}(:, keepCols);
-                            I2.DxSQSUM{h}{n}  = I2.DxSQSUM{h}{n}(:, keepCols);
-                            I2.DxN{h}{n} = I2.DxN{h}{n}(:, keepCols);
-                        end
+                    % ----- Prune model-wise Dx along the reference axis -----
+                    if fractionatedDecisionScores
+                        I2.DxParts{h,n} = prune_dx_parts(I2.DxParts{h,n}, keep{n});
                     end
                 end
             else
@@ -711,18 +699,9 @@ switch act
                 I2.VCV2WCORRREF{h} = I2.VCV2WCORRREF{h}(keep{1},:);
                 I2.ModComp_L2n{h} = I2.ModComp_L2n{h}(keep{1},:);
                 if nM>1,I2.ModComp_L2nCube{h} = I2.ModComp_L2nCube{h}(keep{1},:,:); end
-                % ----- Prune Dx / DxN after merge+prune (intermediate) -----
-                if isfield(I2,'DxSUM') 
-                    if ~isempty(I2.DxSUM{h})
-                        keepCols = keep{1};
-                        nComp = size(I2.DxSUM{h},2);
-                        if numel(keepCols) > nComp
-                            keepCols = keepCols(1:nComp);
-                        end
-                        I2.DxSUM{h}  = I2.DxSUM{h}(:, keepCols);
-                        I2.DxSQSUM{h}  = I2.DxSQSUM{h}(:, keepCols);
-                        I2.DxN{h} = I2.DxN{h}(:, keepCols);
-                    end
+                % ----- Prune model-wise Dx along the reference axis -----
+                if fractionatedDecisionScores
+                    I2.DxParts{h,1} = prune_dx_parts(I2.DxParts{h,1}, keep{1});
                 end
             end
         end
@@ -846,18 +825,16 @@ switch act
                             end
                         end
                     end
-                    if inp.isInter
+                    if fractionatedDecisionScores
                         % --- Dx: prune component dimension identically to VCV1 ---
-                        if isfield(I1,'Dx') && numel(I1.Dx,1) >= h && numel(I1.Dx{h}) >= n && ~isempty(I1.Dx{h}{n})
+                        if inp.isInter && ~isempty(I1.Dx{h}{n})
                             Dx_n  = I1.Dx{h}{n};         % [subj × CV1_model × comp]
                             nComp = size(Dx_n, 3);
                             keepIdx = keepIdxAll(keepIdxAll <= nComp);
                             if ~isempty(keepIdx)
                                 I1.Dx{h}{n} = Dx_n(:,:, keepIdx);
                             end
-                        end
-                    elseif inp.isEarly && n==1
-                        if isfield(I1,'Dx') && numel(I1.Dx,1) >= h
+                        elseif (inp.isEarly || inp.isLate) && n==1 && ~isempty(I1.Dx{h})
                             Dx_n  = I1.Dx{h};         % [subj × CV1_model × comp]
                             nComp = size(Dx_n, 3);
                             keepIdx = keepIdxAll(keepIdxAll <= nComp);
@@ -967,7 +944,7 @@ switch act
                     haveRef = any(~cellfun(@isempty, Ref_in));
 
                      % ----- Dx_in for early or late fusion: pass all modalities at once -----
-                    if isfield(I1,'Dx') && numel(I1.Dx) >= h && ~isempty(I1.Dx{h})
+                    if fractionatedDecisionScores && ~isempty(I1.Dx{h})
                         Dx_slice = I1.Dx{h}(:, f, vc{1});  
                         nSubj = size(Dx_slice,1);
                         Dx_in    = {reshape(Dx_slice, size(Dx_slice,1), [])};  
@@ -1001,12 +978,12 @@ switch act
                         old3 = size(I1.VCV1{h,n},3);
                         if nRef_combined > old3
                             I1.VCV1{h,n}(:,:,old3+1:nRef_combined) = NaN;
-                            if isfield(I1,'Dx') && ~isempty(I1.Dx{h})
+                            if fractionatedDecisionScores
                                 I1.Dx{h}(:,:,old3+1:nRef_combined) = NaN;
                             end
                         end
                         I1.VCV1{h,n}(:, f, 1:nRef_combined) = reshape(Aln_n, [size(Aln_n,1), 1, nRef_combined]);
-                        if isfield(I1,'Dx') && ~isempty(I1.Dx{h})
+                        if fractionatedDecisionScores
                             I1.Dx{h}(:, f, 1:nRef_combined) = reshape(Dx_out{1}, [nSubj, 1, nRef_combined]);
                         end
                     end
@@ -1045,7 +1022,7 @@ switch act
                         haveRef_n = ~isempty(Ref_in);
 
                          % ----- Dx_in for early or late fusion: pass all modalities at once -----
-                         if isfield(I1,'Dx') && numel(I1.Dx) >= h && ~isempty(I1.Dx{h}) && numel(I1.Dx{h}) >= n && ~isempty(I1.Dx{h}{n})
+                         if fractionatedDecisionScores && ~isempty(I1.Dx{h}{n})
                             Dx_slice = I1.Dx{h}{n}(:, f, vc{n});  
                             Dx_in = reshape(Dx_slice, size(Dx_slice,1), []);  
                             nSubj = size(Dx_slice,1);
@@ -1074,12 +1051,12 @@ switch act
                         old3  = size(I1.VCV1{h,n},3);
                         if nRef > old3
                             I1.VCV1{h,n}(:,:,old3+1:nRef) = NaN;
-                            if isfield(I1,'Dx') && ~isempty(I1.Dx{h})
+                            if fractionatedDecisionScores
                                 I1.Dx{h}{n}(:,:,old3+1:nRef) = NaN;
                             end
                         end
                         I1.VCV1{h,n}(:, f, 1:nRef) = reshape(Aln_n, [size(Aln_n,1), 1, nRef]);
-                        if isfield(I1,'Dx') && ~isempty(I1.Dx{h})
+                        if fractionatedDecisionScores
                             I1.Dx{h}{n}(:, f, 1:nRef) = reshape(Dx_out, [nSubj, 1, nRef]);
                         end
 
@@ -1172,10 +1149,23 @@ switch act
                         I2.VCV2PVAL_ANALYTICAL{h,n}     = [I2.VCV2PVAL_ANALYTICAL{h,n}     mean(-log10(I1.VCV1PVAL_ANALYTICAL{h,n}), 2, 'omitnan')];
                         I2.VCV2PVAL_ANALYTICAL_FDR{h,n} = [I2.VCV2PVAL_ANALYTICAL_FDR{h,n} mean(-log10(I1.VCV1PVAL_ANALYTICAL_FDR{h,n}), 2, 'omitnan')];
                     end
-                    if isfield(I1,"VCV1CORRMAT") && ~isempty(I1.VCV1CORRMAT{h,n})
-                        I2.VCV2CORRMAT{h,n}(:,:,ll)              = mean(I1.VCV1CORRMAT{h,n}, 3, 'omitnan');
-                        I2.VCV2CORRMAT_UNCORR_PVAL{h,n}(:,:,ll)  = mean(-log10(I1.VCV1CORRMAT_UNCORR_PVAL{h,n}), 3, 'omitnan');
-                        I2.VCV2CORRMAT_FDR_PVAL{h,n}(:,:,ll)     = mean(-log10(I1.VCV1CORRMAT_FDR_PVAL{h,n}), 3, 'omitnan');
+                    % Correlation matrices use equal-weight hierarchical
+                    % aggregation: first one mean per CV2 partition, then
+                    % sums/counts across CV2 partitions. New fixed-size CV1
+                    % accumulators are preferred; legacy 3-D VISdatamats are
+                    % reduced through their established semantics.
+                    [cv2Corr, cv2Uncorr, cv2Fdr, hasCorr] = ...
+                        nm_corr_cv1_partition_summary(I1,h,n);
+                    if hasCorr
+                        I2 = nm_corr_add_cv2_moment(I2, ...
+                            'VCV2CORRMAT_SUM','VCV2CORRMAT_N', ...
+                            {h,n},cv2Corr);
+                        I2 = nm_corr_add_cv2_moment(I2, ...
+                            'VCV2CORRMAT_UNCORR_LOGP_SUM','VCV2CORRMAT_UNCORR_LOGP_N', ...
+                            {h,n},cv2Uncorr);
+                        I2 = nm_corr_add_cv2_moment(I2, ...
+                            'VCV2CORRMAT_FDR_LOGP_SUM','VCV2CORRMAT_FDR_LOGP_N', ...
+                            {h,n},cv2Fdr);
                     end
         
                 % --- DR + NO-COMPONENT: intentionally do NOT write the non-DR-only containers above ---
@@ -1297,7 +1287,10 @@ switch act
            
                 actMods     = find(decompfl(:)~=0).';
                 subjIdx     = CV.TestInd{CVPOS.CV2p, CVPOS.CV2f}; 
-                maxSubj     = size(inp.labels,1);
+                if nclass > 1
+                    subjIdx = subjIdx(CV.classnew{CVPOS.CV2p,CVPOS.CV2f}{h}.ind);
+                end
+                %maxSubj     = size(inp.labels,1);
 
                 if ~inp.isInter
                     % ========================= EARLY FUSION (original behavior) =========================
@@ -1338,30 +1331,10 @@ switch act
                     I2.VCV2WPERMREF{h} = [I2.VCV2WPERMREF{h}, curW];
                     I2.VCV2WCORRREF{h} = [I2.VCV2WCORRREF{h}, curC];
 
-                    % ===== Accumulate Dx (fractionated decision scores) at CV2 level =====
-                    if isfield(I1,'Dx') && numel(I1.Dx) >= h 
-
-                        Dx3 = squeeze(sum(I1.Dx{h},2,'omitnan')) ;   
-                        DxSQ3 = squeeze(sum(I1.Dx{h}.^2,2,'omitnan')) ;   
-                        DxN3 = squeeze(sum(~isnan(I1.Dx{h}),2,'omitnan'));  
-                        
-                        % --- transfer to I2.DxSUM / I2.DxN  ---
-                        if isempty(I2.DxSUM{h})
-                            nRef                       = size(Dx3,2);
-                            I2.DxSUM{h}                = nan(maxSubj,nRef);
-                            I2.DxSQSUM{h}              = nan(maxSubj,nRef);
-                            I2.DxN{h}                  = nan(maxSubj,nRef);
-                            I2.DxSUM{h}(subjIdx,:)     = Dx3;
-                            I2.DxSQSUM{h}(subjIdx,:)   = DxSQ3;
-                            I2.DxN{h}(subjIdx,:)       = DxN3;
-                        else
-                            I2.DxSUM{h} = harmonizeSize(I2.DxSUM{h}, Dx3); 
-                            I2.DxSQSUM{h} = harmonizeSize(I2.DxSQSUM{h}, DxSQ3); 
-                            I2.DxN{h} = harmonizeSize(I2.DxN{h}, DxN3);
-                            I2.DxSUM{h}(subjIdx,:)     = nk_NanMatrixAddition(I2.DxSUM{h}(subjIdx,:), Dx3);
-                            I2.DxSQSUM{h}(subjIdx,:)   = nk_NanMatrixAddition(I2.DxSQSUM{h}(subjIdx,:), DxSQ3);
-                            I2.DxN{h}(subjIdx,:)       = nk_NanMatrixAddition(I2.DxN{h}(subjIdx,:),DxN3);
-                        end
+                    if fractionatedDecisionScores && ~isempty(I1.Dx{h})
+                        parts = I2.DxParts{h,1};
+                        parts{end+1} = struct('subjects',subjIdx,'values',I1.Dx{h});
+                        I2.DxParts{h,1} = parts;
                     end
                 else
                     % ========================= INTERMEDIATE FUSION (per-modality) =========================
@@ -1413,31 +1386,11 @@ switch act
                         
                         I2.VCV2WPERMREF{h}{n} = [I2.VCV2WPERMREF{h}{n}, curW];
                         I2.VCV2WCORRREF{h}{n} = [I2.VCV2WCORRREF{h}{n}, curC];
-                        % ===== Accumulate Dx (fractionated decision scores) at CV2 level =====
-                        if isfield(I1,'Dx') && numel(I1.Dx) >= h && numel(I1.Dx{h}) >= n && ~isempty(I1.Dx{h}{n})
-                            
-                            Dx3 = squeeze(sum(I1.Dx{h}{n},2,'omitnan'));
-                            DxSQ3 = squeeze(sum(I1.Dx{h}{n}.^2,2,'omitnan'));
-                            DxN3 = squeeze(sum(~isnan(I1.Dx{h}{n}),2,'omitnan'));  
-                            
-                            % --- transfer to I2.DxSUM for this modality ---
-                            if ~isfield(I2,'DxSUM') || isempty(I2.DxSUM{h}{n})
-                                nRef_n                      = size(Dx3,2);
-                                I2.DxSUM{h}{n}              = nan(maxSubj, nRef_n);
-                                I2.DxSQSUM{h}{n}            = nan(maxSubj, nRef_n);
-                                I2.DxN{h}{n}                = nan(maxSubj, nRef_n);
-                                I2.DxSUM{h}{n}(subjIdx,:)   = Dx3;
-                                I2.DxSQSUM{h}{n}(subjIdx,:) = DxSQ3;
-                                I2.DxN{h}{n}(subjIdx,:)     = DxN3;
-                            else
-                                I2.DxSUM{h}{n} = harmonizeSize(I2.DxSUM{h}{n}, Dx3); 
-                                I2.DxSQSUM{h}{n} = harmonizeSize(I2.DxSQSUM{h}{n}, DxSQ3); 
-                                I2.DxN{h}{n} = harmonizeSize(I2.DxN{h}{n}, DxN3);
-                                I2.DxSUM{h}{n}(subjIdx,:)   = nk_NanMatrixAddition(I2.DxSUM{h}{n}(subjIdx,:),Dx3);
-                                I2.DxSQSUM{h}{n}(subjIdx,:) = nk_NanMatrixAddition(I2.DxSQSUM{h}{n}(subjIdx,:),DxSQ3);
-                                I2.DxN{h}{n}(subjIdx,:)     = nk_NanMatrixAddition(I2.DxN{h}{n}(subjIdx,:),DxN3);
-                            end
-            
+                        % ===== Retain model-wise Dx until final CV2 aggregation =====
+                        if fractionatedDecisionScores && ~isempty(I1.Dx{h}{n})
+                            parts = I2.DxParts{h,n};
+                            parts{end+1} = struct('subjects',subjIdx,'values',I1.Dx{h}{n});
+                            I2.DxParts{h,n} = parts;
                         end
                     end
                 end
@@ -1535,6 +1488,90 @@ switch act
                         end
                         % NOTE: no ModComp_L2nCube in intermediate fusion (no shared component axis).
                     end
+                end
+            end
+
+            % A combined native-space relation is supported only when the run-level
+            % eligibility contract is active. Every processed CV2 partition must provide it;
+            % legacy or otherwise incomplete partitions invalidate the combined
+            % result rather than yielding a partial matrix.
+            if nm_combined_relation_requested(inp)
+                [cv2Corr, cv2Uncorr, cv2Fdr, hasCombined] = ...
+                    nm_corr_cv1_combined_summary(I1,h);
+                if hasCombined
+                    I2 = nm_corr_add_cv2_moment(I2, ...
+                        'VCV2CORRMAT_COMBINED_SUM','VCV2CORRMAT_COMBINED_N', ...
+                        {h},cv2Corr);
+                    I2 = nm_corr_add_cv2_moment(I2, ...
+                        'VCV2CORRMAT_COMBINED_UNCORR_LOGP_SUM','VCV2CORRMAT_COMBINED_UNCORR_LOGP_N', ...
+                        {h},cv2Uncorr);
+                    I2 = nm_corr_add_cv2_moment(I2, ...
+                        'VCV2CORRMAT_COMBINED_FDR_LOGP_SUM','VCV2CORRMAT_COMBINED_FDR_LOGP_N', ...
+                        {h},cv2Fdr);
+                    I2.VCV2CORRMAT_COMBINED_SEEN(h) = I2.VCV2CORRMAT_COMBINED_SEEN(h) + 1;
+                else
+                    I2.VCV2CORRMAT_COMBINED_COMPLETE(h) = false;
+                end
+            end
+        end
+
+    case 'finalize_Dx'
+        % Reduce each model's final reference-aligned contribution exactly once.
+        I2.DxSUM = cell(nclass,1);
+        I2.DxSQSUM = cell(nclass,1);
+        I2.DxN = cell(nclass,1);
+        for h = 1:nclass
+            if inp.isInter
+                I2.DxSUM{h} = cell(1,nM);
+                I2.DxSQSUM{h} = cell(1,nM);
+                I2.DxN{h} = cell(1,nM);
+                for n = find(decompfl)
+                    [I2.DxSUM{h}{n}, I2.DxSQSUM{h}{n}, I2.DxN{h}{n}] = ...
+                        dx_parts_moments(I2.DxParts{h,n}, size(inp.labels,1));
+                end
+            else
+                [I2.DxSUM{h}, I2.DxSQSUM{h}, I2.DxN{h}] = ...
+                    dx_parts_moments(I2.DxParts{h,1}, size(inp.labels,1));
+            end
+        end
+        I2 = rmfield(I2,'DxParts');
+
+    case 'finalize_corr'
+
+        % Materialize the established public fields from the fixed-size CV2
+        % moments. Means preserve the former two-stage omit-NaN semantics.
+        % STD fields deliberately retain the legacy zero/NaN result produced
+        % after the former code had already collapsed the third dimension.
+        if any(~decompfl)
+            I2.VCV2CORRMAT_STD              = cell(nclass,nM);
+            I2.VCV2CORRMAT_UNCORR_PVAL_STD  = cell(nclass,nM);
+            I2.VCV2CORRMAT_FDR_PVAL_STD     = cell(nclass,nM);
+            for h = 1:nclass
+                for n = 1:nM
+                    [I2.VCV2CORRMAT{h,n}, I2.VCV2CORRMAT_STD{h,n}] = ...
+                        nm_corr_finalize_cv2_moment(I2,'VCV2CORRMAT_SUM','VCV2CORRMAT_N',{h,n});
+                    [I2.VCV2CORRMAT_UNCORR_PVAL{h,n}, I2.VCV2CORRMAT_UNCORR_PVAL_STD{h,n}] = ...
+                        nm_corr_finalize_cv2_moment(I2,'VCV2CORRMAT_UNCORR_LOGP_SUM','VCV2CORRMAT_UNCORR_LOGP_N',{h,n});
+                    [I2.VCV2CORRMAT_FDR_PVAL{h,n}, I2.VCV2CORRMAT_FDR_PVAL_STD{h,n}] = ...
+                        nm_corr_finalize_cv2_moment(I2,'VCV2CORRMAT_FDR_LOGP_SUM','VCV2CORRMAT_FDR_LOGP_N',{h,n});
+                end
+            end
+        end
+        if nm_combined_relation_requested(inp)
+            I2.VCV2CORRMAT_COMBINED              = cell(nclass,1);
+            I2.VCV2CORRMAT_COMBINED_STD          = cell(nclass,1);
+            I2.VCV2CORRMAT_COMBINED_UNCORR_PVAL  = cell(nclass,1);
+            I2.VCV2CORRMAT_COMBINED_UNCORR_PVAL_STD = cell(nclass,1);
+            I2.VCV2CORRMAT_COMBINED_FDR_PVAL     = cell(nclass,1);
+            I2.VCV2CORRMAT_COMBINED_FDR_PVAL_STD = cell(nclass,1);
+            for h = 1:nclass
+                if I2.VCV2CORRMAT_COMBINED_COMPLETE(h) && I2.VCV2CORRMAT_COMBINED_SEEN(h) > 0
+                    [I2.VCV2CORRMAT_COMBINED{h}, I2.VCV2CORRMAT_COMBINED_STD{h}] = ...
+                        nm_corr_finalize_cv2_moment(I2,'VCV2CORRMAT_COMBINED_SUM','VCV2CORRMAT_COMBINED_N',{h});
+                    [I2.VCV2CORRMAT_COMBINED_UNCORR_PVAL{h}, I2.VCV2CORRMAT_COMBINED_UNCORR_PVAL_STD{h}] = ...
+                        nm_corr_finalize_cv2_moment(I2,'VCV2CORRMAT_COMBINED_UNCORR_LOGP_SUM','VCV2CORRMAT_COMBINED_UNCORR_LOGP_N',{h});
+                    [I2.VCV2CORRMAT_COMBINED_FDR_PVAL{h}, I2.VCV2CORRMAT_COMBINED_FDR_PVAL_STD{h}] = ...
+                        nm_corr_finalize_cv2_moment(I2,'VCV2CORRMAT_COMBINED_FDR_LOGP_SUM','VCV2CORRMAT_COMBINED_FDR_LOGP_N',{h});
                 end
             end
         end
@@ -2374,37 +2411,22 @@ function Y = apply_map_colwise(Y, map_old2new, w_old, op)
                 Yout(:,k) = nanmin_compat(Y(:,js), 2);
             end
             Y = Yout;
-        case 'zmean'
+        case 'zmean'  % Weighted arithmetic mean of CV1-derived Z-score sums; no Fisher transform.
             Yout = nan(size(Y,1), kmax, 'like', Y);
             for k = 1:kmax
                 js = find(map_old2new == k);
                 if isempty(js), continue; end
-        
-                r = Y(:,js);                  % cols to merge
-                w = w_old(js);                  % 1×J weights for those cols
-                w(~isfinite(w) | w<=0) = 0;     % zero-out invalid weights
-        
-                % clamp only finite r to avoid atanh(±1); keep NaNs as NaNs
-                r_finite = isfinite(r);
-                r(r_finite) = max(min(r(r_finite), 1-1e-6), -1+1e-6);
-        
-                z = atanh(r);                   % NaNs stay NaNs
-        
-                % build weight matrix per row, mask invalid cells
-                W = repmat(w, size(z,1), 1);
-                mask = isfinite(z) & (W>0);
-        
-                % weighted sum over valid cells only
-                Zw   = zeros(size(z), 'like', z); Zw(~mask) = 0;  Zw(mask) = z(mask) .* W(mask);
-                num  = sum(Zw, 2);
-                den  = sum(W .* double(mask), 2);   % sum of weights that actually contributed
-        
-                zbar = nan(size(num), 'like', num);
-                nz   = den > 0 & isfinite(den);
-                zbar(nz) = num(nz) ./ den(nz);
-        
-                % back to r; columns with no contributors remain NaN
-                Yout(:,k) = tanh(zbar);
+                x = Y(:,js);
+                w = w_old(js);
+                w(~isfinite(w) | w<=0) = 0;
+                W = repmat(w, size(x,1), 1);
+                mask = ~isnan(x) & (W>0);  % Missing components do not contribute; infinite Z stays infinite.
+                weighted = zeros(size(x), 'like', x);
+                weighted(mask) = x(mask) .* W(mask);
+                den = sum(W .* double(mask), 2);
+                valid = den > 0;
+                num = sum(weighted, 2);
+                Yout(valid,k) = num(valid) ./ den(valid);
             end
             Y = Yout;
 
@@ -2627,4 +2649,140 @@ function X = apply_map_3dfirst(X, map_old2new, w_old, mode)
     end
     W(W==0) = 1;
     X = bsxfun(@rdivide, Z, W);
+end
+
+
+function tf = nm_combined_relation_requested(inp)
+% Read the single run-level eligibility decision made by nk_VisModelsC.
+tf = isstruct(inp) && isfield(inp,'combinedCorrEligible') && ...
+    ~isempty(inp.combinedCorrEligible) && logical(inp.combinedCorrEligible(1));
+end
+
+function [corrMean,uncorrMean,fdrMean,hasData] = nm_corr_cv1_partition_summary(I1,h,n)
+% Finalize one modality's CV1 accumulator, or adapt a legacy 3-D VISdatamat.
+corrMean = []; uncorrMean = []; fdrMean = []; hasData = false;
+if isfield(I1,'VCV1CORRMAT_SUM') && size(I1.VCV1CORRMAT_SUM,1) >= h ...
+        && size(I1.VCV1CORRMAT_SUM,2) >= n && ~isempty(I1.VCV1CORRMAT_SUM{h,n})
+    corrMean = nm_corr_mean_from_sum_count(I1.VCV1CORRMAT_SUM{h,n},I1.VCV1CORRMAT_N{h,n});
+    uncorrMean = nm_corr_mean_from_sum_count(I1.VCV1CORRMAT_UNCORR_LOGP_SUM{h,n},I1.VCV1CORRMAT_UNCORR_LOGP_N{h,n});
+    fdrMean = nm_corr_mean_from_sum_count(I1.VCV1CORRMAT_FDR_LOGP_SUM{h,n},I1.VCV1CORRMAT_FDR_LOGP_N{h,n});
+    hasData = any(I1.VCV1CORRMAT_N{h,n}(:) > 0);
+elseif isfield(I1,'VCV1CORRMAT') && size(I1.VCV1CORRMAT,1) >= h ...
+        && size(I1.VCV1CORRMAT,2) >= n && ~isempty(I1.VCV1CORRMAT{h,n})
+    corrMean = mean(I1.VCV1CORRMAT{h,n},3,'omitnan');
+    if isfield(I1,'VCV1CORRMAT_UNCORR_PVAL') && size(I1.VCV1CORRMAT_UNCORR_PVAL,1) >= h ...
+            && size(I1.VCV1CORRMAT_UNCORR_PVAL,2) >= n && ~isempty(I1.VCV1CORRMAT_UNCORR_PVAL{h,n})
+        uncorrMean = mean(-log10(I1.VCV1CORRMAT_UNCORR_PVAL{h,n}),3,'omitnan');
+    end
+    if isfield(I1,'VCV1CORRMAT_FDR_PVAL') && size(I1.VCV1CORRMAT_FDR_PVAL,1) >= h ...
+            && size(I1.VCV1CORRMAT_FDR_PVAL,2) >= n && ~isempty(I1.VCV1CORRMAT_FDR_PVAL{h,n})
+        fdrMean = mean(-log10(I1.VCV1CORRMAT_FDR_PVAL{h,n}),3,'omitnan');
+    end
+    hasData = any(isfinite(corrMean(:)));
+end
+end
+
+function [corrMean,uncorrMean,fdrMean,hasData] = nm_corr_cv1_combined_summary(I1,h)
+% Finalize one combined CV1 accumulator.
+corrMean = []; uncorrMean = []; fdrMean = []; hasData = false;
+if isfield(I1,'VCV1CORRMAT_COMBINED_SUM') && numel(I1.VCV1CORRMAT_COMBINED_SUM) >= h ...
+        && ~isempty(I1.VCV1CORRMAT_COMBINED_SUM{h})
+    corrMean = nm_corr_mean_from_sum_count(I1.VCV1CORRMAT_COMBINED_SUM{h},I1.VCV1CORRMAT_COMBINED_N{h});
+    uncorrMean = nm_corr_mean_from_sum_count(I1.VCV1CORRMAT_COMBINED_UNCORR_LOGP_SUM{h},I1.VCV1CORRMAT_COMBINED_UNCORR_LOGP_N{h});
+    fdrMean = nm_corr_mean_from_sum_count(I1.VCV1CORRMAT_COMBINED_FDR_LOGP_SUM{h},I1.VCV1CORRMAT_COMBINED_FDR_LOGP_N{h});
+    hasData = any(I1.VCV1CORRMAT_COMBINED_N{h}(:) > 0);
+end
+end
+
+function out = nm_corr_mean_from_sum_count(sumValue,countValue)
+% Compute a cell-wise mean while retaining NaN for unsupported cells.
+out = nan(size(sumValue),'like',sumValue);
+valid = countValue > 0;
+out(valid) = single(double(sumValue(valid)) ./ double(countValue(valid)));
+end
+
+function I2 = nm_corr_add_cv2_moment(I2,sumField,nField,idx,value)
+% Add one CV2-partition mean to a fixed-size sum/count accumulator.
+if isempty(value), return; end
+if isempty(I2.(sumField){idx{:}})
+    I2.(sumField){idx{:}} = zeros(size(value),'single');
+    I2.(nField){idx{:}}   = zeros(size(value),'uint32');
+end
+valid = ~isnan(value);
+if ~any(valid(:)), return; end
+sumValue = I2.(sumField){idx{:}};
+countValue = I2.(nField){idx{:}};
+v = single(value(valid));
+sumValue(valid) = sumValue(valid) + v;
+countValue(valid) = countValue(valid) + uint32(1);
+I2.(sumField){idx{:}} = sumValue;
+I2.(nField){idx{:}}   = countValue;
+end
+
+function [meanValue,stdValue] = nm_corr_finalize_cv2_moment(I2,sumField,nField,idx)
+% Materialize the mean and preserve the legacy zero/NaN STD contract.
+meanValue = []; stdValue = [];
+if ~isfield(I2,sumField) || isempty(I2.(sumField){idx{:}}), return; end
+sumValue = double(I2.(sumField){idx{:}});
+countValue = double(I2.(nField){idx{:}});
+meanValue = nan(size(sumValue),'single');
+stdValue = nan(size(sumValue),'single');
+supported = countValue > 0;
+meanValue(supported) = single(sumValue(supported) ./ countValue(supported));
+stdValue(supported) = single(0);
+end
+
+function parts = remap_dx_parts(parts, map_old2new)
+% Combine reference components additively within each fitted model.
+    K = max(map_old2new);
+    for p = 1:numel(parts)
+        X = parts{p}.values;
+        Y = nan(size(X,1), size(X,2), K, 'like', X);
+        for k = 1:K
+            cols = find(map_old2new == k);
+            cols = cols(cols <= size(X,3));
+            if isempty(cols), continue; end
+            V = X(:,:,cols);
+            contribution = sum(V,3,'omitnan');
+            contribution(all(isnan(V),3)) = NaN;
+            Y(:,:,k) = contribution;
+        end
+        parts{p}.values = Y;
+    end
+end
+
+function parts = prune_dx_parts(parts, keep)
+% Apply the authoritative reference keep mask to every retained model.
+    for p = 1:numel(parts)
+        X = parts{p}.values;
+        if size(X,3) < numel(keep)
+            X(:,:,end+1:numel(keep)) = NaN;
+        end
+        parts{p}.values = X(:,:,keep);
+    end
+end
+
+function [S,Q,N] = dx_parts_moments(parts, nSubjects)
+% Model-wise sums, second moments and counts, after all component merges.
+    if isempty(parts)
+        S = []; Q = []; N = [];
+        return
+    end
+    K = max(cellfun(@(p)size(p.values,3),parts));
+    S = zeros(nSubjects,K);
+    Q = zeros(nSubjects,K);
+    N = zeros(nSubjects,K);
+    evaluated = false(nSubjects,1);
+    for p = 1:numel(parts)
+        subj = parts{p}.subjects;
+        X = parts{p}.values;
+        k = size(X,3);
+        evaluated(subj) = true;
+        S(subj,1:k) = S(subj,1:k) + reshape(sum(X,2,'omitnan'),size(X,1),k);
+        Q(subj,1:k) = Q(subj,1:k) + reshape(sum(X.^2,2,'omitnan'),size(X,1),k);
+        N(subj,1:k) = N(subj,1:k) + reshape(sum(~isnan(X),2),size(X,1),k);
+    end
+    S(~evaluated,:) = NaN;
+    Q(~evaluated,:) = NaN;
+    N(~evaluated,:) = NaN;
 end

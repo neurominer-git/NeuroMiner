@@ -26,6 +26,28 @@ switch SVM.prog
     case  'GLMFIT'
         xV = MD.beta(2:end);
     case 'matLRN'
+        switch SVM.matLRN.algo{1}
+            case {'stump','brokenStump','randomForest','boosting', ...
+                  'MLP','GAM','NW','local'}
+                % These fitted predictors have no global feature coefficients.
+                % Use native prediction sensitivity for visualization only;
+                % exact subject-level Dx is computed separately from MD.
+                xV = zeros(size(Y,2),1);
+                for j = 1:size(Y,2)
+                    lo = min(Y(:,j));
+                    hi = max(Y(:,j));
+                    if hi == lo, continue; end
+                    Yprobe = Y;
+                    Yprobe(:,j) = lo;
+                    [~, slo] = nk_GetTestPerf_matLRN([],Yprobe,[],MD,[],[]);
+                    Yprobe(:,j) = hi;
+                    [~, shi] = nk_GetTestPerf_matLRN([],Yprobe,[],MD,[],[]);
+                    xV(j) = mean(abs(shi(:)-slo(:))) / (hi-lo);
+                end
+            case {'extreme','Cauchit'}
+                % glmfit always includes an intercept in the first entry.
+                xV = MD.w(2:end);
+            otherwise
         % Check whether addBias == 1 and whether algo was kernalized
         offs=1; if isfield(MD,'addBias') && MD.addBias, offs = 2; end
         if isfield(MD,'kernel') && MD.kernel
@@ -39,8 +61,15 @@ switch SVM.prog
             error(sprintf('\nNo weight vector found in matLearn model. Unfortunately, the visualization of this model is not supported by NM.'));
         end
         xV = w(offs:end);  
+        end
     case 'GLMNET'
-        xV = MD.beta;
+        % Native nk_GetTestPerf_GLMNET uses the final lambda in the path.
+        xV = MD.beta(:,end);
+    case 'BLOREG'
+        % The direct, non-kernel model has one coefficient per input feature.
+        assert(strcmp(SVM.kernel.kernstr,'none'), 'nk:visBLOREGKernel', ...
+            'Kernel BLOREG has no verified original-feature visualization weights.');
+        xV = MD.alpha(:);
     case {'RNDFOR', 'GRDBST', 'MLPERC', 'TFDEEP', 'BAYLIN'}
         %xV = MD.feature_importances_ %This gets the Gini importance of
         %features, but it isn't compatible with SVM weights since they

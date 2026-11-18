@@ -1,0 +1,79 @@
+/* NMPreprocUI.css
+ * styles the preprocessing template editor and pipeline canvas.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+body{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;margin:0;color:#111827}
+header{display:flex;align-items:center;justify-content:space-between;height:64px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid #bfdbfe;background:#eff6ff}
+button,select,input{border:1px solid #cbd5e1;border-radius:9px;padding:7px 9px;background:white}
+button.primary{background:#1d4ed8;color:white;border-color:#1d4ed8}
+.layout{display:grid;grid-template-columns:360px 1fr;height:calc(100vh - 64px)}
+aside{border-right:1px solid #e5e7eb;padding:12px;overflow:auto}
+main{padding:16px;overflow:auto}
+.editorgrid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.editorgrid.nohelp{grid-template-columns:minmax(0,1fr)}
+.step{border:1px solid #e5e7eb;border-radius:12px;padding:10px;margin-bottom:8px;cursor:pointer}
+.step.active{background:#eff6ff;border-color:#93c5fd}
+.muted{color:#6b7280;font-size:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}.field .help{font-size:12px;color:#6b7280}
+.crumb{font-size:13px;color:#374151;margin-bottom:12px}.crumb button{border:none;background:transparent;color:#1d4ed8;padding:0;cursor:pointer}
+.subcard{border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#f8fafc}
+pre{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:10px;white-space:pre-wrap;max-height:34vh;overflow:auto}
+table.covtbl{width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:white}
+.covtbl th,.covtbl td{border-bottom:1px solid #e5e7eb;padding:6px 7px;text-align:left;font-size:12px;vertical-align:middle}
+.covtbl th{background:#f8fafc;font-weight:600}.covtbl tr:last-child td{border-bottom:none}.covtbl select{padding:4px 6px;border-radius:7px}.covtbl input[type=checkbox]{transform:translateY(1px)}
+.danger{color:#991b1b}.warn{color:#92400e}.ok{color:#166534}.stagepanel{border:1px solid #e5e7eb;border-radius:12px;padding:10px;margin-bottom:12px}.stagepanel h3{font-size:14px;margin:0 0 4px}.stagepanel .stagehint{font-size:12px;color:#6b7280;margin-bottom:8px}#globalPanel{background:#fffbeb;border-color:#fde68a}#subjectPanel{background:#fff7ed;border-color:#fed7aa}#cvPanel{background:#fef2f2;border-color:#fecaca}#globalPanel .step,#subjectPanel .step,#cvPanel .step{background:rgba(255,255,255,.72)}#globalPanel .step.active,#subjectPanel .step.active,#cvPanel .step.active{background:#eff6ff;border-color:#93c5fd}
+
+/* v59: top message strip and rule-aware drag/drop */
+header{position:sticky;top:0;z-index:100}
+.dragHandle{display:inline-flex;align-items:center;border:1px solid #cbd5e1;border-radius:9px;padding:7px 9px;background:#f8fafc;color:#374151;cursor:grab;user-select:none;font-size:12px}
+.dragHandle:active{cursor:grabbing}
+.step.dragging{opacity:.55}
+.step.dropBefore{border-top:3px solid #1d4ed8}
+.step.dropAfter{border-bottom:3px solid #1d4ed8}
+
+/* v5: fixed-section-card ML configuration layout */
+.mlLayout aside{background:#f8fafc}
+#mlPanel{background:#f8fafc;border-color:#cbd5e1}
+#mlPanel .step{background:white}
+#mlPanel .step.active{background:#eef2ff;border-color:#818cf8}
+#mlPanel .stagehint{line-height:1.35}
+
+
+/* embedded mode inside the main training-template shell */
+body.embedded > header{display:none}
+body.embedded .layout{height:100vh}
+body.embedded main{padding-top:12px}
+
+/* mixed early-fusion guard: incompatible stale imaging-dependent cards */
+.step.invalidStep{border-color:#dc2626!important;box-shadow:0 0 0 2px rgba(220,38,38,.16);background:#fef2f2!important}
+.step.invalidStep.active{border-color:#b91c1c!important;box-shadow:0 0 0 3px rgba(185,28,28,.18);background:#fee2e2!important}
+.step .stepIssue{font-size:12px;line-height:1.35;margin-top:6px;padding:6px 8px;border:1px solid #fecaca;border-radius:9px;background:#fff1f2}
+/* Compact preprocessing catalog and icon actions. */
+#subjectPanel > .row,#cvPanel > .row{flex-wrap:nowrap}
+#subjectModuleSelect,#cvModuleSelect{flex:1 1 auto;min-width:0}
+#subjectModuleSelect option,#cvModuleSelect option{padding:0 4px;line-height:1.15}
+#subjectModuleSelect optgroup,#cvModuleSelect optgroup{line-height:1.15}
+.moduleToolbar{flex-wrap:nowrap!important;padding-bottom:11px;margin-bottom:12px;border-bottom:1px solid #d7dee8}
+.moduleToolbar select,.moduleToolbar .moduleSelect{flex:1 1 auto;min-width:0}
+.moduleToolbarLabel{flex:1 1 auto;min-width:0;font-size:12px;color:#374151}
+.iconButton{display:inline-flex;align-items:center;justify-content:center;width:34px;min-width:34px;height:34px;padding:0;box-sizing:border-box}
+.iconButton svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.iconButton svg .filled{fill:currentColor;stroke:currentColor}
+.iconButton.insertAction svg{width:23px;height:20px}
+.iconButton.insertAction svg .filled{fill:#6b7280;stroke:currentColor}
+.iconButton.removeAction svg{width:18px;height:18px}
+.stepActionRow{gap:6px;align-items:center}
+.stepActionRow .dragHandle,.stepActionRow .stepActionButton,.stepActionRow .iconButton{box-sizing:border-box;height:34px;min-height:34px;margin:0}
+.stepActionRow .stepActionButton,.stepActionRow .iconButton{width:34px;min-width:34px;padding:0}
+.stepActionRow .dragHandle{width:46px;min-width:46px;padding:0 6px;justify-content:center}
+.dragHandle svg{width:30px;height:22px;fill:none;stroke:currentColor;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round}
+.applicationLabelToolbar{margin-top:12px}
+/* ML help fills the editor's available height without changing shared modal styles. */
+.mlLayout .editorgrid.nmHelpOpen,.preprocLayout .editorgrid.nmHelpOpen{grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))}
+.mlLayout .nmHelpPanel.hidden,.preprocLayout .nmHelpPanel.hidden{display:none}
+.mlLayout .nmHelpHeader,.preprocLayout .nmHelpHeader{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #dbe3ee;font-weight:700}
+.mlLayout .nmHelpFrame,.preprocLayout .nmHelpFrame{display:block;width:100%;height:calc(100vh - 139px);border:1px solid #d8e1eb;border-radius:8px;background:white}
+body.embedded .mlLayout .nmHelpFrame,body.embedded .preprocLayout .nmHelpFrame{height:calc(100vh - 71px)}
+.mlLayout .nmHelpButton,.preprocLayout .nmHelpButton{display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:26px;height:26px;padding:0;margin:0 0 0 7px;border:1px solid #c5d5e7;border-radius:50%;background:#f1f6ff;color:#1957a4;font:400 12px/1 system-ui;cursor:pointer}

@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>NeuroMiner 2.0 installation and deployment requirements</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <style>
+  :root{--ink:#182b3a;--muted:#576b7c;--line:#d7e2ea;--blue:#14557c;--soft:#f1f6f9;--navy:#0e3450}
+  html{scroll-behavior:smooth}*{box-sizing:border-box}body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:15.5px;max-width:1080px;margin:0 auto;padding:42px 46px 90px}
+  h1{font-size:2.12rem;line-height:1.22;color:var(--navy);letter-spacing:-.03em;border-bottom:3px solid #2976a6;padding-bottom:13px;margin-bottom:24px}h2{font-size:1.44rem;color:var(--navy);padding-bottom:7px;border-bottom:1px solid var(--line);margin-top:40px}h3{font-size:1.15rem;color:var(--navy);margin-top:27px}p,li{max-width:94ch}strong{font-weight:650}a{color:var(--blue);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#0c3855}
+  code{font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;background:#f2f5f7;border-radius:4px;padding:.1em .28em;font-size:.9em}pre{background:#f6f8fa;border:1px solid #dce4ea;border-radius:8px;overflow-x:auto;padding:13px 18px;line-height:1.44;box-shadow:0 1px 2px rgba(0,0,0,.02)}pre code{background:none;padding:0;font-size:13px}
+  table{border-collapse:collapse;width:100%;font-size:.91rem;line-height:1.47;margin:20px 0 24px}th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:var(--soft);color:var(--navy)}tbody tr:nth-child(even){background:#fbfcfd}blockquote{border-left:4px solid #2976a6;background:#f4f8fa;margin:18px 0;padding:6px 18px}
+  #TOC{background:#f3f7fa;border:1px solid var(--line);padding:20px 26px;border-radius:10px;margin:20px 0 32px}#TOC ul{margin:0;padding-left:24px}#TOC>ul{padding-left:20px}#TOC li{margin:3px 0}header#title-block-header{display:none}hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+  @media(max-width:750px){body{padding:18px 15px 60px}h1{font-size:1.68rem}h2{font-size:1.29rem}table{font-size:.84rem}td,th{padding:6px 7px}}
+  @media print{body{max-width:none;padding:0;font-size:10pt;color:#000}h1{font-size:20pt}h2{font-size:14pt}h3{font-size:12pt}pre{white-space:pre-wrap;overflow-wrap:anywhere}pre,table{break-inside:avoid}#TOC{display:none}a{color:#000}}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">NeuroMiner 2.0 ��� installation and deployment
+requirements</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#neurominer-20--installation-and-deployment-requirements"
+id="toc-neurominer-20--installation-and-deployment-requirements">NeuroMiner
+2.0 — installation and deployment requirements</a>
+<ul>
+<li><a
+href="#1-installation-layout-the-complete-neurominer-root-is-mandatory"
+id="toc-1-installation-layout-the-complete-neurominer-root-is-mandatory">1.
+Installation layout: the complete NeuroMiner root is mandatory</a></li>
+<li><a href="#2-core-runtime-prerequisites"
+id="toc-2-core-runtime-prerequisites">2. Core runtime
+prerequisites</a></li>
+<li><a href="#3-graphical-report-builder-pdf-export"
+id="toc-3-graphical-report-builder-pdf-export">3. Graphical Report
+Builder PDF export</a></li>
+<li><a href="#4-deployment-and-acceptance-matrix"
+id="toc-4-deployment-and-acceptance-matrix">4. Deployment and acceptance
+matrix</a></li>
+<li><a href="#5-common-failure-signatures"
+id="toc-5-common-failure-signatures">5. Common failure
+signatures</a></li>
+<li><a href="#6-provenance-and-references"
+id="toc-6-provenance-and-references">6. Provenance and
+references</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1
+id="neurominer-20--installation-and-deployment-requirements">NeuroMiner
+2.0 — installation and deployment requirements</h1>
+<p><strong>Scope:</strong> NM2 browser workbench, MATLAB scientific
+backend, Python bridge, Results Viewer/Report Builder, and local/HPC
+execution.<br />
+<strong>Source baseline:</strong> NM2 5.0081h (October 2026). This
+document describes the requirements and supported interfaces visible in
+that source release; it is <strong>not</strong> a declaration that every
+MATLAB/OS/toolbox combination has been qualified.<br />
+<strong>Related documents:</strong> <a
+href="SYSTEM_ARCHITECTURE.md">System architecture</a> · <a
+href="RUNTIME_BRIDGE_ARCHITECTURE.md">Runtime bridge architecture</a> ·
+<a href="REPORT_BUILDER_ARCHITECTURE.md">Report Builder architecture</a>
+· <a href="OUTPUT_EXPORT_REPRODUCIBILITY.md">Output and export</a>.</p>
+<h2
+id="1-installation-layout-the-complete-neurominer-root-is-mandatory">1.
+Installation layout: the complete NeuroMiner root is mandatory</h2>
+<p>NM2 is a modern UI/runtime layer over the established NeuroMiner
+MATLAB backend. <strong>The NM2-only release archive is not a
+self-contained installation.</strong> Install or merge the matching NM2
+release into a complete NeuroMiner backend <strong>at one common
+root</strong>; do not merely add several unrelated directories to the
+MATLAB path and assume that the installation is complete.</p>
+<pre class="text"><code>&lt;NEUROMINER_ROOT&gt;/
+  nm.m                    MATLAB entry point
+  nk_Initialize.m         legacy initialization and path authority
+  config/                 backend configuration
+  cfiles/                 platform-dependent compiled MEX functions
+  preproc/                preprocessing and included libraries
+  trainpredict/           training/prediction and included libraries
+  gridsearch/             optimization code
+  visual/                 visualization backend
+  ...                     remaining directories of the full backend
+  NM2/
+    bridge/               MATLAB-to-Python browser bridge
+    core/                 NM2 service/scientific adapters
+    ui/                   browser workbench and pages
+    dataio/               data import and OOCV services
+    docs/                 this document</code></pre>
+<p><code>nk_Initialize</code> derives the NeuroMiner root from the
+location of the <strong>active</strong> <code>nm.m</code>
+(<code>fileparts(which('nm.m'))</code>) and adds backend and
+<code>NM2/</code> paths relative to that root. A misplaced or shadowing
+<code>nm.m</code> can cause missing-backend errors despite other
+directories already being on MATLAB's path. <strong>Do not work around
+an incorrect layout by modifying root discovery.</strong></p>
+<p>The full legacy backend contains additional dependencies and
+platform-specific MEX binaries. Maintain compatible versions of those
+components and ensure that the MEX files required by the selected
+scientific methods work on the target OS/architecture. Install optional
+imaging tools such as SPM through their established initialization
+mechanism (<code>nk_ImagingInit</code> / <code>imaging_init.mat</code>);
+putting a third-party directory on <code>PATH</code> or the MATLAB path
+is not by itself a substitute for successful NM initialization.</p>
+<h3 id="matlab-path-preflight">MATLAB path preflight</h3>
+<p>In a fresh MATLAB session, put the <strong>single complete NeuroMiner
+root</strong> on the path, then check:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode matlab"><code class="sourceCode matlab"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="va">which</span>(<span class="ss">&#39;nm&#39;</span><span class="op">,</span> <span class="ss">&#39;-all&#39;</span>)                 <span class="co">% Check for shadowed copies</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="va">which</span>(<span class="ss">&#39;nk_Initialize&#39;</span><span class="op">,</span> <span class="ss">&#39;-all&#39;</span>)      <span class="co">% Must belong to the same installation</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="va">root</span> <span class="op">=</span> <span class="va">fileparts</span>(<span class="va">which</span>(<span class="ss">&#39;nm&#39;</span>))<span class="op">;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="va">assert</span>(<span class="va">isfile</span>(<span class="va">fullfile</span>(<span class="va">root</span><span class="op">,</span><span class="ss">&#39;nk_Initialize.m&#39;</span>))<span class="op">,</span> <span class="op">...</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="ss">&#39;Incomplete installation: nk_Initialize.m is absent from the NeuroMiner root.&#39;</span>)<span class="op">;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="va">assert</span>(<span class="va">isfolder</span>(<span class="va">fullfile</span>(<span class="va">root</span><span class="op">,</span><span class="ss">&#39;NM2&#39;</span><span class="op">,</span><span class="ss">&#39;bridge&#39;</span>))<span class="op">,</span> <span class="op">...</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="ss">&#39;Incomplete installation: NM2/bridge is missing.&#39;</span>)<span class="op">;</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="va">assert</span>(<span class="va">isfolder</span>(<span class="va">fullfile</span>(<span class="va">root</span><span class="op">,</span><span class="ss">&#39;trainpredict&#39;</span>))<span class="op">,</span> <span class="op">...</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="ss">&#39;Incomplete installation: backend/trainpredict is missing.&#39;</span>)<span class="op">;</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="va">disp</span>(<span class="va">root</span>)</span></code></pre></div>
+<p>Avoid conflicting releases of <code>nm.m</code>,
+<code>nk_Initialize.m</code>, or NM2 classes on the MATLAB path. Verify
+which copy is active before reporting a startup problem.</p>
+<h2 id="2-core-runtime-prerequisites">2. Core runtime prerequisites</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Requirement</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>MATLAB</td>
+<td>A compatible licensed MATLAB release with the NeuroMiner backend and
+relevant method dependencies</td>
+<td>The 5.0081h source does not specify a formally validated minimum
+MATLAB release. Validate the actual installation and scientific/MEX
+workflows.</td>
+</tr>
+<tr class="even">
+<td>Python bridge</td>
+<td><strong>Python 3 executable</strong> accessible to the MATLAB
+process</td>
+<td>The included bridge uses Python standard-library HTTP/JSON/threading
+facilities; the bridge source itself does not require third-party
+<code>pip</code> packages. Scientific methods may have independent
+dependencies.</td>
+</tr>
+<tr class="odd">
+<td>Browser UI</td>
+<td>Supported graphical browser (Firefox, Chrome/Chromium, Edge)
+<strong>or</strong> MATLAB <code>uihtml</code> relay</td>
+<td>A browser for interacting with NM2 is distinct from a renderer used
+to generate PDFs.</td>
+</tr>
+<tr class="even">
+<td>Filesystem</td>
+<td>Writable user/session directory, output directory, and
+temporary-profile space</td>
+<td>Protect separate users' session state; account for HPC permissions,
+quotas and cleanup policies.</td>
+</tr>
+<tr class="odd">
+<td>Networking</td>
+<td>Local Python bridge on <strong><code>127.0.0.1</code></strong>, on
+an available port</td>
+<td>If MATLAB runs on a remote HPC node, the bridge's loopback listener
+is on <strong>that node</strong>. Use a site-approved graphical session
+or secure loopback tunnel; do not expose the bridge publicly.</td>
+</tr>
+<tr class="even">
+<td>Imaging/ML dependencies</td>
+<td>As required by the selected functionality</td>
+<td>SPM, FreeSurfer/surface tooling, third-party libraries, and
+platform-specific MEX availability are workflow-dependent; do not assume
+they are mandatory for every tabular analysis.</td>
+</tr>
+<tr class="odd">
+<td>PDF renderer</td>
+<td><strong>Optional for core NM2 use</strong>, required for graphical
+Report Builder PDF export</td>
+<td>HTML report export does not require an external PDF renderer.</td>
+</tr>
+</tbody>
+</table>
+<p>The browser bridge resolves Python 3 in this order:
+<code>NM_PYTHON_EXEC</code> environment variable, MATLAB's
+<code>pyenv</code> executable, then platform command names
+(<code>python3</code>/<code>python</code> on Unix,
+<code>python</code>/<code>py -3</code> on Windows). The chosen
+interpreter must be launchable via MATLAB's <code>system()</code>
+environment. It is a separate Python process, not an embedded Python
+package requirement.</p>
+<p>Common startup commands:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode matlab"><code class="sourceCode matlab"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="va">nm</span> <span class="va">ui</span>                  <span class="co">% Workbench in a selected external browser</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="va">nm</span> <span class="va">nosplash</span> <span class="va">ui</span>         <span class="co">% Same, without startup splash screen</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="va">nm</span> <span class="va">ui</span> <span class="va">html</span><span class="op">-</span><span class="va">relay</span>       <span class="co">% Embedded MATLAB uihtml transport where supported</span></span></code></pre></div>
+<p><code>html-relay</code> still uses the same Python bridge. A headless
+MATLAB/SLURM execution cannot perform a graphical <code>uihtml</code>
+interaction test; use a supported browser/desktop environment for the
+interactive acceptance gate.</p>
+<h2 id="3-graphical-report-builder-pdf-export">3. Graphical Report
+Builder PDF export</h2>
+<p><strong>A PDF is not generated by the browser used to operate
+NM2.</strong> NM2 first writes a static HTML/SVG report and then invokes
+a <strong>server-side command-line HTML-to-PDF renderer</strong> in the
+MATLAB execution environment. If conversion fails, the static HTML can
+remain available; its presence is <strong>not</strong> evidence of a
+successful PDF export.</p>
+<h3 id="implemented-pdf-renderer-families-in-50081h">Implemented PDF
+renderer families in 5.0081h</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Package or executable</th>
+<th>NM2 renderer kind</th>
+<th>Status and deployment recommendation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Chromium</strong> (native Linux package, managed binary, or
+site module)</td>
+<td><code>chromium</code></td>
+<td><strong>Preferred on Linux/HPC.</strong> Must support headless
+<code>--print-to-pdf</code> with NM2's flags. Avoid Snap wrappers in
+restricted sessions.</td>
+</tr>
+<tr class="even">
+<td><strong>Google Chrome</strong></td>
+<td><code>chromium</code></td>
+<td>Supported; use a native headless-capable executable.</td>
+</tr>
+<tr class="odd">
+<td><strong>Microsoft Edge</strong> (<code>microsoft-edge</code> /
+<code>msedge.exe</code>)</td>
+<td><code>chromium</code></td>
+<td>Supported through its Chromium-compatible headless command line;
+useful if Chrome is not installed.</td>
+</tr>
+<tr class="even">
+<td><strong>wkhtmltopdf</strong></td>
+<td><code>wkhtmltopdf</code></td>
+<td>Implemented alternative. Legacy Qt WebKit rendering may differ for
+modern CSS/SVG; verify a representative NM2 report before adoption.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Not automatically supported as PDF renderers:</strong>
+Firefox, WeasyPrint, PrinceXML, Pandoc, LibreOffice, browser print
+dialogs, and arbitrary PDF libraries. These may offer external/manual
+conversion workflows, but NM2 5.0081h has no corresponding command
+adapter. A generic <code>chrome-headless-shell</code> binary has not
+been validated against NM2's Chrome command flags and should not be
+listed as qualified merely because it renders PDFs elsewhere.</p>
+<p><code>wkhtmltopdf</code> is no longer actively maintained upstream
+(repository archived in 2023); it is an implemented compatibility
+option, <strong>not the preferred new HPC dependency</strong>. It also
+requires careful treatment of untrusted HTML and local-file
+permissions.</p>
+<h3 id="renderer-discovery-and-explicit-selection">Renderer discovery
+and explicit selection</h3>
+<p><code>NMResultsViewerReportTools.resolvePdfRenderer</code> tries, in
+order:</p>
+<ol type="1">
+<li>The export-spec override <code>PdfRenderer</code> (with optional
+<code>PdfRendererKind</code>).</li>
+<li>Platform-specific Chrome, Chromium, and Edge executables.</li>
+<li><code>wkhtmltopdf</code>.</li>
+</ol>
+<p>On Linux, the automatic <code>PATH</code> candidate order is:
+<code>google-chrome</code>, <code>google-chrome-stable</code>,
+<code>chromium</code>, <code>chromium-browser</code>,
+<code>microsoft-edge</code>, <code>microsoft-edge-stable</code>,
+<code>wkhtmltopdf</code>. <strong>Discovery checks that an executable
+path exists; it does not prove that the binary can launch or produce a
+PDF.</strong> The first discovered candidate may therefore be
+unusable.</p>
+<p>For an <strong>API-driven</strong> Report Builder export, the
+established export options permit an explicit executable path:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode matlab"><code class="sourceCode matlab"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">% Example values within an NM2 report export specification:</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="va">exportSpec</span>.<span class="va">PdfRenderer</span> <span class="op">=</span> <span class="ss">&#39;/opt/site/bin/chromium&#39;</span><span class="op">;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="va">exportSpec</span>.<span class="va">PdfRendererKind</span> <span class="op">=</span> <span class="ss">&#39;chromium&#39;</span><span class="op">;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">% Alternatively:</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">% exportSpec.PdfRenderer = &#39;/opt/site/bin/wkhtmltopdf&#39;;</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">% exportSpec.PdfRendererKind = &#39;wkhtmltopdf&#39;;</span></span></code></pre></div>
+<p>These fields identify the documented MATLAB export-spec contract;
+their presence does not imply that every browser UI exposes a
+corresponding setting. Paths above are <strong>illustrative</strong>,
+not real paths to install. If the auto-discovered Snap Chromium precedes
+a working Edge executable, configure the environment/PATH or use a
+supported explicit override where available.</p>
+<h3 id="hpc-caveat-snap-chromium-may-be-present-but-unusable">HPC
+caveat: Snap Chromium may be present but unusable</h3>
+<p>An installation such as <code>/snap/bin/chromium</code> can fail
+outside a Snap-managed cgroup:</p>
+<pre class="text"><code>... is not a snap cgroup for tag snap.chromium.chromium</code></pre>
+<p>This can happen on a login/headnode <strong>without</strong> any
+active SLURM job. In 5.0081h, NM2 skips known Snap launcher paths only
+when <code>SLURM_JOB_ID</code> is nonempty; an empty variable does
+<strong>not</strong> establish that the Snap launcher will run. Do not
+treat <code>command -v chromium</code> or exit code 0 from the lookup as
+a rendering acceptance test.</p>
+<p><strong>HPC deployment recommendation:</strong> ask the system
+administrator to provide a native, non-Snap Chromium executable or
+Microsoft Edge through a site-approved package/module or managed
+application. Confirm that its sandbox, required shared libraries, fonts,
+and writable user profile are available in the actual MATLAB execution
+context. Do not globally disable the browser sandbox to conceal a
+deployment problem.</p>
+<h3 id="executable-check-linuxhpc">Executable check (Linux/HPC)</h3>
+<p>Run the following from the <strong>same environment/account from
+which MATLAB is launched</strong>:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> exe <span class="kw">in</span> google-chrome google-chrome-stable chromium chromium-browser <span class="dt">\</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>           microsoft-edge microsoft-edge-stable wkhtmltopdf<span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> <span class="bu">command</span> <span class="at">-v</span> <span class="st">&quot;</span><span class="va">$exe</span><span class="st">&quot;</span> <span class="op">&gt;</span>/dev/null <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span><span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">printf</span> <span class="st">&#39;%-24s %s\n&#39;</span> <span class="st">&quot;</span><span class="va">$exe</span><span class="st">&quot;</span> <span class="st">&quot;</span><span class="va">$(</span><span class="bu">command</span> <span class="at">-v</span> <span class="st">&quot;</span><span class="va">$exe</span><span class="st">&quot;</span><span class="va">)</span><span class="st">&quot;</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="cf">fi</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">&#39;SLURM_JOB_ID=%s\n&#39;</span> <span class="st">&quot;</span><span class="va">${SLURM_JOB_ID</span><span class="op">:-</span>&lt;unset&gt;<span class="va">}</span><span class="st">&quot;</span></span></code></pre></div>
+<p>Next perform a <strong>real local-file-to-PDF smoke test</strong>,
+using an administrator-approved native Chromium path,
+<strong>not</strong> <code>/snap/bin/chromium</code>:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="va">RENDERER</span><span class="op">=</span>/absolute/path/to/native/chromium  <span class="co"># replace with verified path</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="va">WORK</span><span class="op">=</span><span class="va">$(</span><span class="fu">mktemp</span> <span class="at">-d</span><span class="va">)</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">&#39;%s\n&#39;</span> <span class="st">&#39;&lt;!doctype html&gt;&lt;html&gt;&lt;body&gt;&lt;h1&gt;NM2 PDF probe&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;&#39;</span> <span class="dt">\</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">&gt;</span> <span class="st">&quot;</span><span class="va">$WORK</span><span class="st">/probe.html&quot;</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;</span><span class="va">$RENDERER</span><span class="st">&quot;</span> <span class="at">--headless</span><span class="op">=</span>new <span class="at">--disable-gpu</span> <span class="at">--no-first-run</span> <span class="dt">\</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--disable-extensions</span> <span class="at">--disable-dev-shm-usage</span> <span class="dt">\</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--allow-file-access-from-files</span> <span class="at">--no-pdf-header-footer</span> <span class="dt">\</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--print-to-pdf-no-header</span> <span class="at">--user-data-dir</span><span class="op">=</span><span class="st">&quot;</span><span class="va">$WORK</span><span class="st">/profile&quot;</span> <span class="dt">\</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--print-to-pdf</span><span class="op">=</span><span class="st">&quot;</span><span class="va">$WORK</span><span class="st">/probe.pdf&quot;</span> <span class="st">&quot;file://</span><span class="va">$WORK</span><span class="st">/probe.html&quot;</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="bu">test</span> <span class="at">-s</span> <span class="st">&quot;</span><span class="va">$WORK</span><span class="st">/probe.pdf&quot;</span> <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="st">&#39;PDF probe PASS&#39;</span> <span class="kw">||</span> <span class="bu">echo</span> <span class="st">&#39;PDF probe FAIL&#39;</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Inspect the result; remove the probe directory when finished:</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="co"># rm -rf &quot;$WORK&quot;</span></span></code></pre></div>
+<p>For <code>wkhtmltopdf</code>, test the same HTML with the command
+syntax NM2 uses:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">wkhtmltopdf</span> <span class="at">--enable-local-file-access</span> <span class="at">--page-size</span> A4 <span class="dt">\</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--margin-top</span> 15mm <span class="at">--margin-right</span> 15mm <span class="dt">\</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--margin-bottom</span> 15mm <span class="at">--margin-left</span> 15mm <span class="dt">\</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;</span><span class="va">$WORK</span><span class="st">/probe.html&quot;</span> <span class="st">&quot;</span><span class="va">$WORK</span><span class="st">/probe-wkhtml.pdf&quot;</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="bu">test</span> <span class="at">-s</span> <span class="st">&quot;</span><span class="va">$WORK</span><span class="st">/probe-wkhtml.pdf&quot;</span> <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="st">&#39;PDF probe PASS&#39;</span> <span class="kw">||</span> <span class="bu">echo</span> <span class="st">&#39;PDF probe FAIL&#39;</span></span></code></pre></div>
+<p>A simple smoke test only checks process launch, local-file access and
+file creation. <strong>Final acceptance requires inspection of a
+representative NM2 report</strong> containing figures, SVG/text, page
+breaks, captions, and any required imaging panels, exported through
+Report Builder itself.</p>
+<h2 id="4-deployment-and-acceptance-matrix">4. Deployment and acceptance
+matrix</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Environment</th>
+<th>Core runtime gate</th>
+<th>Interactive UI gate</th>
+<th>PDF gate</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Local Windows/macOS/Linux workstation</td>
+<td>Full root + MATLAB backend/MEX + Python 3</td>
+<td>Normal browser or supported HTML relay</td>
+<td>Functional Chrome/Chromium/Edge or wkhtmltopdf executable</td>
+</tr>
+<tr class="even">
+<td>Remote HPC login/headnode</td>
+<td>Full root visible to MATLAB + launchable Python 3 + writable session
+space</td>
+<td>Site-approved GUI/browser session or authorized tunnel to the
+loopback bridge</td>
+<td>Native renderer functional <strong>on headnode</strong>, not just on
+user's laptop</td>
+</tr>
+<tr class="odd">
+<td>SLURM compute job</td>
+<td>Full root, process-private I/O, Python/runtime and selected
+scientific dependencies</td>
+<td>Headless service/test path; interactive uihtml not supported</td>
+<td>Renderer tested inside the job's actual constraints, modules,
+cgroups and mount namespace</td>
+</tr>
+<tr class="even">
+<td>MATLAB Online</td>
+<td>Full root and launchable Python 3 in the hosted session</td>
+<td>Validate HTML relay/graphics support in the actual MATLAB Online
+environment</td>
+<td>Renderer in the hosted MATLAB environment if supported; a browser on
+the user's PC does not supply it</td>
+</tr>
+</tbody>
+</table>
+<p>Before declaring the installation ready, verify: <strong>(a)</strong>
+one authoritative <code>nm.m</code> and complete root;
+<strong>(b)</strong> Python bridge startup; <strong>(c)</strong>
+representative end-to-end MATLAB calculation; <strong>(d)</strong>
+interactive UI in its intended deployment mode; and <strong>(e)</strong>
+a real NM2 PDF export <strong>if PDF is required</strong>. Preserve
+build ID, MATLAB release, OS/session type, renderer executable/version,
+and the renderer's stdout/stderr on failure.</p>
+<h2 id="5-common-failure-signatures">5. Common failure signatures</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Symptom</th>
+<th>Likely boundary</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>nk_Initialize</code> references missing backend
+directories</td>
+<td>Incomplete root or wrong <code>nm.m</code> selected</td>
+<td>Repair deployment layout and resolve path shadowing; do not add
+discovery fallbacks.</td>
+</tr>
+<tr class="even">
+<td>Bridge says no Python 3 was found</td>
+<td><code>NM_PYTHON_EXEC</code>, <code>pyenv</code>, or executable
+launch</td>
+<td>Provide a working Python 3 executable accessible through MATLAB
+<code>system()</code>.</td>
+</tr>
+<tr class="odd">
+<td>Browser cannot reach Python bridge on remote node</td>
+<td>Loopback-only listener / incorrect remote transport</td>
+<td>Use permitted local graphical execution or a secure loopback
+tunnel.</td>
+</tr>
+<tr class="even">
+<td>HTML report created, PDF reports <code>snap cgroup</code> error</td>
+<td>Snap launcher selected outside its runtime</td>
+<td>Install/select native Chromium or Edge; verify with a real CLI PDF
+probe.</td>
+</tr>
+<tr class="odd">
+<td>Browser-based inspection works, PDF export fails</td>
+<td>UI browser and server-side renderer are separate</td>
+<td>Check renderer probe log and command stderr in the MATLAB host
+environment.</td>
+</tr>
+<tr class="even">
+<td><code>wkhtmltopdf</code> produces incomplete styling</td>
+<td>Legacy rendering engine</td>
+<td>Prefer native Chromium/Edge and compare against source HTML.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-provenance-and-references">6. Provenance and references</h2>
+<p>NM2 source authorities inspected for this document:
+<code>nm.m</code>, <code>nk_Initialize.m</code> (legacy backend),
+<code>NM2/bridge/nm_open_ui.m</code>,
+<code>NM2/bridge/nm_ui_bridge_python_template.m</code>, and
+<code>NM2/core/NMResultsViewerReportTools.m</code>
+(<code>resolvePdfRenderer</code>, <code>pdfRendererCandidates</code>,
+<code>resolveExecutable</code>, <code>chromiumPdfCommand</code>, and
+<code>wkhtmltopdfCommand</code>).</p>
+<p>External background:</p>
+<ul>
+<li><a
+href="https://developer.chrome.com/docs/automation-and-testing/headless-cli">Chrome
+Headless command-line reference</a> — <code>--print-to-pdf</code> and
+related flags.</li>
+<li><a href="https://github.com/wkhtmltopdf/wkhtmltopdf">wkhtmltopdf
+repository</a> — upstream archive status.</li>
+<li><a href="https://wkhtmltopdf.org/status">wkhtmltopdf project
+status</a> — Qt WebKit maintenance and security limitations.</li>
+</ul>
+<p><em>This document describes source-confirmed options and deployment
+acceptance requirements. It does not install or bundle MATLAB,
+NeuroMiner legacy components, SPM, browsers, or PDF-renderer
+binaries.</em></p>
+</body>
+</html>

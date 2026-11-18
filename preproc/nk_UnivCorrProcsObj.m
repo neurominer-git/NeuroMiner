@@ -307,7 +307,9 @@ function [ Y, IN ] = CombatObj( Y, IN )
 
 if isempty(IN), eIN = true; else, eIN = false; end
 if eIN || ~isfield(IN,'G') || isempty(IN.G)
-    error('No covariates defined in parameter structure');
+    if IN.USEBATCH == 1
+        error('No covariates defined in parameter structure');
+    end
 end
 
 % ComBat expects: dat = p x n, batch = length n (prefer column), mod = n x q
@@ -357,13 +359,14 @@ if isfield(IN,'spline') && ~isempty(IN.spline)
 end
 
 % keep/remove indices in MOD space (pre-spline); also prepared in nk_GenPreprocSequence
+opts_train.keep_idx=[]; opts_train.remove_idx=[];
 if isfield(IN,'keep_idx') && ~isempty(IN.keep_idx)
     opts_train.keep_idx = IN.keep_idx;
 end
 if isfield(IN,'remove_idx') && ~isempty(IN.remove_idx)
     opts_train.remove_idx = IN.remove_idx;
 end
-
+opts_train.hasLabel = IN.MCOVARLABEL == 1;
 istrainmode = false;
 
 % -------------------- TRAIN ESTIMATORS IF NEEDED -------------------------
@@ -414,20 +417,23 @@ if ~istrainmode
 
     % Optional: pass strict_min if you want to override default (5)
     % opts_batch.strict_min = 5;
-
-    IN.estimators = combat_update_newbatch_auto( ...
-        Y(featind,:), ...  % p x n
-        G.', ...           % 1 x n, helper reshapes internally
-        M, ...
-        IN.estimators, ...
-        opts_batch);
+    if IN.USEBATCH==1
+        IN.estimators = combat_update_newbatch_auto( ...
+            Y(featind,:), ...  % p x n
+            G.', ...           % 1 x n, helper reshapes internally
+            M, ...
+            IN.estimators, ...
+            opts_batch);
+    end
 end
 
 % ---------------------- APPLY COMBAT (TEST) -----------------------
 opts_apply = struct();
 if isfield(IN,'covars_idx'),      opts_apply.covars_idx     = IN.covars_idx;      end
 if isfield(IN,'REFERENCE_LEVEL'), opts_apply.reference_level = IN.REFERENCE_LEVEL; end
+if isfield(IN,'spline') && ~isempty(IN.spline), opts_apply.spline = IN.spline; end
 opts_apply.useCovBat = isfield(IN,'COVBAT_MODE') && IN.COVBAT_MODE==2;
+opts_apply.hasLabel = IN.MCOVARLABEL == 1;
 
 try
     Y(featind,:) = combat_new(Y(featind,:), G, M, IN.estimators, opts_apply);

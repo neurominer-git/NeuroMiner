@@ -1,4 +1,4 @@
-function nm(varargin)
+function varargout = nm(varargin)
 %
 % NeuroMiner Startup and Main Interface Function
 %
@@ -19,6 +19,14 @@ function nm(varargin)
 % nm nosplash
 % nm nosplash expert
 % nm expert
+% nm nosplash expert ui NM_struct
+% nm nosplash expert ui browser-edge NM_struct
+% nm ui html-relay
+%
+% A named NM structure argument is resolved from the MATLAB base workspace
+% and written back to the same variable when NeuroMiner closes. Supported
+% UI targets are browser-default, browser-edge, browser-chrome,
+% browser-firefox and html-relay.
 % =========================================================================
 % nm.m implements three different analysis stages;
 %
@@ -58,31 +66,43 @@ function nm(varargin)
 % User can choose to use NM in expert mode by invoking nm with the 'expert'
 % option.
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (c) Nikolaos Koutsouleris, 10/2025
-global EXPERT DEV OCTAVE NM
+% (c) Nikolaos Koutsouleris, 06/2026
+global EXPERT DEV OCTAVE NM UI
 
-nosplash  = false; EXPERT = false; OCTAVE = false; DEV = false;
-% Initialize NM
-% Show splash
-if exist('varargin','var')
-    for i=1:numel(varargin)
-        switch varargin{i}
-            case 'nosplash'
-                nosplash = true;
-            case 'expert'
-                EXPERT = true;
-            case 'octave'
-                OCTAVE = true;
-            case 'dev'
-                DEV = true;
-        end
-    end
+if nargout > 1
+    error('nm:TooManyOutputs', 'nm returns at most one updated NM structure.');
 end
-
-if ~nosplash, splash('splash','png',1500); end
-obj = onCleanup(@()QuitNeuroMiner());
+startup = localParseStartupArguments(varargin);
+nosplash = startup.nosplash;
+EXPERT = startup.expert;
+OCTAVE = startup.octave;
+DEV = startup.dev;
+useBrowserUI = startup.ui;
+if startup.hasNMInput
+    NM = startup.NMInput;
+end
 init = struct('all', 1, 'addrootpath', 0, 'addDRpath', 0, 'addLIBSVMpath', 0, 'addMIpath', 0, 'addLIBLINpath', 0, 'addMikeRVMpath', 0);
 nk_Initialize(init);
+
+UI = localUIContext(useBrowserUI, DEV, ...
+    ternaryUI(useBrowserUI, 'workbench', 'legacy_cli'), startup.uiTarget);
+
+if ~nosplash && ~useBrowserUI, splash('splash','png',1500); end
+obj = onCleanup(@()QuitNeuroMiner(startup.writeBackVariable)); 
+
+% In development mode, the browser-based NM 2.0 workbench is the main
+% interface. The legacy command-line menu below is retained for ordinary
+% non-UI operation only and should not be entered by `nm dev`.
+if localUIEnabled(UI)
+    [~, startupSplashToken] = fileparts(tempname);
+    ctx = struct('materializeTemplateOnClose', true, ...
+        'uiTarget', UI.uiTarget, ...
+        'showStartupSplash', ~nosplash, ...
+        'startupSplashToken', startupSplashToken);
+    NM = NMAppUI.openWorkbench(NM, [], ctx, [], true);
+    if nargout == 1, varargout{1} = localCleanSessionNM(NM); end
+    return
+end
 
 % Loop into the main interface as long as the user does not decide to quit
 % or an error occurs.
@@ -101,7 +121,7 @@ if ~isempty(ERR)
         fprintf('\nIn %s, name: %s, line: %g.', ...
             ERR.stack(i).file,ERR.stack(i).name,ERR.stack(i).line)
         switch ERR.stack(i).name
-            case {'nk_PreprocessPrep','nk_MLOptimizerPrep','nk_VisModelsPrep','nk_OOCVPrep'}
+            case {'nk_PreprocessPrep','nk_MLOptimizerPrep','nk_VisModelsPrep', 'nk_MLInterpreterPrep', 'nk_OOCVPrep'}
                 if isfield(NM,'runtime')
                     nk_NMLogFileManager('add_entry', NM, NM.analysis{NM.runtime.curanal}, 'nm', ERR);
                 end
@@ -113,6 +133,7 @@ if ~isempty(ERR)
     if isfield(NM,'runtime'), NM=rmfield(NM,'runtime'); end
 end
 
+if nargout == 1, varargout{1} = localCleanSessionNM(NM); end
 end
 
 function [ERR, action] = nm_interface
@@ -153,9 +174,7 @@ try
                 if ~s.analyses_locked
                     menutitle = [menutitle ' [ MODEL DISCOVERY MODE ]'];
                     mn_str = 'Inspect data used for model discovery and cross-validation|'; mn_act = 8;
-
                     mn_str = [ mn_str 'Set up NM parameter workspace|' ]; mn_act = [ mn_act 2 ];
-
                     if s.analyses_exist
                         mn_str = [ mn_str ...
                             'Manage analyses|' ...
@@ -461,25 +480,152 @@ end
 
 end
 
-function QuitNeuroMiner()
-global NM
+
+function startup = localParseStartupArguments(args)
+startup = struct( ...
+    'nosplash', false, ...
+    'expert', false, ...
+    'octave', false, ...
+    'dev', false, ...
+    'ui', false, ...
+    'uiTarget', 'browser-default', ...
+    'hasNMInput', false, ...
+    'NMInput', struct(), ...
+    'writeBackVariable', 'NM');
+namedInput = '';
+uiTargetSpecified = false;
+
+for i = 1:numel(args)
+    value = args{i};
+    if isstruct(value)
+        if startup.hasNMInput || ~isempty(namedInput)
+            error('nm:MultipleNMInputs', ...
+                'Specify exactly one NM structure input.');
+        end
+        startup.hasNMInput = true;
+        startup.NMInput = value;
+        continue
+    end
+    if ~(ischar(value) || (isstring(value) && isscalar(value)))
+        error('nm:UnsupportedStartupArgument', ...
+            'Startup argument %d has unsupported class %s.', i, class(value));
+    end
+
+    token = strtrim(char(value));
+    option = lower(token);
+    switch option
+        case 'nosplash'
+            startup.nosplash = true;
+        case 'expert'
+            startup.expert = true;
+        case 'octave'
+            startup.octave = true;
+        case 'dev'
+            startup.dev = true;
+        case 'ui'
+            startup.ui = true;
+        case {'browser-default','browser-edge','browser-chrome','browser-firefox','html-relay'}
+            if uiTargetSpecified && ~strcmp(startup.uiTarget, option)
+                error('nm:MultipleUITargets', ...
+                    'Specify exactly one UI target.');
+            end
+            startup.uiTarget = option;
+            uiTargetSpecified = true;
+        otherwise
+            if ~isvarname(token)
+                error('nm:UnknownStartupArgument', ...
+                    'Unknown NeuroMiner startup argument: %s', token);
+            end
+            if ~isempty(namedInput) || startup.hasNMInput
+                error('nm:MultipleNMInputs', ...
+                    'Specify exactly one NM structure input.');
+            end
+            namedInput = token;
+    end
+end
+
+if uiTargetSpecified && ~startup.ui
+    error('nm:UITargetRequiresUI', ...
+        'A browser-* or html-relay target requires the ui startup option.');
+end
+
+if ~isempty(namedInput)
+    existsInBase = evalin('base', sprintf('exist(''%s'',''var'')', namedInput));
+    if existsInBase ~= 1
+        error('nm:NMInputNotFound', ...
+            'The base-workspace variable %s does not exist.', namedInput);
+    end
+    inputNM = evalin('base', namedInput);
+    if ~isstruct(inputNM)
+        error('nm:InvalidNMInput', ...
+            'The base-workspace variable %s must contain a struct.', namedInput);
+    end
+    startup.hasNMInput = true;
+    startup.NMInput = inputNM;
+    startup.writeBackVariable = namedInput;
+end
+end
+
+
+function out = ternaryUI(cond, a, b)
+if cond
+    out = a;
+else
+    out = b;
+end
+end
+
+function ui = localUIContext(enabled, devMode, source, uiTarget)
+if nargin < 1 || isempty(enabled), enabled = false; end
+if nargin < 2 || isempty(devMode), devMode = false; end
+if nargin < 3 || isempty(source), source = 'legacy_cli'; end
+if nargin < 4 || isempty(uiTarget), uiTarget = 'browser-default'; end
+ui = struct('enabled',logical(enabled), ...
+    'mode', ternaryUI(logical(enabled),'browser','cli'), ...
+    'appUI', logical(enabled), ...
+    'bridgeEnabled', logical(enabled), ...
+    'devMode', logical(devMode), ...
+    'source', char(source), ...
+    'uiTarget', char(uiTarget));
+end
+
+function tf = localUIEnabled(ui)
+tf = isstruct(ui) && isfield(ui,'appUI') && logical(ui.appUI);
+end
+
+function tf = localUIBridgeEnabled(ui)
+tf = isstruct(ui) && isfield(ui,'bridgeEnabled') && logical(ui.bridgeEnabled);
+end
+
+function cleanNM = localCleanSessionNM(NM)
+cleanNM = NM;
+if isstruct(cleanNM) && isfield(cleanNM,'runtime')
+    cleanNM = rmfield(cleanNM,'runtime');
+end
+end
+
+function QuitNeuroMiner(writeBackVariable)
+global NM UI
+
+if nargin < 1 || isempty(writeBackVariable), writeBackVariable = 'NM'; end
 
 fprintf('\n'); %clc;
 fprintf('Good Bye... \n');
+if localUIBridgeEnabled(UI)
+    try
+        NMUIBridgeTools.killActiveBridges('NeuroMiner was interrupted from the MATLAB command window. The NM2 UI bridge is shutting down.');
+    catch ME
+        fprintf('\n[nm] Could not notify active NM2 UI bridge(s): %s\n', ME.message);
+    end
+end
 delete(findobj('Tag','PrintCVBarsBin'));
-%delete(findobj('Name','NM Results Manager'));
 delete(findobj('Name','Probabilistic Feature Exraction'));
 clear CALIBAVAIL OOCVAVAIL
-if isfield(NM,'runtime'), NM = rmfield(NM,'runtime'); end
-NMx = NM;
+NMx = localCleanSessionNM(NM);
 clearvars -global NM st
-assignin('base', 'NM', NMx)
+assignin('base', char(writeBackVariable), NMx)
 if exist(fullfile(pwd,'temp.nii'),'file'); delete('temp.nii'); end
 if exist('tempMLI.nii','file'); delete('tempMLI.nii'); end
 try warning('off','last'); catch; end
-% this does not work, but I wanted to implement sth that closes the
-% Result Viewer as well as the MLI Viewer when NM is closed
 
-%if isfield(handles,'figure1'); handles.figure1.delete; end
-%if isfield(handles, 'MLIapp'); handles.MLIapp.delete; end
 end

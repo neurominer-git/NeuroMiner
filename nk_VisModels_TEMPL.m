@@ -195,6 +195,7 @@ paramfl = struct('use_exist',   loadparam, ...
 %Pre-smooth data, if needed, to save computational time
 inp.ll=inp.GridAct';inp.ll=find(inp.ll(:));
 inp = nk_PerfInitSpatial(analysis, inp, paramfl);
+CVPOS.GridAct = GridAct;
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%% PROCESSING %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -904,7 +905,7 @@ for f=1:ix % Loop through CV2 permutations
                                                 nclass, ngroups, nperms, ...
                                                 operm, ofold, MODEFL, RFE);
         end
-        if isfield(inp,'issmoothed'), inp.issmoothed = false; end
+        if isfield(inp,'isSpatialPreprocessed'), inp.isSpatialPreprocessed = false; end
         ll=ll+1; clear GDFEAT
         clear I1 
     end

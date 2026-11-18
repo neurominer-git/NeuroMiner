@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>NeuroMiner 2 Results Viewer: connectivity viewspace methods</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#neurominer-2-results-viewer-connectivity-viewspace-methods" id="toc-neurominer-2-results-viewer-connectivity-viewspace-methods">NeuroMiner
+2 Results Viewer: connectivity viewspace methods</a>
+<ul>
+<li><a href="#1-purpose-and-conceptual-position" id="toc-1-purpose-and-conceptual-position">1. Purpose and conceptual
+position</a></li>
+<li><a href="#2-authoritative-connectivity-data" id="toc-2-authoritative-connectivity-data">2. Authoritative connectivity
+data</a></li>
+<li><a href="#3-the-selected-edge-value" id="toc-3-the-selected-edge-value">3. The selected edge value</a></li>
+</ul></li>
+<li><a href="#part-i--shared-display-filtering" id="toc-part-i--shared-display-filtering">Part I — Shared display
+filtering</a>
+<ul>
+<li><a href="#4-display-thresholding-occurs-before-graph-sparsification" id="toc-4-display-thresholding-occurs-before-graph-sparsification">4.
+Display thresholding occurs before graph sparsification</a></li>
+<li><a href="#5-shared-colour-range-and-opacity-controls" id="toc-5-shared-colour-range-and-opacity-controls">5. Shared colour,
+range and opacity controls</a></li>
+</ul></li>
+<li><a href="#part-ii--connectivity-matrix" id="toc-part-ii--connectivity-matrix">Part II — Connectivity matrix</a>
+<ul>
+<li><a href="#6-roi-by-roi-matrix" id="toc-6-roi-by-roi-matrix">6.
+ROI-by-ROI matrix</a>
+<ul>
+<li><a href="#matrix-tuning" id="toc-matrix-tuning">Matrix
+tuning</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#part-iii--2-d-connectivity-network" id="toc-part-iii--2-d-connectivity-network">Part III — 2-D connectivity
+network</a>
+<ul>
+<li><a href="#7-graph-sparsification" id="toc-7-graph-sparsification">7.
+Graph sparsification</a>
+<ul>
+<li><a href="#71-strongest-per-node" id="toc-71-strongest-per-node">7.1
+Strongest per node</a></li>
+<li><a href="#72-fixed-density" id="toc-72-fixed-density">7.2 Fixed
+density</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#-e_textdisplay" id="toc--e_textdisplay">$$
+E_{\text{display}}</a>
+<ul>
+<li><a href="#73-absolute-cutoff" id="toc-73-absolute-cutoff">7.3
+Absolute cutoff</a></li>
+<li><a href="#74-selected-edge-pinning" id="toc-74-selected-edge-pinning">7.4 Selected-edge pinning</a></li>
+<li><a href="#8-2-d-topology-layout" id="toc-8-2-d-topology-layout">8.
+2-D topology layout</a>
+<ul>
+<li><a href="#81-initialization" id="toc-81-initialization">8.1
+Initialization</a></li>
+<li><a href="#82-repulsion" id="toc-82-repulsion">8.2 Repulsion</a></li>
+<li><a href="#83-edge-attraction" id="toc-83-edge-attraction">8.3 Edge
+attraction</a></li>
+<li><a href="#84-stabilization" id="toc-84-stabilization">8.4
+Stabilization</a></li>
+<li><a href="#85-final-normalization" id="toc-85-final-normalization">8.5 Final normalization</a></li>
+</ul></li>
+<li><a href="#9-2-d-grouped-ring-layout" id="toc-9-2-d-grouped-ring-layout">9. 2-D grouped-ring layout</a>
+<ul>
+<li><a href="#91-available-group-definitions" id="toc-91-available-group-definitions">9.1 Available group
+definitions</a></li>
+<li><a href="#92-mni-spatial-grouping" id="toc-92-mni-spatial-grouping">9.2 MNI spatial grouping</a></li>
+<li><a href="#93-within-group-ordering" id="toc-93-within-group-ordering">9.3 Within-group ordering</a></li>
+<li><a href="#94-group-sectors" id="toc-94-group-sectors">9.4 Group
+sectors</a></li>
+<li><a href="#95-edge-routing" id="toc-95-edge-routing">9.5 Edge
+routing</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#part-iv--node-tuning-in-the-2-d-and-3-d-network" id="toc-part-iv--node-tuning-in-the-2-d-and-3-d-network">Part IV — Node
+tuning in the 2-D and 3-D network</a>
+<ul>
+<li><a href="#10-node-size-metric" id="toc-10-node-size-metric">10.
+Node-size metric</a></li>
+</ul></li>
+<li><a href="#-textabsolute-strength" id="toc--textabsolute-strength">$$
+\text{absolute strength}</a>
+<ul>
+<li><a href="#11-relative-versus-absolute-node-scaling" id="toc-11-relative-versus-absolute-node-scaling">11. Relative versus
+absolute node scaling</a>
+<ul>
+<li><a href="#111-relative-scaling" id="toc-111-relative-scaling">11.1
+Relative scaling</a></li>
+<li><a href="#112-absolute-scaling" id="toc-112-absolute-scaling">11.2
+Absolute scaling</a></li>
+</ul></li>
+<li><a href="#12-density-aware-2-d-node-size" id="toc-12-density-aware-2-d-node-size">12. Density-aware 2-D node
+size</a></li>
+</ul></li>
+<li><a href="#part-v--edge-tuning" id="toc-part-v--edge-tuning">Part V —
+Edge tuning</a>
+<ul>
+<li><a href="#13-edge-colour" id="toc-13-edge-colour">13. Edge
+colour</a></li>
+<li><a href="#14-edge-opacity" id="toc-14-edge-opacity">14. Edge
+opacity</a></li>
+</ul></li>
+<li><a href="#-alpha_e" id="toc--alpha_e">$$ \alpha_e^{*}</a>
+<ul>
+<li><a href="#15-edge-width-scaling" id="toc-15-edge-width-scaling">15.
+Edge-width scaling</a></li>
+</ul></li>
+<li><a href="#part-vi--3-d-glass-brain-representation" id="toc-part-vi--3-d-glass-brain-representation">Part VI — 3-D
+glass-brain representation</a>
+<ul>
+<li><a href="#16-scientific-coordinate-requirement" id="toc-16-scientific-coordinate-requirement">16. Scientific coordinate
+requirement</a></li>
+<li><a href="#17-3-d-node-objects" id="toc-17-3-d-node-objects">17. 3-D
+node objects</a></li>
+<li><a href="#18-3-d-edge-objects" id="toc-18-3-d-edge-objects">18. 3-D
+edge objects</a></li>
+</ul></li>
+<li><a href="#-r_e3d" id="toc--r_e3d">$$ R_e^{3D}</a>
+<ul>
+<li><a href="#19-shared-graph-tuning-between-2-d-and-3-d" id="toc-19-shared-graph-tuning-between-2-d-and-3-d">19. Shared graph
+tuning between 2-D and 3-D</a></li>
+</ul></li>
+<li><a href="#part-vii--structural-anatomy-in-the-glass-brain" id="toc-part-vii--structural-anatomy-in-the-glass-brain">Part VII —
+Structural anatomy in the glass brain</a>
+<ul>
+<li><a href="#20-structural-template" id="toc-20-structural-template">20. Structural template</a></li>
+<li><a href="#21-anatomy-appearance" id="toc-21-anatomy-appearance">21.
+Anatomy appearance</a></li>
+</ul></li>
+<li><a href="#part-viii--lighting-and-3-d-appearance" id="toc-part-viii--lighting-and-3-d-appearance">Part VIII — Lighting and
+3-D appearance</a>
+<ul>
+<li><a href="#22-lighting-model" id="toc-22-lighting-model">22. Lighting
+model</a>
+<ul>
+<li><a href="#what-lighting-affects" id="toc-what-lighting-affects">What
+lighting affects</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#part-ix--camera-selection-and-interaction" id="toc-part-ix--camera-selection-and-interaction">Part IX — Camera,
+selection and interaction</a>
+<ul>
+<li><a href="#23-camera" id="toc-23-camera">23. Camera</a></li>
+<li><a href="#24-hover-and-selection" id="toc-24-hover-and-selection">24. Hover and selection</a></li>
+</ul></li>
+<li><a href="#part-x--labels-and-node-grouping" id="toc-part-x--labels-and-node-grouping">Part X — Labels and node
+grouping</a>
+<ul>
+<li><a href="#25-2-d-label-management" id="toc-25-2-d-label-management">25. 2-D label management</a></li>
+</ul></li>
+<li><a href="#part-xi--relation-to-graph-statistics" id="toc-part-xi--relation-to-graph-statistics">Part XI — Relation to
+graph statistics</a>
+<ul>
+<li><a href="#26-graph-statistics-in-the-connectivity-viewspace" id="toc-26-graph-statistics-in-the-connectivity-viewspace">26. Graph
+statistics in the connectivity viewspace</a></li>
+</ul></li>
+<li><a href="#part-xii--how-the-connectivity-graph-differs-from-relational-feature-graphs" id="toc-part-xii--how-the-connectivity-graph-differs-from-relational-feature-graphs">Part
+XII — How the connectivity graph differs from relational feature
+graphs</a>
+<ul>
+<li><a href="#27-side-by-side-comparison" id="toc-27-side-by-side-comparison">27. Side-by-side comparison</a></li>
+</ul></li>
+<li><a href="#part-xiii--recommended-tuning-strategy" id="toc-part-xiii--recommended-tuning-strategy">Part XIII — Recommended
+tuning strategy</a>
+<ul>
+<li><a href="#28-a-practical-sequence-for-participants" id="toc-28-a-practical-sequence-for-participants">28. A practical
+sequence for participants</a></li>
+</ul></li>
+<li><a href="#part-xiv--important-interpretation-cautions" id="toc-part-xiv--important-interpretation-cautions">Part XIV —
+Important interpretation cautions</a>
+<ul>
+<li><a href="#29-what-should-not-be-inferred" id="toc-29-what-should-not-be-inferred">29. What should not be
+inferred</a>
+<ul>
+<li><a href="#291-a-large-node-is-not-automatically-an-important-predictor" id="toc-291-a-large-node-is-not-automatically-an-important-predictor">29.1
+A large node is not automatically an important predictor</a></li>
+<li><a href="#292-a-thick-edge-is-not-automatically-a-raw-strong-connection" id="toc-292-a-thick-edge-is-not-automatically-a-raw-strong-connection">29.2
+A thick edge is not automatically a raw strong connection</a></li>
+<li><a href="#293-2-d-topology-distance-is-not-anatomical-distance" id="toc-293-2-d-topology-distance-is-not-anatomical-distance">29.3 2-D
+topology distance is not anatomical distance</a></li>
+<li><a href="#294-mni-spatial-groups-are-display-derived-groups" id="toc-294-mni-spatial-groups-are-display-derived-groups">29.4 MNI
+spatial groups are display-derived groups</a></li>
+<li><a href="#295-sparsification-materially-changes-graph-topology" id="toc-295-sparsification-materially-changes-graph-topology">29.5
+Sparsification materially changes graph topology</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#part-xv--short-explanation-for-the-hackathon" id="toc-part-xv--short-explanation-for-the-hackathon">Part XV — Short
+explanation for the hackathon</a>
+<ul>
+<li><a href="#30-60-second-explanation" id="toc-30-60-second-explanation">30. 60-second explanation</a></li>
+</ul></li>
+<li><a href="#part-xvi--methods-text-for-reports-or-publications" id="toc-part-xvi--methods-text-for-reports-or-publications">Part XVI —
+Methods text for reports or publications</a>
+<ul>
+<li><a href="#31-compact-methods-paragraph" id="toc-31-compact-methods-paragraph">31. Compact methods
+paragraph</a></li>
+<li><a href="#32-more-explicit-methods-paragraph" id="toc-32-more-explicit-methods-paragraph">32. More explicit methods
+paragraph</a></li>
+<li><a href="#33-one-line-memory-aid" id="toc-33-one-line-memory-aid">33. One-line memory aid</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="neurominer-2-results-viewer-connectivity-viewspace-methods">NeuroMiner
+2 Results Viewer: connectivity viewspace methods</h1>
+<p><strong>Methodological note for the NM2 Results Viewer</strong><br />
+<strong>Implementation basis:</strong> pre-hackathon NM2 codebase
+supplied on 2026-09-06 (<code>NM_4.9995</code>)<br />
+<strong>Scope:</strong> connectivity matrix, 2-D topology/grouped-ring
+network, 3-D glass-brain representation, graph sparsification, node/edge
+tuning, grouping, anatomy and lighting.</p>
+<hr />
+<h2 id="1-purpose-and-conceptual-position">1. Purpose and conceptual
+position</h2>
+<p>The NM2 connectivity viewspace is designed for feature spaces in
+which each model feature already represents a <strong>connection between
+two retained nodes/ROIs</strong>.</p>
+<p>This is closely related to the Results Viewer relational-analysis
+tools, but the starting point is different:</p>
+<pre class="text"><code>Relational analysis of tabular-like features
+--------------------------------------------
+ordinary features
+      |
+feature-by-feature relation matrix
+      |
+graph is constructed from relations among features
+
+
+Connectivity viewspace
+----------------------
+ROIs / nodes + predefined connectivity edges
+      |
+each model feature already corresponds to one edge
+      |
+the selected Results Viewer feature statistic is mapped
+onto the pre-existing connectivity graph</code></pre>
+<p>This distinction is essential.</p>
+<p>In the connectivity viewspace, NM2 does <strong>not</strong> infer
+which pairs of ROIs are connected. The retained node identities, edge
+identities, edge order, directed/undirected status and node coordinates
+are established by DataIO and persisted in the connectivity descriptor.
+The Results Viewer maps the selected model-feature statistic back onto
+that fixed edge space.</p>
+<p>Consequently:</p>
+<blockquote>
+<p><strong>The connectivity graph is a representation of model-result
+values defined on an already established connectivity topology. It is
+not a graph inferred from a new correlation analysis performed in the
+Results Viewer.</strong></p>
+</blockquote>
+<p>The three principal connectivity representations are:</p>
+<ol type="1">
+<li><strong>ROI-by-ROI matrix</strong>;</li>
+<li><strong>2-D node-link network</strong>, with topology or
+grouped-ring layout;</li>
+<li><strong>3-D glass-brain network</strong>, using retained MNI/world
+coordinates.</li>
+</ol>
+<p>All three use the same persisted edge identities and the same
+selected Results Viewer measure.</p>
+<hr />
+<h2 id="2-authoritative-connectivity-data">2. Authoritative connectivity
+data</h2>
+<p>For one connectivity modality, the Results Viewer consumes the
+persisted DataIO connectivity descriptor, including:</p>
+<ul>
+<li>retained node identities;</li>
+<li>retained node labels;</li>
+<li>retained node coordinates;</li>
+<li>coordinate source, space and units;</li>
+<li>retained edge index;</li>
+<li>edge names;</li>
+<li>matrix type: directed or undirected;</li>
+<li>triangle/vectorization convention;</li>
+<li>diagonal inclusion convention.</li>
+</ul>
+<p>The Results Viewer also obtains the selected feature-value vector
+through the shared Model Feature Inspection resolver.</p>
+<p>There is an exact positional identity:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">feature position</mtext><mo>=</mo><mtext mathvariant="normal">persisted connectivity edge position</mtext><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\text{feature position}=\text{persisted connectivity edge position}.
+</annotation></semantics></math></p>
+<p>If the persisted descriptor contains
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>E</mi><annotation encoding="application/x-tex">E</annotation></semantics></math>
+edges, the selected Results Viewer vector must contain exactly
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>E</mi><annotation encoding="application/x-tex">E</annotation></semantics></math>
+feature values. A mismatch is treated as a provenance-integrity error.
+The viewer does not guess, remap or reconstruct a different edge
+space.</p>
+<hr />
+<h2 id="3-the-selected-edge-value">3. The selected edge value</h2>
+<p>Let</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>e</mi></msub><annotation encoding="application/x-tex">
+w_e
+</annotation></semantics></math></p>
+<p>denote the selected Results Viewer feature statistic for connectivity
+edge
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>e</mi><annotation encoding="application/x-tex">e</annotation></semantics></math>.</p>
+<p>The scientific meaning of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>e</mi></msub><annotation encoding="application/x-tex">w_e</annotation></semantics></math>
+depends on the selected Results Viewer measure. It could, for example,
+be a model-derived feature statistic. The connectivity renderer does
+<strong>not</strong> automatically reinterpret it as a raw connectivity
+coefficient or Pearson correlation.</p>
+<p>This point is important because the same graph machinery is used for
+multiple Results Viewer measures.</p>
+<blockquote>
+<p><strong>Graph topology comes from DataIO. Edge weights shown in the
+viewspace come from the currently selected Results Viewer
+measure.</strong></p>
+</blockquote>
+<hr />
+<h1 id="part-i--shared-display-filtering">Part I — Shared display
+filtering</h1>
+<h2 id="4-display-thresholding-occurs-before-graph-sparsification">4.
+Display thresholding occurs before graph sparsification</h2>
+<p>Before the 2-D or 3-D graph is constructed, every persisted edge
+value is passed through the same canonical Results Viewer
+display-semantics machinery used by imaging representations.</p>
+<p>An edge is eligible for network rendering only if:</p>
+<ul>
+<li>its value is finite/non-missing;</li>
+<li>the canonical display-threshold contract classifies it as
+included;</li>
+<li>its value is non-zero.</li>
+</ul>
+<p>Thus the graph construction sequence is:</p>
+<pre class="text"><code>Persisted connectivity edges
+        |
+        v
+Selected Results Viewer measure
+        |
+        v
+Canonical display threshold
+        |
+        +--&gt; missing values removed
+        +--&gt; subthreshold values removed
+        +--&gt; exact zeros removed
+        |
+        v
+Threshold-eligible non-zero edge universe
+        |
+        v
+Graph sparsification</code></pre>
+<p>The user therefore has <strong>two conceptually separate
+filters</strong>:</p>
+<ol type="1">
+<li>the shared Results Viewer feature threshold;</li>
+<li>the graph-specific sparsification rule.</li>
+</ol>
+<p>Changing the colour scale alone does not change graph membership.
+Changing the feature threshold can change the eligible edge universe and
+therefore can change the graph.</p>
+<hr />
+<h2 id="5-shared-colour-range-and-opacity-controls">5. Shared colour,
+range and opacity controls</h2>
+<p>The connectivity matrix, 2-D network and 3-D glass brain share the
+canonical Results Viewer display state.</p>
+<p>The user can tune:</p>
+<ul>
+<li>feature threshold;</li>
+<li>colour gradient;</li>
+<li>display range;</li>
+<li>feature opacity.</li>
+</ul>
+<p>Available display-range modes include:</p>
+<ul>
+<li>robust polarity-wise scaling;</li>
+<li>full finite data range;</li>
+<li>symmetric absolute scaling;</li>
+<li>manual range.</li>
+</ul>
+<p>These settings are presentation/display-semantic controls. They do
+not redefine DataIO edge identity.</p>
+<p>For the network views, edge colour is resolved directly from the
+selected edge value
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>e</mi></msub><annotation encoding="application/x-tex">w_e</annotation></semantics></math>
+through the shared colour mapping. Thus positive and negative values can
+retain their polarity-specific colour semantics while graph
+sparsification can still operate on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>w</mi><mi>e</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|w_e|</annotation></semantics></math>.</p>
+<hr />
+<h1 id="part-ii--connectivity-matrix">Part II — Connectivity matrix</h1>
+<h2 id="6-roi-by-roi-matrix">6. ROI-by-ROI matrix</h2>
+<p>The matrix view reconstructs the persisted edge vector into an
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">N\times N</annotation></semantics></math>
+node matrix using the stored <code>edgeIndex</code>.</p>
+<p>For each persisted edge
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">e=(i,j)</annotation></semantics></math>,</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>M</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><msub><mi>w</mi><mi>e</mi></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+M_{ij}=w_e.
+</annotation></semantics></math></p>
+<p>For an undirected connectivity definition, the corresponding mirrored
+matrix element is also populated. For a directed definition, source and
+target orientation are retained.</p>
+<p>The axes are:</p>
+<ul>
+<li><strong>rows:</strong> source ROI;</li>
+<li><strong>columns:</strong> target ROI.</li>
+</ul>
+<p>The viewer separately tracks:</p>
+<ul>
+<li>cells corresponding to retained edges;</li>
+<li>missing values;</li>
+<li>exact zero values;</li>
+<li>diagonal cells.</li>
+</ul>
+<p>The matrix does not create additional edges. It is a square
+representation of the same persisted vectorized edge space used by the
+network views.</p>
+<h3 id="matrix-tuning">Matrix tuning</h3>
+<p>The matrix supports:</p>
+<ul>
+<li>shared threshold/colour/display-range/opacity controls;</li>
+<li>zoom from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>×</mo></mrow><annotation encoding="application/x-tex">1\times</annotation></semantics></math>
+to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>8</mn><mo>×</mo></mrow><annotation encoding="application/x-tex">8\times</annotation></semantics></math>;</li>
+<li>exact node labels;</li>
+<li>exact edge selection and cross-view identity.</li>
+</ul>
+<p>The matrix is particularly useful when the goal is precise pairwise
+inspection rather than graph topology.</p>
+<hr />
+<h1 id="part-iii--2-d-connectivity-network">Part III — 2-D connectivity
+network</h1>
+<h2 id="7-graph-sparsification">7. Graph sparsification</h2>
+<p>A dense connectivity edge set can become visually unreadable. NM2
+therefore constructs a sparse displayed graph from the
+threshold-eligible non-zero edges.</p>
+<p>All graph-sparsification rules are based on</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>w</mi><mi>e</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+|w_e|.
+</annotation></semantics></math></p>
+<p>Three modes are available.</p>
+<h3 id="71-strongest-per-node">7.1 Strongest per node</h3>
+<p>This is the default mode.</p>
+<p>For each node, NM2 retains the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+incident edges with the largest absolute magnitude.</p>
+<p>Default:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><mn>3</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+K=3.
+</annotation></semantics></math></p>
+<p>For undirected graphs, all incident edges are considered
+together.</p>
+<p>For directed graphs, NM2 independently retains:</p>
+<ul>
+<li>the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+strongest outgoing edges;</li>
+<li>the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+strongest incoming edges.</li>
+</ul>
+<p>The union of these selections is retained.</p>
+<p>A global maximum edge count is then applied.</p>
+<p>Default:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>E</mi><mo>max</mo></msub><mo>=</mo><mn>500</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+E_{\max}=500.
+</annotation></semantics></math></p>
+<p>This mode is useful when the goal is to preserve some local
+representation of every node rather than allowing a few globally
+dominant regions to consume the entire edge budget.</p>
+<h3 id="72-fixed-density">7.2 Fixed density</h3>
+<p>Eligible edges are ranked by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>w</mi><mi>e</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|w_e|</annotation></semantics></math>,
+and the strongest fraction is retained.</p>
+<p>If the requested density is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>,</p>
+<h1 id="-e_textdisplay">$$ E_{\text{display}}</h1>
+<p>\left\lceil \rho E_{\text{eligible}} \right\rceil , $$</p>
+<p>for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ρ</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\rho&gt;0</annotation></semantics></math>.</p>
+<p>Default:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ρ</mi><mo>=</mo><mn>0.03</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\rho=0.03.
+</annotation></semantics></math></p>
+<p>Thus the default fixed-density setting retains approximately the
+strongest 3% of threshold-eligible non-zero edges.</p>
+<h3 id="73-absolute-cutoff">7.3 Absolute cutoff</h3>
+<p>An edge is retained when</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>w</mi><mi>e</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><mo>≥</mo><mi>c</mi><mo>,</mo></mrow><annotation encoding="application/x-tex">
+|w_e|\ge c,
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+is the user-specified absolute cutoff.</p>
+<p>This cutoff is expressed in the units of the currently selected
+Results Viewer measure.</p>
+<p>It should therefore not be interpreted as a correlation threshold
+unless the selected measure itself is a correlation coefficient.</p>
+<h3 id="74-selected-edge-pinning">7.4 Selected-edge pinning</h3>
+<p>If the user has explicitly selected a persisted edge in another
+connectivity representation, NM2 can keep that exact edge visible even
+if it would otherwise fall outside the current sparsification
+result.</p>
+<p>This preserves cross-view selection identity. It means that a
+selected graph may temporarily contain one explicitly pinned edge in
+addition to the ordinary sparsification result.</p>
+<hr />
+<h2 id="8-2-d-topology-layout">8. 2-D topology layout</h2>
+<p>The <strong>Topology</strong> layout is a deterministic
+force-directed layout. Node positions in this view are abstract graph
+coordinates, not anatomical coordinates.</p>
+<p>A schematic example:</p>
+<pre class="text"><code>       A
+      / \
+     B---C
+      \ /
+       D</code></pre>
+<p>The purpose is to place strongly connected nodes near one another
+while separating unrelated nodes.</p>
+<h3 id="81-initialization">8.1 Initialization</h3>
+<p>Nodes are first placed uniformly around a circle using stable node
+order.</p>
+<h3 id="82-repulsion">8.2 Repulsion</h3>
+<p>Every node pair exerts a repulsive force approximately proportional
+to</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">l</mi></mrow></msub><mo>∝</mo><mfrac><msup><mi>k</mi><mn>2</mn></msup><mi>d</mi></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
+F_{\mathrm{repel}}\propto \frac{k^2}{d},
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>
+is the current 2-D distance and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+is the layout&#39;s ideal separation scale.</p>
+<h3 id="83-edge-attraction">8.3 Edge attraction</h3>
+<p>Retained edges exert attraction. The attraction increases with:</p>
+<ul>
+<li>current geometric separation;</li>
+<li>absolute edge magnitude.</li>
+</ul>
+<p>The implementation scales the attraction by</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.70</mn><mo>+</mo><mn>0.60</mn><mfrac><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>w</mi><mi>e</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>w</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+0.70+0.60\frac{|w_e|}{\max |w|}.
+</annotation></semantics></math></p>
+<p>Thus a stronger displayed connection exerts more layout attraction
+than a weaker one.</p>
+<h3 id="84-stabilization">8.4 Stabilization</h3>
+<p>A weak attraction toward the plot centre prevents global drift. The
+displacement temperature is progressively reduced during the
+iterations.</p>
+<p>The number of layout iterations decreases for very large graphs to
+keep the representation interactive.</p>
+<h3 id="85-final-normalization">8.5 Final normalization</h3>
+<p>The resulting layout is normalized to a bounded
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">[0,1]\times[0,1]</annotation></semantics></math>
+plotting coordinate system with margins.</p>
+<p>Therefore:</p>
+<blockquote>
+<p><strong>The topology view expresses graph structure, not MNI anatomy.
+Distances on screen are layout distances and must not be interpreted as
+physical brain distances.</strong></p>
+</blockquote>
+<hr />
+<h2 id="9-2-d-grouped-ring-layout">9. 2-D grouped-ring layout</h2>
+<p>The <strong>Grouped ring</strong> layout represents nodes on a
+circle, with nodes belonging to the same group placed in contiguous
+angular sectors.</p>
+<pre class="text"><code>                Group A
+           A1  A2  A3  A4
+        /                 \
+   Group D                 Group B
+     D1                      B1
+     D2                      B2
+        \                  /
+           C1  C2  C3
+                Group C</code></pre>
+<p>The ring is useful when the scientific emphasis is on:</p>
+<ul>
+<li>anatomical/network categories;</li>
+<li>spatial groupings;</li>
+<li>between-group and within-group connectivity.</li>
+</ul>
+<h3 id="91-available-group-definitions">9.1 Available group
+definitions</h3>
+<p>Grouping can be based on:</p>
+<ol type="1">
+<li><strong>No grouping</strong>;</li>
+<li>eligible categorical columns from the persisted connectivity node
+metadata;</li>
+<li>deterministic <strong>MNI spatial clusters</strong>, when every
+retained node has finite coordinates.</li>
+</ol>
+<p>Identifier, label and coordinate columns are excluded from metadata
+grouping. A metadata field is exposed only when it defines a genuine
+categorical partition rather than a unique value for every node.</p>
+<h3 id="92-mni-spatial-grouping">9.2 MNI spatial grouping</h3>
+<p>When MNI spatial clustering is selected, NM2 performs deterministic
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>-means-like
+grouping in the three-dimensional coordinate space.</p>
+<p>The requested number of spatial groups is constrained to:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mo>≤</mo><mi>K</mi><mo>≤</mo><mn>20</mn><mo>,</mo></mrow><annotation encoding="application/x-tex">
+2\le K\le20,
+</annotation></semantics></math></p>
+<p>with default</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><mn>7</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+K=7.
+</annotation></semantics></math></p>
+<p>Initialization and tie resolution are deterministic. Cluster labels
+are ordered by their spatial centres and exposed as
+<code>MNI cluster 1</code>, <code>MNI cluster 2</code>, etc.</p>
+<p>These groups are a <strong>display grouping</strong>, not an
+independently validated anatomical parcellation.</p>
+<h3 id="93-within-group-ordering">9.3 Within-group ordering</h3>
+<p>Within each group, nodes are seriated using a deterministic
+nearest-neighbour path based on their stored 3-D coordinates where
+available.</p>
+<p>This keeps spatially nearby nodes relatively close around the
+ring.</p>
+<h3 id="94-group-sectors">9.4 Group sectors</h3>
+<p>Each group receives one contiguous ring arc. Small gaps are inserted
+between groups.</p>
+<p>The group sectors are colour coded using a fixed categorical
+palette.</p>
+<h3 id="95-edge-routing">9.5 Edge routing</h3>
+<p>In topology mode, edges are drawn as straight lines.</p>
+<p>In grouped-ring mode, edges are drawn as quadratic curves that are
+attracted toward the current ring centre. The control point is shifted
+62% of the way from the edge midpoint toward the ring centre.</p>
+<p>This produces a centre-bundled appearance:</p>
+<pre class="text"><code>node o \         / o node
+        \       /
+         \     /
+          \   /
+           \ /
+            •   approximate bundle attractor
+           / \
+          /   \
+node o --     -- o node</code></pre>
+<p>The bundling is purely a presentation geometry. It does not alter
+edge identity, edge value, graph statistics or sparsification.</p>
+<hr />
+<h1 id="part-iv--node-tuning-in-the-2-d-and-3-d-network">Part IV — Node
+tuning in the 2-D and 3-D network</h1>
+<h2 id="10-node-size-metric">10. Node-size metric</h2>
+<p>The user can map node size to a graph-derived metric computed from
+the current sparsified displayed-result graph.</p>
+<p>Available metrics include:</p>
+<ul>
+<li>degree;</li>
+<li>absolute strength;</li>
+<li>positive strength;</li>
+<li>negative strength;</li>
+<li>weighted betweenness centrality;</li>
+<li>harmonic closeness;</li>
+<li>eigenvector centrality.</li>
+</ul>
+<p>Directed graphs additionally expose:</p>
+<ul>
+<li>in-degree;</li>
+<li>out-degree;</li>
+<li>in-strength;</li>
+<li>out-strength.</li>
+</ul>
+<p>The default node-size metric is:</p>
+<h1 id="-textabsolute-strength">$$ \text{absolute strength}</h1>
+<p>\sum_j |w_{ij}|. $$</p>
+<p>These quantities describe the <strong>currently retained displayed
+graph</strong>, not the complete original connectivity matrix.</p>
+<p>They are not predictive feature-importance measures.</p>
+<hr />
+<h2 id="11-relative-versus-absolute-node-scaling">11. Relative versus
+absolute node scaling</h2>
+<p>Let
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>m</mi><mi>i</mi></msub><mo>≥</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">m_i\ge0</annotation></semantics></math>
+be the selected node-size metric.</p>
+<h3 id="111-relative-scaling">11.1 Relative scaling</h3>
+<p>Relative scaling normalizes node size by the largest node metric in
+the displayed graph.</p>
+<p>With</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>i</mi></msub><mo>=</mo><mfrac><msub><mi>m</mi><mi>i</mi></msub><mrow><munder><mo>max</mo><mi>j</mi></munder><msub><mi>m</mi><mi>j</mi></msub></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
+u_i=\frac{m_i}{\max_j m_j},
+</annotation></semantics></math></p>
+<p>NM2 applies a square-root scaling so that large nodes do not dominate
+excessively.</p>
+<p>The implemented radius-scale factor is equivalent to</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>s</mi><mi>i</mi></msub><mo>=</mo><mo>clip</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.55</mn><mo>+</mo><mn>1.65</mn><mspace width="0.167em"></mspace><mi>f</mi><msqrt><msub><mi>u</mi><mi>i</mi></msub></msqrt><mo>,</mo><mspace width="0.222em"></mspace><mn>0.5</mn><mo>,</mo><mspace width="0.222em"></mspace><mn>8</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo></mrow><annotation encoding="application/x-tex">
+s_i=
+\operatorname{clip}
+\left(
+0.55+
+1.65\,f\sqrt{u_i},
+\ 0.5,\ 8
+\right),
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+is the user-controlled node scale factor.</p>
+<p>Default:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>=</mo><mn>1</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+f=1.
+</annotation></semantics></math></p>
+<p>Relative scaling answers:</p>
+<blockquote>
+<p><strong>How large is this node compared with the strongest node in
+the current graph?</strong></p>
+</blockquote>
+<h3 id="112-absolute-scaling">11.2 Absolute scaling</h3>
+<p>In absolute mode,</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>s</mi><mi>i</mi></msub><mo>=</mo><mo>clip</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.55</mn><mo>+</mo><mi>f</mi><msqrt><msub><mi>m</mi><mi>i</mi></msub></msqrt><mo>,</mo><mspace width="0.222em"></mspace><mn>0.5</mn><mo>,</mo><mspace width="0.222em"></mspace><mn>8</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+s_i=
+\operatorname{clip}
+\left(
+0.55+
+f\sqrt{m_i},
+\ 0.5,\ 8
+\right).
+</annotation></semantics></math></p>
+<p>This preserves differences in the absolute numerical scale of the
+selected node metric.</p>
+<p>Absolute scaling is therefore more sensitive to the units and
+magnitude of the chosen metric.</p>
+<hr />
+<h2 id="12-density-aware-2-d-node-size">12. Density-aware 2-D node
+size</h2>
+<p>The final 2-D circle radius combines:</p>
+<ol type="1">
+<li>the graph&#39;s density-aware base node size;</li>
+<li>the node-specific scale
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>s</mi><mi>i</mi></msub><annotation encoding="application/x-tex">s_i</annotation></semantics></math>.</li>
+</ol>
+<p>The base size becomes smaller as the number of nodes and edges
+increases. This prevents dense networks from becoming dominated by
+overlapping circles.</p>
+<p>Schematically:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>R</mi><mi>i</mi><mrow><mn>2</mn><mi>D</mi></mrow></msubsup><mo>=</mo><msub><mi>R</mi><mrow><mi mathvariant="normal">b</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">e</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>N</mi><mo>,</mo><mi>E</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>s</mi><mi>i</mi></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+R_i^{2D}=R_{\mathrm{base}}(N,E)\,s_i.
+</annotation></semantics></math></p>
+<p>Thus node scaling is adaptive at two levels:</p>
+<ul>
+<li>global adaptation to graph complexity;</li>
+<li>local adaptation to the chosen node metric.</li>
+</ul>
+<hr />
+<h1 id="part-v--edge-tuning">Part V — Edge tuning</h1>
+<h2 id="13-edge-colour">13. Edge colour</h2>
+<p>Edge colour is determined from the signed value
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>e</mi></msub><annotation encoding="application/x-tex">w_e</annotation></semantics></math>
+through the shared Results Viewer colour contract.</p>
+<p>The colour mapping therefore retains the semantics of the selected
+feature measure.</p>
+<p>Colour tuning and display-range tuning do <strong>not</strong> alter
+graph sparsification.</p>
+<hr />
+<h2 id="14-edge-opacity">14. Edge opacity</h2>
+<p>Before the global feature-opacity control is applied, retained edge
+opacity increases smoothly with absolute edge magnitude.</p>
+<p>Let</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>e</mi></msub><mo>=</mo><mfrac><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>w</mi><mi>e</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>w</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+u_e=\frac{|w_e|}{\max |w|}.
+</annotation></semantics></math></p>
+<p>The implemented magnitude-dependent factor is</p>
+<h1 id="-alpha_e">$$ \alpha_e^{*}</h1>
+<p>0.16+0.76\sqrt{u_e}. $$</p>
+<p>The final graph opacity is then multiplied by the shared feature
+opacity.</p>
+<p>Thus stronger displayed connections are visually more opaque while
+weaker retained connections remain visible.</p>
+<hr />
+<h2 id="15-edge-width-scaling">15. Edge-width scaling</h2>
+<p>Edge-width scaling can be switched on or off.</p>
+<p>When enabled, NM2 does not scale widths directly between the raw
+minimum and maximum, because a single extreme edge could collapse most
+widths into a narrow visual range.</p>
+<p>Instead, the selected edge magnitudes are summarized using
+approximately the 10th and 90th percentiles:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mn>0.10</mn></msub><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>q</mi><mn>0.90</mn></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+q_{0.10},\ q_{0.90}.
+</annotation></semantics></math></p>
+<p>For edge magnitude
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>e</mi></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>w</mi><mi>e</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">a_e=|w_e|</annotation></semantics></math>,</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>e</mi></msub><mo>=</mo><mo>clip</mo><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mrow><msub><mi>a</mi><mi>e</mi></msub><mo>−</mo><msub><mi>q</mi><mn>0.10</mn></msub></mrow><mrow><msub><mi>q</mi><mn>0.90</mn></msub><mo>−</mo><msub><mi>q</mi><mn>0.10</mn></msub></mrow></mfrac><mo>,</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo></mrow><annotation encoding="application/x-tex">
+v_e=
+\operatorname{clip}
+\left(
+\frac{a_e-q_{0.10}}
+{q_{0.90}-q_{0.10}},
+0,1
+\right),
+</annotation></semantics></math></p>
+<p>and the presentation width is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>e</mi></msub><mo>=</mo><mn>0.45</mn><mo>+</mo><mn>4.35</mn><msqrt><msub><mi>v</mi><mi>e</mi></msub></msqrt><mi>.</mi></mrow><annotation encoding="application/x-tex">
+W_e=0.45+4.35\sqrt{v_e}.
+</annotation></semantics></math></p>
+<p>The square-root transform compresses the high end and gives weaker
+retained edges more visible differentiation.</p>
+<p>When edge-width scaling is disabled, all edges use the graph&#39;s
+density-aware base width.</p>
+<p>Importantly:</p>
+<blockquote>
+<p><strong>Edge-width scaling is presentation-only. It does not change
+edge selection or graph statistics.</strong></p>
+</blockquote>
+<hr />
+<h1 id="part-vi--3-d-glass-brain-representation">Part VI — 3-D
+glass-brain representation</h1>
+<h2 id="16-scientific-coordinate-requirement">16. Scientific coordinate
+requirement</h2>
+<p>The 3-D glass-brain view is enabled only if every retained node has
+finite stored coordinates.</p>
+<p>The Results Viewer does not invent coordinates for missing nodes.</p>
+<p>For the ordinary NM2 connectivity workflow these are MNI/world
+coordinates in millimetres. The connectivity adapter carries the
+persisted coordinate source, coordinate space and units forward into the
+representation.</p>
+<p>The 3-D scene therefore differs fundamentally from the 2-D topology
+layout:</p>
+<pre class="text"><code>2-D topology
+------------
+position = graph-layout coordinate
+meaning  = topological organization
+
+3-D glass brain
+---------------
+position = persisted node world/MNI coordinate
+meaning  = anatomical location</code></pre>
+<p>The <strong>same sparsified graph scene</strong> is projected into
+these anatomical coordinates. Graph content is not recomputed
+specifically for 3-D.</p>
+<hr />
+<h2 id="17-3-d-node-objects">17. 3-D node objects</h2>
+<p>Every retained node is rendered as a sphere centred at its persisted
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x,y,z)</annotation></semantics></math>
+coordinate.</p>
+<p>The sphere uses:</p>
+<ul>
+<li>8 latitude bands;</li>
+<li>12 longitude bands.</li>
+</ul>
+<p>Its base radius is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>R</mi><mi>i</mi><mrow><mn>3</mn><mi>D</mi></mrow></msubsup><mo>=</mo><mn>2.8</mn><mspace width="0.167em"></mspace><msub><mi>s</mi><mi>i</mi></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">
+R_i^{3D}=2.8\,s_i,
+</annotation></semantics></math></p>
+<p>in the scene&#39;s world-coordinate units.</p>
+<p>Because the normal connectivity coordinate system is millimetres,
+this corresponds operationally to a millimetre-scale sphere radius.</p>
+<p>The same
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>s</mi><mi>i</mi></msub><annotation encoding="application/x-tex">s_i</annotation></semantics></math>
+is derived from the selected node-size metric and relative/absolute
+scaling described above.</p>
+<p>A selected node is enlarged by an additional factor:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1.45</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+1.45.
+</annotation></semantics></math></p>
+<p>Node colour is based on the selected node grouping. With no grouping,
+a neutral slate colour is used. Group colours are shared with the 2-D
+network.</p>
+<p>The 3-D node colour is slightly lightened before rendering to
+preserve visibility under lighting.</p>
+<hr />
+<h2 id="18-3-d-edge-objects">18. 3-D edge objects</h2>
+<p>Every displayed graph edge is rendered as a tube connecting the two
+node coordinates.</p>
+<p>The tube uses a six-sided cross-section.</p>
+<p>Its radius is derived from the same edge-width presentation value
+used by the 2-D graph:</p>
+<h1 id="-r_e3d">$$ R_e^{3D}</h1>
+<p>\operatorname{clip} \left( 0.18+0.22W_e, 0.25, 1.35 \right). $$</p>
+<p>A selected edge is enlarged by an additional factor:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1.7</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+1.7.
+</annotation></semantics></math></p>
+<p>Thus 2-D and 3-D thickness are not independently tuned. They are two
+geometric projections of one shared edge-width state.</p>
+<p>For directed connectivity, NM2 adds an arrowhead at the target end of
+the tube.</p>
+<p>The arrowhead is a six-sided cone-like primitive whose base radius is
+approximately
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2.2</mn><msubsup><mi>R</mi><mi>e</mi><mrow><mn>3</mn><mi>D</mi></mrow></msubsup></mrow><annotation encoding="application/x-tex">2.2R_e^{3D}</annotation></semantics></math>.</p>
+<hr />
+<h2 id="19-shared-graph-tuning-between-2-d-and-3-d">19. Shared graph
+tuning between 2-D and 3-D</h2>
+<p>The 2-D network and 3-D glass brain use the same controls for:</p>
+<ul>
+<li>node grouping;</li>
+<li>graph sparsification;</li>
+<li>node-size metric;</li>
+<li>relative/absolute node scaling;</li>
+<li>node scale factor;</li>
+<li>edge-width scaling.</li>
+</ul>
+<p>Therefore, switching from 2-D to 3-D does not create a second
+network.</p>
+<p>It changes the <strong>geometric coordinate system</strong>:</p>
+<pre class="text"><code>same nodes
+same retained edges
+same edge values
+same threshold
+same sparsification
+same node metric
+same node-size scaling
+same edge-width scaling
+        |
+        +--&gt; 2-D: topology / grouped-ring coordinates
+        |
+        +--&gt; 3-D: persisted MNI/world coordinates</code></pre>
+<p>This cross-view identity is a central methodological property of the
+connectivity viewspace.</p>
+<hr />
+<h1 id="part-vii--structural-anatomy-in-the-glass-brain">Part VII —
+Structural anatomy in the glass brain</h1>
+<h2 id="20-structural-template">20. Structural template</h2>
+<p>The glass-brain scene is displayed against an anatomical envelope
+derived from the selected shared NM structural template.</p>
+<p>The backend:</p>
+<ol type="1">
+<li>loads the selected structural volume;</li>
+<li>identifies finite non-zero anatomical support;</li>
+<li>generates a surface mesh through the shared NM imaging mesh
+service;</li>
+<li>caches/materializes that mesh for browser rendering.</li>
+</ol>
+<p>The connectivity graph does not alter the anatomical mesh.</p>
+<p>Changing the structural template is therefore a
+<strong>display-reference change</strong>, not a change to node or edge
+values.</p>
+<hr />
+<h2 id="21-anatomy-appearance">21. Anatomy appearance</h2>
+<p>The glass-brain connectivity view exposes:</p>
+<ul>
+<li>anatomy opacity;</li>
+<li>anatomy brightness.</li>
+</ul>
+<p>Defaults are approximately:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">opacity</mtext><mo>=</mo><mn>0.18</mn><mo>,</mo><mspace width="2.0em"></mspace><mtext mathvariant="normal">brightness</mtext><mo>=</mo><mn>1</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\text{opacity}=0.18,
+\qquad
+\text{brightness}=1.
+</annotation></semantics></math></p>
+<p>The low default opacity is deliberate: the anatomy provides spatial
+context while allowing internal connectivity nodes and tubes to remain
+visible.</p>
+<p>These controls do not change graph values, graph statistics,
+coordinates or edge selection.</p>
+<hr />
+<h1 id="part-viii--lighting-and-3-d-appearance">Part VIII — Lighting and
+3-D appearance</h1>
+<h2 id="22-lighting-model">22. Lighting model</h2>
+<p>The glass-brain view uses the shared NM2 3-D lighting controls.</p>
+<p>The adjustable parameters are:</p>
+<ul>
+<li>lighting reference frame;</li>
+<li>light azimuth;</li>
+<li>light elevation;</li>
+<li>colour temperature;</li>
+<li>ambient term;</li>
+<li>diffuse term;</li>
+<li>specular term;</li>
+<li>shininess;</li>
+<li>background colour.</li>
+</ul>
+<p>Default normalized settings are:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th style="text-align: right;">Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>lighting frame</td>
+<td style="text-align: right;">camera</td>
+</tr>
+<tr class="even">
+<td>azimuth</td>
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>35</mn><mo>∘</mo></msup><annotation encoding="application/x-tex">35^\circ</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td>elevation</td>
+<td style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>25</mn><mo>∘</mo></msup><annotation encoding="application/x-tex">25^\circ</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>colour temperature</td>
+<td style="text-align: right;">neutral</td>
+</tr>
+<tr class="odd">
+<td>ambient</td>
+<td style="text-align: right;">0.22</td>
+</tr>
+<tr class="even">
+<td>diffuse</td>
+<td style="text-align: right;">0.75</td>
+</tr>
+<tr class="odd">
+<td>specular</td>
+<td style="text-align: right;">0.10</td>
+</tr>
+<tr class="even">
+<td>shininess</td>
+<td style="text-align: right;">24</td>
+</tr>
+<tr class="odd">
+<td>background</td>
+<td style="text-align: right;">white</td>
+</tr>
+</tbody>
+</table>
+<p>The lighting frame can either:</p>
+<ul>
+<li>follow the camera;</li>
+<li>remain fixed to the anatomy/world.</li>
+</ul>
+<h3 id="what-lighting-affects">What lighting affects</h3>
+<p>The structural mesh and spherical nodes participate in the lit 3-D
+rendering.</p>
+<p>Connectivity edge tubes are deliberately rendered without surface
+lighting so that their assigned feature colours remain legible and
+stable against changes in light direction.</p>
+<p>Thus lighting is a 3-D presentation control and does not alter the
+scientific edge-value encoding.</p>
+<hr />
+<h1 id="part-ix--camera-selection-and-interaction">Part IX — Camera,
+selection and interaction</h1>
+<h2 id="23-camera">23. Camera</h2>
+<p>When first opened, the glass brain:</p>
+<ol type="1">
+<li>fits the full anatomical scene;</li>
+<li>adopts a right-side preset.</li>
+</ol>
+<p>The user can then rotate/orbit, zoom and inspect the scene using the
+shared 3-D interaction system.</p>
+<p>Standard anatomical presets include:</p>
+<ul>
+<li>anterior;</li>
+<li>posterior;</li>
+<li>left;</li>
+<li>right;</li>
+<li>superior;</li>
+<li>inferior.</li>
+</ul>
+<p>Fit/reset returns the scene to a fitted right-side view.</p>
+<p>The camera state changes presentation only.</p>
+<hr />
+<h2 id="24-hover-and-selection">24. Hover and selection</h2>
+<p>Node and edge identity is preserved between:</p>
+<ul>
+<li>matrix;</li>
+<li>2-D network;</li>
+<li>3-D glass brain.</li>
+</ul>
+<p>Hovering or selecting an object exposes the exact persisted node/edge
+identity.</p>
+<p>The 3-D pointer interaction first tests projected node positions and
+then the projected edge segments.</p>
+<p>Selected objects are emphasized geometrically:</p>
+<ul>
+<li>node radius × 1.45;</li>
+<li>edge radius × 1.7;</li>
+<li>selected objects use a warm highlight colour.</li>
+</ul>
+<p>Selection emphasis does not modify underlying values.</p>
+<hr />
+<h1 id="part-x--labels-and-node-grouping">Part X — Labels and node
+grouping</h1>
+<h2 id="25-2-d-label-management">25. 2-D label management</h2>
+<p>The 2-D network supports:</p>
+<ul>
+<li>automatic labels;</li>
+<li>no labels;</li>
+<li>top-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+labels;</li>
+<li>all labels.</li>
+</ul>
+<p>Default:</p>
+<ul>
+<li>label mode: <strong>Auto</strong>;</li>
+<li>top-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+count when used: <strong>24</strong>.</li>
+</ul>
+<p>The graph label planner adapts label placement to available space and
+network size.</p>
+<p>In topology mode, labels can be displaced with leader lines to reduce
+overlap.</p>
+<p>In grouped-ring mode, labels are placed radially and rotated around
+the ring.</p>
+<p>A temporary <strong>Label zoom</strong> option can enlarge labels on
+hover.</p>
+<p>Labeling is presentation-only.</p>
+<hr />
+<h1 id="part-xi--relation-to-graph-statistics">Part XI — Relation to
+graph statistics</h1>
+<h2 id="26-graph-statistics-in-the-connectivity-viewspace">26. Graph
+statistics in the connectivity viewspace</h2>
+<p>After sparsification, NM2 computes node statistics from the
+<strong>retained displayed-result graph</strong>.</p>
+<p>These include the same graph-theoretical quantities discussed in the
+relational-analysis methods note:</p>
+<ul>
+<li>degree;</li>
+<li>absolute/positive/negative strength;</li>
+<li>weighted betweenness centrality;</li>
+<li>harmonic closeness;</li>
+<li>eigenvector centrality;</li>
+<li>directed in/out metrics where applicable.</li>
+</ul>
+<p>For shortest-path statistics, an edge with absolute magnitude
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>w</mi><mi>e</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|w_e|</annotation></semantics></math>
+has path length</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>ℓ</mo><mi>e</mi></msub><mo>=</mo><mfrac><mn>1</mn><mrow><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>w</mi><mi>e</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><mo>+</mo><msup><mn>10</mn><mrow><mi>−</mi><mn>12</mn></mrow></msup></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\ell_e=\frac{1}{|w_e|+10^{-12}}.
+</annotation></semantics></math></p>
+<p>Hence larger absolute displayed-result values correspond to shorter
+graph paths.</p>
+<p>However, the scientific interpretation differs from the tabular
+relation graph.</p>
+<p>In the connectivity viewspace,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>e</mi></msub><annotation encoding="application/x-tex">w_e</annotation></semantics></math>
+is the <strong>currently selected model-feature result value on a
+predefined connectivity edge</strong>. It is not necessarily a
+correlation coefficient.</p>
+<p>Therefore:</p>
+<blockquote>
+<p><strong>Connectivity centrality describes topology after weighting
+and sparsifying the selected model-result connectivity map. It should
+not automatically be interpreted as centrality of the original raw
+biological connectivity matrix.</strong></p>
+</blockquote>
+<p>These graph statistics are used internally for node
+scaling/inspection. They are not a dedicated exported graph-statistics
+result product.</p>
+<hr />
+<h1 id="part-xii--how-the-connectivity-graph-differs-from-relational-feature-graphs">Part
+XII — How the connectivity graph differs from relational feature
+graphs</h1>
+<h2 id="27-side-by-side-comparison">27. Side-by-side comparison</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Property</th>
+<th>Tabular relational analysis</th>
+<th>Connectivity viewspace</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Nodes</td>
+<td>ordinary model features</td>
+<td>predefined ROIs/nodes</td>
+</tr>
+<tr class="even">
+<td>Candidate edges</td>
+<td>pairwise feature relations</td>
+<td>persisted DataIO connectivity edges</td>
+</tr>
+<tr class="odd">
+<td>Primary edge value</td>
+<td>stored feature-feature relation layer</td>
+<td>selected Results Viewer feature statistic</td>
+</tr>
+<tr class="even">
+<td>Graph topology</td>
+<td>constructed from relation matrix</td>
+<td>established by DataIO</td>
+</tr>
+<tr class="odd">
+<td>2-D coordinates</td>
+<td>graph layout</td>
+<td>graph layout / grouped ring</td>
+</tr>
+<tr class="even">
+<td>3-D coordinates</td>
+<td>not intrinsic to generic tabular features</td>
+<td>persisted MNI/world coordinates</td>
+</tr>
+<tr class="odd">
+<td>Sparsification</td>
+<td>relation-graph selection</td>
+<td>connectivity edge selection</td>
+</tr>
+<tr class="even">
+<td>Edge patterns</td>
+<td>hierarchical link communities available</td>
+<td>not a separate relation-pattern analysis in this viewspace</td>
+</tr>
+<tr class="odd">
+<td>Node centrality</td>
+<td>property of sparsified relation graph</td>
+<td>property of sparsified displayed-result connectivity graph</td>
+</tr>
+</tbody>
+</table>
+<p>The same generic node-link renderer is reused where appropriate, but
+the <strong>scientific authority for the edge universe is
+different</strong>.</p>
+<hr />
+<h1 id="part-xiii--recommended-tuning-strategy">Part XIII — Recommended
+tuning strategy</h1>
+<h2 id="28-a-practical-sequence-for-participants">28. A practical
+sequence for participants</h2>
+<p>For exploratory visualization, a defensible order is:</p>
+<ol type="1">
+<li><p><strong>Choose the scientific Results Viewer measure
+first.</strong><br />
+This determines what the edge values mean.</p></li>
+<li><p><strong>Set the shared feature threshold.</strong><br />
+This defines which non-zero edges are eligible before graph
+sparsification.</p></li>
+<li><p><strong>Choose a sparsification strategy.</strong></p>
+<ul>
+<li>Strongest per node: good for preserving local representation across
+ROIs.</li>
+<li>Fixed density: good for comparing graphs at a common visual
+density.</li>
+<li>Absolute cutoff: useful when the measure has an interpretable
+absolute scale.</li>
+</ul></li>
+<li><p><strong>Inspect the 2-D topology view.</strong><br />
+This emphasizes emergent graph organization.</p></li>
+<li><p><strong>Inspect grouped ring when meaningful node metadata are
+available.</strong><br />
+This emphasizes within-group and between-group connections.</p></li>
+<li><p><strong>Choose the node-size metric.</strong><br />
+Absolute strength is the default and is usually the easiest to
+explain.</p></li>
+<li><p><strong>Use relative node scaling for exploratory comparison
+within one graph.</strong><br />
+Use absolute scaling only when the magnitude of the selected node metric
+itself is scientifically meaningful across the compared views.</p></li>
+<li><p><strong>Use the 3-D glass brain for anatomical
+localization.</strong><br />
+Keep in mind that graph selection is unchanged; only coordinates are
+anatomical.</p></li>
+<li><p><strong>Tune anatomy opacity and lighting last.</strong><br />
+These are presentation controls and should not drive scientific edge
+selection.</p></li>
+</ol>
+<hr />
+<h1 id="part-xiv--important-interpretation-cautions">Part XIV —
+Important interpretation cautions</h1>
+<h2 id="29-what-should-not-be-inferred">29. What should not be
+inferred</h2>
+<h3 id="291-a-large-node-is-not-automatically-an-important-predictor">29.1 A
+large node is not automatically an important predictor</h3>
+<p>Node size reflects the selected graph metric in the sparsified
+displayed-result network.</p>
+<p>It is not automatically:</p>
+<ul>
+<li>model feature importance;</li>
+<li>causal influence;</li>
+<li>statistical significance;</li>
+<li>biological importance.</li>
+</ul>
+<h3 id="292-a-thick-edge-is-not-automatically-a-raw-strong-connection">29.2
+A thick edge is not automatically a raw strong connection</h3>
+<p>Thickness reflects the absolute magnitude of the selected Results
+Viewer measure.</p>
+<p>If the selected measure is not raw connectivity, a thick edge should
+not be described as high raw functional/structural connectivity.</p>
+<h3 id="293-2-d-topology-distance-is-not-anatomical-distance">29.3 2-D
+topology distance is not anatomical distance</h3>
+<p>Only the glass-brain coordinates have anatomical/world-coordinate
+meaning.</p>
+<h3 id="294-mni-spatial-groups-are-display-derived-groups">29.4 MNI
+spatial groups are display-derived groups</h3>
+<p>The optional MNI clusters are deterministic spatial groups used for
+display organization. They are not a replacement for an anatomical atlas
+or a data-driven biological network model.</p>
+<h3 id="295-sparsification-materially-changes-graph-topology">29.5
+Sparsification materially changes graph topology</h3>
+<p>Node centrality, connectedness and apparent network organization
+depend on the retained edge universe.</p>
+<p>The scientific interpretation must therefore state the threshold and
+sparsification settings used.</p>
+<hr />
+<h1 id="part-xv--short-explanation-for-the-hackathon">Part XV — Short
+explanation for the hackathon</h1>
+<h2 id="30-60-second-explanation">30. 60-second explanation</h2>
+<blockquote>
+<p><strong>In the connectivity viewspace, every model feature is already
+a predefined connection between two ROIs. DataIO determines the node and
+edge identities; the Results Viewer does not infer a new connectivity
+topology. We map the selected model-result statistic onto those edges,
+apply the common Results Viewer threshold, and then sparsify the
+remaining graph using either the strongest edges per node, a fixed
+density, or an absolute cutoff. The 2-D topology view uses a
+force-directed layout, whereas the grouped-ring view arranges predefined
+or MNI-derived node groups around a circle. The 3-D glass brain uses
+exactly the same retained graph but places the nodes at their persisted
+MNI coordinates. Node size can encode graph metrics such as strength or
+centrality, and edge colour, opacity and width encode the selected edge
+statistic. Anatomy, lighting, camera and labels are presentation
+controls; they do not change the underlying graph.</strong></p>
+</blockquote>
+<hr />
+<h1 id="part-xvi--methods-text-for-reports-or-publications">Part XVI —
+Methods text for reports or publications</h1>
+<h2 id="31-compact-methods-paragraph">31. Compact methods paragraph</h2>
+<blockquote>
+<p>Connectivity features were visualized in the NeuroMiner 2 Results
+Viewer using the persisted DataIO node/edge topology. The selected
+model-feature statistic was mapped to the corresponding retained
+connectivity edges using exact persisted feature-to-edge identity.
+Missing, zero and display-threshold-ineligible edges were excluded
+before graph sparsification. The displayed graph was sparsified using a
+user-defined strongest-per-node, fixed-density or absolute-magnitude
+criterion. Two-dimensional representations used either a deterministic
+force-directed topology layout or a grouped-ring layout based on
+persisted categorical node metadata or deterministic MNI-coordinate
+grouping. The three-dimensional glass-brain representation used the same
+sparsified graph and mapped retained nodes to their persisted world/MNI
+coordinates. Node size could be scaled by retained-graph degree,
+strength or centrality measures, while edge colour reflected the signed
+selected feature statistic and optional edge width reflected its
+absolute magnitude. Structural anatomy, lighting, camera, labels and
+opacity affected presentation only.</p>
+</blockquote>
+<h2 id="32-more-explicit-methods-paragraph">32. More explicit methods
+paragraph</h2>
+<blockquote>
+<p>NeuroMiner 2 connectivity visualization treated the DataIO
+connectivity descriptor as the authority for retained node identities,
+node coordinates, edge identities and directed/undirected topology. For
+each selected Results Viewer measure, feature position was required to
+correspond exactly to persisted edge position. Edge values were first
+classified by the canonical Results Viewer threshold semantics; missing,
+zero and subthreshold edges were excluded. The remaining edge universe
+was sparsified either by retaining the strongest absolute-value edges
+per node, by retaining a fixed proportion of the globally strongest
+eligible edges, or by an absolute-value cutoff. Graph node statistics
+were calculated on this retained displayed-result graph using absolute
+edge magnitude as affinity; weighted shortest-path length was defined as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>w</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>+</mo><msup><mn>10</mn><mrow><mi>−</mi><mn>12</mn></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">1/(|w|+10^{-12})</annotation></semantics></math>.
+The 2-D topology representation used a deterministic force-directed
+layout, while grouped-ring visualization placed categorical or
+deterministic MNI-spatial node groups into contiguous circular sectors.
+The 3-D glass-brain representation reused the same graph state but
+substituted persisted MNI/world coordinates for the 2-D layout
+coordinates. Node sphere size followed the selected graph metric and
+node-scaling mode, whereas edge tube thickness followed an optional
+robust magnitude scaling based on the 10th–90th percentile range of
+retained absolute edge values. Display-range, colour, anatomy, lighting,
+camera and label controls did not change persisted connectivity
+identity.</p>
+</blockquote>
+<hr />
+<h2 id="33-one-line-memory-aid">33. One-line memory aid</h2>
+<blockquote>
+<p><strong>Matrix shows exact ROI pairs; topology shows graph
+organization; ring shows group structure; glass brain shows the same
+graph in anatomy.</strong></p>
+</blockquote>
+</body>
+</html>

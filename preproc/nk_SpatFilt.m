@@ -1,5 +1,4 @@
 function [ fY, C ]= nk_SpatFilt(Y, SPATIAL)
-global VERBOSE
 
 if isfield(SPATIAL,'PX') && numel(SPATIAL.PX.opt)>1
     n_opt = numel(SPATIAL.PX.opt);
@@ -24,18 +23,23 @@ for i=1:n_opt
         case 3
             fprintf('\nSpatial variance weighting (27 neighbors)\n'); 
         case 4
-            if isfield(SPATIAL,'cubefwhm'), fwhm  = SPATIAL.PX.opt(i); end
+            fwhm = SPATIAL.PX.opt(i);
             fprintf('\nGaussian smoothing with %g FWHM\n', fwhm(1)); 
         case 5
             fprintf('\nComputing neurotransmitter correlations\n'); 
         case 6
-            if isfield(SPATIAL,'cubevoxdim'), voxdim = SPATIAL.PX.opt(i); end
+            voxdim = SPATIAL.PX.opt(i);
             fprintf('\nReslicing to %g mm isotropic voxels\n', voxdim(1)); 
         case 7
             fprintf('\nROI means computation\n'); 
+        case 8
+            fprintf('\nKL-divergence graph construction\n');
+        case 9
+            level = SPATIAL.PX.opt(i);
+            fprintf('\nWavelet spatial reconstruction, level %g\n', level(1));
     end 
 
-    if SPATIAL.cubetype ~=5 && SPATIAL.cubetype ~=7
+    if ~ismember(SPATIAL.cubetype, [5 7 8])
         
         C = zeros(size(tY));
         
@@ -99,6 +103,14 @@ for i=1:n_opt
                         C = zeros(size(tY,1),size(T,2));
                     end
                     C(j,:) = T;
+
+                case 9
+                    % Vectorized across subjects: perform the wavelet
+                    % reconstruction once for the current level and leave the
+                    % per-subject loop. The helper returns an nSubject x nVoxel
+                    % matrix in the same image space.
+                    C = nk_WaveletSpatialReconstruct(tY, SPATIAL, level(1));
+                    break;
             end
             fprintf('.');
         end
@@ -106,16 +118,18 @@ for i=1:n_opt
         [C,~] = cv_perfJuSpace(Y,SPATIAL.JUSPACE,[],[]);
     elseif SPATIAL.cubetype == 7
         [C,~] = cv_perfROImeans(Y, SPATIAL.ROIMEANS);
+    elseif SPATIAL.cubetype == 8
+        C = cv_graph_PerfGraphConstruction(Y, SPATIAL.GRAPHCONSTRUCTION);
     end
     
     switch SPATIAL.cubetype
         case {2, 3}
             xY = tY./C;
-        case {4, 5, 6, 7}
+        case {4, 5, 6, 7, 8, 9}
             xY = C;
     end
     
-    if ~isempty(SPATIAL.badcoords) && SPATIAL.cubetype ~= 6 && SPATIAL.cubetype ~= 5 && SPATIAL.cubetype ~= 7; xY = xY(:,~SPATIAL.badcoords); end
+    if ~isempty(SPATIAL.badcoords) && ~ismember(SPATIAL.cubetype, [5 6 7 8]); xY = xY(:,~SPATIAL.badcoords); end
     fY{i} = xY;
     
 end

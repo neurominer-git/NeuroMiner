@@ -5,13 +5,39 @@ if ~exist('delete_existing','var') || isempty(delete_existing)
 end
 
 if ~exist(imaging_init_path,'file') || delete_existing
-    spmrootdir = uigetdir(neurominerpath,'Specify SPM directory');
-    fsrootdir = uigetdir(neurominerpath,'Specify Freesurfer MATLAB directory');
+    canPrompt = usejava('desktop');
+
+    spmrootdir = fileparts(which('spm'));
+    if isempty(spmrootdir)
+        if canPrompt
+            spmrootdir = uigetdir(neurominerpath,'Specify SPM directory');
+        else
+            spmrootdir = 0;
+        end
+    end
+
+    fsrootdir = fileparts(which('MRIread'));
+    if isempty(fsrootdir)
+        if canPrompt
+            fsrootdir = uigetdir(neurominerpath,'Specify Freesurfer MATLAB directory');
+        else
+            fsrootdir = 0;
+        end
+    end
+
     if DEV
-        jurootdir = uigetdir(neurominerpath,'Specify JuSpace directory');
+        jurootdir = fileparts(which('JuSpace'));
+        if isempty(jurootdir)
+            if canPrompt
+                jurootdir = uigetdir(neurominerpath,'Specify JuSpace directory');
+            else
+                jurootdir = 0;
+            end
+        end
     else
         jurootdir = [];
     end
+
     save(imaging_init_path,'spmrootdir','fsrootdir','jurootdir');
 else
     P = load(imaging_init_path); 

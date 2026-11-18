@@ -13,7 +13,14 @@ global SVM RFE MODEFL CV SCALE SAV CVPOS RAND
 FullPartFlag    = RFE.ClassRetrain;
 
 multiflag       = false; if strcmp(MODEFL,'classification'), multiflag = inp.multiflag; end
-saveparam       = true; % inp.saveparam;
+exportOptModel = true;
+if isfield(inp,'exportOptModel') && ~isempty(inp.exportOptModel), exportOptModel = logical(inp.exportOptModel); end
+exportOptPreproc = logical(inp.saveparam);
+if isfield(inp,'exportOptPreproc') && ~isempty(inp.exportOptPreproc), exportOptPreproc = logical(inp.exportOptPreproc); end
+overwriteExport = false;
+if isfield(inp,'overwriteExport') && ~isempty(inp.overwriteExport), overwriteExport = logical(inp.overwriteExport);
+elseif isfield(inp,'ovrwrt') && ~isempty(inp.ovrwrt), overwriteExport = logical(inp.ovrwrt); end
+saveparam       = exportOptModel;
 nclass          = inp.nclass;
 analysis        = inp.analysis;
 GridAct         = inp.GridAct;
@@ -59,19 +66,20 @@ CVPOS.fFull = FullPartFlag;
 % Parameter flag structure for preprocessing
 paramfl = struct('use_exist',inp.loadparam, ...
     'found', false, ...
-    'write', inp.saveparam, ...
+    'write', exportOptPreproc, ...
     'writeCV1', inp.saveCV1, ...
     'multiflag', multiflag);
 
 %Pre-smooth data, if needed, to save computational time
 inp.ll=inp.GridAct';inp.ll=find(inp.ll(:));
 inp = nk_PerfInitSpatial(analysis, inp, paramfl);
-
+CVPOS.GridAct = logical(GridAct);
+nm_export_browser_progress('Preparing model export.', 0, CVPOS, 'prepare');
 % =========================================================================
 for f=1:ix % Loop through CV2 permutations
     for d=1:jx % Loop through CV2 folds
         fprintf('\n--------------------------------------------------------------------------')
-        if ~GridAct(f,d)
+        if ~CVPOS.GridAct(f,d)
             ll=ll+1;
             fprintf('\nSkipping CV2 [%g,%g] (user-defined).',f,d)
             continue
@@ -81,12 +89,32 @@ for f=1:ix % Loop through CV2 permutations
         operm = f; ofold = d;
         inp.f = f; inp.d = d; inp.ll = ll;
         OptModelPath = nk_GenerateNMFilePath( inp.saveoptdir, SAV.matname, 'OptModel', [], inp.varstr, inp.id, operm, ofold);
+        skipModelExport = false;
+        if exportOptModel && exist(OptModelPath,'file') && ~overwriteExport
+            fprintf('\nOptModel already exists and overwrite is disabled. Skipping model export for CV2 [%g,%g]:\n%s', f, d, OptModelPath);
+            nm_export_browser_progress(sprintf('Existing OptModel kept for CV2 partition %g.%g.', f, d), 100, CVPOS, 'existing_optmodel');
+            skipModelExport = true;
+            if ~exportOptPreproc
+                ll=ll+1;
+                continue
+            end
+        end
         % Preprocess data at optimal hyperparameter combination(s) and save
         % trained hyperparameter structure
+        if exportOptPreproc
+            nm_export_browser_progress(sprintf('Exporting optimized preprocessing parameters for CV2 partition %g.%g.', f, d), 5, CVPOS, 'preprocessing');
+        end
         [ inp, contfl, analysis, mapY, GD, MD, Param, paramfl, mapYocv ] = nk_ApplyTrainedPreproc(analysis, inp, paramfl);
         if contfl, continue; end
+        if exportOptPreproc && (~exportOptModel || skipModelExport)
+            nm_export_browser_progress(sprintf('Finished optimized preprocessing export for CV2 partition %g.%g.', f, d), 100, CVPOS, 'preprocessing');
+            ll=ll+1;
+            continue
+        end
         fndMD = false;
         if ~fndMD, MD = cell(nclass,1); end
+        modelUnitDone = 0;
+        modelUnitTotal = max(1, nclass * iy * jy);
 
         % -----------------------------------------------------------------
         for h=1:nclass % Loop through binary comparisons
@@ -188,13 +216,31 @@ for f=1:ix % Loop through CV2 permutations
                                 fprintf('Computing OptModel');
                                 [~, MD{h}{m}{k,l}{u}] = nk_GetParam2(Ymodel, modelTrL, sPs, 1);
                             end
+                            modelUnitDone = modelUnitDone + 1;
+                            modelUnitTotal = max(modelUnitTotal, modelUnitDone + max(0, ul-u));
+                            if exportOptPreproc
+                                exportPct = 20 + 78 * min(1, modelUnitDone / max(1, modelUnitTotal));
+                            else
+                                exportPct = 98 * min(1, modelUnitDone / max(1, modelUnitTotal));
+                            end
+                            nm_export_browser_progress(sprintf('Exporting optimized model %g/%g for CV2 partition %g.%g.', modelUnitDone, modelUnitTotal, f, d), exportPct, CVPOS, 'model');
                         end
                     end
                 end
             end
             % Now save trained model structure for current partition CV2 to disk
-            if saveparam, fprintf('\nSaving %s', OptModelPath); save(OptModelPath, 'MD', 'ofold','operm'); end
+            if saveparam
+                fprintf('\nSaving %s', OptModelPath);
+                save(OptModelPath, 'MD', 'ofold','operm');
+                nm_export_browser_progress(sprintf('Saved optimized model file for CV2 partition %g.%g.', f, d), 100, CVPOS, 'save_optmodel');
+            end
         end
         ll=ll+1;
     end
+end
+
+function nm_export_browser_progress(message, percent, cvpos, phase)
+if nargin < 4, phase = ''; end
+if exist('NMRuntimeProgressTools','class') == 8 || exist('NMRuntimeProgressTools','file') == 2
+    NMRuntimeProgressTools.writeLegacyModuleProgressSafe('Model export progress', message, percent, cvpos, phase);
 end

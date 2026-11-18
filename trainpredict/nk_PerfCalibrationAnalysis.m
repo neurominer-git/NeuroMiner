@@ -35,7 +35,11 @@ fractionOfPositives = zeros(numBins, 1);
 
 % Compute calibration curve
 for i = 1:numBins
-    binIndices = y_probs >= bins(i) & y_probs < bins(i+1);
+    if i == numBins
+        binIndices = y_probs >= bins(i) & y_probs <= bins(i+1);
+    else
+        binIndices = y_probs >= bins(i) & y_probs < bins(i+1);
+    end
     binScores = y_probs(binIndices);
     binTrue = y_true(binIndices);
 

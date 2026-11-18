@@ -11,7 +11,7 @@ echo '****************************************'
 # compiled with matlab R2023b so MCR main is R2023b. Needs to change if different MCR is used.
 export LD_LIBRARY_PATH=/data/core-psy-pronia/opt/matlab/R2023b/runtime/glnxa64:/data/core-psy-pronia/opt/matlab/R2023b/bin/glnxa64:/data/core-psy-pronia/opt/matlab/R2023b/sys/os/glnxa64:/data/core-psy-pronia/opt/matlab/R2023b/sys/opengl/lib/glnxa64
 export JOB_DIR=$PWD
-NEUROMINER=/data/core-psy-pronia/opt/NM/NeuroMinerMCCMain_1.4_R2023b_core/for_testing
+NEUROMINER=/data/core-psy-pronia/opt/NM/NeuroMinerMCCMain_1.3_R2023b_core/for_testing
 export ACTION=visualize
 read -e -p 'Path to NM structure: ' datpath
 if [ ! -f $datpath ]; then
@@ -103,15 +103,12 @@ if [ "$DecompMode" = '1' ] ; then
     [ -z "$CorrCompCutOff" ] && CorrCompCutOff=0.3
     read -p 'Presence (selection) cutoff for keeping components [0.2]: ' SelCompCutOff
     [ -z "$SelCompCutOff" ] && SelCompCutOff=0.2
-    read -p 'Only back-project FDR-significant components? [ 1 = yes, 2 = no (default) ]: ' fdr_comp_search
-    [ -z "$fdr_comp_search" ] && fdr_comp_search=2
 else
     DecompMode=2
     simCorrThresh=0.3
     simCorrMethod='pearson'
     CorrCompCutOff=0.3
     SelCompCutOff=0.2
-    fdr_comp_search=2
 fi
 # <<< MODIFIED SECTION END
 
@@ -188,7 +185,6 @@ $simCorrThresh
 $simCorrMethod
 $CorrCompCutOff
 $SelCompCutOff
-$fdr_comp_search
 EOF
 # <<< MODIFIED SECTION END
 done

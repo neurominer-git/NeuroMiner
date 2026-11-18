@@ -6,3 +6,4 @@ atlas/temp.nii
 gui/patch_overlay_nifti_gui.m
 gui/overlay_nifti_gui_bak.m
 gui/overlay_nifti_gui.txt
+*.zip

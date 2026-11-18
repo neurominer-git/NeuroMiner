@@ -65,6 +65,11 @@ function [ IN, optD, optCrit ] = nk_OptPredSeq(D, L, PredGroups, IN, C, nCutOff,
 % (c) Nikolaos Koutsouleris, 07/2020
 global VERBOSE SVM
 
+if any(isinf(D(:)))
+    error('nk_OptPredSeq:infinitePredictions', ...
+        'SEQOPT prediction scores must not contain +Inf or -Inf.');
+end
+
 if ~exist('IN','var') || isempty(IN)
     
     % Train sequence predictor
@@ -77,7 +82,19 @@ if ~exist('IN','var') || isempty(IN)
         error('Model descriptor entries should correspond to the number of models in the model matrix');
     end
 
+    if numel(PredGroups) ~= size(D,2)
+        error('nk_OptPredSeq:predictionGroupAxisMismatch', ...
+            'Prediction groups must identify exactly the columns of the selected SEQOPT training matrix.');
+    end
+    if ~isequal(double(PredGroups(:)'), 1:size(D,2))
+        error('nk_OptPredSeq:predictionGroupAxisMismatch', ...
+            'SEQOPT requires the complete ordered stacking prediction axis.');
+    end
     nC = size(C,1); m = size(D,1);
+    if m == 0
+        error('nk_OptPredSeq:emptyTrainingPopulation', ...
+            'No training cases remain for sequential optimization. Check first-level prediction availability and CV alignment.');
+    end
     optCrit = []; cnt=1;
 
     % Loop through candidate prognostic workflows
@@ -85,19 +102,23 @@ if ~exist('IN','var') || isempty(IN)
 
         % Get current examination indices for current sequence
         Cj = C(j,~isnan(C(j,:))); 
-        uC = unique(Cj);
-        jC = false(1,numel(PredGroups)); % Create empty logical
-        % Loop through unique examination nodes and assign decision scores
-        % to those 
-        for jj=1:numel(uC)               
-            ind_jC = PredGroups == uC(jj);
-            jC(ind_jC) = true;
+        % Cj addresses the stacking prediction columns, in examination order.
+        % A complete SEQOPT prediction axis is constructed in that same order.
+        if isempty(Cj) || any(Cj < 1) || any(Cj > size(D,2)) || any(Cj ~= fix(Cj))
+            error('nk_OptPredSeq:invalidSequenceMapping', ...
+                'Sequence %d contains unavailable stacking prediction nodes.',j);
         end
+        if numel(unique(Cj)) ~= numel(Cj)
+            error('nk_OptPredSeq:invalidSequenceMapping', ...
+                'Sequence %d contains repeated stacking prediction nodes.',j);
+        end
+        seqCols = Cj;
+        jC = ismember(PredGroups(:)', Cj); % Full-axis membership for Sequence2Feats
         
-        if VERBOSE, fprintf('\n\n');fprintf('Working on model sequence %g/%g:', j, nC); fprintf('\t%s ', strjoin(Ddesc(jC),', ')); end
+        if VERBOSE, fprintf('\n\n');fprintf('Working on model sequence %g/%g:', j, nC); fprintf('\t%s ', strjoin(Ddesc(seqCols),', ')); end
 
-        % Get model outputs for given sequence in C
-        jD = D(:,jC);       % Get decision scores for current sequence
+        % Get model outputs in the order specified by the sequence matrix
+        jD = D(:,seqCols);  % Train/apply node order must agree
         nD = size(jD,2);    % Number of prediction nodes
         
         % Build threshold vectors
@@ -198,13 +219,15 @@ if ~exist('IN','var') || isempty(IN)
         tIN.vecneg = vecneg;
         tIN.vecpos = vecpos;
         
-        % Run sequential optimization algoríthm
-        for i=1:nD-1, tIN = OptPredSeq(tIN, i, L, OPTCRIT); end
-        
-        % Analyze optimized sequence:
-        tIN.uN = unique(tIN.Nremain)';       % unique sequence node positions among cases
-        tIN.AnalSeq = Cj(tIN.uN);            % optimized node sequence
-        tIN.AnalSeqDesc = Ddesc(Cj(tIN.uN)); % description of optimized node sequence
+        for i=1:nD-1            
+            tIN = OptPredSeq(tIN, i, L, OPTCRIT);
+        end
+
+        % Keep every configured node available for missing-score continuation.
+        tIN.uN = unique(tIN.Nremain)';
+        tIN.AnalSeq = Cj(tIN.uN);
+        tIN.AnalSeqDesc = Ddesc(seqCols(tIN.uN));
+        tIN.SequenceCols = seqCols;
         % Node examination frequencies
         tIN.examsfreq = zeros(1,numel(tIN.Sequence)); 
         tIN.optDh(:,1) = jD(:,1);
@@ -215,7 +238,7 @@ if ~exist('IN','var') || isempty(IN)
         if j==1, optCrit = tIN.OPT; IN = tIN; end
        
         if tIN.(char(OPTCRIT))(end) > optCrit(end)
-            if VERBOSE, fprintf('\n'); fprintf('+++ New optimal sequence: %s ', strjoin(Ddesc(jC),', ')); end
+            if VERBOSE, fprintf('\n'); fprintf('+++ New optimal sequence: %s ', strjoin(Ddesc(seqCols),', ')); end
             IN = tIN; 
             cnt = cnt +1;
             optCrit(cnt) = IN.OPT(end);
@@ -224,8 +247,14 @@ if ~exist('IN','var') || isempty(IN)
     optD = IN.optD;
     
 else
-    % Apply trained sequence predictor to data
-    D = D(:,IN.AnalSeq);
+    % Apply the same physical source columns and order used in training.
+    % AnalSeq retains examination-node identities for reporting.
+    if max(IN.SequenceCols) > size(D,2)
+        error('nk_OptPredSeq:predictionAxisMismatch', ...
+            'Sequence application has %d prediction columns but the trained sequence requires column %d.', ...
+            size(D,2),max(IN.SequenceCols));
+    end
+    D = D(:,IN.SequenceCols);
     Nremain = ones(size(D,1),1);
     optD = D(:,1);
     IN.optDh = nan(size(D,1), size(IN.D,2));
@@ -233,18 +262,17 @@ else
     % if labels are available compute performance at first node.
     if exist('L','var') && ~isempty(L), lbmode = true; else, lbmode = false; end
     if lbmode 
-        IN.SeqPerfGain_test     = zeros(1, numel(IN.AnalSeq));
+        IN.SeqPerfGain_test     = zeros(1, numel(IN.SequenceCols));
         IN.SeqPerfGain_test(1)  = IN.OPTCRIT(L,D(:,1));
     end
-    for j=1:numel(IN.AnalSeq)-1
+    for j=1:numel(IN.SequenceCols)-1
         % Apply absolute thresholds (questionable whether this is the best
         % strategy or alternatively apply learned percentiles)
         fI      = find(Nremain==j);
         lthr    = IN.optlthr(j); uthr = IN.optuthr(j);
-        ind     = D(fI,j) >= lthr & D(fI,j) <= uthr;
+        ind     = isnan(D(fI,j)) | (D(fI,j) >= lthr & D(fI,j) <= uthr);
         Nremain(fI(ind)) = j+1;
         optD    = ComputeSequencePredictions(D(:,1:j), optD, D(:,j+1), fI(ind), SVM.SEQOPT.ReplaceMode);
-        optD(fI(ind)) = D(fI(ind),j+1);
         if lbmode 
             % Compute performance gains at each node
             IN.SeqPerfGain_test(j+1) = IN.OPTCRIT(L,optD);
@@ -265,35 +293,32 @@ optuvec = R.vecpos{I}(end);
 optlvec = R.vecneg{I}(1);
 optD = R.optD;
 optRemain = R.Nremain;
+optlthr = NaN; optuthr = NaN; % No threshold accepted: only missing scores continue.
 fI = find(R.Nremain==I);
-if isempty(fI) 
-    cntx = 1;
-    while isempty(fI)
-        fI = find(R.Nremain==I-cntx);
-        cntx=cntx+1;
-    end
-end
+DI = R.D(:,I);
+missingCases = fI(isnan(DI(fI)));
+optRemain(missingCases) = I+1;
+optD = ComputeSequencePredictions(R.D(:,1:I), optD, R.D(:,I+1), ...
+    missingCases, SVM.SEQOPT.ReplaceMode);
 rOPT = R.OPT;
+if ~isempty(missingCases), rOPT = OPTCRIT(L,optD); end
 allOPT = rOPT;
 if VERBOSE, fprintf('\nProcessing: %g cases in predictive workflow node %g: ', numel(fI), I); end
-DI = R.D(:,I);
 warning off
 
 % Loop through upper and lower boundaries, thus increasing the propagation
 % population in every iteration
 for j=1:numel(R.vecneg{I})
     
-    jD = R.optD;
-    jDI = DI(fI); jDI(isnan(jDI))=[];
+    jD = optD;
+    jDI = DI(fI);
+    finiteCases = ~isnan(jDI);
     %% Define thresholds for case propagation using percentile method
-    lthr = percentile(jDI, R.vecneg{I}(j));
-    uthr = percentile(jDI, R.vecpos{I}(j));
-    if ~exist('optuthr','var')
-         optlthr = lthr; optuthr = uthr;
-    end
-    ind = jDI >= lthr & jDI <= uthr;
+    lthr = percentile(jDI(finiteCases), R.vecneg{I}(j));
+    uthr = percentile(jDI(finiteCases), R.vecpos{I}(j));
+    ind = finiteCases & jDI >= lthr & jDI <= uthr;
     if ~any(ind), continue; end
-    jNremain = R.Nremain;
+    jNremain = optRemain;
     fII = fI(ind);
     jNremain(fII) = I+1; 
     
@@ -365,8 +390,9 @@ function D_new = ComputeSequencePredictions(D, D_opt, D_next, I_next, ActMode)
         
 D_new = D_opt;
 switch ActMode
-    case 1 % simple replacement 
-        D_new(I_next) = D_next(I_next);
+    case 1 % Keep the previous finite score if the next node is missing.
+        validNext = ~isnan(D_next(I_next));
+        D_new(I_next(validNext)) = D_next(I_next(validNext));
     case 2 % ensemble-based mean computation
         D_new(I_next) = nm_nanmean( [ D(I_next,:) D_next(I_next,:) ], 2 );
 end

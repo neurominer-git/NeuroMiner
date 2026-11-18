@@ -1,4 +1,4 @@
-function [ IN, OUT ] = SelectFeaturesAcrossCV1( IN, OUT, Param, minmaxfl, OptMode )
+function [ IN, OUT ] = SelectFeaturesAcrossCV1( IN, OUT, Param, minmaxfl, OptMode, pfeSelectionMode )
 global VERBOSE
 
 nc = size(OUT.F,3);
@@ -87,12 +87,12 @@ for q=1:nP
         qCVOpt(curclass) = nm_nanmean(nk_cellcat(qOUT{q}.ts(:,:,curclass),[],1))./nm_nansem(nk_cellcat(qOUT{q}.ts(:,:,curclass),[],1));
     end
     
-    switch Param.datamode
+    switch pfeSelectionMode
         case 1
             qCrit(q) = mean(qTrOpt);
         case 2
             qCrit(q) = mean(qCVOpt);
-        case 3
+        case {3, 4}
             qCrit(q) = mean([qTrOpt qCVOpt]);
     end
     

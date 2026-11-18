@@ -1,11 +1,16 @@
 function OUT  = nk_DefineFusionModeParams(dat, analysis, F, nF, curmodal, oocvind)
-global FUSION PREPROC VIS STACKING ALTY
+global FUSION PREPROC VIS STACKING ALTY MULTILABEL
 
 if ~exist('oocvind','var'), oocvind = []; end; varstr = [];
 if ~exist('curmodal','var') || isempty(curmodal), curmodal = 1; end
 stk_flag = false; if ~isempty(STACKING) && STACKING.flag == 1, stk_flag = true; end
 OUT.curmodal = curmodal;
 OUT.FUSION = FUSION;
+% Pre-token analyses remain usable without SYNTH persistence.
+% nm2-allow: Persisted legacy analysis objects may predate init_token; do not fabricate cache identity.
+if isfield(analysis,'init_token')
+    OUT.init_token = analysis.init_token;
+end
 %% Get Training / CV data (Y) & Build modality suffix
 switch FUSION.flag
     
@@ -70,9 +75,12 @@ end
 % Get back data and data descriptors according to data fusion mode
 [OUT.X, OUT.labels] = nk_CompatY(dat, tF, oocvind, FUSION, ALTY, stk_flag);
 
-% Overwrite standard label with alternative label, if needed
+% Overwrite standard label with alternative label, if it exists
 if isfield(analysis.params,'label') && analysis.params.label.altlabelflag==1
     fprintf('\nUsing alternative label: %s [ %s ]', analysis.params.label.labelname, analysis.params.label.modeflag)
+    if ~isempty(MULTILABEL) && MULTILABEL.flag==1,
+        MULTILABEL.flag = 0;
+    end
     OUT.labels = analysis.params.label.label;
 end
 

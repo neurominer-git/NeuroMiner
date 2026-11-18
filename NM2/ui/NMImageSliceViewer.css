@@ -1,0 +1,125 @@
+/* NMImageSliceViewer.css
+ * styles the NMImageSliceViewer browser UI component.
+ * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
+ */
+
+.nmSliceFrame {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  touch-action: none;
+  cursor: crosshair;
+  overflow: visible;
+}
+.nmSliceCanvas {
+  display: block;
+}
+.nmSliceCrosshair {
+  position: absolute;
+  z-index: 8;
+  pointer-events: none;
+  background: rgba(134, 239, 172, .78);
+  box-shadow: 0 0 0 1px rgba(22, 163, 74, .42);
+}
+.nmSliceCrosshairH {
+  left: 0;
+  right: 0;
+  height: 1px;
+  transform: translateY(-.5px);
+}
+.nmSliceCrosshairV {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-.5px);
+}
+.nmSliceValueTip {
+  position: absolute;
+  z-index: 9;
+  pointer-events: none;
+  max-width: calc(100% - 8px);
+  box-sizing: border-box;
+  padding: 3px 5px;
+  border: 1px solid rgba(15,23,42,.25);
+  border-radius: 5px;
+  background: rgba(15,23,42,.84);
+  color: #f8fafc;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 600;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: 0 3px 10px rgba(15,23,42,.25);
+}
+.nmSliceZoomHost {
+  position: relative;
+}
+.nmSliceZoom {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  z-index: 10;
+  pointer-events: none;
+}
+.nmSliceZoomValue {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 10px;
+  font-weight: 700;
+  color: #334155;
+  background: rgba(248,250,252,.88);
+  border: 1px solid rgba(148,163,184,.65);
+  border-radius: 999px;
+  padding: 5px 2px;
+  line-height: 1;
+  height: 58px;
+  flex: 0 0 58px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+.nmSliceZoomTrack {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  pointer-events: auto;
+}
+.nmSliceZoomSlider {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200px;
+  height: 22px;
+  min-height: 0;
+  direction: ltr;
+  writing-mode: horizontal-tb;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  transform-origin: center center;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+.nmSliceZoomLabel {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 9px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  height: 36px;
+  flex: 0 0 36px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}

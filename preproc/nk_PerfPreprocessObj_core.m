@@ -28,7 +28,8 @@
 %
 %   TrParam     [] | cell | struct
 %                       - Empty   => CV/training mode: learn parameters at each step.
-%                       - Nonempty=> OOCV mode: apply provided parameters; no re-learning.
+%                       - Nonempty=> OOCV mode: apply provided parameters; only an explicitly
+%                                    marked application-imputation slot may be learned from .Tr.
 %
 %   act         char | cellstr
 %                       Action name (e.g., 'scale') or cell array of step names
@@ -39,12 +40,13 @@
 %   InputParam  struct  Data after all steps. On hyperparam sweeps / shelves:
 %                       .Tr, .Ts, .C, .Yw become cell arrays aligned with TrParam.
 %   TrParam     cell    Per-step learned parameters (training mode), or the input
-%                       parameters passed through (OOCV mode). Matches the step layout
+%                       parameters plus any marked OOCV-application fit (OOCV mode). Matches the step layout
 %                       and data shelves (cells indexed by [param-combination, label]).
 %
 % MODES & BEHAVIOR
 %   • Training (CV) mode     : TrParam is empty → learn step parameters on .Tr; apply to .Ts/.C.
-%   • Out-of-sample (OOCV)   : TrParam provided → apply parameters to .Ts/.C (no re-learning).
+%   • Out-of-sample (OOCV)   : TrParam provided → apply parameters to .Ts/.C; an explicitly
+%                              marked application-imputation slot may be fitted from .Tr.
 %   • Multi-label handling   : If preprocessing depends on labels, separate shelves per label;
 %                              otherwise reuse single processed data to save memory/time.
 %   • Hyperparameter sweeps  : For steps with .opt grids, expand shelves over all combinations.
@@ -143,7 +145,33 @@ if iscell(act), nact = length(act); else, nact = 1; acti = act; end
 % Do the training parameters and does the training parameters sequence
 % match action sequence?
 if iscell(TrParam), nTrParam = length(TrParam); else, nTrParam = 1; TrParami = []; end
-if nact ~= nTrParam && paramfl, if VERBOSE; fprintf('\nLength of action sequence has to match training parameters. Abort!!!'); end; return; end
+hasRuntimePlan = isfield(InputParam,'OOCVAPP_RUNTIME') && ~isempty(InputParam.OOCVAPP_RUNTIME);
+if nact ~= nTrParam && paramfl
+    if hasRuntimePlan
+        error('nk_PerfPreprocessObj_core:OOCVApplicationParamCountMismatch', ...
+            'OOCV application preprocessing requires one positional TrainedParam slot per runtime action.');
+    end
+    if VERBOSE; fprintf('\nLength of action sequence has to match training parameters. Abort!!!'); end
+    return
+end
+runtimeFitIndex = [];
+if hasRuntimePlan
+    runtimePlan = InputParam.OOCVAPP_RUNTIME;
+    runtimeFitIndex = double(runtimePlan.featureActIndex);
+    sourceIndex = double(runtimePlan.trainedParamSourceIndex(:)');
+    if ~isscalar(runtimeFitIndex) || ~isfinite(runtimeFitIndex) || ...
+            runtimeFitIndex < 1 || runtimeFitIndex ~= round(runtimeFitIndex) || ...
+            runtimeFitIndex > nact || numel(sourceIndex) ~= nact || ...
+            nnz(sourceIndex==0) ~= 1 || sourceIndex(runtimeFitIndex) ~= 0
+        error('nk_PerfPreprocessObj_core:InvalidOOCVApplicationPlan', ...
+            'OOCV application preprocessing parameter alignment is inconsistent with the active action sequence.');
+    end
+    if iscell(act), runtimeAction = act{runtimeFitIndex}; else, runtimeAction = act; end
+    if ~strcmpi(char(string(runtimeAction)),'impute')
+        error('nk_PerfPreprocessObj_core:InvalidOOCVApplicationAction', ...
+            'The runtime-fitted OOCV application parameter slot must belong to an impute action.');
+    end
+end
 
 % Do we need to deal with multiple labels?
 switch MODEFL
@@ -466,8 +494,19 @@ for i=1:nact
         end
     end
     
-    % No Out-of-sample mode => build up TrParam structure array
-    if ~paramfl, TrParam{i} = TrParami; end; TrParami = []; 
+    % Training mode builds the full parameter chain. In OOCV mixed mode,
+    % only the explicitly marked application-imputation slot may be learned
+    % into an otherwise trained positional chain.
+    if ~paramfl
+        TrParam{i} = TrParami;
+    elseif ~isempty(runtimeFitIndex) && i == runtimeFitIndex && isempty(TrParam{i})
+        if isempty(TrParami)
+            error('nk_PerfPreprocessObj_core:MissingOOCVApplicationParam', ...
+                'The marked OOCV application imputation step did not return a fitted preprocessing parameter.');
+        end
+        TrParam{i} = TrParami;
+    end
+    TrParami = []; 
     
     if VERBOSE, fprintf('\tDone in %g seconds.', toc(tStart)); else, fprintf('.'); end
     
@@ -532,7 +571,14 @@ if ~isfield(InputParam.P{i}.SCALE,'AcMatFl'), InputParam.P{i}.SCALE.AcMatFl = fa
 if ~isfield(InputParam.P{i}.SCALE,'ZeroOne'), InputParam.P{i}.SCALE.ZeroOne = 1;     end
 if ~isfield(InputParam.P{i}.SCALE,'zerooutflag'), InputParam.P{i}.SCALE.zerooutflag = 1;     end
 if VERBOSE
-    if InputParam.P{i}.SCALE.ZeroOne == 1, rangestr = '[0, 1]'; else, rangestr = '[-1, 1]'; end
+    switch InputParam.P{i}.SCALE.ZeroOne
+        case 1
+            rangestr = '[0, 1]';
+        case 2
+            rangestr = '[-1, 1] (min-max)';
+        case 3
+            rangestr = '[-1, 1] (symmetric, zero-preserving)';
+    end
     if InputParam.P{i}.SCALE.AcMatFl, fprintf('\tScaling whole matrix to %s ...', rangestr); else, fprintf('\tScaling each feature to %s ...', rangestr); end
 end
 if paramfl && tsfl && isfield(TrParami,'minY') && ...
@@ -786,8 +832,10 @@ elseif trfl
         else
             DIMRED.DR.labels = [InputParam.P{i}.DR.labels(:,actparam.curlabel); SrcParam.TrainLabelSyn(:,actparam.curlabel)]; 
         end
-     else
+     elseif isfield(InputParam.P{i}.DR,'labels')
          DIMRED.DR.labels = InputParam.P{i}.DR.labels(:,actparam.curlabel); 
+     else
+         DIMRED.DR.labels = [];
      end
     [InputParam.Tr, TrParami] = nk_PerfRedObj(InputParam.Tr, DIMRED); 
     if tsfl,tsproc = true; end   
@@ -1038,8 +1086,11 @@ if ~isfield(TrParami,'W') || isempty(TrParami.W)
     if isfield(InputParam.P{i}.RANK,'curglabel')
         RANK.curlabel = InputParam.P{i}.RANK.curlabel(InputParam.P{i}.RANK.curglabel,actparam.curlabel);
         Y = InputParam.Tr(InputParam.P{i}.RANK.curglabel,:);
-    else
+    elseif isfield(InputParam.P{i}.RANK,'curlabel')
         RANK.curlabel = InputParam.P{i}.RANK.curlabel(:,actparam.curlabel);
+        Y = InputParam.Tr;
+    else
+        RANK.curlabel = [];
         Y = InputParam.Tr;
     end
     if actparam.synthfl

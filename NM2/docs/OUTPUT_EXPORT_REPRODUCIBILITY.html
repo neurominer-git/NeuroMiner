@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Output, export and reproducibility architecture</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#output-export-and-reproducibility-architecture" id="toc-output-export-and-reproducibility-architecture">Output, export
+and reproducibility architecture</a>
+<ul>
+<li><a href="#unified-viewer-artifact-boundary" id="toc-unified-viewer-artifact-boundary">Unified viewer artifact
+boundary</a></li>
+<li><a href="#direct-export" id="toc-direct-export">Direct
+export</a></li>
+<li><a href="#imagingview-state-persistence" id="toc-imagingview-state-persistence">Imaging/view state
+persistence</a></li>
+<li><a href="#montage-and-video" id="toc-montage-and-video">Montage and
+video</a></li>
+<li><a href="#report-builder" id="toc-report-builder">Report
+Builder</a></li>
+<li><a href="#code-generation" id="toc-code-generation">Code
+generation</a></li>
+<li><a href="#reproducibility-principle" id="toc-reproducibility-principle">Reproducibility principle</a></li>
+<li><a href="#model-interpretation-relevance-map-export" id="toc-model-interpretation-relevance-map-export">Model-interpretation
+relevance-map export</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="output-export-and-reproducibility-architecture">Output, export
+and reproducibility architecture</h1>
+<h2 id="unified-viewer-artifact-boundary">Unified viewer artifact
+boundary</h2>
+<p>Interactive representations publish and capture through
+<code>ui/NMResultsViewerOutput.js</code>. This produces a versioned
+viewer artifact abstraction for visual or tabular outputs, allowing
+export and Report Builder to consume representations independently of
+their renderer implementation.</p>
+<pre class="mermaid"><code>flowchart LR
+    REP[&quot;representation adapter&quot;] --&gt; PUB[&quot;publish&quot;]
+    PUB --&gt; CAP[&quot;capture&quot;]
+    CAP --&gt; ART[&quot;NMResultsViewerArtifact&quot;]
+    ART --&gt; EXP[&quot;direct export&quot;]
+    ART --&gt; RB[&quot;Report Builder&quot;]
+    ART --&gt; VID[&quot;montage/video composition where applicable&quot;]</code></pre>
+<h2 id="direct-export">Direct export</h2>
+<p>Browser-side artifacts are passed through explicit Results Viewer
+output/export services implemented by
+<code>core/NMResultsViewerExportTools.m</code>,
+<code>core/NMResultsViewerTableExportTools.m</code> and the Results
+Viewer service handler. Scientific metadata/provenance travels with the
+artifact rather than being reconstructed from the DOM.</p>
+<h2 id="imagingview-state-persistence">Imaging/view state
+persistence</h2>
+<p>Imaging presentation state is normalized/serialized by
+<code>ui/NMImagingViewerState.js</code> and the imaging viewer. Saved
+state is presentation state; it does not replace current scientific
+payload/provenance validation when restored.</p>
+<h2 id="montage-and-video">Montage and video</h2>
+<p>3-D montage and video share the retained rendering/presentation state
+and common renderer rather than defining independent camera/display
+semantics.</p>
+<p>Key anchors:</p>
+<ul>
+<li><code>ui/NMResultsViewer3DMontage.js</code></li>
+<li><code>ui/NMResultsViewer3DVideoMaker.js</code></li>
+<li><code>core/NMResultsViewer3DVideoTools.m</code></li>
+</ul>
+<h2 id="report-builder">Report Builder</h2>
+<p>Report Builder captures browser-native representations through the
+same artifact boundary and combines them with MATLAB/tabular report
+material. See <a href="REPORT_BUILDER_ARCHITECTURE.html">REPORT_BUILDER_ARCHITECTURE.md</a>.</p>
+<h2 id="code-generation">Code generation</h2>
+<p>DataIO and Report Builder expose code/script generation so an
+accepted interactive configuration can be represented as an editable
+MATLAB workflow. Code generation should serialize the canonical
+configuration/recipe, not derive scientific meaning from screen
+state.</p>
+<p>Relevant anchors include:</p>
+<ul>
+<li><code>dataio/NMDataIOCodeExportTools.m</code></li>
+<li><code>core/NMResultsViewerReportTools.m</code></li>
+<li><code>ui/NMResultsViewerUI.m</code></li>
+</ul>
+<h2 id="reproducibility-principle">Reproducibility principle</h2>
+<p>Scientific selection/provenance and presentation state are distinct
+but both must be explicit in reproducible outputs. The scientific source
+remains the current NM/DataIO/Scientific-State authorities; saved
+presentation state controls how that scientific material is shown.</p>
+<h2 id="model-interpretation-relevance-map-export">Model-interpretation
+relevance-map export</h2>
+<p>Subject-level Model Interpretation (MLI) relevance maps are optional
+materializations of the persisted MLI result; they are not an input to
+MLI computation and are not a second scientific authority.
+<code>NM.analysis{a}.MLI</code> remains authoritative. The MLI method
+fixes the exported relevance quantity: <code>ShapleyValues</code> for
+Shapley analyses and <code>Y_mapped</code> for the other supported
+interpretation methods.</p>
+<p>The NM2 MLI runner therefore completes and persists MLI first and
+only then invokes <code>NMMLIMapExportTools</code> when <strong>Write
+subject relevance maps to disk</strong> is enabled. The legacy writer
+inside <code>nk_MLInterpreter</code> is suppressed on the NM2 path.
+Direct legacy callers can still retain the historical voxel NIfTI side
+effect.</p>
+<p>Export format follows DataIO provenance. Native voxel feature vectors
+are reconstructed in their authoritative feature-space mask and written
+as NIfTI. Native vertex vectors preserve vertex order exactly and may be
+written as GIFTI (<code>.func.gii</code>), MGH (<code>.mgh</code>), or
+MGZ (<code>.mgz</code>). The default surface mode follows persisted
+GIFTI/MGH/MGZ source containers and maps native FreeSurfer scalar
+sources to MGH; mixed surface formats require an explicit format
+selection. FreeSurfer MGH/MGZ output uses <code>save_mgh</code> directly
+and does not depend on <code>MRIread</code>/<code>MRIwrite</code>. ROI
+and tabular MLI vectors are deliberately not expanded into spatial files
+by this exporter.</p>
+<p>Export failures are reported separately from the completed MLI
+computation. A missing format writer or unavailable file-backed voxel
+feature space therefore cannot invalidate an already persisted
+scientific MLI result.</p>
+</body>
+</html>

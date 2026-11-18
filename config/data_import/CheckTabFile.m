@@ -17,6 +17,10 @@ try
            
         case 4
             Mx = 'spreadsheet file'; matrixname = IO.M_edit;
+        case 5
+            Mx = 'MATLAB table variable'; matrixname = IO.M_edit;
+        case 6
+            Mx = 'database connector'; matrixname = IO.M_edit;
     end
     if (strcmp(act,'check_matrix') && (IO.groupmode == 3 || IO.groupmode == 4)) && (isfield(IO,'oocvflag') && IO.oocvflag )
        unknown_str=''; if ~IO.labels_known, unknown_str = ' (unused because you specified that the labels of the new data are unknown)'; end
@@ -61,35 +65,92 @@ if ~isfield(IO,'t_Y') || isempty(IO.t_Y) || IO.reread_mat
                     return
                 end
             case 3
-                IO.t_Y = readtable(IO.M_edit, 'Delimiter', IO.delimit);
+                if (exist('NMDataIOTableReadTools','class') == 8 || exist('NMDataIOTableReadTools','file') == 2) && ...
+                        (isfield(IO,'headerRow') || isfield(IO,'headerAutoDetect'))
+                    IO.t_Y = NMDataIOTableReadTools.readTableFromIO(IO);
+                else
+                    delimRead = IO.delimit;
+                    if ischar(delimRead) || isa(delimRead,'string')
+                        switch lower(strtrim(char(delimRead)))
+                            case {'tab','\\t'}
+                                delimRead = sprintf('\t');
+                            case {'comma'}
+                                delimRead = ',';
+                            case {'semicolon'}
+                                delimRead = ';';
+                            case {'space'}
+                                delimRead = ' ';
+                        end
+                    end
+                    IO.t_Y = readtable(IO.M_edit, 'FileType', 'text', 'Delimiter', delimRead);
+                end
                 s_featnames = IO.t_Y.Properties.VariableNames;
             case 4
-                if strcmp(IO.sheet, na_str) 
-                    mess = GenerateMessageEntry(mess, sprintf('* %s: Please choose a source sheet in ''%s''!',act, matrixname)); 
-                    return
-                else
-                    IO.t_Y = readtable(IO.M_edit, 'Sheet', char(IO.sheet));
+                if (exist('NMDataIOTableReadTools','class') == 8 || exist('NMDataIOTableReadTools','file') == 2)
+                    if strcmp(IO.sheet, na_str)
+                        try
+                            sheets = NMDataIOTableReadTools.spreadsheetSheets(IO.M_edit);
+                            if ~isempty(sheets), IO.sheet = sheets{1}; end
+                        catch
+                        end
+                    end
+                    IO.t_Y = NMDataIOTableReadTools.readTableFromIO(IO);
                     s_featnames = IO.t_Y.Properties.VariableNames;
                     fprintf('\nChecking spreadsheet file %s ...',IO.M_edit);
-                    [~,IO.sheets] = xlsfinfo(IO.M_edit);
-                    if ~strcmp(IO.case_edit,na_str) && ~strcmp(IO.label_edit,na_str)
-                        col_cases = strcmp(s_featnames,IO.case_edit);
-                        col_label = strcmp(s_featnames, IO.label_edit);
-                        ttY = IO.t_Y; ttY( :, col_cases | col_label) = [];
-                        [~,IO.cellcols, IO.cellcolsinfo] = nk_ScopeCellRetDummyFromTable('scope', ttY);
-                    else
-                        IO.cellcols = []; IO.cellcolsinfo = [];
+                    try
+                        IO.sheets = NMDataIOTableReadTools.spreadsheetSheets(IO.M_edit);
+                    catch
+                        [~,IO.sheets] = xlsfinfo(IO.M_edit);
                     end
-                    
+                else
+                    if strcmp(IO.sheet, na_str) 
+                        mess = GenerateMessageEntry(mess, sprintf('* %s: Please choose a source sheet in ''%s''!',act, matrixname)); 
+                        return
+                    else
+                        IO.t_Y = readtable(IO.M_edit, 'Sheet', char(IO.sheet));
+                        s_featnames = IO.t_Y.Properties.VariableNames;
+                        fprintf('\nChecking spreadsheet file %s ...',IO.M_edit);
+                        [~,IO.sheets] = xlsfinfo(IO.M_edit);
+                    end
+                end
+                labelsDefined = isfield(IO,'label_edit') && ~any(strcmp(IO.label_edit,na_str));
+                if ~strcmp(IO.case_edit,na_str) && labelsDefined
+                    col_cases = strcmp(s_featnames,IO.case_edit);
+                    col_label = RetCellInCellsIndex(s_featnames, IO.label_edit);
+                    ttY = IO.t_Y; ttY( :, col_cases | col_label) = [];
+                    [~,IO.cellcols, IO.cellcolsinfo] = nk_ScopeCellRetDummyFromTable('scope', ttY);
+                else
+                    IO.cellcols = []; IO.cellcolsinfo = [];
+                end
+            case 5
+                if strcmp(IO.M_edit,na_str), return, end
+                IO.t_Y = evalin('base', char(IO.M_edit));
+                if ~istable(IO.t_Y)
+                    mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Workspace variable ''%s'' is not a MATLAB table. Use workspace-variable mode for numeric matrices.', act, IO.M_edit));
+                    return
+                end
+                s_featnames = IO.t_Y.Properties.VariableNames;
+                labelsDefined = isfield(IO,'label_edit') && ~any(strcmp(IO.label_edit,na_str));
+                if ~strcmp(IO.case_edit,na_str) && labelsDefined
+                    col_cases = strcmp(s_featnames,IO.case_edit);
+                    col_label = RetCellInCellsIndex(s_featnames, IO.label_edit);
+                    ttY = IO.t_Y; ttY( :, col_cases | col_label) = [];
+                    [~,IO.cellcols, IO.cellcolsinfo] = nk_ScopeCellRetDummyFromTable('scope', ttY);
+                else
+                    IO.cellcols = []; IO.cellcolsinfo = [];
                 end
         end
-    catch
+    catch ERR
         switch IO.groupmode
-            case {1,2}
-                mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Matrix ''%s'' not found in %s!', act, matrixname, source));
+            case {1,2,5}
+                mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Matrix ''%s'' not found in %s.\n\tError message: %s (%s)', act, matrixname, source, ERR.message, ERR.identifier));
             otherwise
-                mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Could not open ''%s''.\n\tPlease check whether the file exists, is corrupt or the import settings are not completed.', act,IO.M_edit)); 
-        end
+                if ~isempty(ERR.stack)
+                    mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Could not read ''%s''.\n\tError message: %s (%s)\n\tFunction:%s, Line:%g', act, IO.M_edit, ERR.message, ERR.identifier, ERR.stack(1).name, ERR.stack(1).line));
+                else
+                    mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Could not read ''%s''.\n\tError message: %s (%s)', act, IO.M_edit, ERR.message, ERR.identifier));
+                end
+            end
         IO.reread_mat = true;
         return
     end
@@ -126,7 +187,7 @@ if ~isfield(IO,'t_Y') || isempty(IO.t_Y) || IO.reread_mat
     end
     if size(IO.t_Y,2) < 2
         switch IO.groupmode
-            case {1,2}
+            case {1,2,5}
                 mess = GenerateMessageEntry(mess, sprintf('WARNING in %s: I found only one column in the ''%s''.\n\tPlease check whether you specified the correct matrix.', act, source), 2, 'SystemCommands');
             case {3,4}
                 mess = GenerateMessageEntry(mess, sprintf('WARNING in %s: I found only one column in the ''%s''.\n\tPlease check whether the delimiter (%s) is correct.', act, source, IO.delimit), 2,'SystemCommands');
@@ -153,7 +214,7 @@ try
                     t_ID = evalin('base',IO.case_edit); 
                 case 2
                     load(IO.M_edit, IO.case_edit); t_ID =eval(IO.case_edit);
-                case {3,4}
+                case {3,4,5}
                     t_ID = table2cell(IO.t_Y(:,{IO.case_edit}));
             end
             
@@ -185,13 +246,16 @@ try
                 case 2
                     load(IO.M_edit, IO.col_edit); t_featnames = eval(IO.col_edit); 
             end
+            if isa(t_featnames,'string') || ischar(t_featnames)
+                t_featnames = cellstr(t_featnames);
+            end
             t_featnames_sz = size(t_featnames);
             if numel(t_featnames_sz)>2 || ~any(t_featnames_sz == 1) , 
                 mess = GenerateMessageEntry(mess, sprintf('ERROR %s: feature names vector should not have more than one dimension!', act)); 
                 return
             end
-            if ~iscell(t_featnames), 
-                mess = GenerateMessageEntry(mess, sprintf('ERROR %s: feature names vector is not a cell array of strings!', act)); 
+            if ~iscell(t_featnames) || ~all(cellfun(@(x) ischar(x) || isa(x,'string'), t_featnames(:))), 
+                mess = GenerateMessageEntry(mess, sprintf('ERROR %s: feature names vector is not a cell/string/char array of feature names!', act)); 
                 return
             end
             if ~isempty(t_featnames) && numel(t_featnames) ~= t_Y_sz(2)
@@ -211,21 +275,53 @@ try
             case 1
                 if ~isfield(IO,'M_edit'), return, end
                 IO.t_Y = evalin('base',IO.M_edit);
+                if istable(IO.t_Y)
+                    mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Workspace feature variable ''%s'' is a MATLAB table. Use source type MATLAB table variable instead.', act, IO.M_edit));
+                    return
+                end
                 t_Y = IO.t_Y;
             case 2
                 if ~isfield(IO,'matrix_edit'), return, end
                 load(IO.M_edit,IO.matrix_edit); IO.t_Y =eval(IO.matrix_edit); 
+                if istable(IO.t_Y)
+                    mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: MAT-file feature variable ''%s'' is a MATLAB table. Use source type MATLAB table variable after loading the table into the workspace.', act, IO.matrix_edit));
+                    return
+                end
                 t_Y = IO.t_Y;
-            case {3,4}
+            case {3,4,5}
                 if ~isfield(IO,'M_edit'), return, end
                 if ~isfield(IO,'case_edit'), return, end
                 if ~isfield(IO,'label_edit'), return, end
-                featnames = IO.t_Y.Properties.VariableNames;
-                col_cases = strcmp(featnames,IO.case_edit);
-                col_label = RetCellInCellsIndex(featnames, IO.label_edit);
-                t_Y = table2array(IO.t_Y(:, ~col_cases & ~col_label ));
+                if exist('NMDataIOTableRoleTools','class') == 8 || exist('NMDataIOTableRoleTools','file') == 2
+                    [t_Y, s_featnames, importReport, mess] = NMDataIOTableRoleTools.featureMatrixForCheck(IO, IO.t_Y, mess); %#ok<ASGLU>
+                    if exist('CheckReadyStatus','file') == 2 && CheckReadyStatus(mess)
+                        return
+                    end
+                    if ~isempty(importReport), IO.importReport = importReport; end
+                else
+                    featnames = IO.t_Y.Properties.VariableNames;
+                    col_cases = strcmp(featnames,IO.case_edit);
+                    col_label = RetCellInCellsIndex(featnames, IO.label_edit);
+                    if isfield(IO,'feature_edit') && ~isempty(IO.feature_edit)
+                        col_feature = RetCellInCellsIndex(featnames, IO.feature_edit);
+                    else
+                        col_feature = ~(col_cases | col_label);
+                    end
+                    t_Y = table2array(IO.t_Y(:, col_feature));
+                end
         end
 
+        t_Y_sz = size(t_Y);
+        if ismember(IO.groupmode, [1 2])
+            if isfield(IO,'requireFeatureNames') && IO.requireFeatureNames && (~isfield(IO,'col_edit') || strcmp(IO.col_edit,na_str))
+                mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Feature-name variable is required for workspace/MAT-file import.', act));
+                return
+            end
+            if isfield(IO,'covar_edit') && ~isempty(IO.covar_edit) && isfield(IO,'requireCovariateNames') && IO.requireCovariateNames && (~isfield(IO,'covnames_edit') || strcmp(IO.covnames_edit,na_str))
+                mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Covariate-name variable is required when covariate variables are assigned.', act));
+                return
+            end
+        end
         if ~ismatrix(t_Y_sz),
             mess = GenerateMessageEntry(mess, sprintf('ERROR in %s: Input matrix should not have more than two dimensions!', act));
             return

@@ -1,0 +1,39 @@
+{
+  "baseline": "NMModular_common_v4.598_docs_audit(2).zip",
+  "date": "2026-08-27",
+  "docs": {
+    "old_total_files": 292,
+    "new_total_files": 14,
+    "old_markdown_files": 230,
+    "new_markdown_files": 14,
+    "old_markdown_loc": 21888,
+    "new_markdown_loc": 724,
+    "internal_link_failures": 0,
+    "missing_source_anchors": 0,
+    "unique_source_anchors": 66,
+    "stage_label_failures": 0,
+    "function_template_heading_failures": 0,
+    "targeted_source_claim_checks": 23,
+    "targeted_source_claim_failures": 0
+  },
+  "unchanged_code": {
+    "production_files": 254,
+    "production_physical_loc_before": 203325,
+    "production_physical_loc_after": 203325,
+    "test_physical_loc_before": 77160,
+    "test_physical_loc_after": 77160
+  },
+  "migration_backlog": {
+    "production_files_with_old_docs_references": 21,
+    "test_files_or_manifests_with_old_docs_references": 74
+  },
+  "static_validation": {
+    "javascript_files_checked": 388,
+    "javascript_syntax_failures": 0,
+    "python_test_files_checked": 57,
+    "python_syntax_failures": 0,
+    "representative_runtime_tests": 7,
+    "representative_runtime_test_failures": 0,
+    "matlab_runtime_available": false
+  }
+}

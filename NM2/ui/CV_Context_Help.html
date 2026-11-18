@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NM2 help — Cross-validation</title>
+<style>
+:root {font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;color:#172b40;background:#f6f8fc}
+* {box-sizing:border-box}
+body {margin:0}
+header {background:#172f54;color:#fff;padding:19px 21px}
+header h1 {font-size:21px;margin:0 0 7px}
+header p {margin:0;color:#dce9fa}
+main {padding:16px 18px 60px}
+nav,section {background:white;border:1px solid #d8e1eb;border-radius:10px;padding:13px 16px;margin-bottom:12px}
+nav a {display:inline-block;margin:3px 12px 3px 0}
+a {color:#1956aa;text-decoration:none}
+a:hover {text-decoration:underline}
+section {scroll-margin-top:12px}
+section:target {outline:2px solid #3b82f6}
+h2 {font-size:17px;margin:0 0 7px;color:#10243f}
+p {margin:7px 0}
+.note {border-left:3px solid #3b82f6;background:#eff6ff;padding:9px 11px;margin-top:9px}
+.warn {border-left:3px solid #c97718;background:#fff5e9;padding:9px 11px;margin-top:9px}
+code {background:#edf2f8;padding:1px 4px}
+</style>
+</head>
+<body>
+<header><h1>Cross-validation: how partitions affect model evaluation</h1><p>CV2 evaluates held-out predictions; CV1 selects models and parameters inside each CV2 training partition.</p></header>
+<main>
+<nav aria-label="Help topics">
+<a href="#cvOverview">Start here</a><a href="#cvFramework">Framework</a><a href="#cvOuterMode">CV2</a><a href="#cvInnerMode">CV1</a><a href="#cvEqEnabled">Undersampling</a><a href="#cvConstrainedCV">Groups</a><a href="#cvOnlyGroupFlag">Exclusive test cases</a><a href="#cvOperations">Build / load / save</a>
+</nav>
+<section id="cvOverview"><h2>Start here: what does cross-validation do?</h2>
+<p><strong>CV2 (outer)</strong> holds cases completely outside model tuning and feature selection; its held-out predictions support the internal estimate of generalization. <strong>CV1 (inner)</strong> operates only within each CV2 training set to choose parameters, features and models. The nested structure keeps model selection separate from the outer evaluation.</p>
+<p>Choose the split according to the population you want to predict: new people from similar settings (pooled), or people at entirely unseen sites/families/other groups (group-based). NeuroMiner learns preprocessing and feature-selection settings within the corresponding training partitions.</p>
+<div class="note">Pooled folds evaluate new cases drawn from the pooled sample; group-based designs evaluate transfer across defined groups. The number of cases or groups per fold influences the precision and stability of performance estimates.</div>
+</section>
+<section id="cvFramework"><h2>Cross-validation framework</h2>
+<p><strong>1 — Pooled:</strong> generate CV1 and CV2 folds from the pooled sample. Appropriate when observations can be exchanged between folds and your intended deployment population resembles the sampled population.</p>
+<p><strong>2 — Outer Leave-Group-Out / Inner pooled:</strong> hold out entire groups in CV2, but tune on pooled cases from the remaining groups. Useful for estimating transfer to an unseen acquisition site or cohort.</p>
+<p><strong>3 — Nested Leave-Group-Out:</strong> separate groups in both CV2 and CV1, so tuning also emphasizes cross-group transfer. <strong>4 — Outer Leave-Group-Out / Inner Leave-Group-In:</strong> inner models are trained within individual groups and evaluated across groups; use for the specific scientific question of single-group model transfer.</p>
+<div class="warn">A group identifier represents a scientific unit such as site or participant identity. Group-based CV holds out those units together; pooled CV distributes individual cases across partitions.</div>
+</section>
+<section id="cvOuterMode"><h2>Outer CV2 partitioning</h2>
+<p><strong>Repeated K-fold:</strong> divide the sample into K held-out portions per repetition. Every CV2 test portion remains unseen by model tuning. <strong>Leave-one-out:</strong> hold out one case at a time; this can be computationally expensive and yields small test partitions.</p>
+<p>The framework controls whether these choices are available. Group-based frameworks select their CV2 test sets by the group-index variable instead.</p>
+</section>
+<section id="cvInnerMode"><h2>Inner CV1 partitioning</h2>
+<p>CV1 divides each outer training partition into smaller training and validation sets. It is used to select hyperparameters, preprocessing choices and feature-selection settings; it is <em>not</em> the final independent evaluation.</p>
+<p>Leave-one-out inside CV1 can greatly increase model fits, particularly with wrappers or grids. In grouped frameworks CV1 follows the grouping design instead of ordinary K-fold splitting.</p>
+</section>
+<section id="cvOuterPerm"><h2>Outer CV2 permutations</h2>
+<p>Number of independent resamplings of the outer folds. More repetitions expose the model to more train/test partitions and can stabilize aggregate estimates, but each repetition multiplies downstream computation. A permutation here is a repeat of fold assignment, <em>not</em> a label-shuffling significance test.</p>
+<p>Leave-one-out and some group-based designs do not permit repeated partitions; their controls are hidden or fixed.</p>
+</section>
+<section id="cvOuterFold"><h2>Outer CV2 folds</h2>
+<p>Number of held-out portions in each outer repetition. For example, 5 folds hold out roughly one fifth of the eligible cases per fold; 10 folds hold out roughly one tenth. Higher K uses more training cases per model but creates smaller test folds and more computation.</p>
+<p>The fold count determines how many cases enter each test partition; high values make test folds smaller. Leave-one-out is a separate mode and does not require a negative fold count.</p>
+</section>
+<section id="cvInnerPerm"><h2>Inner CV1 permutations</h2>
+<p>Number of repeated subdivisions of each outer training set for parameter and feature selection. Repetition reduces dependence on a single random inner partition but increases the number of model fits. CV2 test cases remain outside this process.</p>
+</section>
+<section id="cvInnerFold"><h2>Inner CV1 folds</h2>
+<p>Number of inner validation portions within each CV2 training partition. The smallest CV2 training partition limits the cases available for inner folds. Very small validation folds can yield variable performance estimates, especially for rare outcomes.</p>
+</section>
+<section id="cvOuterGroupSourceVar"><h2>Outer CV2 group-index variable</h2>
+<p>Select a workspace vector assigning a group identifier to each case, in exactly the same case order as the active NM target. In leave-group-out CV2, all cases belonging to a held-out group are kept out of that outer training partition.</p>
+<p>For example, a site/scanner identifier makes CV2 hold out one acquisition site at a time. The number of sites, their sizes and the outcome distribution across sites determine the resulting test partitions.</p>
+</section>
+<section id="cvInnerGroupSourceVar"><h2>Inner CV1 group-index variable</h2>
+<p>The group index defines inner training/validation separation in nested group frameworks. For cross-site tuning, site identities define the groups; row numbers would instead describe individual records.</p>
+<p>Group identifiers correspond to the current cases in the same order. In the single-group-training framework, inner training and test groups are distinct.</p>
+</section>
+<section id="cvDecompose"><h2>Multi-class decomposition</h2>
+<p>Only shown with more than two classes. <strong>One-vs-one:</strong> train a binary model for every class pair. <strong>One-vs-all:</strong> train one model per class against all remaining classes. These answer different binary subproblems and may respond differently to imbalanced class sizes.</p>
+<p><strong>Multi-group / no decomposition:</strong> leave the multiclass outcome intact for learners that handle multiple classes directly. This option applies to learning algorithms that accept the full multiclass outcome directly.</p>
+<div class="note">Leave-one-out CV fixes the decomposition setting to one-vs-all. Decomposition changes the binary learning problems, not just how results are displayed.</div>
+</section>
+<section id="cvEqEnabled"><h2>Equalize CV1 training partitions by undersampling</h2>
+<p>Enabling undersampling changes the distribution of cases used for model fitting. For classification, undersampling reduces the larger class relative to the smaller one; for regression it seeks a more even representation across the target histogram.</p>
+<p>Equalization changes which cases are used for fitting inside CV1 and discards some training observations. It is not automatically better: it can waste data and change the effective training distribution. Equalization is applied to the CV1 training partition, not to the held-out CV2 test cases.</p>
+</section>
+<section id="cvEqTarget"><h2>Equalization target (regression)</h2>
+<p>The balancing histogram can use the active numeric outcome or a selected covariate. Outcome-based equalization changes the sampling distribution of target values; covariate-based equalization changes the sampling distribution of that covariate.</p>
+<p>Changing the balancing variable does not change what the model predicts. It changes the sampling plan used in CV1 training.</p>
+</section>
+<section id="cvEqCovariateIndex"><h2>Regression equalization covariate</h2>
+<p>This field selects the numeric covariate whose distribution determines the balancing histogram. The histogram is calculated from its case-wise values, not the covariate name.</p>
+</section>
+<section id="cvEqMinCount"><h2>Minimum observations at lower histogram end</h2>
+<p>For regression equalization, this sets a minimum representation target near the lower end of the chosen distribution. Together with the upper-end and bin controls, it determines how the training sample is thinned across the histogram.</p>
+<p>The original histogram shows how many observations occupy the distribution tails. Undersampling cannot create additional independent observations in sparsely populated ranges.</p>
+</section>
+<section id="cvEqMaxCount"><h2>Minimum observations at upper histogram end</h2>
+<p>Companion minimum representation setting at the upper end of the regression target or selected covariate distribution. When few cases are available near this end, a high minimum may constrain the resulting balancing plan.</p>
+</section>
+<section id="cvEqBinCount"><h2>Histogram bins</h2>
+<p>Number of intervals used to describe the continuous target for regression undersampling. More bins represent finer distinctions but contain fewer cases each; fewer bins pool more heterogeneous values. The available sample size determines how many cases can occupy each bin.</p>
+</section>
+<section id="cvHistograms"><h2>Inspect original and equalized histograms</h2>
+<p><strong>Original:</strong> examine the target distribution before equalization. <strong>Equalized CV1:</strong> inspect the actual training distribution after building a CV structure; this view requires generated folds. The difference between the histograms shows which parts of the range lost observations during undersampling.</p>
+</section>
+<section id="cvEqPosNegRatio"><h2>Target bigger/smaller class ratio</h2>
+<p>For classification, set the intended ratio of larger to smaller class after training-fold undersampling. <strong>1</strong> aims for equal sizes; <strong>1.5</strong> allows 50% more majority-class than minority-class cases and is the default.</p>
+<p>A more equal ratio may help minority-class learning but removes more majority-class examples. Sensitivity, specificity and calibration are assessed from outer CV2 test predictions on the original held-out cases.</p>
+</section>
+<section id="cvEqAddRemoved2Test"><h2>Shuffle removed observations to CV1 test data</h2>
+<p>This option determines whether cases excluded from a balanced CV1 <em>training</em> partition are added to that CV1 <em>validation</em> partition. This changes the set used for hyperparameter/feature-selection assessment, not the outer CV2 holdout.</p>
+<p>Keeping them can help assess candidate models against a less artificially balanced inner test set. Excluding them instead produces an inner test set without those removed cases.</p>
+</section>
+<section id="cvConstrainedCV"><h2>Constrain pooled CV by a group-index variable</h2>
+<p>This option stratifies pooled folds by an additional grouping variable so that its categories are represented across folds. This is distinct from <em>leave-group-out</em>: constraining pooled CV distributes group levels across folds rather than keeping an entire group exclusively in the test set.</p>
+<p>For example, stratifying by site represents the sampled mixture of sites across pooled folds; leave-group-out instead assesses performance on sites absent from training.</p>
+</section>
+<section id="cvConstrainedSourceVar"><h2>Constraint group-index vector</h2>
+<p>Select a numeric group-index vector with one entry per NM case, in the active case order. Its categories represent strata to distribute across pooled folds. Categories represented by few cases cannot contribute equally to every fold when the number of folds exceeds their case count.</p>
+</section>
+<section id="cvOnlyGroupFlag"><h2>Use part of the sample as exclusive test data</h2>
+<p>Reserve cases identified by a separate index for evaluation at the <strong>CV2</strong> level, outside the ordinary eligible training sample. This is useful for a deliberately held-out subset that must not contribute to model fitting or inner selection.</p>
+<div class="warn">An exclusive test subset comes from the current dataset; it is not an external cohort. Cases assigned to the exclusive group are reserved for CV2 evaluation by the selected group index.</div>
+</section>
+<section id="cvOnlyGroupSourceVar"><h2>Index variable for exclusive test cases</h2>
+<p>The index variable identifies which current cases belong to the exclusive test group. It is a case-aligned vector of group codes, not a free-text label.</p>
+</section>
+<section id="cvOnlyGroupLevel"><h2>CV level for exclusive test data</h2>
+<p>The exclusive group is reserved at the <strong>CV2 test</strong> level. This setting does not change the outcome labels or create a CV1-only holdout.</p>
+</section>
+<section id="cvAppendMode"><h2>Build mode for an existing CV structure</h2>
+<p><strong>Overwrite:</strong> replace current folds. <strong>Append to outer CV:</strong> add outer resampling entries. <strong>Append to inner CV:</strong> extend inner resampling. <strong>Rebuild without new permutations:</strong> regenerate compatible structure without increasing the permutation count.</p>
+<p>These options appear during Build when a compatible CV structure already exists. The available append operations depend on the compatibility of the existing structure. Appending is not adding new subjects to the dataset.</p>
+</section>
+<section id="cvStorage"><h2>Load/save CV structure and settings</h2>
+<p>The <strong>load path</strong> identifies a previously saved <code>CVstruct_*.mat</code> file; loading restores the stored CV partition structure and its generating settings. The <strong>save path</strong> designates where to write them. The adjacent selectors provide the file and directory paths.</p>
+<p>A saved split is useful for comparing modeling pipelines on exactly the same train/test assignments. The saved fold indices refer to the cases and their order at creation; changing the population or its order changes the meaning of those indices.</p>
+</section>
+<section id="cvOperations"><h2>Build, load and save</h2>
+<p><strong>Build</strong> creates the actual CV1/CV2 training and test partitions from your chosen settings. <strong>Load</strong> restores previously stored folds and settings. <strong>Save</strong> stores the existing folds and settings in a MAT file; it does not generate new folds.</p>
+<div class="note">Before training, Build or Load a compatible CV structure. Editing fold numbers alone changes the proposed settings, not the already generated partition indices. Build and Load produce the CV structure consumed by training.</div>
+
+</section>
+</main>
+</body>
+</html>

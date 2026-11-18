@@ -1,4 +1,4 @@
-function [ts, rs, ds, Model] = nk_GetTestPerf(Xtest, Ytest, Features, Model, X, nonevalflag, ngroups)
+function [ts, rs, ds, Model, I] = nk_GetTestPerf(Xtest, Ytest, Features, Model, X, nonevalflag, ngroups)
 % =====================================================================================
 % function [ts, rs, ds] = nk_GetTestPerf(Xtest, Ytest, Features, Model, X, nonevalflag)
 % =====================================================================================
@@ -37,14 +37,24 @@ if ~isempty(Features)
     end
 end
 ts = zeros(s,1);
+
+switch SVM.prog
+    case 'SEQOPT'
+        act_prune_mode = 'prune'; 
+    otherwise
+        act_prune_mode = 'prune_single'; 
+end
+
+ % Check test matrix for NaN observations and remove them
 if iscell(Xtest)
     % Check and remove cases that include missings.
-    [Xtest{1}, Ytest, I] = nk_ManageNanCases(Xtest{1}, Ytest, [], 'prune_single');
+    [Xtest{1}, Ytest, I] = nk_ManageNanCases(Xtest{1}, Ytest, [], act_prune_mode);
     nsubj = size(Xtest{1},1); 
 else 
-    [Xtest, Ytest, I] = nk_ManageNanCases(Xtest, Ytest, [], 'prune_single');
+    [Xtest, Ytest, I] = nk_ManageNanCases(Xtest, Ytest, [], act_prune_mode);
     nsubj = size(Xtest,1); 
 end
+
 % Check if you have to deal with a multi-class problem
 switch MODEFL
     case 'classification'
@@ -74,7 +84,6 @@ for k=1:s % Loop through all feature subspaces
     % ******************** Get Model of current subpace *******************
     if iscell(Model), md = Model{k}; else, md = Model; end
     
-    % Check test matrix for NaN observations and remove them
     switch SVM.prog
         case 'SEQOPT'
             [ rs(:,k), ds(:,k), md ] = PREDICTFUNC(tXtest, Ytest, md);

@@ -85,7 +85,13 @@ if isfield(RAND,'ConstrainedCV') && RAND.ConstrainedCV == 1
     end
 end
 
-[ulb, Label, NaNflag, g, nclass] = nk_Prep4CV(label, modeflag, decomposeflag, groups, groupnames, oldcv);
+% Mode 3 refreshes classifier metadata from the supplied canonical group
+% names; parsing old binary descriptors is incorrect for one-vs-all.
+classSource = oldcv;
+if appendfl == 3 && ~isempty(groupnames)
+    classSource = [];
+end
+[ulb, Label, NaNflag, g, nclass] = nk_Prep4CV(label, modeflag, decomposeflag, groups, groupnames, classSource);
 
 cv2onlyfl = false; tConstraint = Constraint; tLabel = Label;
 if isfield(RAND,'CVOnlyGroup') && RAND.CVOnlyGroup.flag == 1 && ~isempty(RAND.CVOnlyGroup.index)

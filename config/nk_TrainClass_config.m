@@ -8,7 +8,7 @@ function [act, varind] = nk_TrainClass_config(act, varind, parentstr)
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % (c) Nikolaos Koutsouleris, 08/2023
 
-global NM CALIBAVAIL
+global NM CALIBAVAIL DEV
 
 if ~exist('act','var'), act = []; end
 menustr = []; menuact = [];
@@ -28,7 +28,7 @@ else
     modeflag = NM.modeflag;
 end
 
-%% Check whether TrainParams already exist
+%% Check whether TrainParams already exist and create defaults
 if ~isfield(NM,'TrainParam')
     % Create default NM parameters space
     nk_CVpartition_config(true);
@@ -47,13 +47,19 @@ if ~isfield(NM,'TrainParam')
     NM.TrainParam.LABEL.flag    = 0;
     NM.TrainParam.LABEL.origlabel = NM.label;
     NM.TrainParam.SYNTH.flag    = 2;
-elseif ~isfield(NM.TrainParam,'verbosity')
+end
+
+if ~isfield(NM.TrainParam,'verbosity')
     NM.TrainParam.verbosity     = 1;
-    if size(NM.label,2)>1
-        NM.TrainParam.MULTILABEL.flag = true;
-        NM.TrainParam.MULTILABEL.sel = 1:size(NM.label,2);
-        NM.TrainParam.MULTILABEL.dim = size(NM.label,2);
-    end
+end
+% Resolve multi-label scenario:
+% if an alternative label setting exists the multi-label selector is deactivated
+if size(NM.label,2)>1 && NM.TrainParam.LABEL.flag == 0
+    NM.TrainParam.MULTILABEL.flag = true;
+    NM.TrainParam.MULTILABEL.sel = 1:size(NM.label,2);
+    NM.TrainParam.MULTILABEL.dim = size(NM.label,2);
+elseif isfield(NM.TrainParam,'MULTILABEL')
+    NM.TrainParam = rmfield(NM.TrainParam,'MULTILABEL');
 end
 
 % Check whether the number of modalities specified in FUSION.M matches
@@ -228,6 +234,8 @@ if ~exist('act','var') || isempty(act)
     end
 
     % Check for regression / classification experiment and number of groups
+    % and set the learning framework according to the native or alternative
+    % label setting
     multistr = ''; multiflag = false;
     if isfield(NM.TrainParam, 'LABEL') && NM.TrainParam.LABEL.flag
         modeflag = NM.TrainParam.LABEL.newmode;
@@ -240,6 +248,7 @@ if ~exist('act','var') || isempty(act)
 
         classtr = ['Classification algorithm [ ' STATUS.SVM ' ]|'];
         
+        % Retrieve the native/alternative label
         if isfield(NM.TrainParam, 'LABEL') && NM.TrainParam.LABEL.flag
             label_temp = NM.TrainParam.LABEL.newlabel;
         else
@@ -263,7 +272,7 @@ if ~exist('act','var') || isempty(act)
         oocvstr='';
         oocvflag = false;
     end
-    if size(NM.label,2)>1
+    if size(NM.label,2)>1 && NM.TrainParam.LABEL.flag == 0
         if isfield(NM,'TrainParam') && isfield(NM.TrainParam,'MULTILABEL')
             nL = nk_GetLabelDim(NM.TrainParam.MULTILABEL);
             if nL>1
@@ -300,8 +309,11 @@ if ~exist('act','var') || isempty(act)
         menustr = [ menustr 'Use different label [ ' STATUS.LABEL ' ]|']; menuact = [menuact 99] ;
     end 
     menustr = [ menustr sprintf('Synthethic data generation [ %s ]|', STATUS.SYNTH) ]; menuact = [ menuact 4 ];
-
-    menustr = [ menustr 'Preprocessing pipeline [ ' STATUS.PREPROC ' ]|' classtr ]; menuact = [ menuact 6:7 ];
+    if DEV
+        menustr = [ menustr 'Experimental UI-based preprocessing pipeline configurator [ ' STATUS.PREPROC ' ]|' classtr ]; menuact = [ menuact 6:7 ];
+    else
+        menustr = [ menustr 'Preprocessing pipeline [ ' STATUS.PREPROC ' ]|' classtr ]; menuact = [ menuact 6:7 ];
+    end
 
     if flx
 
@@ -418,23 +430,30 @@ switch act
 
     % PREPROCESSING =================================================================================================================================================
     case 6
-        if ~isfield(NM,'TrainParam') || ...
-                ~isfield(NM.TrainParam,'PREPROC') || ...
-                varind > numel(NM.TrainParam.PREPROC)
-            NM.TrainParam.PREPROC{varind}.FEATSEL.active=0;
-            NM.TrainParam.PREPROC{varind}.BINMOD=1;
-        end
-        if isfield(NM.TrainParam,'FUSION') && NM.TrainParam.FUSION.flag == 3
-            if ~isfield(NM.TrainParam.STRAT{varind},'PREPROC'), NM.TrainParam.STRAT{varind}.PREPROC = []; end
-            act = 1; stepind = 1; while act>0, [NM.TrainParam.STRAT{varind}.PREPROC, act, stepind] = nk_Preproc_config(NM.TrainParam.STRAT{varind}.PREPROC, varind, navistr, stepind); end
-        else
-            if isfield(NM.TrainParam,'FUSION') && NM.TrainParam.FUSION.flag == 1
-                varind = NM.TrainParam.FUSION.M(1); %Always use the first modality to setup the parameters for the concatenated feature space
-            end
-            if ~isfield(NM.TrainParam,'PREPROC'), NM.TrainParam.PREPROC{varind} = []; end
-            act = 1; stepind = 1; while act>0, [NM.TrainParam.PREPROC{varind}, act, stepind] = nk_Preproc_config(NM.TrainParam.PREPROC{varind}, varind, navistr, stepind); end
-        end
+        if DEV
 
+            orch = NMPreprocOrchestrator.fromNM(NM, varind, NM.TrainParam.PREPROC{varind});
+            orch.openUI(fullfile(tempdir,'nm_preproc_orchestrator_v13'), 4822);
+            NM.TrainParam.PREPROC{varind} = orch.toLegacyPreproc();
+
+        else
+            if ~isfield(NM,'TrainParam') || ...
+                    ~isfield(NM.TrainParam,'PREPROC') || ...
+                    varind > numel(NM.TrainParam.PREPROC)
+                NM.TrainParam.PREPROC{varind}.FEATSEL.active=0;
+                NM.TrainParam.PREPROC{varind}.BINMOD=1;
+            end
+            if isfield(NM.TrainParam,'FUSION') && NM.TrainParam.FUSION.flag == 3
+                if ~isfield(NM.TrainParam.STRAT{varind},'PREPROC'), NM.TrainParam.STRAT{varind}.PREPROC = []; end
+                act = 1; stepind = 1; while act>0, [NM.TrainParam.STRAT{varind}.PREPROC, act, stepind] = nk_Preproc_config(NM.TrainParam.STRAT{varind}.PREPROC, varind, navistr, stepind); end
+            else
+                if isfield(NM.TrainParam,'FUSION') && NM.TrainParam.FUSION.flag == 1
+                    varind = NM.TrainParam.FUSION.M(1); %Always use the first modality to setup the parameters for the concatenated feature space
+                end
+                if ~isfield(NM.TrainParam,'PREPROC'), NM.TrainParam.PREPROC{varind} = []; end
+                act = 1; stepind = 1; while act>0, [NM.TrainParam.PREPROC{varind}, act, stepind] = nk_Preproc_config(NM.TrainParam.PREPROC{varind}, varind, navistr, stepind); end
+            end
+        end
         % ML ALGORITHM SELECTION =========================================================================================================================================
     case 7
         if isfield(NM.TrainParam,'FUSION') && NM.TrainParam.FUSION.flag == 3

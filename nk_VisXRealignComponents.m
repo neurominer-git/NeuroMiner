@@ -48,7 +48,9 @@ function [I, I1, Tx, Psel, Rx, SRx, PAx, assignmentVec, signCorrections, Dx] = .
             if ~haveRef 
                 I.VCV1REF{h}{n} = []; I.VCV1REFCNT{h}{n} = []; 
             end
-            [I1, Tx{n}, ~, Dx{n}, assignmentVec{n}, signCorrections{n}, I.VCV1REF{h}{n}, I.VCV1REFCNT{h}{n}] = nk_VisXRealignComponentsHelper(I1, inp, haveRef, Tx{n}, Dx{n}, I.VCV1REF{h}{n}, I.VCV1REFCNT{h}{n}, nM, il, ill, n, h, Fadd, Vind);        
+            Dx_n = []; if inp.fractionatedDecisionScores, Dx_n = Dx{n}; end
+            [I1, Tx{n}, ~, Dx_n, assignmentVec{n}, signCorrections{n}, I.VCV1REF{h}{n}, I.VCV1REFCNT{h}{n}] = nk_VisXRealignComponentsHelper(I1, inp, haveRef, Tx{n}, Dx_n, I.VCV1REF{h}{n}, I.VCV1REFCNT{h}{n}, nM, il, ill, n, h, Fadd, Vind);
+            if inp.fractionatedDecisionScores, Dx{n} = Dx_n; end
         end
     else
         haveRef = isfield(I,'VCV1REF') && numel(I.VCV1REF) >= h && ~isempty(I.VCV1REF{h});    

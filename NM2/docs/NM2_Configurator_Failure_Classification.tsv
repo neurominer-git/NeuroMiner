@@ -1,0 +1,11 @@
+Scenario	Classification	Action
+S00	credible_production_defect	Keep test unchanged; production cli_configureHelp references missing info.description
+S02	stale_test_layout_assumption	Read exported NMTrainTemplateUI_main.js for renderer messages; keep behavioral state assertions
+S04	test_syntax_defect	Remove file-scope assert after local functions
+S05	stale_test_semantic_assumption	Expect Slack then Epsilon for LIBSVM regression shelves
+S06	unresolved_diagnostic_suppressed	Expose report.tests; do not alter production/test contract yet
+S08	unresolved_diagnostic_suppressed	Expose report.error; do not alter production/test contract yet
+S09	unresolved_diagnostic_suppressed	Expose report.tests; do not alter production/test contract yet
+S10	test_fixture_state_lifecycle	Initialize NM2 state before writeConfiguratorChild; use ~isempty
+S11	test_fixture_lifecycle	Mark synthetic NM import_finished=true and analyses_locked=false
+S12	test_struct_orientation_bug	Use rows(end+1,1) for all struct collectors

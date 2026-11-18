@@ -1,5 +1,12 @@
 function [tY, Pnt, paramfl, tYocv] = nk_PerfPreprocess(Y, inp, labels, ...
                                                  paramfl, Yocv, Cocv, AltY)
+% nk_PerfPreprocess - Execute CV-bound preprocessing on raw or spatial shelves.
+%
+% Subject-spatial contract
+%   nk_PerfPreprocessSpatial supplies shelves{binary,instance}{branch}. For
+%   multiple independent-test instances, the binary-specific view is converted
+%   to branch-by-instance cells before CV-bound operations. Branch identity and
+%   selection remain owned by the spatial backend, not by this function.
 % =========================================================================
 % [tY, Pnt, paramfl, tYocv] = nk_PerfPreprocess(Y, inp, labels, ...
 %                                                paramfl, Yocv, Cocv, altY)
@@ -32,6 +39,15 @@ global PREPROC MODEFL MULTI CV xCV RAND VERBOSE TEMPL MULTILABEL CALIB SYNTH SAV
 i       = inp.f; % Curration permutation
 j       = inp.d; % Current fold
 kbin    = inp.nclass;
+runtimeAppPreproc = [];
+if isstruct(PREPROC) && isscalar(PREPROC) && isfield(PREPROC,'OOCVAPP_RUNTIME')
+    runtimeAppPreproc = PREPROC.OOCVAPP_RUNTIME;
+    PREPROC = rmfield(PREPROC,'OOCVAPP_RUNTIME');
+    if isfield(paramfl,'PREPROC') && isstruct(paramfl.PREPROC) && ...
+            isscalar(paramfl.PREPROC) && isfield(paramfl.PREPROC,'OOCVAPP_RUNTIME')
+        paramfl.PREPROC = rmfield(paramfl.PREPROC,'OOCVAPP_RUNTIME');
+    end
+end
 
 % Check whether the function is used by the simulation module or not and
 % transfer the right CV structure to tCV
@@ -119,12 +135,11 @@ tY.CVInd = cell(iy,jy);
 multoocv = false; 
 if isfield(inp,'covars'), covars = inp.covars; end
 
-% Eventually, apply spatial operations to imaging data
-% (This function will be extended beyond smoothing ops on nifti data)
-% sY => smoothed, pre-smoothed, or non-smoothed training & CV data
-% sYocv => smoothed or pre-smoothed, or non-smoothed external data
-% sCocv => smoothed or pre-smoothed, or non-smoothed calibration data
-% sYw => smoothed or pre-smoothed, or non-smoothed ranking map
+% Eventually, apply subject-specific spatial preprocessing to imaging data
+% sY => subject-spatially preprocessed/precomputed or raw training & CV data
+% sYocv => subject-spatially preprocessed/precomputed or raw external data
+% sCocv => subject-spatially preprocessed/precomputed or raw calibration data
+% sYw => image-space processed or raw ranking/weighting map
 [sY, sYocv, sCocv, sAltY, sYw, inp, optfl] = nk_PerfPreprocessSpatial( Y, Yocv, Cocv, AltY, inp, paramfl, kbin );
 
 if ~BINMOD && isfield(paramfl,'PXopt') && numel(paramfl.PXopt)>1
@@ -140,17 +155,16 @@ else
         ukbin = kbin;
     end
 end
-if iscell(Yocv)
-    if inp.issmoothed
-        if iscell(Yocv{1}{1})
-            nYocv = size(Yocv{1}{1},2);
-        else
-            nYocv = size(Yocv{1},2);
-        end
-    else
-        nYocv = numel(Yocv);
+if ~isempty(sYocv) && optfl
+    if ~iscell(sYocv) || size(sYocv,1) ~= kbin
+        error('nk_PerfPreprocess:InvalidOOCVShelfContainer', ...
+            'Spatial OOCV data must use shelves{binary,instance}{branch}.');
     end
-    if nYocv > 1, multoocv = true; end
+    nYocv = size(sYocv,2);
+    multoocv = nYocv > 1;
+elseif iscell(Yocv)
+    nYocv = numel(Yocv);
+    multoocv = nYocv > 1;
 end
 
 % Generate template parameters (e.g. for Procrustes rotation)
@@ -220,6 +234,8 @@ else
 end
 oocvonly = false;
 if isfield(inp,'OOCVonly') && inp.OOCVonly, oocvonly= true; end
+nCV1folds = stp_jy - sta_jy + 1;
+nCV1partitions = (stp_iy - sta_iy + 1) * nCV1folds;
 
 for k=sta_iy:stp_iy % Inner permutation loop
 
@@ -227,6 +243,13 @@ for k=sta_iy:stp_iy % Inner permutation loop
         
         tElapsed = tic;
         CVPOS.CV1p=k;CVPOS.CV1f=l;
+        cv1ProgressIndex = (k - sta_iy) * nCV1folds + (l - sta_jy) + 1;
+        cv1ProgressPercent = 100 * (cv1ProgressIndex - 1) / nCV1partitions;
+        NMRuntimeProgressTools.writeLegacyModuleProgressSafe( ...
+            'Preprocessing CV1 progress', ...
+            sprintf('Processing CV1 partition [%d,%d] (%d/%d completed) within CV2 [%d,%d].', ...
+                k, l, cv1ProgressIndex - 1, nCV1partitions, CVPOS.CV2p, CVPOS.CV2f), ...
+            cv1ProgressPercent, CVPOS, 'preprocessing_cv1');
         fprintf('\nWorking on CV2 [%2g, %2g ], CV1 [%2g, %2g ]: Prepare data', CVPOS.CV2p, CVPOS.CV2f, k, l);
         
         for u=1:ukbin % Binary comparison loop depending on PREPROC.BINMOD & FBINMOD
@@ -235,6 +258,14 @@ for k=sta_iy:stp_iy % Inner permutation loop
                 load( Pnt(k,l,u).TrainedParam );
             else
                 oTrainedParam = Pnt(k,l,u).TrainedParam;
+            end
+            if ~isempty(runtimeAppPreproc) && ~isempty(oTrainedParam)
+                sourceIndex = double(runtimeAppPreproc.trainedParamSourceIndex(:)');
+                alreadyProjected = iscell(oTrainedParam) && numel(oTrainedParam) == numel(sourceIndex);
+                if ~alreadyProjected
+                    oTrainedParam = NMOOCVApplicationPreprocTools.projectTrainedParam( ...
+                        runtimeAppPreproc, oTrainedParam);
+                end
             end
             
             %Check whether optimised parameter space exists
@@ -247,12 +278,18 @@ for k=sta_iy:stp_iy % Inner permutation loop
                 end
                 if ~isempty(Yocv)
                     if multoocv
-                        usYocv = cell(1,numel(sYocv{u}{1}));
-                        for n=1:numel(sYocv{u}{1})
-                            usYocv{u,n} = sYocv{1}{u}{n};
+                        nShelves = numel(sYocv{u,1});
+                        usYocv = cell(nShelves,nYocv);
+                        for n=1:nYocv
+                            if numel(sYocv{u,n}) ~= nShelves
+                                error('nk_PerfPreprocess:OOCVShelfCountMismatch', ...
+                                    ['OOCV instance #%g for binary #%g contains a different ' ...
+                                     'number of selected spatial shelves.'], n, u);
+                            end
+                            usYocv(:,n) = sYocv{u,n}(:);
                         end
                     else
-                        usYocv = sYocv{u}; 
+                        usYocv = sYocv{u,1};
                     end
                 end
                 if ~isempty(Cocv) 
@@ -298,8 +335,8 @@ for k=sta_iy:stp_iy % Inner permutation loop
                             % Remove cases which are completely NaN
                             [vTr{pu}, TrLX, SrcParam.iTrX] = nk_ManageNanCases(vTr{pu}, TrLX);
                             if multoocv
-                                for n=1:numel(usYocv)
-                                    [vTs{pu,n}, ~, SrcParam.iOCV{n}] = nk_ManageNanCases(usYocv{pu}{n});
+                                for n=1:nYocv
+                                    [vTs{pu,n}, ~, SrcParam.iOCV{n}] = nk_ManageNanCases(usYocv{pu,n});
                                 end
                             else
                                 [vTs{pu}, ~, SrcParam.iOCV] = nk_ManageNanCases(usYocv{pu});
@@ -307,8 +344,8 @@ for k=sta_iy:stp_iy % Inner permutation loop
                         else
                             vTr{pu} = nk_ManageNanCases(vTr{pu});
                             if multoocv
-                                for n=1:numel(usYocv)
-                                    vTs{pu,n} = nk_ManageNanCases(usYocv{pu}{n});
+                                for n=1:nYocv
+                                    vTs{pu,n} = nk_ManageNanCases(usYocv{pu,n});
                                 end
                             else
                                 vTs{pu} = nk_ManageNanCases(usYocv{pu});
@@ -491,51 +528,46 @@ for k=sta_iy:stp_iy % Inner permutation loop
                 file_fnd = false;
                 if SYNTH.write2disk == 1
                     synthdir = fullfile(inp.maindir,filesep,'synth');
-                    if ~exist("synthdir","dir"), mkdir(synthdir); end
+                    if ~exist(synthdir,"dir"), mkdir(synthdir); end
                     synthfile = nk_GenerateNMFilePath(synthdir, SAV.matname, 'SynthData','', inp.varstr, inp.id, i, j, k, l );
-                    if exist(synthfile,"file")
-                        file_fnd = true;
+                    % nm2-allow: SYNTH file existence is checked at the disk-cache ingestion site.
+                    file_fnd = exist(synthfile,"file") == 2;
+                end
+                if file_fnd
+                    cached = load(synthfile);
+                    % nm2-allow: Earlier analyses and persisted SYNTH MAT files may lack init_token.
+                    if isfield(inp,'init_token') && (~isfield(cached,'init_token') || ...
+                            ~strcmp(cached.init_token,inp.init_token))
+                        file_fnd = false;
                     end
                 end
                 if file_fnd
                     fprintf('\nLoading synthetic data from file:\n%s', synthfile)
-                    load(synthfile)
+                    vTrSyn = cached.vTrSyn;
+                    LabelSyn = cached.LabelSyn;
+                    CovarsSyn = cached.CovarsSyn;
+                    Synth_activated = cached.Synth_activated;
                 else                    
                     if mult_contain
                         vTrSyn = cell(n_usY,1); LabelSyn = cell(n_usY,1); CovarsSyn = cell(n_usY,1); Synth_activated = false(1,n_usY);
+                        selected = [];
                         for pu=1:n_usY
-                            switch SYNTH.method
-                                case 1
-                                    [ vTrSyn{pu}, LabelSyn{pu}, CovarsSyn{pu} ] = nk_SynthDistkNN( vTr{pu}, TrLX, Covs, SYNTH);
-                                    Synth_activated(pu) = true;  
-                                case 2
-                                    [ vTrSyn{pu}, LabelSyn{pu}, CovarsSyn{pu}, Synth_activated(pu) ] = nk_PerfADASYN( vTr{pu}, TrLX, Covs, SYNTH, true );
-                                case 3
-                                    [ vTrSyn{pu}, LabelSyn{pu}, CovarsSyn{pu} ] = nk_SynthPCAGaussGMM( vTr{pu}, TrLX, Covs, SYNTH, 'pcagauss' );
-                                    Synth_activated(pu) = true;  
-                                case 4
-                                    [ vTrSyn{pu}, LabelSyn{pu}, CovarsSyn{pu} ] = nk_SynthPCAGaussGMM( vTr{pu}, TrLX, Covs, SYNTH, 'gmm' );
-                                    Synth_activated(pu) = true;  
-                            end
+                            [vTrSyn{pu}, LabelSyn{pu}, CovarsSyn{pu}, Synth_activated(pu), selected] = ...
+                                nk_SynthGenerate(vTr{pu}, TrLX, Covs, SYNTH, MODEFL, selected);
                         end
                     else
-                        switch SYNTH.method
-                            case 1
-                                [ vTrSyn, LabelSyn, CovarsSyn ] = nk_SynthDistkNN(vTr, TrLX, Covs, SYNTH);
-                                Synth_activated = true;
-                            case 2
-                                [ vTrSyn, LabelSyn, CovarsSyn, Synth_activated ] = nk_PerfADASYN( vTr, TrLX, Covs, SYNTH, true);
-                            case 3
-                                [ vTrSyn, LabelSyn, CovarsSyn ] = nk_SynthPCAGaussGMM(vTr, TrLX, Covs, SYNTH, 'pcagauss');
-                                Synth_activated = true;
-                            case 4
-                                [ vTrSyn, LabelSyn, CovarsSyn ] = nk_SynthPCAGaussGMM(vTr, TrLX, Covs, SYNTH, 'gmm');
-                                Synth_activated = true;
-                        end
-                    end 
+                        [vTrSyn, LabelSyn, CovarsSyn, Synth_activated] = ...
+                            nk_SynthGenerate(vTr, TrLX, Covs, SYNTH, MODEFL, []);
+                    end
                     if SYNTH.write2disk == 1
                         fprintf('\nSaving synthetic data to file:\n%s', synthfile)
-                        save(synthfile, "vTrSyn", "LabelSyn", "CovarsSyn", "Synth_activated");
+                        % nm2-allow: Historical analyses have no initialization token to persist.
+                        if isfield(inp,'init_token')
+                            init_token = inp.init_token;
+                            save(synthfile, "vTrSyn", "LabelSyn", "CovarsSyn", "Synth_activated", "init_token");
+                        else
+                            save(synthfile, "vTrSyn", "LabelSyn", "CovarsSyn", "Synth_activated");
+                        end
                     end
                 end
                 InputParam.TrSyn = vTrSyn;
@@ -562,6 +594,11 @@ for k=sta_iy:stp_iy % Inner permutation loop
             end
 
             %% Generate and execute for given CV1 partition preprocessing sequence
+            if ~isempty(runtimeAppPreproc)
+                InputParam.OOCVAPP_RUNTIME = runtimeAppPreproc;
+            elseif isfield(InputParam,'OOCVAPP_RUNTIME')
+                InputParam = rmfield(InputParam,'OOCVAPP_RUNTIME');
+            end
             [InputParam, oTrainedParam, SrcParam] = nk_GenPreprocSequence(InputParam, PREPROC, SrcParam, oTrainedParam, inp.maindir);
             
             %% Write preprocessed data to mapY structure
@@ -634,7 +671,7 @@ for k=sta_iy:stp_iy % Inner permutation loop
                         end
                         if ~isempty(Yocv) 
                             if multoocv
-                                for n=1:numel(Yocv)
+                                for n=1:nYocv
                                     tYocv.Ts{k,l}{u}{n} = nk_ManageNanCases(ocv{n},[],SrcParam.iOCV{n}); 
                                 end
                             else
@@ -758,6 +795,12 @@ for k=sta_iy:stp_iy % Inner permutation loop
             end
             clear TrainedParam SrcParam
         end
+        cv1ProgressPercent = 100 * cv1ProgressIndex / nCV1partitions;
+        NMRuntimeProgressTools.writeLegacyModuleProgressSafe( ...
+            'Preprocessing CV1 progress', ...
+            sprintf('Completed CV1 partition [%d,%d] (%d/%d completed) within CV2 [%d,%d].', ...
+                k, l, cv1ProgressIndex, nCV1partitions, CVPOS.CV2p, CVPOS.CV2f), ...
+            cv1ProgressPercent, CVPOS, 'preprocessing_cv1');
         fprintf('\tCompleted in %1.2fs. ',toc(tElapsed)); 
     end
 end

@@ -138,9 +138,9 @@ if ~modificationflag
         end
     end
 
-    issmoothed = false(1,nx); if isfield(inp,'issmoothed') && any(inp.issmoothed), issmoothed = inp.issmoothed; end
+    isSpatialPreprocessed = false(1,nx); if isfield(inp,'isSpatialPreprocessed') && any(inp.isSpatialPreprocessed), isSpatialPreprocessed = inp.isSpatialPreprocessed; end
 
-    if issmoothed, sstr='s'; else, sstr=''; end
+    if isSpatialPreprocessed, sstr='s'; else, sstr=''; end
 
     inp.X(nx).([ sstr 'Y']) = subjectAverages;
 

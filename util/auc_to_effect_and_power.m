@@ -56,6 +56,7 @@ addParameter(p, 'CSVFile',  'AUC_effectsize_power.csv', @(s) ischar(s) || isstri
 addParameter(p, 'SiteSizes', [],   @(x) isvector(x) || isempty(x));
 addParameter(p, 'ICC',       [],   @(x) (isnumeric(x) && isscalar(x)) || isempty(x));
 addParameter(p, 'UseNeffPairs', false, @(x) islogical(x) || ismember(x,[0 1]));
+addParameter(p, 'XLabels',   {},   @(x) iscell(x) || isempty(x));  % param-combo labels (like Xl in nk_SimulateML)
 % Empirical uncertainty
 addParameter(p, 'FoldAUC',   [], @(c) iscell(c) || isempty(c));
 addParameter(p, 'AUC_CI',    [], @(x) (ismatrix(x) && size(x,2)==2) || isempty(x));
@@ -70,6 +71,7 @@ doCSV     = p.Results.WriteCSV;
 csvFile   = string(p.Results.CSVFile);
 siteSz    = p.Results.SiteSizes;
 icc       = p.Results.ICC;
+xLabels   = p.Results.XLabels;   % cell array of combo label strings, or {} to use N
 useNeff   = p.Results.UseNeffPairs;
 FoldAUC   = p.Results.FoldAUC;
 AUC_CI_in = p.Results.AUC_CI;
@@ -232,65 +234,95 @@ if doPlot
     wantEffect = strcmp(plotWhat,'all') || strcmp(plotWhat,'effect');
     wantPower  = strcmp(plotWhat,'all') || strcmp(plotWhat,'power');
 
-    % Helper for prevalence text
+    % Decide x-axis mode:
+    %   useComboLabels = true  -> categorical x-axis with param-combo strings (like nk_SimulateML)
+    %   useComboLabels = false -> numeric x-axis using N values (original behaviour)
+    useComboLabels = ~isempty(xLabels) && numel(xLabels) == K;
+
+    if useComboLabels
+        % Use 1:K as numeric positions; tick labels come from xLabels
+        xVals   = (1:K)';
+        xSorted = xVals;           % already in order; no sort needed for categorical
+        sortIdx = (1:K)';
+        xlab    = 'Parameter combination';
+    else
+        % Original behaviour: sort by N for clean line plots
+        [xSorted, sortIdx] = sort(N);
+        xVals = N;
+        xlab  = 'Total N';
+    end
+
+    % Helper for prevalence text in titles
     if all(abs(prev_vec - prev_vec(1)) < 1e-12)
         prev_txt = sprintf('prev=%.2f', prev_vec(1));
     else
         prev_txt = 'prev varies';
     end
 
-    % AUC + CI
+    % --- AUC + CI ---
     if wantAUC
         figure; hold on;
-        [Ns, idx] = sort(N); lo = AUC_CI_lo(idx); hi = AUC_CI_hi(idx); mu = AUC(idx);
-        patch([Ns; flipud(Ns)], [lo; flipud(hi)], [0.85 0.85 1], ...
+        xs = xSorted;
+        lo = AUC_CI_lo(sortIdx); hi = AUC_CI_hi(sortIdx); mu = AUC(sortIdx);
+        patch([xs; flipud(xs)], [lo; flipud(hi)], [0.85 0.85 1], ...
               'EdgeColor','none','FaceAlpha',0.35, 'DisplayName',ci_label);
-        plot(Ns, mu, 'b-o','LineWidth',1.5,'DisplayName','AUC');
+        plot(xs, mu, 'b-o','LineWidth',1.5,'DisplayName','AUC');
         yline(0.5,'k--','Chance');
-        xlabel('Total N'); ylabel('AUC'); grid on;
+        xlabel(xlab); ylabel('AUC'); grid on;
         legend('Location','southeast');
+        if useComboLabels
+            ax = gca; ax.XTick = xs; ax.XTickLabel = xLabels(sortIdx); ax.XTickLabelRotation = 90;
+        end
         suf = "";
         if ~isempty(DE), suf = suf + ", DE applied"; end
-        title("AUC vs N (" + ci_label + suf + ")");
+        title("AUC vs " + xlab + " (" + ci_label + suf + ")");
     end
 
-    % Effect size (d' = Cohen's d)
+    % --- Effect size (d' = Cohen's d) ---
     if wantEffect
-        % Optional CI for d': transform AUC CI endpoints
         d_lo = sqrt(2) .* norminv(max(min(AUC_CI_lo, 1-epsA), epsA));
         d_hi = sqrt(2) .* norminv(max(min(AUC_CI_hi, 1-epsA), epsA));
-        [Ns, idx] = sort(N); dlo = d_lo(idx); dhi = d_hi(idx); dmu = dprime(idx);
+        xs   = xSorted;
+        dlo  = d_lo(sortIdx); dhi = d_hi(sortIdx); dmu = dprime(sortIdx);
 
         figure; hold on;
-        patch([Ns; flipud(Ns)], [dlo; flipud(dhi)], [0.85 1 0.85], ...
+        patch([xs; flipud(xs)], [dlo; flipud(dhi)], [0.85 1 0.85], ...
               'EdgeColor','none','FaceAlpha',0.35, 'DisplayName','95% CI (via AUC CI)');
-        plot(Ns, dmu, 'g-o','LineWidth',1.5,'DisplayName','d'' ( = Cohen''s d )');
-        xlabel('Total N'); ylabel('Effect size (standardized)'); grid on;
+        plot(xs, dmu, 'g-o','LineWidth',1.5,'DisplayName','d'' ( = Cohen''s d )');
+        xlabel(xlab); ylabel('Effect size (standardized)'); grid on;
         legend('Location','southeast');
-        title("Effect size vs N");
+        if useComboLabels
+            ax = gca; ax.XTick = xs; ax.XTickLabel = xLabels(sortIdx); ax.XTickLabelRotation = 90;
+        end
+        title("Effect size vs " + xlab);
     end
 
-    % Power plot
+    % --- Power ---
     if wantPower
+        xs = xSorted;
+        p1 = power_one(sortIdx); p2 = power_two(sortIdx);
         figure; hold on;
-        h1 = plot(N, power_one, 'o-','LineWidth',1.5,'DisplayName','One-sided power');
-        h2 = plot(N, power_two, 's-','LineWidth',1.5,'DisplayName','Two-sided power');
+        h1 = plot(xs, p1, 'o-','LineWidth',1.5,'DisplayName','One-sided power');
+        h2 = plot(xs, p2, 's-','LineWidth',1.5,'DisplayName','Two-sided power');
         if strcmp(tail,'one')
-            h3 = plot(N, power_one, 'k-','LineWidth',2,'DisplayName','Selected (Tail=one)');
+            h3 = plot(xs, p1, 'k-','LineWidth',2,'DisplayName','Selected (Tail=one)');
         else
-            h3 = plot(N, power_two, 'k-','LineWidth',2,'DisplayName','Selected (Tail=two)');
+            h3 = plot(xs, p2, 'k-','LineWidth',2,'DisplayName','Selected (Tail=two)');
         end
-        xlabel('Total N'); ylabel('Power'); grid on; ylim([0 1]);
+        xlabel(xlab); ylabel('Power'); grid on; ylim([0 1]);
         legend([h1 h2 h3], 'Location','southeast');
+        if useComboLabels
+            ax = gca; ax.XTick = xs; ax.XTickLabel = xLabels(sortIdx); ax.XTickLabelRotation = 90;
+        end
 
-        suf = '';                              % suffix for title
+        suf = '';
         if ~isempty(DE), suf = [suf ', DE applied']; end
         if ~isempty(FoldAUC) || ~isempty(AUC_CI_in) || ~isempty(AUC_SE_in)
             suf = [suf ', empirical SE'];
         else
             suf = [suf ', HM SE'];
         end
-        title(sprintf('Statistical power vs. N (\\alpha=%.3f, %s%s)', alpha, prev_txt, suf));
+        title(sprintf('Statistical power vs. %s (\\alpha=%.3f, %s%s)', xlab, alpha, prev_txt, suf));
     end
 end
 end

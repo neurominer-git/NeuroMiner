@@ -36,7 +36,7 @@ if isfield(SYNTH,'minMethod'),                  minMethod = SYNTH.minMethod; els
 mn_str = []; mn_act = [];
 
 synthstr        = {'enabled','disabled'};
-methodstr       = {'kNN-based','ADASYN','PCAGauss','GMM'};
+methodstr       = {'kNN-based','ADASYN','PCAGauss','GMM','Gaussian copula'};
 write2diskstr   = {'use data permanently by writing it to disk','recreate data in each model training run'};
 stdstr          = {'standardize data', 'data already standardized/standardization not needed'};
 mn_str = [mn_str sprintf('Generate synthetic data [ %s ]',synthstr{synth_flag})];       mn_act = [mn_act 1];
@@ -59,7 +59,7 @@ if synth_flag == 1
             mn_str = [ mn_str sprintf('|Define k value of SMOTE algorithm (kNN looking only at the minority class) [ k=%g ]|',adasyn_kSMOTE)];          mn_act = [mn_act 10];
             % CV: do you not only need to define numSyntheticObservations
             % for this method? 
-        case 3
+        case {3,5}
             mn_str = [mn_str sprintf('|Define how many synthetic observations you would like to generate [ %g ]', numSyntheticObservations)];           mn_act = [mn_act 7];
         case 4
             minMethodStr = {'Bayesian Information Criterion (BIC)', 'Akaike Information Criterion (AIC)'};
@@ -91,7 +91,7 @@ switch act
     case 1
        if SYNTH.flag == 1, SYNTH.flag = 2; else, SYNTH.flag = 1; end
     case 2
-        SYNTH.method = nk_input('Choose synthetic data generation method', 0, 'm', 'kNN-based|ADASYN|PCAGauss|GMM', 1:4, methodnum);
+        SYNTH.method = nk_input('Choose synthetic data generation method', 0, 'm', 'kNN-based|ADASYN|PCAGauss|GMM|Gaussian copula', 1:5, methodnum);
     case 3
         if SYNTH.standardize_data == 1, SYNTH.standardize_data = 2; else, SYNTH.standardize_data = 1; end
 

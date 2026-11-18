@@ -10,13 +10,7 @@ if isempty(np_mod) || isempty(sklearn_mixture_mod) || isempty(GaussianMixtureCla
     GaussianMixtureClass = sklearn_mixture_mod.GaussianMixture;
 end
 
-if ~exist("IN","var") || isempty(IN)
-    numSyntheticObservations = 100;
-else
-    numSyntheticObservations = IN.numSyntheticObservations;
-end
-
-if ~exist("method","var") || isempty(method), method = 'pcagauss'; end
+numSyntheticObservations = IN.numSyntheticObservations;
 
 fprintf('\nNo. of requested synthetic observations: %g', numSyntheticObservations);
 
@@ -65,60 +59,51 @@ switch method
     case 'gmm'
         fprintf('| Generating synthetic data using Gaussian Mixture Modelling');
 
-        % Convert MATLAB data to Python-compatible format
-        realData_py = py.numpy.array(realData);
+        % All candidates must be scored in one feature space.
+        % Refit the entire sweep in PCA space only if the original-space fit fails.
+        dimred = size(realData,2) >= size(realData,1);
+        if dimred
+            IN.DR = struct('DRsoft',1,'RedMode','PCA','PercMode',3);
+            [score, model] = nk_PerfRedObj(realData, IN);
+            fitData = py.numpy.array(score);
+        else
+            fitData = py.numpy.array(realData);
+        end
         ncomp = numel(IN.n_components);
         min_values = zeros(1,ncomp);
-        random_state_py = py.int(42);
-        % Loop through the number of components for GMM
-        for i=1:ncomp
-            % Fit Gaussian Mixture Model using Python's scikit-learn
-            n_components_py = py.int(IN.n_components(i));
-            gmm = GaussianMixtureClass( n_components_py , pyargs('random_state', random_state_py));
-            dimred = false;
-            try % ... in the original space
-                gmm.fit(realData_py);
-                % Store BIC or AIC values
+        % Controlled by MATLAB's current stream; identical MATLAB seeds repeat.
+        random_state_py = py.int(randi(intmax('int32')));
+        for fitSpace = 1:2
+            completeSweep = true;
+            for i = 1:ncomp
+                gmm = GaussianMixtureClass(py.int(IN.n_components(i)), ...
+                    pyargs('random_state',random_state_py));
+                try
+                    gmm.fit(fitData);
+                catch ME
+                    if fitSpace == 2 || dimred, rethrow(ME); end
+                    completeSweep = false;
+                    break;
+                end
                 switch IN.minMethod
                     case 1
-                        min_values(i) = gmm.bic(realData_py);  % Get BIC value
+                        min_values(i) = double(gmm.bic(fitData));
                     case 2
-                        min_values(i) = gmm.aic(realData_py);  % Get AIC value
-                end
-            catch % if that does not work perform dimensionality reduction using PCA
-                dimred = true;
-                if ~exist("score","var")
-                    fprintf('| reducing dimensionality to ')
-                    % Perform principal component analysis on the combined data
-                    IN.DR = struct('DRsoft', 1, 'RedMode', 'PCA', 'PercMode', 3);
-                    [score, model] = nk_PerfRedObj(realData, IN);
-                    fprintf('%g eigenvariates because original data GMM does not fit into the memory', width(score));
-                end
-                reducedData_py = py.numpy.array(score);
-                gmm.fit(reducedData_py);
-                % Store BIC or AIC values
-                switch IN.minMethod
-                    case 1
-                        min_values(i) = gmm.bic(reducedData_py);  % Get BIC value
-                    case 2
-                        min_values(i) = gmm.aic(reducedData_py);  % Get AIC value
+                        min_values(i) = double(gmm.aic(fitData));
                 end
             end
+            if completeSweep, break; end
+            IN.DR = struct('DRsoft',1,'RedMode','PCA','PercMode',3);
+            [score, model] = nk_PerfRedObj(realData, IN);
+            fitData = py.numpy.array(score);
+            dimred = true;
         end
 
-        % Find minimum BIC 
         [~,opt_ncomp_ind] = min(min_values);
-        
         opt_ncomp = py.int(IN.n_components(opt_ncomp_ind));
-        if VERBOSE, fprintf('| optimal GMM fitting with %g components', opt_ncomp); end
-
-        % Fit Gaussian Mixture Model with the optimal number of components
-        gmm = py.sklearn.mixture.GaussianMixture(opt_ncomp, pyargs('random_state', random_state_py));
-        if dimred
-            gmm.fit(reducedData_py);
-        else
-            gmm.fit(realData_py);
-        end
+        if VERBOSE, fprintf('| optimal GMM fitting with %g components', IN.n_components(opt_ncomp_ind)); end
+        gmm = GaussianMixtureClass(opt_ncomp, pyargs('random_state',random_state_py));
+        gmm.fit(fitData);
 
         % Generate synthetic data from the GMM
         synthetic_data_py = gmm.sample(numSyntheticObservations); % Generate synthetic samples

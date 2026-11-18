@@ -46,7 +46,15 @@ function [param, model] = nk_GetParam2(Y, label, Params, ModelOnly, FeatGroups)
 global TRAINFUNC SVM TIME CV CVPOS SAV DEBUG
 
 %% Step 1: Preprocess Data - Remove Cases with All NaN Values
-[Y, label] = nk_ManageNanCases(Y, label, [], 'prune_single');
+switch SVM.prog
+    case 'SEQOPT'
+        act_prune_mode = 'prune';
+    otherwise
+        act_prune_mode = 'prune_single'; 
+        countNaNFun = @(Y) sum(isnan(Y(:)));
+        countInfFun = @(Y) sum(isinf(Y(:)));
+end
+[Y, label] = nk_ManageNanCases(Y, label, [], act_prune_mode);
 
 %% Step 2: Process Time Information for Survival Models (WBLCOX)
 timevec = [];
@@ -67,16 +75,24 @@ end
 
 %% Step 3: Validate Training Data
 % Check for non-finite values in the training matrix.
-numNonFinite = sum(~isfinite(Y(:)));
-if numNonFinite > 0
-    % If the number of features is small, export the data for further inspection.
-    if size(Y, 2) < 500
-        writetable(table(Y), sprintf('TrainingData_Error_CV2-%g-%g_CV1-%g-%g.xlsx', ...
-            CVPOS.CV2p, CVPOS.CV2f, CVPOS.CV1p, CVPOS.CV1f));
+if ~strcmp(SVM.prog, 'SEQOPT') 
+    numNaN = countNaNFun(Y); numInf = countInfFun(Y);
+    if numNaN > 0 || numInf > 0
+        % If the number of features is small, export the data for further inspection.
+        if size(Y, 2) < 500
+            writetable(table(Y), sprintf('TrainingData_Error_CV2-%g-%g_CV1-%g-%g.xlsx', ...
+                CVPOS.CV2p, CVPOS.CV2f, CVPOS.CV1p, CVPOS.CV1f));
+        end
+        if numNaN > 0 && ~numInf
+            NumStrErr = sprintf('Found %g NaN values in training matrix!', numNaN);
+        elseif ~numNaN && numInf > 0
+            NumStrErr = sprintf('Found %g Inf values in training matrix!', numInf);
+        else 
+            NumStrErr = sprintf('Found %g NaN and %g Inf values in training matrix!', numNaN, numInf);
+        end
+        error(['\n%s\n' ...
+               'Check your preprocessing settings and your data!'], NumStrErr);
     end
-    error(['\nFound %g non-finite values in training matrix!\n' ...
-           'This usually happens in intermediate fusion mode when some data modalities ' ...
-           'have cases with completely missing data.\nCheck your preprocessing settings and your data!'], numNonFinite);
 end
 
 % Ensure that the number of observations in Y matches the number of labels.

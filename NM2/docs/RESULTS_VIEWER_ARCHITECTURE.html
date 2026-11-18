@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Results Viewer architecture</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#results-viewer-architecture" id="toc-results-viewer-architecture">Results Viewer architecture</a>
+<ul>
+<li><a href="#overview" id="toc-overview">Overview</a></li>
+<li><a href="#backend-payload-authority" id="toc-backend-payload-authority">Backend payload authority</a></li>
+<li><a href="#cross-analysis-workspace-and-shared-analysis-set-inventory" id="toc-cross-analysis-workspace-and-shared-analysis-set-inventory">Cross-analysis
+workspace and shared analysis-set inventory</a></li>
+<li><a href="#browser-state-authority" id="toc-browser-state-authority">Browser state authority</a></li>
+<li><a href="#representation-modules" id="toc-representation-modules">Representation modules</a></li>
+<li><a href="#shared-controls-and-presentation-infrastructure" id="toc-shared-controls-and-presentation-infrastructure">Shared controls
+and presentation infrastructure</a></li>
+<li><a href="#output-boundary" id="toc-output-boundary">Output
+boundary</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="results-viewer-architecture">Results Viewer architecture</h1>
+<h2 id="overview">Overview</h2>
+<p>The NM2 Results Viewer is a read-only browser client backed by MATLAB
+scientific authorities. <code>ui/NMResultsViewerUI.m</code> establishes
+a session, exports initial state and assets, and dispatches restricted
+service operations. <code>ui/NMResultsViewerUI_main.js</code> owns the
+interactive browser state and coordinates representation modules.</p>
+<pre class="mermaid"><code>flowchart LR
+    NM[&quot;NM + result containers&quot;] --&gt; TOOLS[&quot;NMResultsViewerTools&quot;]
+    TOOLS --&gt; PAY[&quot;JSON-safe scientific payload&quot;]
+    PAY --&gt; SSTATE[&quot;Scientific State&quot;]
+    PAY --&gt; MUI[&quot;NMResultsViewerUI session/service boundary&quot;]
+    SSTATE --&gt; MUI
+    MUI &lt;--&gt; MAIN[&quot;NMResultsViewerUI_main.js&quot;]
+    MAIN --&gt; REP[&quot;representation modules&quot;]
+    REP --&gt; OUT[&quot;NMResultsViewerOutput artifact boundary&quot;]</code></pre>
+<h2 id="backend-payload-authority">Backend payload authority</h2>
+<p><code>core/NMResultsViewerTools.m</code> is the principal backend
+extraction authority for performance, actions, optimization, Feature
+Inspection and related payloads. It preserves legacy scientific
+semantics where required by delegating to established transformation
+paths rather than having the browser inspect result structures
+directly.</p>
+<p>Additional domain adapters extend the same boundary for imaging,
+native surface and connectivity representations:</p>
+<ul>
+<li><code>core/NMResultsViewerImagingTools.m</code></li>
+<li><code>core/NMResultsViewerSurfaceTools.m</code></li>
+<li><code>core/NMResultsViewerConnectivityAdapter.m</code></li>
+</ul>
+<h2 id="cross-analysis-workspace-and-shared-analysis-set-inventory">Cross-analysis
+workspace and shared analysis-set inventory</h2>
+<p>The existing top-level <code>comparison</code> result type is the
+Results Viewer entry point for operations spanning more than one
+completed analysis. A reusable Analysis Set selector presents completed
+analysis IDs/descriptions, Select all/Deselect all controls, an explicit
+<strong>Query results</strong> action and a capability overview. The
+overview is produced by Scientific State <code>analysis_set</code>
+inventory mode: Model performance, Model optimization, Feature
+inspection and Interpretation capability flags come from the same
+<code>NMResultsViewerTools.resultTypesForAnalysis</code> authority used
+by the ordinary Result type selector, optimization-criterion identity
+comes from
+<code>NMResultsViewerTools.modelOptimizationCriterionIdentity</code>,
+and CV-equivalence groups come only from
+<code>nk_GetAnalysisStatus</code>. The browser does not infer
+capability, criterion identity or CV compatibility.</p>
+<p>The Cross-analysis workspace exposes four operation slots:
+Performance table, Statistical comparison, Visual comparison, and
+Multi-analysis Results Builder. Performance, Statistical and Visual
+comparison consume the same queried analysis-set inventory. Selection
+changes make the inventory stale until the user explicitly queries
+again. Once queried, the server-side Scientific State inventory is
+retained by Results Viewer session plus canonical analysis-set identity;
+consumers reuse that exact state until the set or persisted session NM
+changes.</p>
+<p><code>core/NMResultsViewerCrossAnalysisTools.m</code> materializes
+the Performance table and descriptive Visual comparison from existing
+Model Performance authorities, and the Statistical comparison from the
+existing Model Optimization CV2-partition materialization; it does not
+reopen analysis result containers to rediscover scientific identity.
+Statistical admission requires one exact optimization-criterion key and
+one <code>nk_GetAnalysisStatus</code>-derived CV group across the set
+before any full Model Optimization payload is requested. Statistical
+dispatch is fixed: two analyses use paired Wilcoxon, more than two use
+Quade unless exactly one reference analysis is selected, in which case
+paired reference-vs-other Wilcoxon is used. One persistent
+Cross-analysis presentation tool owns aliases and
+original/ascending/descending ordering for all operations. The
+statistical presentation provides criterion-scaled performance views,
+backend-supplied KDE violins, box or median/IQR alternatives, and a
+same-width FDR heatmap. KDE is generated once by
+<code>NMResultsViewerTools.violinDensity</code>; both OOCV and
+Cross-analysis render it through the single
+<code>NMResultsPlotD3.violinPolygon</code>/<code>violinStatisticLines</code>
+primitive.
+<code>NMResultsViewerTools.modelOptimizationRandomReference</code> is
+the sole authority for optional classification random-performance lines
+and derives them from canonical criterion identity plus classifier class
+count; regression and undefined/prevalence-dependent references are
+omitted. Shared <code>NMResultsPlotD3</code> text fitting keeps short
+aliases horizontal and abbreviates only overflowing labels. The heatmap
+defaults to the legacy spectrum, treats values below
+<code>-log10(0.05) ≈ 1.3</code> as white, and exposes presentation-only
+colormap/value-label controls. Every plot or table panel delegates all
+supported formats to one generic Results Viewer export
+control/dialog.</p>
+<p>The descriptive Visual comparison is deliberately different:
+classification projects the legacy 17 aggregate measures from
+<code>performanceTabulationRows</code>, while regression preserves the
+metric identities exposed by those same authoritative Model Performance
+rows. Both use the discovery/CV out-of-training source, apply no
+CV-equivalence restriction and run no inference. Binary and multi-class
+class-vs-REST visual contexts must share the same canonical target,
+class-contrast, model-result/model-source and fusion coordinates from
+Scientific Annotation; regression remains descriptive and does not
+invent a second metric catalogue. Visual sorting, grouped-bar/line
+presentation, right-axis assignment, aliases and colours are
+presentation state only.</p>
+<p>The Performance Tabulator has two distinct output paths.
+<strong>Export CSV/XLSX</strong> publishes the already-materialized
+numeric table through the shared
+<code>NMResultsViewerOutput</code>/table-export authority and does not
+invoke Report Builder. <strong>Report builder</strong> passes the
+caller&#39;s current queried analysis set as a fixed
+<code>multi_analysis</code> invocation context to the single flexible
+Report Builder implementation. The Report Builder does not expose a
+second analysis-set query selector in this caller-fixed mode; it may use
+a per-analysis focus selector solely to configure ordinary components
+within that fixed set.</p>
+<h2 id="browser-state-authority">Browser state authority</h2>
+<p>The main browser controller owns active selection and presentation
+state. Scientific availability comes from the backend Scientific State,
+while visual controls remain presentation state and must not become
+alternative scientific-selection authorities.</p>
+<p>The browser maintains separate identities for scientific content and
+presentation/view state so expensive scientific payloads can be reused
+when only display controls change.</p>
+<h2 id="representation-modules">Representation modules</h2>
+<p>Major representation authorities include:</p>
+<ul>
+<li>imaging: <code>ui/NMResultsViewerImagingViewer.js</code></li>
+<li>surface: <code>ui/NMResultsViewerSurfaceAdapter.js</code></li>
+<li>connectivity matrix/network/glass brain:
+<code>ui/NMResultsViewerLabelledMatrix.js</code>,
+<code>ui/NMResultsViewerNodeLinkGraph.js</code>,
+<code>ui/NMResultsViewerConnectivity3D.js</code></li>
+<li>feature relations:
+<code>ui/NMResultsViewerFeatureRepresentations.js</code> and associated
+graph modules</li>
+<li>model optimization:
+<code>ui/NMResultsViewerModelOptimization.js</code></li>
+</ul>
+<p>These modules consume prepared payloads and own
+representation-specific state; they do not reopen <code>NM</code> or
+DataIO source files.</p>
+<h2 id="shared-controls-and-presentation-infrastructure">Shared controls
+and presentation infrastructure</h2>
+<p>Shared browser control families are separated from scientific
+extraction:</p>
+<ul>
+<li><code>ui/NMResultsViewerControlHost.js</code></li>
+<li><code>ui/NMResultsViewerDisplayControls.js</code></li>
+<li><code>ui/NMResultsViewerViewControls.js</code></li>
+<li><code>ui/NMResultsViewerInformationControls.js</code></li>
+<li><code>ui/NMResultsViewerPanelControls.js</code></li>
+</ul>
+<p>The generic Results Viewer message/info strip is the user-facing
+status channel. Representation modules should route user-visible
+informational, warning and error content through that shared mechanism
+rather than create competing local status authorities.</p>
+<h2 id="output-boundary">Output boundary</h2>
+<p>Representations publish/capture through
+<code>ui/NMResultsViewerOutput.js</code>. This gives exports and Report
+Builder a common artifact boundary independent of how a representation
+was rendered.</p>
+</body>
+</html>

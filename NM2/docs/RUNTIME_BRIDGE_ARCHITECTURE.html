@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Runtime bridge and lifecycle architecture</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#runtime-bridge-and-lifecycle-architecture" id="toc-runtime-bridge-and-lifecycle-architecture">Runtime bridge and
+lifecycle architecture</a>
+<ul>
+<li><a href="#architectural-scope" id="toc-architectural-scope">Architectural scope</a></li>
+<li><a href="#lifecycle" id="toc-lifecycle">Lifecycle</a>
+<ul>
+<li><a href="#ordinary-synchronous-service" id="toc-ordinary-synchronous-service">Ordinary synchronous
+service</a></li>
+<li><a href="#durable-runtime-job" id="toc-durable-runtime-job">Durable
+runtime job</a></li>
+</ul></li>
+<li><a href="#core-transport-anchors" id="toc-core-transport-anchors">Core transport anchors</a></li>
+<li><a href="#job-state-authority" id="toc-job-state-authority">Job
+state authority</a></li>
+<li><a href="#matlab-ownership-while-a-job-runs" id="toc-matlab-ownership-while-a-job-runs">MATLAB ownership while a job
+runs</a></li>
+<li><a href="#progress-and-interruption" id="toc-progress-and-interruption">Progress and interruption</a></li>
+<li><a href="#session-isolation-and-rehydration" id="toc-session-isolation-and-rehydration">Session isolation and
+rehydration</a></li>
+<li><a href="#performance-boundary" id="toc-performance-boundary">Performance boundary</a></li>
+<li><a href="#runner-contract" id="toc-runner-contract">Runner
+contract</a></li>
+<li><a href="#migration-rule" id="toc-migration-rule">Migration
+rule</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="runtime-bridge-and-lifecycle-architecture">Runtime bridge and
+lifecycle architecture</h1>
+<h2 id="architectural-scope">Architectural scope</h2>
+<p>NM2 browser UIs run against a local HTTP bridge that exposes a narrow
+set of session/file/service operations. The bridge is transport
+infrastructure; scientific interpretation remains in MATLAB
+authorities.</p>
+<p>Two MATLAB execution contracts coexist deliberately:</p>
+<ul>
+<li><strong>Synchronous <code>matlabservice</code></strong> for short,
+bounded service operations. These requests retain finite transport
+timeouts so a genuinely stalled ordinary request remains
+diagnosable.</li>
+<li><strong>Durable <code>matlabjob</code></strong> for legitimate
+long-running MATLAB computations. A job has no wall-clock execution
+timeout. HTTP submission is acknowledged immediately and the browser
+subsequently observes file-backed job status/result state.</li>
+</ul>
+<p>A long-running operation must use the durable-job contract rather
+than increasing the synchronous timeout.</p>
+<h2 id="lifecycle">Lifecycle</h2>
+<h3 id="ordinary-synchronous-service">Ordinary synchronous service</h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant B as Browser
+    participant P as Python bridge
+    participant D as MATLAB dispatcher
+    participant M as MATLAB service handler
+    B-&gt;&gt;P: POST /api/matlabservice
+    P-&gt;&gt;D: matlabservice_request_*.json
+    D-&gt;&gt;M: invoke operation
+    M--&gt;&gt;D: service result
+    D--&gt;&gt;P: matlabservice_result_*.json
+    P--&gt;&gt;B: synchronous JSON response</code></pre>
+<h3 id="durable-runtime-job">Durable runtime job</h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant B as Browser
+    participant P as Python bridge
+    participant D as MATLAB dispatcher
+    participant M as MATLAB service handler
+    B-&gt;&gt;P: POST /api/matlabjob
+    P-&gt;&gt;P: write queued job status
+    P--&gt;&gt;B: accepted + stable job id
+    P-&gt;&gt;D: matlabjob_request_&lt;id&gt;.json
+    D-&gt;&gt;P: write running job status
+    D-&gt;&gt;M: invoke existing MATLAB operation
+    M--&gt;&gt;D: service result
+    D-&gt;&gt;P: atomically write terminal result
+    D-&gt;&gt;P: atomically write completed/failed status
+    loop no wall-clock deadline
+        B-&gt;&gt;P: GET /api/matlabjob/&lt;id&gt;
+        P--&gt;&gt;B: queued/running/final status
+    end
+    B-&gt;&gt;P: GET /api/matlabjob/&lt;id&gt;/result
+    P--&gt;&gt;B: final MATLAB service result</code></pre>
+<p>The MATLAB dispatcher still executes a durable job synchronously on
+MATLAB&#39;s owning thread. The architectural change is that
+<strong>transport lifetime is detached from computation
+lifetime</strong>: no HTTP request waits for the computation to
+finish.</p>
+<h2 id="core-transport-anchors">Core transport anchors</h2>
+<ul>
+<li><code>bridge/nm_open_ui.m</code></li>
+<li><code>bridge/nm_ui_bridge_dispatch_requests.m</code></li>
+<li><code>bridge/nm_ui_bridge_python_template.m</code></li>
+<li><code>bridge/nm_ui_bridge_cleanup_requests.m</code></li>
+<li><code>ui/NMUIBridgeTools.m</code></li>
+<li><code>ui/NMRuntimeJobClient.js</code></li>
+<li><code>core/NMRuntimeProgressTools.m</code></li>
+</ul>
+<p>The Python server is generated from the MATLAB template and serves
+scoped session state/assets plus restricted API routes. MATLAB-side
+dispatch resolves both synchronous <code>matlabService</code> requests
+and durable job requests against the same active UI handler; the job
+channel therefore does not duplicate operation logic.</p>
+<h2 id="job-state-authority">Job state authority</h2>
+<p>For one bridge session, the durable job state files are:</p>
+<pre class="text"><code>matlabjob_status_&lt;jobId&gt;.json
+matlabjob_result_&lt;jobId&gt;.json</code></pre>
+<p>Status is compact and follows:</p>
+<pre class="text"><code>queued -&gt; running -&gt; completed
+                  \-&gt; failed</code></pre>
+<p>Terminal status advertises <code>resultAvailable=true</code> only
+after the result file has been atomically committed. The result retains
+the same MATLAB service response contract the operation would have
+returned synchronously.</p>
+<p>The job id is browser-generated or bridge-generated, session-local
+and stable. Browser clients may persist it in <code>localStorage</code>
+to reattach after a page reload. Status/result files are removed at
+bridge-session boundaries, not during an active session.</p>
+<h2 id="matlab-ownership-while-a-job-runs">MATLAB ownership while a job
+runs</h2>
+<p>MATLAB is single-owner for these legacy/runtime operations. While a
+durable job is queued or running, the Python bridge <strong>does not
+queue unrelated synchronous MATLAB-backed requests</strong>. Such
+requests receive an immediate busy response naming the active job
+instead of waiting until their ordinary service timeout expires.</p>
+<p>Direct Python/file side channels remain available while MATLAB is
+busy, including:</p>
+<ul>
+<li>runtime progress polling;</li>
+<li>durable job status/result polling;</li>
+<li>current-config file writes;</li>
+<li>kill-state polling;</li>
+<li>static UI assets.</li>
+</ul>
+<p>This separation prevents benign multi-hour/day computations from
+producing misleading
+<code>matlabservice request timed out waiting for MATLAB-side handler</code>
+messages.</p>
+<h2 id="progress-and-interruption">Progress and interruption</h2>
+<p>Long operations continue to publish progress through
+<code>NMRuntimeProgressTools</code> and
+<code>/api/progress/&lt;taskId&gt;</code>. Progress is advisory and
+independent from job completion authority: job completion comes only
+from terminal durable-job status.</p>
+<p>Ctrl+C/interruption handling remains part of the MATLAB/session
+lifecycle. A caught MATLAB operation failure is published as failed job
+state. A process-level interruption can leave the last job status at
+<code>running</code>; the existing bridge kill-state path remains the
+authoritative indication that the MATLAB session itself was
+interrupted.</p>
+<h2 id="session-isolation-and-rehydration">Session isolation and
+rehydration</h2>
+<p>Run identifiers prevent a bridge from exposing job state created by
+another bridge session. Browser reload within the same live bridge can
+reattach using the persisted job id and progress task id without issuing
+a MATLAB service request while MATLAB is busy.</p>
+<p>Closing or reloading the browser tab does not cancel the MATLAB
+computation because no initiating HTTP request remains open. The normal
+<code>Finish / close</code> bridge-session action is rejected while a
+durable job is queued/running; otherwise session cleanup would destroy
+the reattachment/status channel before MATLAB returns. Explicit MATLAB
+interruption remains the cancellation path. Normal session persistence
+occurs when the MATLAB operation returns and the bridge lifecycle
+resumes.</p>
+<h2 id="performance-boundary">Performance boundary</h2>
+<p>Durable-job polling transfers compact status JSON only. The final
+potentially larger operation result is transferred once, after
+completion. Progress polling remains on its existing compact file-backed
+channel. The durable-job architecture must not repeatedly serialize
+scientific result state while a job is running.</p>
+<h2 id="runner-contract">Runner contract</h2>
+<p>All NM2 runtime execution actions use the durable job channel,
+irrespective of their expected duration:</p>
+<ul>
+<li><code>preprocess_runner_run</code></li>
+<li><code>ml_train_runner_run</code></li>
+<li><code>vis_runner_run</code></li>
+<li><code>model_export_runner_run</code></li>
+<li><code>mli_runner_run</code></li>
+</ul>
+<p>This is a lifecycle contract rather than a duration heuristic. A run
+that is usually short may legitimately become long for a different
+dataset, model family, CV grid or machine. Browser reload reattaches to
+the same session-local job identity before any synchronous refresh is
+attempted. Script generation, configuration refresh, selectors, metadata
+inspection and other bounded runner services remain synchronous and
+timeout-protected.</p>
+<h2 id="migration-rule">Migration rule</h2>
+<p>Any additional NM2 operation that can legitimately run for an
+unbounded user-dependent duration (hours or days) should be submitted
+through <code>matlabjob</code>. A finite timeout on such an operation is
+not a substitute. Short metadata, selection, inspection and
+configuration services remain synchronous and timeout-protected.</p>
+</body>
+</html>

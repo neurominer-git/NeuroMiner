@@ -213,7 +213,10 @@ end
 if IN.GridParam == 7 % GridParam is AUC
     % Compute effect size (Cohen's), power and AUC + CI95 (Wald method),
     % return table with inference results.
-    performance_results.T = auc_to_effect_and_power(IN.NCases, R, 'Prev', IN.EventProb);
+    % Pass Xl so the converter plots param-combo labels on the x-axis,
+    % matching the style used by nk_SimulateML's own plot.
+    performance_results.T = auc_to_effect_and_power(P(:,3), R, ...
+        'Prev', P(:,4), 'XLabels', Xl);
 end
 performance_results.R = R;
 performance_results.R95CI = R95CI';
@@ -554,7 +557,6 @@ else
     bp = IN.this_P(1,8);
     ncm = IN.this_P(1,9);
     nfm = IN.this_P(1,10);
-    Algorithm = IN.Algorithm;
     RAND = IN.RAND;
     NReps = IN.NReps;
     if mr<=1
@@ -577,11 +579,54 @@ else
     LIBSVMTRAIN = @svmtrain312;
     LIBSVMPREDICT = @svmpredict312;
     SCALEMODE = 'scale';
+        Algorithm = IN.Algorithm;
+
+    % Normalize algorithm specification coming from GUI / config.
+    if iscell(Algorithm)
+        if numel(Algorithm) ~= 1
+            error('nk_SimulateML:InvalidAlgorithm', ...
+                'IN.Algorithm must be a scalar string/char, but is a cell array with %d elements.', ...
+                numel(Algorithm));
+        end
+        Algorithm = Algorithm{1};
+    end
+
+    if isstring(Algorithm)
+        if numel(Algorithm) ~= 1
+            error('nk_SimulateML:InvalidAlgorithm', ...
+                'IN.Algorithm must be scalar, but is a string array with %d elements.', ...
+                numel(Algorithm));
+        end
+        Algorithm = char(Algorithm);
+    end
+
+    if ~ischar(Algorithm)
+        error('nk_SimulateML:InvalidAlgorithm', ...
+            'IN.Algorithm must be char/string/cellstr scalar, but is class %s.', ...
+            class(Algorithm));
+    end
+
+    Algorithm = upper(strtrim(Algorithm));
+    IN.Algorithm = Algorithm;
+
+    % Define algorithm to use for the simulation.
+    LIBSVMTRAIN   = @svmtrain312;
+    LIBSVMPREDICT = @svmpredict312;
+
+    SCALEMODE = 'scale';
+
+    % Important: reset global SVM explicitly. Otherwise stale global state may
+    % silently leak into the simulation if the switch below does not match.
+    SVM = struct();
+    CMDSTR = struct();
+
     switch Algorithm
+
         case 'LINKERNSVM'
             SVM.prog = 'LIBSVM';
             SVM.(SVM.prog).Weighting = 1;
             SVM.(SVM.prog).Optimization.b = 0;
+
         case 'LINSVM'
             SVM.prog = 'LIBLIN';
             SVM.(SVM.prog).b = 0;
@@ -589,6 +634,7 @@ else
             SVM.(SVM.prog).tolerance = 0.01;
             CMDSTR.WeightFact = 1;
             SCALEMODE = 'std';
+
         case 'L2LR'
             SVM.prog = 'LIBLIN';
             SVM.(SVM.prog).b = 0;
@@ -596,22 +642,45 @@ else
             SVM.(SVM.prog).tolerance = 0.01;
             CMDSTR.WeightFact = 1;
             SCALEMODE = 'std';
+
         case 'L1SVC'
             SVM.prog = 'LIBLIN';
             SVM.(SVM.prog).b = 0;
             SVM.(SVM.prog).classifier = 5;
             SVM.(SVM.prog).tolerance = 0.01;
             SCALEMODE = 'std';
+
         case 'L1LR'
             SVM.prog = 'LIBLIN';
             SVM.(SVM.prog).b = 0;
             SVM.(SVM.prog).classifier = 6;
             SVM.(SVM.prog).tolerance = 0.01;
             SCALEMODE = 'std';
-        case 'RF' % not implemented yet
+
+        case 'RF'
+            error('nk_SimulateML:UnsupportedAlgorithm', ...
+                ['IN.Algorithm = ''RF'' was selected, but RF is not implemented ', ...
+                 'in nk_SimulateML sample-size simulation. Select one of: ', ...
+                 'LINKERNSVM, LINSVM, L2LR, L1SVC, L1LR.']);
+
+        otherwise
+            error('nk_SimulateML:UnsupportedAlgorithm', ...
+                ['Unsupported IN.Algorithm = ''%s''. Supported values are: ', ...
+                 'LINKERNSVM, LINSVM, L2LR, L1SVC, L1LR. RF is currently not implemented.'], ...
+                 Algorithm);
     end
 
-    % We basically always want to weight the decision boundary
+    % Defensive consistency check. This should never fail if the switch above
+    % is exhaustive and correctly configured.
+    if ~isstruct(SVM) || ~isfield(SVM, 'prog') || ...
+            ~ischar(SVM.prog) || ~isfield(SVM, SVM.prog) || ...
+            ~isstruct(SVM.(SVM.prog))
+        error('nk_SimulateML:InvalidSVMConfig', ...
+            'Internal classifier configuration failed for IN.Algorithm = ''%s''.', ...
+            Algorithm);
+    end
+
+    % We basically always want to weight the decision boundary.
     SVM.(SVM.prog).Weighting = 1;
     CMDSTR.WeightFact = 1;
 
@@ -807,4 +876,3 @@ if NReps > 1
 else
     R95CI = [0,0];
 end
-

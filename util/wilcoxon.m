@@ -1,4 +1,17 @@
 function [STATS, DIFF] = wilcoxon(G1, G2, alpha, xnames, ynames, filename)
+% Purpose: Run the established paired Wilcoxon comparator for one reference vector versus one or more matched vectors.
+% Syntax: [STATS,DIFF] = wilcoxon(G1,G2,alpha,xnames,ynames,filename)
+% Inputs: Matched numeric vectors/rows, alpha, labels and optional legacy output filename.
+% Outputs: Per-comparison statistics and matched differences.
+% Authority and flow: Preserves the legacy Wilcoxon implementation; Stage-2 changes only the normal-approximation tail probability to the two-sided probability already used by the exact branch.
+% Scientific/state contract: This is the inferential authority used by Cross-analysis paired/reference Wilcoxon dispatch.
+% Invariants: Zero-difference handling, ranks, Hodges-Lehmann estimates, confidence intervals and exact branch remain unchanged.
+% Materialization and performance: O(N*comparisons) plus exact 2^N enumeration only for the existing N<=15 branch.
+% Resource declaration: Reads no files, parses no XML, loads no atlas/annotation/mesh resources, scans no voxels or vertices, and creates no feature-scale arrays; compact statistical vectors only.
+% Interactive/retained use: Intended for explicit statistical comparison/report actions, not high-frequency retained interaction.
+% Failure semantics: All-zero matched differences fail as in legacy code; other validation/failure behavior is unchanged.
+% Side effects: No NM mutation; optional legacy file writing occurs only when the existing filename argument is explicitly supplied.
+% Consumers and dependencies: NMResultsViewerCrossAnalysisTools and legacy comparator/export callers; nm_tiedrank, ff2n, fdr_bh when legacy file export is requested.
 % Based on the WILCOXON code of Giuseppe Cardillo
 nG = size(G2,1);
 DIFF = zeros(size(G2));
@@ -25,6 +38,19 @@ if exist('filename','var') && ~isempty(filename)
 end
 
 function [STATS, DIFF] = wilcoxon_sub(x1,x2,alpha, name_comparison)
+% Purpose: Execute one paired signed-rank comparison used by wilcoxon.
+% Syntax: [STATS,DIFF] = wilcoxon_sub(x1,x2,alpha,name_comparison)
+% Inputs: Two matched vectors, alpha and comparison label.
+% Outputs: One statistic struct and x2-x1 matched differences.
+% Authority and flow: Implements the legacy exact/asymptotic signed-rank branches; only asymptotic p is corrected to two-sided.
+% Scientific/state contract: Exact and normal-approximation branches must report consistent two-sided probabilities.
+% Invariants: All legacy ranking/CI/estimator/statistic calculations are preserved.
+% Materialization and performance: O(N^2) Walsh-average work plus legacy exact enumeration for N<=15.
+% Resource declaration: Reads no files, parses no XML, loads no atlas/annotation/mesh resources, scans no voxels or vertices, and creates no feature-scale arrays; compact statistical vectors only.
+% Interactive/retained use: Intended for explicit statistical comparison/report actions, not high-frequency retained interaction.
+% Failure semantics: All-zero differences fail explicitly; legacy failure behavior otherwise preserved.
+% Side effects: No NM mutation; optional legacy file writing occurs only when the existing filename argument is explicitly supplied.
+% Consumers and dependencies: wilcoxon wrapper only; nm_tiedrank, ff2n and distribution functions.
 
 DIFF = x2-x1;
 dff=sort(DIFF); %difference between x1 and x2
@@ -90,7 +116,7 @@ if n<=15
 else
     sW           = sqrt((2*n^3+3*n^2+n-t)/6); %standard deviation
     zW           = (abs(W)-0.5)/sW; %z-value with correction for continuity
-    p            = 1-normcdf(zW); %p-value
+    p            = min(1,2*(1-normcdf(zW))); % two-sided p-value
     STATS.method = 'Normal approximation';
     STATS.W      = W;
     STATS.mean   = 0;

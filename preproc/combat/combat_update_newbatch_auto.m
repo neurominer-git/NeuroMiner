@@ -19,7 +19,6 @@ function [estimators, used_idx] = combat_update_newbatch_auto(X_all, batch_all, 
 %                      - 'no_shrink'   : use MoM gamma_hat_new / delta_hat_new
 %                      - 'strong_shrink': EB posterior, then extra shrink of
 %                                         gamma_star_new toward training prior mean
-%   .strong_shrink_alpha : in [0,1], strength of additional shrinkage (default 0.5)
 %
 % Returns:
 %   estimators : updated with gamma_star/delta_star for new batches
@@ -40,10 +39,6 @@ end
 if ~ismember(mode, {'eb','no_shrink','strong_shrink'})
     error('combat_update_newbatch_auto: unknown mode "%s".', mode);
 end
-if ~isfield(opts,'strong_shrink_alpha') || isempty(opts.strong_shrink_alpha)
-    opts.strong_shrink_alpha = 0.5;  % default extra shrink
-end
-alpha = opts.strong_shrink_alpha;
 
 % --- detect CovBat state (optional) ---
 useCovBat = isfield(estimators,'covbat') && ~isempty(estimators.covbat) ...
@@ -54,6 +49,7 @@ end
 
 [~,n] = size(X_all);
 batch_all = batch_all(:)';           % force 1 x n
+
 if numel(batch_all) ~= n, error('batch_all length must equal size(X_all,2).'); end
 if ~isempty(mod_all) && size(mod_all,1) ~= n
     error('mod_all must have n rows aligned to X_all columns.');
@@ -214,9 +210,14 @@ for L = new_levels
                 gamma_star_new = gamma_star_eb;
                 delta_star_new = delta_star_eb;
             else
-                % 'strong_shrink': extra shrink of gamma toward prior mean
-                gamma_prior_vec = gamma_bar_global * ones(1, numel(gamma_hat_new));
-                gamma_star_new  = (1-alpha)*gamma_star_eb + alpha*gamma_prior_vec;
+                % 'strong_shrink': extra shrink of gamma toward
+                % feature-level prior means
+                mu_j   = mean(estimators.gamma_star, 1);        % 1 × p
+                tau2_j = var(estimators.gamma_star, 0, 1);      % 1 × p
+                tau2_j = max(tau2_j, eps);
+                sigma2_j = delta_hat_new / size(s_data,2);      % sampling variance
+                w = tau2_j ./ (tau2_j + sigma2_j);
+                gamma_star_new = w .* gamma_hat_new + (1 - w) .* mu_j;
                 delta_star_new  = delta_star_eb;   % keep EB variance
             end
     end

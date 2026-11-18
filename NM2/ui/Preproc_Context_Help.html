@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NeuroMiner — Preprocessing context help</title>
+<style>
+
+:root{font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;color:#172b40;background:#f5f8fc}
+*{box-sizing:border-box}body{margin:0}header{padding:20px 22px;background:#173153;color:white}header h1{font-size:20px;margin:0 0 6px}header p{margin:0;color:#e2ecf8}
+main{padding:14px 18px 50px}nav,.chapter,.topic{background:white;border:1px solid #d9e2ed;border-radius:9px;padding:12px 15px;margin-bottom:10px}
+nav a{display:inline-block;margin:2px 12px 2px 0;color:#1358a6;text-decoration:none}nav a:hover{text-decoration:underline}a{color:#1358a6}
+.chapter{border-left:4px solid #738fb3}.chapter h2{font-size:17px;margin:0 0 7px}.chapter p{margin:0}
+.topic{scroll-margin-top:12px}.topic:target{outline:2px solid #407fd3}.topic h3{font-size:15px;margin:0 0 6px}.topic p{margin:0 0 4px}
+.context{color:#54657b;font-size:12px;margin-bottom:6px}.sectionGroup h2{font-size:16px;margin:24px 0 10px}
+@media(prefers-color-scheme:dark){:root{color:#e2e8f0;background:#111b2d}nav,.chapter,.topic{background:#1a293e;border-color:#344966}nav a,a{color:#92c2ff}.context{color:#b4c4dc}}
+
+</style>
+</head>
+<body>
+<header><h1>Preprocessing: settings and scientific meaning</h1><p>Workflow stages, ordered modules, and field-specific explanations.</p></header>
+<main>
+<nav aria-label="Preprocessing help topics">
+<a href="#preproc-workflow-overview">Workflow</a>
+<a href="#preproc-workflow-subject">Subject-specific</a>
+<a href="#preproc-workflow-cv">CV-bound</a>
+<a href="#preproc-workflow-composition">Combining spatial operations</a>
+<a href="#preproc-module-waveletspatial">Spatial wavelets</a>
+<a href="#preproc-module-juspace">JuSpace</a>
+</nav>
+<div class="sectionGroup">
+<h2>Workflow and processing stages</h2>
+<section class="chapter" id="preproc-workflow-overview"><h2>Preprocessing workflow</h2><p>NeuroMiner executes ordered transformations of predictor or outcome data. The stage determines when settings are estimated, which cases contribute to them and how the transformed representation enters later analysis.</p></section>
+<section class="chapter" id="preproc-workflow-global"><h2>Global label and target processing</h2><p>This stage handles multiclass decomposition and regression target transformations outside the ordered predictor-processing sequence. Global missing-label handling is distinct from training-fold label propagation.</p></section>
+<section class="chapter" id="preproc-workflow-subject"><h2>Subject-specific preprocessing</h2><p>Operations here act on each subject’s signal before CV partitioning. Image-preserving transformations can be composed in sequence before an operation that extracts image-derived features.</p></section>
+<section class="chapter" id="preproc-workflow-cv"><h2>CV-bound preprocessing</h2><p>Methods in this stage estimate parameters from the corresponding training fold and apply the fitted transformation to its held-out cases. The order of operations determines which feature representation each method receives.</p></section>
+<section class="chapter" id="preproc-workflow-oocv"><h2>External application (OOCV)</h2><p>Preprocessing fitted during model training is reused when applying the model to an independent cohort. The fitted operations appear as read-only; available application-specific settings are shown separately.</p></section>
+<section class="chapter" id="preproc-workflow-global-label"><h2>Global handling of missing labels</h2><p>The global missing-label operation currently leaves missing labels unchanged. Label propagation, when selected, is represented as a CV-bound preprocessing step fitted on training cases.</p></section>
+<section class="chapter" id="preproc-workflow-target"><h2>Outcome transformation</h2><p>Scaling or polynomial transformation changes the regression target presented to the learning algorithm. The selected exponent and scaling setting control the numerical meaning of fitted target values.</p></section>
+<section class="chapter" id="preproc-workflow-application"><h2>OOCV label imputation</h2><p>Apply available label-imputation logic to external cases using the fully preprocessed training representation associated with the trained analysis.</p></section>
+<section class="chapter" id="preproc-workflow-composition"><h2>Combining subject-specific operations</h2><p>Gaussian smoothing and spatial wavelet reconstruction retain the spatial feature axis, so their outputs can feed JuSpace or atlas-based regional extraction. JuSpace, ROI means and spatial KL graph extraction replace image-space features with derived features; this limits which imaging operations can follow them.</p></section>
+<section class="chapter" id="preproc-workflow-wavelet"><h2>Wavelet reconstruction versus wavelet variance removal</h2><p>Subject-specific spatial wavelet reconstruction separates signal across spatial scales while retaining voxel or vertex identity. CV-bound wavelet variance-component removal instead attenuates components associated with a nuisance target. Their parameters and outputs are not interchangeable.</p></section>
+<section class="chapter" id="preproc-workflow-graph"><h2>Network preprocessing</h2><p>Graph construction defines edges or network representations. Graph sparsity can remove edges, and graph metrics summarize the retained structure. The meaning of those summaries therefore depends on the preceding graph construction and thresholding.</p></section>
+<section class="chapter" id="preproc-workflow-ranking"><h2>Ranking and dimension extraction</h2><p>Feature-ranking scores are consumed by an associated ranking action. Dimensionality-reduction projections may be followed by a dimension-extraction step to select how many fitted components are retained.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-impute"><h2>Imputation</h2><p>Replace missing predictor values using the chosen univariate or distance-based procedure. Methods that estimate statistics or neighbour relationships use the available training observations within the CV workflow. The selected feature scope determines which predictors are included in the imputation.</p></section>
+<section class="topic" id="preproc-impute-method"><h3>Imputation method</h3>
+<p>Median/single-mean methods perform case-wise replacement from selected features; mean uses group-based feature means; kNN variants require k; hybrid adapts the distance measure to nominal versus ordinal/continuous features.</p></section>
+<section class="topic" id="preproc-impute-featurescope"><h3>Features to impute</h3>
+<p>Use all available features, or restrict imputation to a user-defined feature subspace.</p></section>
+<section class="topic" id="preproc-impute-blockindexvar"><h3>Feature subspace mask</h3>
+<p>Logical feature mask encoded as 0/1 values. Its length must equal the number of features when that context is known.</p></section>
+<section class="topic" id="preproc-impute-k"><h3>Number of nearest neighbours</h3>
+<p>Number of neighbours used by distance-based and SeqkNN imputation; ignored by methods that do not use neighbours.</p></section>
+<section class="topic" id="preproc-impute-hybridnominalmethod"><h3>Hybrid method for nominal features</h3>
+<p>Distance metric applied to nominal features by hybrid imputation: Jaccard or Hamming.</p></section>
+<section class="topic" id="preproc-impute-hybridcontinuousmethod"><h3>Hybrid method for ordinal / continuous features</h3>
+<p>Distance metric applied to ordinal and continuous features by hybrid imputation.</p></section>
+<section class="topic" id="preproc-impute-hybridcutoff"><h3>Maximum unique values for nominal imputation</h3>
+<p>Maximum number of distinct observed values for treating a feature as nominal during hybrid imputation.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-labelimpute"><h2>Label imputation</h2><p>Assign missing outcome labels to training observations with the selected propagation method. The label-propagation model is estimated inside the training fold; this is distinct from global handling of missing labels.</p></section>
+<section class="topic" id="preproc-labelimpute-method"><h3>Label propagation method</h3>
+<p>Choose the label propagation method: none, the configured learner, or a KNN distance metric. The model is fitted within the training fold.</p></section>
+<section class="topic" id="preproc-labelimpute-k"><h3>Number of nearest neighbours</h3>
+<p>Number of neighbours used by KNN-based label-propagation methods.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-smoothing"><h2>Gaussian smoothing</h2><p>Apply a Gaussian spatial filter to each subject’s image-space representation. The full spatial grid is retained. Consequently, smoothing can precede JuSpace or atlas-based feature extraction: those subsequent operations act on the smoothed signal, not on the original map.</p></section>
+<section class="topic" id="preproc-smoothing-fwhm"><h3>Gaussian filter width [mm]</h3>
+<p>Gaussian filter width in millimetres. Multiple values define candidate smoothing widths for optimization.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-waveletspatial"><h2>Wavelet spatial reconstruction</h2><p>Reconstruct each subject’s image or cortical surface signal at specified spatial scales. Volumetric inputs use undecimated 3-D wavelet kernels; cortical surface inputs use heat-kernel graph wavelets on native geometry. Reconstruction mode determines whether the output represents low-frequency signal, denoised signal, signed detail residuals, detail magnitude, or detail energy. The spatial feature axis is retained.</p></section>
+<section class="topic" id="preproc-waveletspatial-family"><h3>Wavelet kernel</h3>
+<p>Volumetric wavelet kernels include B3-spline and Haar. For cortical surface inputs, heat-kernel graph wavelets operate on the native surface mesh. The family determines how signal and detail are separated across spatial scales.</p></section>
+<section class="topic" id="preproc-waveletspatial-boundary"><h3>Boundary handling</h3>
+<p>For volumetric wavelets, mirror padding reflects values at the image boundary, whereas zero padding treats values beyond the boundary as zero. This setting does not apply to cortical heat-wavelets.</p></section>
+<section class="topic" id="preproc-waveletspatial-levels"><h3>Decomposition level(s)</h3>
+<p>Choose the decomposition levels used to define spatial scales. Each selected level produces its own reconstruction candidate. On cortical surfaces, successive heat-wavelet levels correspond to progressively broader smoothing scales.</p></section>
+<section class="topic" id="preproc-waveletspatial-reconstructionmode"><h3>Reconstruction mode</h3>
+<p>Approximation returns the low-frequency representation. Denoised recombines that approximation with thresholded detail coefficients. Selected details sum specified signed detail bands; detail bands retain each signed residual separately. Detail magnitude uses the absolute values of residuals, whereas detail energy squares them. These modes differ in signal interpretation.</p></section>
+<section class="topic" id="preproc-waveletspatial-applywavelettoexternalweightmap"><h3>Apply wavelet reconstruction to external weighting image</h3>
+<p>When a subsequent feature-ranking step uses an external weighting image, this switch determines whether that image undergoes the same wavelet reconstruction as the subject maps. The editor derives an initial choice from the reconstruction mode; overriding it changes the correspondence between ranking weights and reconstructed features.</p></section>
+<section class="topic" id="preproc-waveletspatial-detaillevels"><h3>Detail levels to reconstruct</h3>
+<p>Select which detail bands contribute when reconstruction mode is “selected details”. A level higher than the current reconstruction branch is omitted from that branch. Thus selecting levels 1–3 yields cumulatively D1, D1 + D2 and D1 + D2 + D3.</p></section>
+<section class="topic" id="preproc-waveletspatial-thresholdmode"><h3>Detail thresholding</h3>
+<p>Choose whether detail coefficients are left unchanged, softly shrunk toward zero, or hard-thresholded to zero. Thresholding is applied when the denoised reconstruction uses detail coefficients.</p></section>
+<section class="topic" id="preproc-waveletspatial-thresholdsigma"><h3>Threshold multiplier</h3>
+<p>Scale the coefficient threshold relative to a robust, subject-specific estimate of noise in wavelet details. Larger multipliers suppress more detail coefficients.</p></section>
+<section class="topic" id="preproc-waveletspatial-batchsize"><h3>Subject batch size</h3>
+<p>Set how many subjects are processed in one batch of spatial wavelet operations. This affects working memory and processing overhead, not the meaning of the wavelet coefficients.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-juspace"><h2>JuSpace neuromap correlations</h2><p>Quantify spatial correspondence between individual neuroimaging maps and selected molecular or cellular reference maps. Each selected reference map yields correlation-derived features, replacing the original image-space representation. This feature-extraction step can follow an image-preserving operation such as Gaussian smoothing or spatial wavelet reconstruction.</p></section>
+<section class="topic" id="preproc-juspace-juspaceroot"><h3>Detected JuSpace directory</h3>
+<p>Displays the location of the JuSpace resources used to prepare the selected reference maps.</p></section>
+<section class="topic" id="preproc-juspace-atlaspath"><h3>Atlas image path(s)</h3>
+<p>Select one or more atlas images that define the spatial parcels over which subject and reference maps are summarized before spatial correlations are calculated.</p></section>
+<section class="topic" id="preproc-juspace-atlasnames"><h3>Alternative atlas name(s)</h3>
+<p>Assign optional names to the selected atlas images. These names identify the parcellation definitions in resulting analyses.</p></section>
+<section class="topic" id="preproc-juspace-brainmapsdir"><h3>Brain maps directory</h3>
+<p>Choose the directory containing molecular or cellular reference maps. Scanning this directory supplies the list from which the maps used in the analysis are selected.</p></section>
+<section class="topic" id="preproc-juspace-scanstatus"><h3>Brain-map scan status</h3>
+<p>Shows the outcome of the reference-map directory scan; it is a status display, not an analysis parameter.</p></section>
+<section class="topic" id="preproc-juspace-brainmaprows"><h3>Brain map selection</h3>
+<p>Select the reference brain maps to correlate with each subject’s image. Each selected map contributes its own spatial association feature; alternative names label the corresponding outputs.</p></section>
+<section class="topic" id="preproc-juspace-correlationtype"><h3>Correlation type</h3>
+<p>Pearson correlation measures a linear spatial association between parcel values. Spearman correlation assesses the correspondence of their ranks and is less sensitive to the numerical spacing between values.</p></section>
+<section class="topic" id="preproc-juspace-adjustspatialautocorrelation"><h3>Adjust for spatial autocorrelation</h3>
+<p>Enable the spatial-autocorrelation correction for the brain-map correlations. Nearby brain regions often have correlated values; the correction accounts for this spatial dependence when deriving the relevant estimates.</p></section>
+<section class="topic" id="preproc-juspace-tpmpath"><h3>TPM image path</h3>
+<p>Select an optional tissue-probability image used by the spatial-autocorrelation adjustment.</p></section>
+<section class="topic" id="preproc-juspace-complete"><h3>JuSpace import/precomputation complete</h3>
+<p>Report whether the selected atlas and reference maps have been prepared for the JuSpace computation. Changing the resource selection requires the resulting preparation state to be updated.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-roimeans"><h2>ROI mean extraction</h2><p>Summarize an image using mean signals in atlas-defined regions. The output is a vector of regional features instead of the voxel/vertex image. An image-preserving filter may precede regional averaging; operations requiring image-space input cannot follow regional extraction.</p></section>
+<section class="topic" id="preproc-roimeans-atlaspath"><h3>Atlas image path(s)</h3>
+<p>Select or import the atlas image used to define ROIs before running this step.</p></section>
+<section class="topic" id="preproc-roimeans-atlasdir"><h3>Atlas directory</h3>
+<p>Directory containing the atlas resources used by this step.</p></section>
+<section class="topic" id="preproc-roimeans-complete"><h3>ROI atlas import complete</h3>
+<p>Indicates whether atlas preparation for this step is complete.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-spatiallegacy"><h2>Imported spatial operation</h2><p>A previously configured spatial operation is retained when an existing analysis is loaded. Its scientific settings come from the stored analysis; this representation is not offered as a new editable module.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-scale"><h2>Scaling</h2><p>Rescale predictors according to values estimated in the training fold. Min–max variants differ in target interval and whether a genuine zero remains zero; this distinction matters for operations that use zero as a meaningful reference.</p></section>
+<section class="topic" id="preproc-scale-acrossmatrix"><h3>Scale across whole matrix</h3>
+<p>Apply one scaling transformation across the complete feature matrix rather than feature-wise.</p></section>
+<section class="topic" id="preproc-scale-range"><h3>Scaling range</h3>
+<p>Symmetric [-1,1] scaling divides by the training maximum absolute value, leaving the decision boundary at zero. Stacking uses this method exclusively.</p></section>
+<section class="topic" id="preproc-scale-zerooutnonfinite"><h3>Zero-out non-finite values</h3>
+<p>When enabled, non-finite outputs of scaling are set to zero. When disabled, those values remain non-finite and can be processed by subsequent imputation steps.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-standardize"><h2>Standardization</h2><p>Center and scale each predictor using training-fold location and dispersion estimates. The selected estimator determines how outliers influence the transformed values; exactly the same fitted parameters are applied to the corresponding test cases.</p></section>
+<section class="topic" id="preproc-standardize-method"><h3>Estimator</h3>
+<p>Median/mean standardization, mean or L1-median centering, or robust Qn/Sn standardization.</p></section>
+<section class="topic" id="preproc-standardize-useiqr"><h3>Use IQR for median standardization</h3>
+<p>Use the interquartile range instead of the alternative spread estimator for median-based standardization.</p></section>
+<section class="topic" id="preproc-standardize-winsorizesd"><h3>Winsorization limits in SD units</h3>
+<p>Optional winsorization cutoffs expressed in standard deviation units; empty disables this setting.</p></section>
+<section class="topic" id="preproc-standardize-zerooutnonfinite"><h3>Zero-out completely non-finite features</h3>
+<p>Replace non-finite values produced by the standardization operation with zero.</p></section>
+<section class="topic" id="preproc-standardize-sourceindex"><h3>Source covariates</h3>
+<p>Select covariate columns used to define the subgroup or reference set from which the standardization model is estimated.</p></section>
+<section class="topic" id="preproc-standardize-destinationindex"><h3>Destination covariates</h3>
+<p>Select covariate columns defining the subgroup or cases to which the learned standardization model is applied.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-unitnormalize"><h2>Unit normalization</h2><p>Rescale feature vectors to unit length under the chosen norm. This changes magnitude while retaining the feature directions defined by the selected normalization rule.</p></section>
+<section class="topic" id="preproc-unitnormalize-norm"><h3>Norm</h3>
+<p>Choose the L1 or L2 vector norm for feature normalization.</p></section>
+<section class="topic" id="preproc-unitnormalize-zerooutnonfinite"><h3>Zero-out non-finite values</h3>
+<p>Replace non-finite values produced by unit normalization with zero.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-discsym"><h2>Discretize / symbolize</h2><p>Replace continuous values with intervals or symbolic codes. The binning rule determines the resolution of the resulting representation, including how much variation within an interval is discarded.</p></section>
+<section class="topic" id="preproc-discsym-mode"><h3>Mode</h3>
+<p>Discretize using binStart/binStep/binStop, or symbolize using the symbolization parameters.</p></section>
+<section class="topic" id="preproc-discsym-binstart"><h3>Discretization bin start</h3>
+<p>Lower starting value for the discretization bin grid.</p></section>
+<section class="topic" id="preproc-discsym-binstep"><h3>Discretization bin step</h3>
+<p>Positive spacing between consecutive discretization bins.</p></section>
+<section class="topic" id="preproc-discsym-binstop"><h3>Discretization bin stop</h3>
+<p>Upper stopping value for the discretization bin grid.</p></section>
+<section class="topic" id="preproc-discsym-symbolminbin"><h3>Symbolization minimum bins</h3>
+<p>Minimum candidate number of bins for the symbolization procedure.</p></section>
+<section class="topic" id="preproc-discsym-symbolmaxbin"><h3>Symbolization maximum bins</h3>
+<p>Maximum candidate number of bins for the symbolization procedure.</p></section>
+<section class="topic" id="preproc-discsym-symbolseqlength"><h3>Symbolization sequence length</h3>
+<p>Length of the symbol sequence used by the symbolization procedure.</p></section>
+<section class="topic" id="preproc-discsym-symbolstdnum"><h3>Symbolization STD range</h3>
+<p>Standard-deviation range parameter passed to the symbolization procedure.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-elimzero"><h2>Prune invalid / zero-variance features</h2><p>Remove predictors that do not satisfy the selected finite-value, variance, or value-frequency criteria. Pruning changes the number of features available to downstream learners.</p></section>
+<section class="topic" id="preproc-elimzero-prunezerovariance"><h3>Prune zero-variance features</h3>
+<p>Remove predictor features with zero variance.</p></section>
+<section class="topic" id="preproc-elimzero-prunenan"><h3>Prune features with NaNs</h3>
+<p>Remove predictor features according to the chosen criterion for missing (NaN) values.</p></section>
+<section class="topic" id="preproc-elimzero-pruneinf"><h3>Prune features with Infs</h3>
+<p>Remove predictor features according to the chosen criterion for infinite values.</p></section>
+<section class="topic" id="preproc-elimzero-singlevaluepercent"><h3>Single-value cutoff percent</h3>
+<p>Optional percentage cutoff for features dominated by a single value; empty leaves this criterion inactive.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-skewcorr"><h2>Skewness correction</h2><p>Transform skewed feature distributions. Logarithmic, Box–Cox and Yeo–Johnson transformations differ in their supported input ranges and how they reshape the tails of the distribution.</p></section>
+<section class="topic" id="preproc-skewcorr-transform"><h3>Transform</h3>
+<p>Select logarithmic, Box-Cox, or Yeo-Johnson distribution transformation.</p></section>
+<section class="topic" id="preproc-skewcorr-skewthreshold"><h3>Absolute skewness threshold</h3>
+<p>Absolute skewness threshold used to select features for correction.</p></section>
+<section class="topic" id="preproc-skewcorr-boxcoxlambdamode"><h3>Box-Cox lambda mode</h3>
+<p>Estimate lambda automatically or use the specified boxcoxLambda.</p></section>
+<section class="topic" id="preproc-skewcorr-boxcoxlambda"><h3>Manual Box-Cox lambda</h3>
+<p>Manual Box-Cox lambda candidate(s), used when boxcoxLambdaMode is manual.</p></section>
+<section class="topic" id="preproc-skewcorr-yjlambdamode"><h3>Yeo-Johnson lambda mode</h3>
+<p>Estimate lambda automatically or use the specified yjLambda.</p></section>
+<section class="topic" id="preproc-skewcorr-yjlambda"><h3>Manual Yeo-Johnson lambda</h3>
+<p>Manual Yeo-Johnson lambda candidate(s), used when yjLambdaMode is manual.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-copyfeat"><h2>Copy features</h2><p>Store a copy of the current predictor representation for subsequent operations. Copying preserves a reference to the earlier feature space without itself fitting a statistical model.</p></section>
+<section class="topic" id="preproc-copyfeat-label"><h3>Copy label</h3>
+<p>Name attached to the copied feature matrix for subsequent pipeline use.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-rankfeat"><h2>Feature ranking / weighting</h2><p>Estimate feature relevance scores or weights from training data. The following feature-ranking action consumes those estimates, for example to select a number of variables or weight them continuously. Their adjacency is enforced by the preprocessing sequence.</p></section>
+<section class="topic" id="preproc-rankfeat-algorithm"><h3>Ranking algorithm</h3>
+<p>Select the ranking or feature-weighting algorithm; algorithm-specific options are in algorithmParams.</p></section>
+<section class="topic" id="preproc-rankfeat-weightmethod"><h3>Use ranking to</h3>
+<p>Choose whether the computed feature ranking increases or decreases feature weights.</p></section>
+<section class="topic" id="preproc-rankfeat-labelsource"><h3>Ranking target source</h3>
+<p>Select the outcome used to calculate feature-ranking scores: the analysis target or a separately supplied workspace label.</p></section>
+<section class="topic" id="preproc-rankfeat-labelvar"><h3>Workspace label variable</h3>
+<p>Numeric/logical vector with one row per subject. The task type is auto-detected but can be overridden.</p></section>
+<section class="topic" id="preproc-rankfeat-ranktype"><h3>Task induced by custom target</h3>
+<p>Only needed when the ranking target is not the canonical NM label. auto inspects the selected workspace label and chooses classification or regression conservatively.</p></section>
+<section class="topic" id="preproc-rankfeat-ranktaskhint"><h3>Auto-detected target type</h3>
+<p>Read-only task type inferred from the selected workspace ranking target.</p></section>
+<section class="topic" id="preproc-rankfeat-externalsource"><h3>External ranking source</h3>
+<p>Select a workspace vector/matrix, a new image file, an existing NeuroMiner weighting map, or a previously imported ranking definition.</p></section>
+<section class="topic" id="preproc-rankfeat-externalworkspacevar"><h3>External ranking workspace variable</h3>
+<p>Numeric vector with numel = number of active features, or numeric matrix with size( ,2) equal to the active feature count.</p></section>
+<section class="topic" id="preproc-rankfeat-externalfile"><h3>External NIfTI/GIfTI/surface ranking file</h3>
+<p>The selected image is loaded and vectorized against the active NeuroMiner mask before ranking is applied.</p></section>
+<section class="topic" id="preproc-rankfeat-externalnmweightindex"><h3>Dataset weighting image index</h3>
+<p>Index of the existing NM weighting image selected for external ranking.</p></section>
+<section class="topic" id="preproc-rankfeat-takeabs"><h3>Postprocess: absolute weights</h3>
+<p>Use absolute feature-weight magnitudes in ranking postprocessing.</p></section>
+<section class="topic" id="preproc-rankfeat-scaleweights"><h3>Postprocess: scale weights to [0,1]</h3>
+<p>Rescale ranking weights to the unit interval during postprocessing.</p></section>
+<section class="topic" id="preproc-rankfeat-replacezeronanwithrealmin"><h3>Postprocess: replace zeros/NaNs with realmin</h3>
+<p>Replace zero or NaN ranking weights with realmin during postprocessing.</p></section>
+<section class="topic" id="preproc-rankfeat-replaceinfwithmax"><h3>Postprocess: replace Infs with max</h3>
+<p>Replace infinite ranking weights with the maximum finite weight during postprocessing.</p></section>
+<section class="topic" id="preproc-rankfeat-algorithmparams"><h3>Algorithm-specific parameters</h3>
+<p>Open the settings page for the selected ranking algorithm.</p></section>
+<section class="topic" id="preproc-rankfeat-fscore-fscoretype"><h3>F-score computation method</h3>
+<div class="context">Algorithm: fscore</div>
+<p>Choose mean/standard-deviation or median/interquartile-range scaling.</p></section>
+<section class="topic" id="preproc-rankfeat-fscore-weightmode"><h3>Class-imbalance weighting mode</h3>
+<div class="context">Algorithm: fscore</div>
+<p>Choose automatic or manual weighting. In automatic mode the weighting is determined by the selected ranking procedure; manual mode uses the specified weighting configuration.</p></section>
+<section class="topic" id="preproc-rankfeat-fscore-weightsvar"><h3>Manual sample-weight vector</h3>
+<div class="context">Algorithm: fscore</div>
+<p>Workspace vector of manual sample weights for the F-score procedure.</p></section>
+<section class="topic" id="preproc-rankfeat-fscore-bootstrapiterations"><h3>Bootstrap iterations</h3>
+<div class="context">Algorithm: fscore</div>
+<p>Number of F-score bootstrap iterations; zero disables bootstrapping.</p></section>
+<section class="topic" id="preproc-rankfeat-relief-k"><h3>Number(s) of nearest neighbours</h3>
+<div class="context">Algorithm: relief</div>
+<p>Nearest-neighbour count candidate(s) for the selected ranking method.</p></section>
+<section class="topic" id="preproc-rankfeat-gflip-startpoints"><h3># starting points</h3>
+<div class="context">Algorithm: gflip</div>
+<p>Number of independent starting points for ranking optimization.</p></section>
+<section class="topic" id="preproc-rankfeat-gflip-maxiter"><h3>Maximum # of iterations</h3>
+<div class="context">Algorithm: gflip</div>
+<p>Maximum number of ranking-optimization iterations.</p></section>
+<section class="topic" id="preproc-rankfeat-gflip-blocksize"><h3>Block size</h3>
+<div class="context">Algorithm: gflip</div>
+<p>Number of features processed as one update block.</p></section>
+<section class="topic" id="preproc-rankfeat-gflip-utility"><h3>Utility function</h3>
+<div class="context">Algorithm: gflip</div>
+<p>Select the utility function used to optimize the selected ranking method.</p></section>
+<section class="topic" id="preproc-rankfeat-gflip-betamode"><h3>Sigmoid beta mode</h3>
+<div class="context">Algorithm: gflip</div>
+<p>Choose automatic or manually specified beta for the selected utility/kernel.</p></section>
+<section class="topic" id="preproc-rankfeat-gflip-beta"><h3>Sigmoid beta value(s)</h3>
+<div class="context">Algorithm: gflip</div>
+<p>Beta parameter candidate(s) used when manual beta is selected.</p></section>
+<section class="topic" id="preproc-rankfeat-gflip-binmode"><h3>Multi-group processing</h3>
+<div class="context">Algorithm: gflip</div>
+<p>Select whether the ranking uses pairwise group comparisons or a multi-group formulation; automatic mode uses the task-dependent selection.</p></section>
+<section class="topic" id="preproc-rankfeat-gflip-gpu"><h3>GPU flag</h3>
+<div class="context">Algorithm: gflip</div>
+<p>Enable GPU execution for the selected ranking algorithm.</p></section>
+<section class="topic" id="preproc-rankfeat-simba-startpoints"><h3># starting points</h3>
+<div class="context">Algorithm: simba</div>
+<p>Number of independent starting points for ranking optimization.</p></section>
+<section class="topic" id="preproc-rankfeat-simba-maxiter"><h3>Maximum # of iterations</h3>
+<div class="context">Algorithm: simba</div>
+<p>Maximum number of ranking-optimization iterations.</p></section>
+<section class="topic" id="preproc-rankfeat-simba-iterabortcrit"><h3>Feature-stability stopping criterion [%]</h3>
+<div class="context">Algorithm: simba</div>
+<p>Percentage feature-stability threshold for early termination of Simba iterations.</p></section>
+<section class="topic" id="preproc-rankfeat-simba-blocksize"><h3>Block size</h3>
+<div class="context">Algorithm: simba</div>
+<p>Number of features processed as one update block.</p></section>
+<section class="topic" id="preproc-rankfeat-simba-utility"><h3>Utility function</h3>
+<div class="context">Algorithm: simba</div>
+<p>Select the utility function used to optimize the selected ranking method.</p></section>
+<section class="topic" id="preproc-rankfeat-simba-betamode"><h3>Sigmoid beta mode</h3>
+<div class="context">Algorithm: simba</div>
+<p>Choose automatic or manually specified beta for the selected utility/kernel.</p></section>
+<section class="topic" id="preproc-rankfeat-simba-beta"><h3>Sigmoid beta value(s)</h3>
+<div class="context">Algorithm: simba</div>
+<p>Beta parameter candidate(s) used when manual beta is selected.</p></section>
+<section class="topic" id="preproc-rankfeat-simba-binmode"><h3>Multi-group processing</h3>
+<div class="context">Algorithm: simba</div>
+<p>Select whether the ranking uses pairwise group comparisons or a multi-group formulation; automatic mode uses the task-dependent selection.</p></section>
+<section class="topic" id="preproc-rankfeat-simba-gpu"><h3>GPU flag</h3>
+<div class="context">Algorithm: simba</div>
+<p>Enable GPU execution for the selected ranking algorithm.</p></section>
+<section class="topic" id="preproc-rankfeat-imrelief-idetect-distance"><h3>Distance measure</h3>
+<div class="context">Algorithm: imrelief/idetect</div>
+<p>Choose block or Euclidean distance for IMRelief/iDetect.</p></section>
+<span id="preproc-rankfeat-imrelief-distance"></span>
+<span id="preproc-rankfeat-idetect-distance"></span>
+<section class="topic" id="preproc-rankfeat-imrelief-idetect-sigma"><h3>Sigma parameter(s)</h3>
+<div class="context">Algorithm: imrelief/idetect</div>
+<p>Sigma candidate(s) for the IMRelief/iDetect distance kernel.</p></section>
+<span id="preproc-rankfeat-imrelief-sigma"></span>
+<span id="preproc-rankfeat-idetect-sigma"></span>
+<section class="topic" id="preproc-rankfeat-imrelief-idetect-lambda"><h3>Lambda parameter(s)</h3>
+<div class="context">Algorithm: imrelief/idetect</div>
+<p>Lambda candidate(s) for the IMRelief/iDetect optimization.</p></section>
+<span id="preproc-rankfeat-imrelief-lambda"></span>
+<span id="preproc-rankfeat-idetect-lambda"></span>
+<section class="topic" id="preproc-rankfeat-imrelief-idetect-maxiter"><h3>Maximum iterations</h3>
+<div class="context">Algorithm: imrelief/idetect</div>
+<p>Maximum number of IMRelief/iDetect iterations.</p></section>
+<span id="preproc-rankfeat-imrelief-maxiter"></span>
+<span id="preproc-rankfeat-idetect-maxiter"></span>
+<section class="topic" id="preproc-rankfeat-imrelief-idetect-plotfigure"><h3>Plot learning process</h3>
+<div class="context">Algorithm: imrelief/idetect</div>
+<p>Display the ranking algorithm learning-progress figure.</p></section>
+<span id="preproc-rankfeat-imrelief-plotfigure"></span>
+<span id="preproc-rankfeat-idetect-plotfigure"></span>
+<section class="topic" id="preproc-rankfeat-rgs-numstarts"><h3># starting points</h3>
+<div class="context">Algorithm: rgs</div>
+<p>Number of random starts for RGS ranking optimization.</p></section>
+<section class="topic" id="preproc-rankfeat-rgs-epochs"><h3># epochs</h3>
+<div class="context">Algorithm: rgs</div>
+<p>Number of RGS optimization epochs.</p></section>
+<section class="topic" id="preproc-rankfeat-rgs-betamode"><h3>Gaussian beta mode</h3>
+<div class="context">Algorithm: rgs</div>
+<p>Choose automatic or manually specified beta for the selected utility/kernel.</p></section>
+<section class="topic" id="preproc-rankfeat-rgs-beta"><h3>Beta value(s)</h3>
+<div class="context">Algorithm: rgs</div>
+<p>Beta parameter candidate(s) used when manual beta is selected.</p></section>
+<section class="topic" id="preproc-rankfeat-rgs-kmode"><h3>Nearest-neighbour K mode</h3>
+<div class="context">Algorithm: rgs</div>
+<p>Choose automatically determined or manually supplied nearest-neighbour counts.</p></section>
+<section class="topic" id="preproc-rankfeat-rgs-k"><h3># nearest neighbours</h3>
+<div class="context">Algorithm: rgs</div>
+<p>Nearest-neighbour count candidate(s) for the selected ranking method.</p></section>
+<section class="topic" id="preproc-rankfeat-rgs-verbose"><h3>Verbose</h3>
+<div class="context">Algorithm: rgs</div>
+<p>Print RGS progress information during optimization.</p></section>
+<section class="topic" id="preproc-rankfeat-feast-binningmode"><h3>Binning mode</h3>
+<div class="context">Algorithm: feast</div>
+<p>Choose discretization or symbolization before FEAST feature selection.</p></section>
+<section class="topic" id="preproc-rankfeat-feast-binstart"><h3>Discretization bin start</h3>
+<div class="context">Algorithm: feast</div>
+<p>Starting value for FEAST discretization bins.</p></section>
+<section class="topic" id="preproc-rankfeat-feast-binstep"><h3>Discretization bin step</h3>
+<div class="context">Algorithm: feast</div>
+<p>Step size between FEAST discretization bins.</p></section>
+<section class="topic" id="preproc-rankfeat-feast-binstop"><h3>Discretization bin stop</h3>
+<div class="context">Algorithm: feast</div>
+<p>Last value for FEAST discretization bins.</p></section>
+<section class="topic" id="preproc-rankfeat-feast-symbolminbin"><h3>Symbolization minimum bins</h3>
+<div class="context">Algorithm: feast</div>
+<p>Minimum candidate number of FEAST symbolization bins.</p></section>
+<section class="topic" id="preproc-rankfeat-feast-symbolmaxbin"><h3>Symbolization maximum bins</h3>
+<div class="context">Algorithm: feast</div>
+<p>Maximum candidate number of FEAST symbolization bins.</p></section>
+<section class="topic" id="preproc-rankfeat-feast-symbolseqlength"><h3>Symbolization sequence length</h3>
+<div class="context">Algorithm: feast</div>
+<p>Length of the FEAST symbol sequence.</p></section>
+<section class="topic" id="preproc-rankfeat-feast-symbolstdnum"><h3>Symbolization STD range</h3>
+<div class="context">Algorithm: feast</div>
+<p>Standard-deviation range of FEAST symbolization.</p></section>
+<section class="topic" id="preproc-rankfeat-feast-method"><h3>FEAST algorithm</h3>
+<div class="context">Algorithm: feast</div>
+<p>Select the algorithm used by the FEAST or PLS ranking subconfiguration.</p></section>
+<section class="topic" id="preproc-rankfeat-feast-mifsbeta"><h3>MIFS beta value(s)</h3>
+<div class="context">Algorithm: feast</div>
+<p>Beta candidate(s) for the mutual-information feature-selection criterion.</p></section>
+<section class="topic" id="preproc-rankfeat-feast-numfeat"><h3>Number(s) of features to extract</h3>
+<div class="context">Algorithm: feast</div>
+<p>Use Inf to return all ranked features.</p></section>
+<section class="topic" id="preproc-rankfeat-pls-method"><h3>PLS method</h3>
+<div class="context">Algorithm: pls</div>
+<p>Select the algorithm used by the FEAST or PLS ranking subconfiguration.</p></section>
+<section class="topic" id="preproc-rankfeat-pls-labelmatrixsource"><h3>V matrix source</h3>
+<div class="context">Algorithm: pls</div>
+<p>Choose the source of the response/design matrix V for PLS ranking.</p></section>
+<section class="topic" id="preproc-rankfeat-pls-covariatecolumns"><h3>Covariate column indices</h3>
+<div class="context">Algorithm: pls</div>
+<p>Covariate columns defining the PLS ranking response/design matrix V.</p></section>
+<section class="topic" id="preproc-rankfeat-pls-workspacematrixvar"><h3>Workspace V matrix variable</h3>
+<div class="context">Algorithm: pls</div>
+<p>Workspace variable containing the PLS ranking response/design matrix V.</p></section>
+<section class="topic" id="preproc-rankfeat-pls-cu"><h3>Sparse PLS U constraint(s)</h3>
+<div class="context">Algorithm: pls</div>
+<p>Sparsity constraint candidate(s) for PLS U weights.</p></section>
+<section class="topic" id="preproc-rankfeat-pls-cv"><h3>Sparse PLS V constraint(s)</h3>
+<div class="context">Algorithm: pls</div>
+<p>Sparsity constraint candidate(s) for PLS V weights.</p></section>
+<section class="topic" id="preproc-rankfeat-libsvm-liblin-legacynotice"><h3>Status</h3>
+<div class="context">Algorithm: libsvm/liblin</div>
+<p>Read-only information about the selected feature-ranking method and its available parameters.</p></section>
+<span id="preproc-rankfeat-libsvm-legacynotice"></span>
+<span id="preproc-rankfeat-liblin-legacynotice"></span>
+<section class="topic" id="preproc-rankfeat-libsvm-liblin-slackparam"><h3>Slack/Nu-SVC parameter(s)</h3>
+<div class="context">Algorithm: libsvm/liblin</div>
+<p>Slack or Nu-SVC hyperparameter candidate(s) for the ranking SVM.</p></section>
+<span id="preproc-rankfeat-libsvm-slackparam"></span>
+<span id="preproc-rankfeat-liblin-slackparam"></span>
+<section class="topic" id="preproc-rankfeat-libsvm-liblin-epsilonparam"><h3>Epsilon-SVR parameter(s)</h3>
+<div class="context">Algorithm: libsvm/liblin</div>
+<p>Epsilon-SVR hyperparameter candidate(s) for the ranking SVM.</p></section>
+<span id="preproc-rankfeat-libsvm-epsilonparam"></span>
+<span id="preproc-rankfeat-liblin-epsilonparam"></span>
+<section class="topic" id="preproc-rankfeat-libsvm-liblin-nuparam"><h3>Nu-SVR parameter(s)</h3>
+<div class="context">Algorithm: libsvm/liblin</div>
+<p>Nu-SVR hyperparameter candidate(s) for the ranking SVM.</p></section>
+<span id="preproc-rankfeat-libsvm-nuparam"></span>
+<span id="preproc-rankfeat-liblin-nuparam"></span>
+<section class="topic" id="preproc-rankfeat-libsvm-liblin-liblintolerance"><h3>LIBLINEAR tolerance parameter(s)</h3>
+<div class="context">Algorithm: libsvm/liblin</div>
+<p>Convergence tolerance candidate(s) for LIBLINEAR ranking.</p></section>
+<span id="preproc-rankfeat-libsvm-liblintolerance"></span>
+<span id="preproc-rankfeat-liblin-liblintolerance"></span>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-extfeat"><h2>Feature-ranking action</h2><p>Apply the ranking or weighting produced by the immediately preceding feature-ranking step. Depending on the selected action, the result is a reduced feature subset or a continuously weighted representation.</p></section>
+<section class="topic" id="preproc-extfeat-action"><h3>Ranking action</h3>
+<p>Choose whether feature extraction is soft or hard. Only settings relevant to the selected action are shown.</p></section>
+<section class="topic" id="preproc-extfeat-exponent"><h3>Soft-weighting exponent(s)</h3>
+<p>Exponent(s) applied to ranking weights during soft feature weighting.</p></section>
+<section class="topic" id="preproc-extfeat-percentiles"><h3>Percentile threshold(s)</h3>
+<p>Ranking percentile threshold candidates for hard feature extraction.</p></section>
+<section class="topic" id="preproc-extfeat-absolutethresholds"><h3>Absolute threshold(s)</h3>
+<p>Absolute ranking-weight cutoff candidates for hard feature extraction.</p></section>
+<section class="topic" id="preproc-extfeat-topfeatures"><h3>Top feature count(s)</h3>
+<p>Number(s) of highest-ranked features retained in top-feature selection.</p></section>
+<section class="topic" id="preproc-extfeat-operator"><h3>Operator</h3>
+<p>Comparison operator applied to ranking weights in operator/cutoff selection.</p></section>
+<section class="topic" id="preproc-extfeat-cutoff"><h3>Operator cutoff(s)</h3>
+<p>Ranking-weight cutoff candidate(s) paired with the selected comparison operator.</p></section>
+<section class="topic" id="preproc-extfeat-clusterize"><h3>Clusterize suprathreshold imaging features</h3>
+<p>Available only for hard feature-extraction actions.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-reducedim"><h2>Dimensionality reduction</h2><p>Estimate a lower-dimensional representation from the training fold using the selected algorithm. Available methods vary in whether components are linear, independent, nonnegative, or locally structured. An optional extraction step can select the number of retained dimensions without repeating the full projection fit.</p></section>
+<section class="topic" id="preproc-reducedim-method"><h3>Dimensionality-reduction method</h3>
+<p>Choose the dimensionality-reduction algorithm; methodParams contains its existing nested schema.</p></section>
+<section class="topic" id="preproc-reducedim-fitdim"><h3>Fitted projection dimensionality</h3>
+<p>Defines the number of fitted projection dimensions, or the amount of variance retained, according to the selected dimensionality mode. A subsequent dimension-extraction step can select a subset from the fitted projection.</p></section>
+<section class="topic" id="preproc-reducedim-percmode"><h3>Fitted dimensionality mode</h3>
+<p>Choose a fixed number of components, a percentage of available components, or an explained-energy target. Percentage and energy modes are available for PCA-based methods.</p></section>
+<section class="topic" id="preproc-reducedim-templateprocrustes"><h3>Use Procrustes template alignment</h3>
+<p>Apply Procrustes alignment when generating the dimensionality-reduction template.</p></section>
+<section class="topic" id="preproc-reducedim-usealltrainingfortemplate"><h3>Use all training data for template generation</h3>
+<p>Use the complete available training set to construct the projection template.</p></section>
+<section class="topic" id="preproc-reducedim-methodparams"><h3>Method-specific parameters</h3>
+<p>Opens a separate nested page for the selected dimensionality-reduction method.</p></section>
+<section class="topic" id="preproc-reducedim-optnmf-legacynotice"><h3>Status</h3>
+<div class="context">Algorithm: optNMF</div>
+<p>Read-only information about the selected dimensionality-reduction method and its available parameters.</p></section>
+<section class="topic" id="preproc-reducedim-nnmf-nmfmethod"><h3>NMF method</h3>
+<div class="context">Algorithm: NNMF</div>
+<p>Choose the non-negative matrix factorization update method.</p></section>
+<section class="topic" id="preproc-reducedim-nnmf-display"><h3>Display NNMF optimization output</h3>
+<div class="context">Algorithm: NNMF</div>
+<p>Display progress and optimization messages from the NNMF algorithm.</p></section>
+<section class="topic" id="preproc-reducedim-nenmf-nmfmethod"><h3>NeNMF method</h3>
+<div class="context">Algorithm: NeNMF</div>
+<p>Select the NeNMF solver method from the existing method options.</p></section>
+<section class="topic" id="preproc-reducedim-nenmf-tmax"><h3>Maximum runtime in seconds</h3>
+<div class="context">Algorithm: NeNMF</div>
+<p>Maximum NeNMF optimization runtime in seconds.</p></section>
+<section class="topic" id="preproc-reducedim-sparsepca-lambda"><h3>Lambda parameter(s)</h3>
+<div class="context">Algorithm: SparsePCA</div>
+<p>Positive ridge-term coefficient. Inf selects the high-dimensional default.</p></section>
+<section class="topic" id="preproc-reducedim-sparsepca-stop"><h3>Stop parameter(s)</h3>
+<div class="context">Algorithm: SparsePCA</div>
+<p>Stopping-criterion candidate(s) passed to the selected dimensionality-reduction method.</p></section>
+<section class="topic" id="preproc-reducedim-sparsepca-maxiter"><h3>Maximum iteration value(s)</h3>
+<div class="context">Algorithm: SparsePCA</div>
+<p>Maximum optimization-iteration candidate(s).</p></section>
+<section class="topic" id="preproc-reducedim-probpca-iter"><h3>Iteration value(s)</h3>
+<div class="context">Algorithm: ProbPCA</div>
+<p>Iteration-count candidate(s) for the chosen projection method.</p></section>
+<section class="topic" id="preproc-reducedim-lpp-sigma"><h3>Gaussian bandwidth Sigma</h3>
+<div class="context">Algorithm: LPP</div>
+<p>Gaussian bandwidth or sigma candidate(s) for the selected manifold method.</p></section>
+<section class="topic" id="preproc-reducedim-lpp-k"><h3>Number(s) of nearest neighbours</h3>
+<div class="context">Algorithm: LPP</div>
+<p>Nearest-neighbour count candidate(s) for the selected local-manifold method.</p></section>
+<section class="topic" id="preproc-reducedim-lltsa-k"><h3>Number(s) of nearest neighbours</h3>
+<div class="context">Algorithm: LLTSA</div>
+<p>Nearest-neighbour count candidate(s) for the selected local-manifold method.</p></section>
+<section class="topic" id="preproc-reducedim-laplacian-k"><h3>Number(s) of nearest neighbours</h3>
+<div class="context">Algorithm: Laplacian</div>
+<p>Nearest-neighbour count candidate(s) for the selected local-manifold method.</p></section>
+<section class="topic" id="preproc-reducedim-laplacian-sigma"><h3>Sigma value(s)</h3>
+<div class="context">Algorithm: Laplacian</div>
+<p>Gaussian bandwidth or sigma candidate(s) for the selected manifold method.</p></section>
+<section class="topic" id="preproc-reducedim-lle-k"><h3>Number(s) of nearest neighbours</h3>
+<div class="context">Algorithm: LLE</div>
+<p>Nearest-neighbour count candidate(s) for the selected local-manifold method.</p></section>
+<section class="topic" id="preproc-reducedim-nca-lambda"><h3>Lambda value(s)</h3>
+<div class="context">Algorithm: NCA</div>
+<p>Regularization lambda candidate(s) for the selected method.</p></section>
+<section class="topic" id="preproc-reducedim-pls-method"><h3>PLS method</h3>
+<div class="context">Algorithm: PLS</div>
+<p>Select the partial least-squares variant used for dimensionality reduction.</p></section>
+<section class="topic" id="preproc-reducedim-pls-labelmatrixsource"><h3>V matrix source</h3>
+<div class="context">Algorithm: PLS</div>
+<p>Select the source of the PLS response/design matrix V.</p></section>
+<section class="topic" id="preproc-reducedim-pls-covariatecolumns"><h3>Covariate column indices</h3>
+<div class="context">Algorithm: PLS</div>
+<p>Covariate column indices used to form the PLS response/design matrix V.</p></section>
+<section class="topic" id="preproc-reducedim-pls-workspacematrixvar"><h3>Workspace V matrix variable</h3>
+<div class="context">Algorithm: PLS</div>
+<p>Workspace variable containing the PLS response/design matrix V.</p></section>
+<section class="topic" id="preproc-reducedim-pls-cu"><h3>Sparse PLS U constraint(s)</h3>
+<div class="context">Algorithm: PLS</div>
+<p>Sparsity constraint candidate(s) for the PLS U projection.</p></section>
+<section class="topic" id="preproc-reducedim-pls-cv"><h3>Sparse PLS V constraint(s)</h3>
+<div class="context">Algorithm: PLS</div>
+<p>Sparsity constraint candidate(s) for the PLS V projection.</p></section>
+<section class="topic" id="preproc-reducedim-fastica-tolerance"><h3>Tolerance parameter(s)</h3>
+<div class="context">Algorithm: fastICA</div>
+<p>Convergence tolerance candidate(s) supplied to fastICA.</p></section>
+<section class="topic" id="preproc-reducedim-fastica-max-iters"><h3>Maximum iteration value(s)</h3>
+<div class="context">Algorithm: fastICA</div>
+<p>Maximum iteration-count candidate(s) supplied to fastICA.</p></section>
+<section class="topic" id="preproc-reducedim-fastica-algorithm-opt"><h3>fastICA algorithm</h3>
+<div class="context">Algorithm: fastICA</div>
+<p>Choose parallel or deflationary fastICA component estimation.</p></section>
+<section class="topic" id="preproc-reducedim-fastica-whiten-opt"><h3>Whitening strategy</h3>
+<div class="context">Algorithm: fastICA</div>
+<p>Choose the fastICA whitening normalization strategy.</p></section>
+<section class="topic" id="preproc-reducedim-fastica-fun-opt"><h3>G-function</h3>
+<div class="context">Algorithm: fastICA</div>
+<p>Choose the contrast/nonlinearity function used by fastICA.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-remvarcomp"><h2>Remove variance components</h2><p>Identify components related to a nuisance target and remove or attenuate their contribution. PCA/ICA component selection and wavelet-domain attenuation are different operations with different parameter sets. Wavelet-based removal is fitted within CV, unlike subject-specific spatial wavelet reconstruction.</p></section>
+<section class="topic" id="preproc-remvarcomp-reductionmethod"><h3>Dimensionality-reduction method</h3>
+<p>Choose PCA, fastICA, wavelet-PCA, wavelet-ICA or direct wavelet attenuation. Wavelet methods require image-space input.</p></section>
+<section class="topic" id="preproc-remvarcomp-targetsource"><h3>Nuisance target G source</h3>
+<p>Define the nuisance target used for training-fold association estimation from a workspace variable, selected covariates, outcome labels, or an imported target matrix.</p></section>
+<section class="topic" id="preproc-remvarcomp-targetworkspacevar"><h3>Workspace nuisance target G variable</h3>
+<p>Numeric vector or matrix with one row per subject/case.</p></section>
+<section class="topic" id="preproc-remvarcomp-covariatecolumns"><h3>Nuisance target covariate column(s)</h3>
+<p>Select one or more covariates as the nuisance target. If empty, all available covariates are used.</p></section>
+<section class="topic" id="preproc-remvarcomp-correlationmethod"><h3>Association metric for nuisance target G</h3>
+<p>Choose Pearson, Spearman, or ANOVA to quantify component association with the nuisance target.</p></section>
+<section class="topic" id="preproc-remvarcomp-criterion"><h3>Metric for component identification</h3>
+<p>Use an association coefficient or a p-value for component identification.</p></section>
+<section class="topic" id="preproc-remvarcomp-correlationthreshold"><h3>Metric cutoff(s)</h3>
+<p>Association threshold for component selection. Multiple values define optimization candidates. Hidden for wavelet-PCA/ICA because those methods use continuous association weights.</p></section>
+<section class="topic" id="preproc-remvarcomp-operator"><h3>Variance extraction operator</h3>
+<p>Comparison operator used with the association threshold. Hidden for wavelet-PCA/ICA because no hard threshold is used.</p></section>
+<section class="topic" id="preproc-remvarcomp-backproject"><h3>Back-project / reconstruct adjusted data to input space</h3>
+<p>When enabled, reconstruct the adjusted data in the original input space; otherwise return the reduced representation.</p></section>
+<section class="topic" id="preproc-remvarcomp-waveletdirectfinalembeddingmethod"><h3>Final PCA/ICA projection after waveletDirect correction</h3>
+<p>For waveletDirect with back-projection disabled, select PCA or fastICA as the final projection; the projection is fitted on corrected training data and reused for test data.</p></section>
+<section class="topic" id="preproc-remvarcomp-subgroupmode"><h3>Training data for projection model</h3>
+<p>Optional subgroup operation applied during reconstruction/back-projection. Hidden when reconstruction is disabled.</p></section>
+<section class="topic" id="preproc-remvarcomp-subgroupworkspacevar"><h3>Subset indicator variable</h3>
+<p>Logical/numeric index vector used for user-defined training/calibration subsets.</p></section>
+<section class="topic" id="preproc-remvarcomp-subgrouppercent"><h3>Random subset percentage</h3>
+<p>Percentage of cases sampled for the selected random training/calibration subgroup.</p></section>
+<section class="topic" id="preproc-remvarcomp-dimensionmode"><h3>Projection dimensionality mode</h3>
+<p>Choose a fixed number of components or a percentage-based dimensionality. Percentage mode is available for PCA-based projections; fastICA uses a fixed component count.</p></section>
+<section class="topic" id="preproc-remvarcomp-fitdim"><h3>Projection dimensionality/variance retention</h3>
+<p>Projection dimensionality. Multiple values define optimization candidates; for fastICA they are interpreted as fixed numbers of independent components.</p></section>
+<section class="topic" id="preproc-remvarcomp-fasticaparams"><h3>fastICA parameters</h3>
+<p>Open the fastICA-specific controls used when the selected component-removal method fits independent components.</p></section>
+<section class="topic" id="preproc-remvarcomp-waveletparams"><h3>Wavelet RemVarComp parameters</h3>
+<p>Open the wavelet-domain attenuation controls used for direct and ICA-assisted wavelet variance-component removal. The settings specify bands, protected variation and attenuation strength.</p></section>
+<section class="topic" id="preproc-remvarcomp-tolerance"><h3>Tolerance parameter(s)</h3>
+<p>Convergence-tolerance candidates for fastICA variance-component decomposition.</p></section>
+<section class="topic" id="preproc-remvarcomp-max-iters"><h3>Maximum iteration value(s)</h3>
+<p>Maximum iteration candidates for fastICA variance-component decomposition.</p></section>
+<section class="topic" id="preproc-remvarcomp-algorithm-opt"><h3>fastICA algorithm</h3>
+<p>Choose parallel or deflationary fastICA estimation.</p></section>
+<section class="topic" id="preproc-remvarcomp-whiten-opt"><h3>Whitening strategy</h3>
+<p>Choose unit-variance or arbitrary-variance whitening in fastICA.</p></section>
+<section class="topic" id="preproc-remvarcomp-fun-opt"><h3>G-function</h3>
+<p>Choose the fastICA contrast nonlinearity.</p></section>
+<span id="preproc-remvarcomp-waveletpca-family"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-family"><h3>Wavelet kernel</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Use an a trous wavelet reconstruction for image-space processing.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-family"></span>
+<span id="preproc-remvarcomp-waveletica-family"></span>
+<span id="preproc-remvarcomp-waveletpca-boundary"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-boundary"><h3>Boundary handling</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Choose mirror or zero wavelet boundary extension.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-boundary"></span>
+<span id="preproc-remvarcomp-waveletica-boundary"></span>
+<span id="preproc-remvarcomp-waveletpca-levels"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-levels"><h3>Decomposition levels</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>The maximum level defines A_J; signed detail bands D_1 D_J are reconstructed using detail_bands.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-levels"></span>
+<span id="preproc-remvarcomp-waveletica-levels"></span>
+<span id="preproc-remvarcomp-waveletpca-bandset"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-bandset"><h3>Bands to correct/recompose</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>approximation_and_details reconstructs A_J + D_1 + + D_J. Only signed bands are used because magnitude/energy bands are not invertible.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-bandset"></span>
+<span id="preproc-remvarcomp-waveletica-bandset"></span>
+<span id="preproc-remvarcomp-waveletpca-protectlabel"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-protectlabel"><h3>Protect outcome-label variance</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>For waveletDirect, labels are partialled out when estimating nuisance association maps, giving the method a ComBat-like preserve-biological-design flavour. Stored only in the training-fold correction model; not needed at application time.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-protectlabel"></span>
+<span id="preproc-remvarcomp-waveletica-protectlabel"></span>
+<span id="preproc-remvarcomp-waveletpca-protectedcovariatecolumns"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-protectedcovariatecolumns"><h3>Protected covariate columns</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Select additional covariates whose variance should be protected during training-fold nuisance attenuation.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-protectedcovariatecolumns"></span>
+<span id="preproc-remvarcomp-waveletica-protectedcovariatecolumns"></span>
+<span id="preproc-remvarcomp-waveletpca-protectedworkspacevar"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-protectedworkspacevar"><h3>Protected workspace matrix</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Optional numeric workspace vector/matrix with one row per subject. Columns are added to the protected design in waveletDirect.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-protectedworkspacevar"></span>
+<span id="preproc-remvarcomp-waveletica-protectedworkspacevar"></span>
+<span id="preproc-remvarcomp-waveletpca-alphamode"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-alphamode"><h3>Association-to-attenuation mapping</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Continuous mapping from training-fold component/coefficient nuisance association strength to attenuation alpha. No corr/p-value threshold or hard deletion is used in wavelet mode.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-alphamode"></span>
+<span id="preproc-remvarcomp-waveletica-alphamode"></span>
+<span id="preproc-remvarcomp-waveletpca-tau"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-tau"><h3>Soft-shrinkage tau</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Larger values make the correction more conservative.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-tau"></span>
+<span id="preproc-remvarcomp-waveletica-tau"></span>
+<span id="preproc-remvarcomp-waveletpca-maxalpha"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-maxalpha"><h3>Maximum attenuation</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Upper bound for component-/coefficient-wise attenuation weights.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-maxalpha"></span>
+<span id="preproc-remvarcomp-waveletica-maxalpha"></span>
+<span id="preproc-remvarcomp-waveletpca-bandalphanormalization"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-bandalphanormalization"><h3>Global band attenuation scaling</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Optional global scaling of per-band alpha weights. none preserves the raw per-band association strength; the other choices make total correction strength less dependent on the number of bands.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-bandalphanormalization"></span>
+<span id="preproc-remvarcomp-waveletica-bandalphanormalization"></span>
+<span id="preproc-remvarcomp-waveletpca-batchsize"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-batchsize"><h3>Wavelet batch size</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Number of image samples processed per wavelet batch.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-batchsize"></span>
+<span id="preproc-remvarcomp-waveletica-batchsize"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-tolerance"><h3>fastICA tolerance</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Convergence tolerance candidate(s) used by fastICA.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-tolerance"></span>
+<span id="preproc-remvarcomp-waveletica-tolerance"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-max-iters"><h3>fastICA maximum iterations</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Maximum iteration candidate(s) used by fastICA.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-max-iters"></span>
+<span id="preproc-remvarcomp-waveletica-max-iters"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-algorithm-opt"><h3>fastICA algorithm</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Select parallel or deflationary fastICA estimation.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-algorithm-opt"></span>
+<span id="preproc-remvarcomp-waveletica-algorithm-opt"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-whiten-opt"><h3>fastICA whitening strategy</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Choose unit-variance or arbitrary-variance fastICA whitening.</p></section>
+<span id="preproc-remvarcomp-waveletdirect-whiten-opt"></span>
+<span id="preproc-remvarcomp-waveletica-whiten-opt"></span>
+<section class="topic" id="preproc-remvarcomp-waveletdirect-waveletica-fun-opt"><h3>fastICA G-function</h3>
+<div class="context">Algorithm: waveletDirect / waveletICA</div>
+<p>Choose the fastICA contrast nonlinearity (logcosh, exp or cube).</p></section>
+<span id="preproc-remvarcomp-waveletdirect-fun-opt"></span>
+<span id="preproc-remvarcomp-waveletica-fun-opt"></span>
+<span id="preproc-remvarcomp-fastica-tolerance"></span>
+<section class="topic" id="preproc-remvarcomp-waveletica-fastica-subconfig-tolerance"><h3>Tolerance parameter(s)</h3>
+<div class="context">Algorithm: fastICA component estimation</div>
+<p>Convergence tolerance candidate(s) used by fastICA.</p></section>
+<span id="preproc-remvarcomp-fastica-max-iters"></span>
+<section class="topic" id="preproc-remvarcomp-waveletica-fastica-subconfig-max-iters"><h3>Maximum iteration value(s)</h3>
+<div class="context">Algorithm: fastICA component estimation</div>
+<p>Maximum iteration candidate(s) used by fastICA.</p></section>
+<span id="preproc-remvarcomp-fastica-algorithm-opt"></span>
+<section class="topic" id="preproc-remvarcomp-waveletica-fastica-subconfig-algorithm-opt"><h3>fastICA algorithm</h3>
+<div class="context">Algorithm: fastICA component estimation</div>
+<p>Select parallel or deflationary fastICA estimation.</p></section>
+<span id="preproc-remvarcomp-fastica-whiten-opt"></span>
+<section class="topic" id="preproc-remvarcomp-waveletica-fastica-subconfig-whiten-opt"><h3>Whitening strategy</h3>
+<div class="context">Algorithm: fastICA component estimation</div>
+<p>Choose unit-variance or arbitrary-variance fastICA whitening.</p></section>
+<span id="preproc-remvarcomp-fastica-fun-opt"></span>
+<section class="topic" id="preproc-remvarcomp-waveletica-fastica-subconfig-fun-opt"><h3>G-function</h3>
+<div class="context">Algorithm: fastICA component estimation</div>
+<p>Choose the fastICA contrast nonlinearity (logcosh, exp or cube).</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-extdim"><h2>Extract dimensions</h2><p>Retain a specified number of components from an already fitted dimensionality-reduction or variance-component model. Candidate dimensionalities can be compared without changing the definition of the preceding projection.</p></section>
+<section class="topic" id="preproc-extdim-redmode"><h3>Parent reduction mode</h3>
+<p>Uses the dimensionality-reduction or variance-component model fitted in the preceding step to define the extraction method.</p></section>
+<section class="topic" id="preproc-extdim-percmode"><h3>Extraction dimensionality mode</h3>
+<p>Interpret extracted dimensionalities as absolute component counts, percentage, or retained energy.</p></section>
+<section class="topic" id="preproc-extdim-schedulemode"><h3>Extraction schedule mode</h3>
+<p>Enter candidate dimensions directly or generate a linear, geometric, or power-law sequence.</p></section>
+<section class="topic" id="preproc-extdim-dims"><h3>User-defined extracted dimensionalities</h3>
+<p>One or more extraction dimensions used when the schedule mode is user.</p></section>
+<section class="topic" id="preproc-extdim-rangemin"><h3>Schedule minimum</h3>
+<p>First dimension candidate for the linear extraction schedule.</p></section>
+<section class="topic" id="preproc-extdim-rangemax"><h3>Schedule maximum</h3>
+<p>Last dimension candidate for the linear extraction schedule.</p></section>
+<section class="topic" id="preproc-extdim-rangen"><h3>Number of scheduled values</h3>
+<p>Number of candidates in the linear extraction schedule.</p></section>
+<section class="topic" id="preproc-extdim-geomin"><h3>Geometric minimum</h3>
+<p>Positive starting dimension for the geometric extraction schedule.</p></section>
+<section class="topic" id="preproc-extdim-geomax"><h3>Geometric maximum</h3>
+<p>Positive ending dimension for the geometric extraction schedule.</p></section>
+<section class="topic" id="preproc-extdim-geon"><h3>Number of geometric values</h3>
+<p>Number of candidates in the geometric extraction schedule.</p></section>
+<section class="topic" id="preproc-extdim-powermin"><h3>Power-law minimum</h3>
+<p>Starting dimension for the power-law extraction schedule.</p></section>
+<section class="topic" id="preproc-extdim-powermax"><h3>Power-law maximum</h3>
+<p>Ending dimension for the power-law extraction schedule.</p></section>
+<section class="topic" id="preproc-extdim-powern"><h3>Number of power-law values</h3>
+<p>Number of candidates in the power-law extraction schedule.</p></section>
+<section class="topic" id="preproc-extdim-poweralpha"><h3>Power-law alpha</h3>
+<p>Exponent controlling the spacing of candidates in the power-law schedule.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-correctnuis"><h2>Correct nuisance / batch effects</h2><p>Adjust predictor values for nuisance or batch effects. The available branches include residualization, ComBat/CovBat and distributional adjustment. They differ in which effects are modelled and which covariate-related variation is retained.</p></section>
+<section class="topic" id="preproc-correctnuis-method"><h3>Nuisance-correction method</h3>
+<p>Choose residualization, ComBat/CovBat harmonization, or Disparate Impact Removal.</p></section>
+<section class="topic" id="preproc-correctnuis-methodconfig"><h3>Method-specific parameters</h3>
+<p>Open the nested page for partial correlation, ComBat/CovBat, or Disparate Impact Removal settings.</p></section>
+<section class="topic" id="preproc-correctnuis-featuremask"><h3>Optional feature mask/index</h3>
+<p>Optionally restrict nuisance correction to a selected subset of features.</p></section>
+<section class="topic" id="preproc-correctnuis-partial-covariates"><h3>Nuisance covariates</h3>
+<div class="context">Algorithm: partial</div>
+<p>Select one or more covariates to regress from the feature matrix.</p></section>
+<section class="topic" id="preproc-correctnuis-partial-includeintercept"><h3>Use intercept</h3>
+<div class="context">Algorithm: partial</div>
+<p>Include a constant term in the nuisance-regression model.</p></section>
+<section class="topic" id="preproc-correctnuis-partial-covariatedirection"><h3>Covariate-effect direction</h3>
+<div class="context">Algorithm: partial</div>
+<p>Attenuate removes estimated covariate effects; increase adds them back.</p></section>
+<section class="topic" id="preproc-correctnuis-partial-useexternalbeta"><h3>Use externally computed beta coefficients</h3>
+<div class="context">Algorithm: partial</div>
+<p>If enabled, beta coefficients are supplied rather than estimated within the training fold.</p></section>
+<section class="topic" id="preproc-correctnuis-partial-externalbetasource"><h3>External beta source</h3>
+<div class="context">Algorithm: partial</div>
+<p>Choose a workspace matrix or preserve coefficients imported with an existing configuration.</p></section>
+<section class="topic" id="preproc-correctnuis-partial-externalbetaworkspacevar"><h3>Workspace beta matrix</h3>
+<div class="context">Algorithm: partial</div>
+<p>Matrix with rows matching the nuisance-design columns, including intercept if enabled, and columns matching features.</p></section>
+<section class="topic" id="preproc-correctnuis-partial-subgroupsource"><h3>Training subgroup for beta computation</h3>
+<div class="context">Algorithm: partial</div>
+<p>Optionally restrict beta estimation to a subset of training cases.</p></section>
+<section class="topic" id="preproc-correctnuis-partial-subgroupworkspacevar"><h3>Workspace subgroup vector</h3>
+<div class="context">Algorithm: partial</div>
+<p>Logical/numeric vector with one row per subject/case.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-usebatch"><h3>Correct for batch effects using ComBat</h3>
+<div class="context">Algorithm: combat</div>
+<p>Enable batch-effect correction and select a categorical batch covariate.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-batchcovariate"><h3>Batch covariate</h3>
+<div class="context">Algorithm: combat</div>
+<p>Select the categorical covariate that identifies acquisition site or batch.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-referencebatch"><h3>Reference batch label</h3>
+<div class="context">Algorithm: combat</div>
+<p>Leave empty to use the pooled/default reference batch.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-retainlabels"><h3>Retain outcome-label variance</h3>
+<div class="context">Algorithm: combat</div>
+<p>Preserve outcome-label variance in the ComBat model. This is independent of additional ComBat covariates.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-includecovariates"><h3>Include covariates in ComBat equation</h3>
+<div class="context">Algorithm: combat</div>
+<p>Include selected biological or nuisance covariates in the ComBat model.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-covariatedetails"><h3>Additional covariates</h3>
+<div class="context">Algorithm: combat</div>
+<p>Select ComBat covariates, choose whether their variance is retained or removed, and adjust measurement scale or spline degrees of freedom when needed.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-combatvariant"><h3>ComBat variant</h3>
+<div class="context">Algorithm: combat</div>
+<p>Choose standard ComBat mean/variance harmonization or CovBat covariance harmonization.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-covbatk"><h3>CovBat K</h3>
+<div class="context">Algorithm: combat</div>
+<p>Integer number of PCs for CovBat. Empty uses cumulative variance.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-covbatvar"><h3>CovBat cumulative variance</h3>
+<div class="context">Algorithm: combat</div>
+<p>Cumulative variance threshold in [0,1] used when the number of CovBat components is left empty.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-unseenbatchmode"><h3>Unseen-batch mode</h3>
+<div class="context">Algorithm: combat</div>
+<p>Choose how previously unseen batches are handled during application.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-unseenbatchalpha"><h3>Strong-shrink alpha</h3>
+<div class="context">Algorithm: combat</div>
+<p>Extra shrinkage alpha used only for strong-shrink unseen-batch mode.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-subgroupsource"><h3>Training subgroup for ComBat estimator</h3>
+<div class="context">Algorithm: combat</div>
+<p>Optionally restrict ComBat parameter estimation to a subset of training cases.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-subgroupworkspacevar"><h3>Workspace subgroup vector</h3>
+<div class="context">Algorithm: combat</div>
+<p>Logical/numeric vector with one row per subject/case.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-categoricalcovariates"><h3>Categorical covariates</h3>
+<div class="context">Algorithm: combat</div>
+<p>Select one or more categorical/protected covariates used for the fairness correction.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-distribution"><h3>Target distribution statistic</h3>
+<div class="context">Algorithm: combat</div>
+<p>Choose whether repaired feature distributions are aligned using the median or mean.</p></section>
+<section class="topic" id="preproc-correctnuis-combat-lambda"><h3>Correction strength / optimization grid</h3>
+<div class="context">Algorithm: combat</div>
+<p>Correction strength in [0,1]. A scalar fixes the strength; multiple values define candidates for optimization.</p></section>
+<section class="topic" id="preproc-correctnuis-dir-subgroupsource"><h3>Training subgroup for DIR distributions</h3>
+<div class="context">Algorithm: dir</div>
+<p>Optionally restrict distribution estimation to a subset of training cases.</p></section>
+<section class="topic" id="preproc-correctnuis-dir-subgroupworkspacevar"><h3>Workspace subgroup vector</h3>
+<div class="context">Algorithm: dir</div>
+<p>Logical/numeric vector with one row per subject/case.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-remmeandiff"><h2>Offset correction</h2><p>Estimate and remove group-specific offsets relative to a reference mean. Group definitions determine which observations contribute to each offset estimate.</p></section>
+<section class="topic" id="preproc-remmeandiff-sourcegroupcovariate"><h3>Source grouping covariate</h3>
+<p>Covariate column defining groups used to compute global and group-specific means. Cases coded as 0 are skipped.</p></section>
+<section class="topic" id="preproc-remmeandiff-destinationgroupcovariate"><h3>Destination grouping covariate</h3>
+<p>Covariate column defining the groups/cases to which the global and group-specific mean correction is applied. Cases coded as 0 are skipped.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-devmap"><h2>Deviation mapping</h2><p>Express individual predictors as deviations from a fitted normative association with a chosen reference matrix, using a PLS-based model. The selected reference features define the expected pattern against which deviations are calculated.</p></section>
+<section class="topic" id="preproc-devmap-algorithm"><h3>Normative algorithm</h3>
+<p>Choose PLS or sparse PLS. Sparse PLS additionally exposes optimization of component sparsity.</p></section>
+<section class="topic" id="preproc-devmap-covariatesource"><h3>Covariate/design matrix source</h3>
+<p>Choose how the normative-design matrix is supplied for model fitting.</p></section>
+<section class="topic" id="preproc-devmap-covariateworkspacevar"><h3>Workspace covariate/design matrix</h3>
+<p>Numeric vector/matrix with one row per subject/case. Do not use the target labels.</p></section>
+<section class="topic" id="preproc-devmap-covariatecolumns"><h3>Covariate column(s)</h3>
+<p>Select one or more available covariates. If empty, all available covariates are used.</p></section>
+<section class="topic" id="preproc-devmap-covariatedescription"><h3>Covariate matrix description</h3>
+<p>Optional short description of the normative covariate/design matrix. If empty, the source name is used.</p></section>
+<section class="topic" id="preproc-devmap-subgroupsource"><h3>Compute normative model in subgroup</h3>
+<p>Optional logical vector defining the cases used to fit the normative model.</p></section>
+<section class="topic" id="preproc-devmap-subgroupworkspacevar"><h3>Workspace subgroup indicator</h3>
+<p>Logical/numeric vector with one element per subject/case. Non-zero entries define the normative-model subgroup.</p></section>
+<section class="topic" id="preproc-devmap-sparseu"><h3>sPLS U sparsity parameter(s)</h3>
+<p>Sparse-PLS feature-side sparsity parameter. Valid values range from 1 to approximately the square root of the input dimensionality.</p></section>
+<section class="topic" id="preproc-devmap-sparsev"><h3>sPLS V sparsity parameter(s)</h3>
+<p>Sparse-PLS covariate-side sparsity parameter. For a single covariate it is fixed to 1.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-graphcomputation"><h2>Graph construction</h2><p>Construct network features from imaging data or a reference representation. Image-space KL construction extracts graph connections from spatial distributions and leaves image space; normative-network methods use a reference group under the CV-bound workflow.</p></section>
+<section class="topic" id="preproc-graphcomputation-method"><h3>Graph construction method</h3>
+<p>KL-divergence graph construction compares regional imaging distributions and produces connectivity-like features. Normative network + 1 constructs a network relative to a specified reference or calibration population. These methods differ in both source representation and estimation stage.</p></section>
+<section class="topic" id="preproc-graphcomputation-simmeasure"><h3>Similarity measure</h3>
+<p>Select how pairwise similarity is computed for the normative reference network. The resulting edge values depend on this measure.</p></section>
+<section class="topic" id="preproc-graphcomputation-referencesource"><h3>Reference group source</h3>
+<p>Choose the source identifying the reference population used by normative-network construction, such as the calibration group, an external file or a workspace variable.</p></section>
+<section class="topic" id="preproc-graphcomputation-referencefile"><h3>Reference group file</h3>
+<p>File containing the reference group for normative graph construction; used when the source is file.</p></section>
+<section class="topic" id="preproc-graphcomputation-referenceworkspaceexpr"><h3>Reference group workspace variable/expression</h3>
+<p>Workspace variable or expression identifying the normative reference group; used when the source is workspace.</p></section>
+<section class="topic" id="preproc-graphcomputation-parcellationatlaspath"><h3>Parcellation atlas</h3>
+<p>Select the parcellation used to derive region-level value distributions for symmetric KL-divergence connections.</p></section>
+<section class="topic" id="preproc-graphcomputation-brainmasksummary"><h3>Brain mask</h3>
+<p>Read-only summary of the brain mask available to image-space KL-divergence construction.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-graphsparsity"><h2>Graph sparsity thresholding</h2><p>Retain a specified fraction of network edges according to the selected thresholding rule. Sparsity changes graph density and therefore the topology seen by downstream graph metrics.</p></section>
+<section class="topic" id="preproc-graphsparsity-sparsityperc"><h3>Edge-retention fraction(s)</h3>
+<p>Enter one or more edge-retention fractions, for example 0.10 0.20. Multiple values define optimization candidates.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-graphmetrics"><h2>Graph metrics</h2><p>Compute graph-theoretical summaries from the selected connectivity representation. The graph construction and sparsity operations determine which edges contribute to these summaries.</p></section>
+<section class="topic" id="preproc-graphmetrics-computemetrics"><h3>Compute graph metrics</h3>
+<p>Enable graph-metric extraction from the connectivity representation.</p></section>
+<section class="topic" id="preproc-graphmetrics-selectedmetricidx"><h3>Selected metric indices</h3>
+<p>Available metrics include degree, strength, betweenness, clustering, diameter, transitivity, eigenvector centrality, local/global efficiency and radius.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-normalize"><h2>Normalize to group mean</h2><p>An imported group-mean normalization operation remains attached to the analysis in which it was configured. Its stored definition is preserved rather than exposed as a newly addable module.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-module-custompreproc"><h2>Custom preprocessing function</h2><p>An imported user-defined preprocessing operation is retained with its stored configuration. It is not added through the current module catalog.</p></section>
+</div>
+<div class="sectionGroup">
+<section class="chapter" id="preproc-global-options"><h2>Global options</h2><p>These settings describe label decomposition or target transformation outside the ordered predictor preprocessing steps.</p></section>
+<section class="topic" id="preproc-global-binmodnote"><h3>Multiclass group-processing mode</h3><p>Shows how the selected multiclass decomposition will be applied to the analysis.</p></section>
+<section class="topic" id="preproc-global-binmod"><h3>Multiclass group-processing mode</h3><p>Choose the multiclass decomposition used when constructing classification analyses with more than two outcome classes. This determines how the multiclass task is represented as component comparisons.</p></section>
+<section class="topic" id="preproc-global-targetscale"><h3>Scale target values</h3><p>Scale regression outcome values before model fitting. The transformation of the target is part of the training workflow and affects the numerical scale of model predictions.</p></section>
+<section class="topic" id="preproc-global-usepolynomial"><h3>Apply exponential target transformation</h3><p>Apply a polynomial transformation to the regression outcome prior to fitting. The exponent determines how the relative spacing of outcome values changes.</p></section>
+<section class="topic" id="preproc-global-polynomial"><h3>Target exponent</h3><p>Specify the exponent used for the polynomial outcome transformation. An exponent of one leaves the outcome unchanged.</p></section>
+</div>
+</main>
+</body>
+</html>

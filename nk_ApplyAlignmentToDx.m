@@ -1,6 +1,6 @@
 function Dx_sorted = nk_ApplyAlignmentToDx(Dx, groupsPerRef, sign_pair)
 % nk_ApplyAlignmentToDx
-%   Apply component alignment/sign flips to per-component decision scores Dx.
+%   Align signed component decision contributions without changing their signs.
 %
 %   Inputs:
 %     Dx          : [nSubj x K_src_max] fractionated decision scores
@@ -10,7 +10,7 @@ function Dx_sorted = nk_ApplyAlignmentToDx(Dx, groupsPerRef, sign_pair)
 %
 %   Output:
 %     Dx_sorted   : [nSubj x K_ref] subject × ref-component decision scores,
-%                   aligned to the global ref space and sign-corrected.
+%                   aligned to the global ref space with signed contributions preserved.
 %                   Rows with no contributing source remain NaN.
 
     [nSubj, K_src_max] = size(Dx);
@@ -34,11 +34,9 @@ function Dx_sorted = nk_ApplyAlignmentToDx(Dx, groupsPerRef, sign_pair)
         valid = (sgn ~= 0);
         if ~any(valid), continue; end
         js  = js(valid);
-        sgn = sgn(valid);
 
-        % extract and sign-correct
+        % extract signed contributions without orientation sign changes
         cols = Dx(:, js);                % nSubj × #js
-        cols = bsxfun(@times, cols, sgn);% apply sign to each column
 
         % which subjects have at least one finite value in these columns?
         hasData = any(isfinite(cols), 2);     % nSubj × 1

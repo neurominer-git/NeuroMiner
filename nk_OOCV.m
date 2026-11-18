@@ -46,8 +46,8 @@ function [Results, FileNames, RootPath] = nk_OOCV(inp)
 %         .analysis   : Structure containing analysis settings, including model parameters 
 %                       and grid information.
 %         .GridAct    : Matrix defining the active grid positions for CV2 partitions.
-%         .batchflag  : Flag indicating if the function is running in batch mode (displays are
-%                       suppressed in this case).
+%         .batchflag  : Execution-mode flag. True denotes partition/batch execution
+%                       (for example HPC). Progress presentation is controlled independently by UI.
 %         .groupind   : (Optional) Vector or cell array that assigns subjects to groups.
 %         .groupvec   : (Optional) Group identifiers used for subgroup analysis.
 %         .refgroup   : (Optional) Reference group identifier for subgroup performance metrics.
@@ -124,6 +124,10 @@ inp.isLate      = FUSION.flag == 3;
 % Setup CV2 and CV1 counters and data containers:
 [ix, jx]        = size(CV.TrainInd);
 [iy, jy]        = size(CV.cvin{1,1}.TrainInd);
+seqDiagnosticsEnabled = strcmp(SVM.prog,'SEQOPT') && strcmp(MODEFL,'classification');
+if seqDiagnosticsEnabled
+    Results.SeqDiagnostics = cell(nclass,ix*jx);
+end
 binOOCVD        = cell(nclass,1);
 binOOCVW        = cell(nclass,1);   % NEW: weights for current CV2 partition (per class)
 ll              = 1; 
@@ -131,6 +135,11 @@ totLearn        = 0;
 ha              = [];
 if ~exist('GridAct','var') || isempty(GridAct), GridAct = nk_CVGridSelector(ix,jx); end
 if ~exist('batchflag','var') || isempty(batchflag), batchflag = false; end
+
+progressPolicy = struct('batch',logical(batchflag),'browser',false,'suppressNative',false,'native',~logical(batchflag));
+if exist('NMRuntimeProgressTools','class') == 8 || exist('NMRuntimeProgressTools','file') == 2
+    progressPolicy = NMRuntimeProgressTools.legacyCV2DisplayPolicy(batchflag);
+end
 
 CLtarg_m = '*-';
 CLdec_m = 'o-';
@@ -275,7 +284,7 @@ if ~inp.analmode
     inp = nk_PerfInitSpatial(analysis, inp, paramfl);
 end
 cntOOCVDh = zeros( ix*jx, nclass, 2);
-
+CVPOS.GridAct = GridAct;
 % =========================================================================
 for f=1:ix % Loop through CV2 permutations
 
@@ -294,7 +303,8 @@ for f=1:ix % Loop through CV2 permutations
         CVPOS.CV2f = d;
         
         binOOCVDh = cell(nclass,1); inp.f = f; inp.d = d; inp.ll = ll;
-        binOOCVWh = cell(nclass,1);  
+        binOOCVWh = cell(nclass,1);
+        if seqDiagnosticsEnabled, seqOOCVDh = cell(nclass,1); end
         if inp.PERM.flag == 1
             binOOCVDh_perm = cell(nclass,1); 
             for h=1:nclass
@@ -321,7 +331,7 @@ for f=1:ix % Loop through CV2 permutations
                         loadfl = false;
                     end
                     
-                elseif exist(oOOCVpath,'file') && batchflag
+                elseif exist(oOOCVpath,'file') && ~ovrwrt && batchflag
                      % in batch mode we do not compute statistics across the
                     % CV2 partitions
                     [~, onam] = fileparts(oOOCVpath);
@@ -359,6 +369,14 @@ for f=1:ix % Loop through CV2 permutations
                         if ~fndMD , MD{h} = cell(nP,1); end
                         cntModels = 1; lll=1;
                         cntCV1OOCVdh{h} = uint16(zeros(nP*iy*jy,2));
+                        if seqDiagnosticsEnabled
+                            seqOOCVDh{h} = cell(nP,1);
+                            actualLabels = zeros(inp.nOOCVsubj,1);
+                            if LabelMode
+                                actualLabels = labelDicho{h};
+                                actualLabels(~isfinite(labelOOCV)) = 0;
+                            end
+                        end
                         
                         % Loop through parameter combinations
                         for m = 1 : nP
@@ -370,6 +388,7 @@ for f=1:ix % Loop through CV2 permutations
                             % Optionally, retrain every base learner in current CV1
                             % [k,l] partition (across different grid positions, if available)
                             if ~fndMD,MD{h}{m} = cell(iy,jy); end
+                            if seqDiagnosticsEnabled, seqOOCVDh{h}{m} = cell(iy,jy); end
                             for k=1:iy % CV1 permutations
 
                                 for l=1:jy % CV1 folds
@@ -384,6 +403,7 @@ for f=1:ix % Loop through CV2 permutations
                                     % Determine number of features in mask and
                                     % convert feature mask to logical index, if needed
                                     ul=size(Fkl,2); totLearn = totLearn + ul;
+                                    if seqDiagnosticsEnabled, seqOOCVDh{h}{m}{k,l} = cell(ul,1); end
                                     if ~islogical(Fkl), F = Fkl ~= 0; else, F = Fkl; end
 
                                     % Get data pointers for current dichotomization
@@ -491,9 +511,29 @@ for f=1:ix % Loop through CV2 permutations
                                             [~, MD{h}{m}{k,l}{u}] = nk_GetParam2(Ymodel, modelTrL, sPs, 1);
                                         end
 
-                                        % Apply model to independent test data 
-                                        [~, ~, uD(:,u)] = nk_GetTestPerf(OCV, labelOOCV, F(:,u), MD{h}{m}{k,l}{u}, Ymodel, 1);
-                                       
+                                        % Apply model to independent test data
+                                        if seqDiagnosticsEnabled
+                                            [~, ~, uD(:,u), applied] = nk_GetTestPerf( ...
+                                                OCV, labelOOCV, F(:,u), MD{h}{m}{k,l}{u}, Ymodel, 1);
+                                            % nk_GetTestPerf reinserts NaN rows removed
+                                            % during prediction; applied trajectories retain
+                                            % only the eligible rows, in their original order.
+                                            eligible = ~isnan(uD(:,u));
+                                            assert(sum(eligible)==size(applied.optDh,1), ...
+                                                'nk_OOCV:SeqDiagnosticsCaseAxis', ...
+                                                'Applied SEQOPT cases do not match OOCV prediction rows.');
+                                            diagnostic = NMSEQOPTDiagnostics( ...
+                                                actualLabels(eligible), ...
+                                                applied.optDh(:,1:numel(applied.SequenceCols)), ...
+                                                applied.Nremain_test, 1);
+                                            diagnostic.sequenceCols = applied.SequenceCols;
+                                            diagnostic.nExcluded = sum(~eligible);
+                                            seqOOCVDh{h}{m}{k,l}{u} = diagnostic;
+                                        else
+                                            [~, ~, uD(:,u)] = nk_GetTestPerf( ...
+                                                OCV, labelOOCV, F(:,u), MD{h}{m}{k,l}{u}, Ymodel, 1);
+                                        end
+
                                         % Detrend regressor predictions, if
                                         % required by user input
                                         if detrendfl
@@ -561,10 +601,12 @@ for f=1:ix % Loop through CV2 permutations
                         end
                     end
                     fprintf('\nSaving %s', oOOCVpath); 
+                    diagnosticVars = {};
+                    if seqDiagnosticsEnabled, diagnosticVars = {'seqOOCVDh'}; end
                     if inp.PERM.flag==1
-                       save(oOOCVpath,'binOOCVDh','binOOCVDh_perm','cntOOCVDh', 'cntCV1OOCVdh', 'binOOCVWh', 'operm','ofold');
+                       save(oOOCVpath,'binOOCVDh','binOOCVDh_perm','cntOOCVDh', 'cntCV1OOCVdh', 'binOOCVWh', 'operm','ofold',diagnosticVars{:});
                     else
-                       save(oOOCVpath,'binOOCVDh','cntOOCVDh', 'cntCV1OOCVdh', 'binOOCVWh', 'operm','ofold');
+                       save(oOOCVpath,'binOOCVDh','cntOOCVDh', 'cntCV1OOCVdh', 'binOOCVWh', 'operm','ofold',diagnosticVars{:});
                     end
                     if saveparam, fprintf('\nSaving %s', OptModelPath); save(OptModelPath, 'MD', 'ofold','operm'); end
                 end
@@ -583,6 +625,16 @@ for f=1:ix % Loop through CV2 permutations
 
         end
         
+        if seqDiagnosticsEnabled
+            for h = 1:nclass
+                if ~isempty(binOOCVDh{h}) && isempty(seqOOCVDh{h})
+                    error('nk_OOCV:SeqDiagnosticsMissing', ...
+                        'Loaded OOCV partition lacks SEQOPT diagnostics. Recompute with overwrite enabled.');
+                end
+            end
+            Results.SeqDiagnostics(:,ll) = seqOOCVDh;
+        end
+
         for curclass=1:nclass
             [~, ~, nP, ~] = nk_GetModelParams2(analysis, multiflag, ll, curclass, inp.curlabel);
             if ~RFE.CV2Class.EnsembleStrategy.AggregationLevel
@@ -592,7 +644,7 @@ for f=1:ix % Loop through CV2 permutations
                 EnsDat = nk_WeightedMedianRows(binOOCVDh{curclass}, w_ll);
                 if inp.PERM.flag==1
                     for curperm=1:inp.PERM.nperms
-                        binOOCVD_perm{curclass}(:,ll,curperm) = nm_nanmedian(binOOCVDh_perm{curclass}(:,:,curperm),2);
+                        binOOCVD_perm{curclass}(:,ll,curperm) = median(binOOCVDh_perm{curclass}(:,:,curperm),2,'omitmissing');
                     end
                 end
             else
@@ -682,13 +734,13 @@ for f=1:ix % Loop through CV2 permutations
                     if size(binOOCVDhx_ll,2) > 1 && ~isempty(w_ll)
                         hdx_ll = nk_WeightedMedianRows(binOOCVDhx_ll, w_ll);
                     else
-                        hdx_ll = nm_nanmedian(binOOCVDhx_ll,2);
+                        hdx_ll = median(binOOCVDhx_ll,2,'omitmissing');
                     end
                     % overall (history)
                     if RFE.CV2Class.EnsembleStrategy.AggregationLevel && ~isempty(binOOCVW{curclass}) && size(binOOCVDhx,2) == numel(binOOCVW{curclass})
                         hdx = nk_WeightedMedianRows(binOOCVDhx, binOOCVW{curclass});
                     else
-                        hdx = nm_nanmedian(binOOCVDhx,2);
+                        hdx = median(binOOCVDhx,2,'omitmissing');
                     end
                     
                     % --- HARD LABELS — derive from soft (consistent with PredictData tie-break)
@@ -792,14 +844,14 @@ for f=1:ix % Loop through CV2 permutations
                 if size(binOOCVDh{1},2)>1 && ~isempty(w_ll)
                     hdx_ll = nk_WeightedMedianRows(binOOCVDh{1}, w_ll);
                 else
-                    hdx_ll = nm_nanmedian(binOOCVDh{1},2);
+                    hdx_ll = median(binOOCVDh{1},2,'omitmissing');
                 end
                 
                 % overall (history)
                 if size(binOOCVD{1},2)>1 && RFE.CV2Class.EnsembleStrategy.AggregationLevel && ~isempty(binOOCVW{1}) && size(binOOCVD{1},2) == numel(binOOCVW{1})
                     hdx = nk_WeightedMedianRows(binOOCVD{1}, binOOCVW{1});
                 else
-                    hdx = nm_nanmedian(binOOCVD{1},2);
+                    hdx = median(binOOCVD{1},2,'omitmissing');
                 end
 
                 hdx_ll(indnan) = nan;
@@ -823,7 +875,7 @@ for f=1:ix % Loop through CV2 permutations
             end
 
             % Disply progress information in figure
-            if ~batchflag
+            if progressPolicy.native
                 if ~exist('hu','var') || isempty(hu) 
                     hu = findobj('Tag','OOCV');
                     if isempty(hu)
@@ -998,9 +1050,81 @@ for f=1:ix % Loop through CV2 permutations
 
             end
         end
+
+        if progressPolicy.browser && (exist('NMRuntimeProgressTools','class') == 8 || exist('NMRuntimeProgressTools','file') == 2)
+            if exist('Results','var') && isstruct(Results)
+                progressResults = Results;
+            else
+                progressResults = struct();
+            end
+            progressTitle = sprintf('NM Application Viewer: %s => %s [OOCV #%g]', inp.analysis_id, inp.desc_oocv, inp.oocvind);
+            NMRuntimeProgressTools.writeOOCVProgressSafe(progressResults, MODEFL, multiflag, nsubgroups, nclass, ...
+                ylm, ylb, CVPOS, progressTitle, LabelMode);
+        end
+
         [RootPath, FileNames{f,d}] = fileparts(oOOCVpath);  
         ll=ll+1;
     end
+end
+
+% Keep the CV2 partition as the averaging unit, as in nk_MLOptimizer.
+% Distinct applied sequence orders retain separate OOCV summaries.
+if seqDiagnosticsEnabled
+    Results.SeqDiagnosticSummary = cell(nclass,1);
+    [~,metricIds] = NMSEQOPTDiagnosticValues({},[]);
+    for h = 1:nclass
+        nParts = size(Results.SeqDiagnostics,2);
+        byPartition = cell(1,nParts);
+        groups = struct('sequenceCols',{},'mean',{},'sd',{}, ...
+            'nModels',{},'nPartitions',{});
+        for part = 1:nParts
+            parameters = Results.SeqDiagnostics{h,part};
+            records = {};
+            if ~isempty(parameters)
+                for m = 1:numel(parameters)
+                    folds = parameters{m};
+                    for k = 1:numel(folds)
+                        models = folds{k};
+                        records = [records; models(:)]; %#ok<AGROW>
+                    end
+                end
+            end
+            records = records(~cellfun(@isempty,records));
+            byPartition{part} = records;
+            for r = 1:numel(records)
+                cols = records{r}.sequenceCols;
+                hit = find(arrayfun(@(g)isequal(g.sequenceCols,cols),groups),1);
+                if isempty(hit)
+                    hit = numel(groups)+1;
+                    groups(hit).sequenceCols = cols;
+                    groups(hit).mean = [];
+                    groups(hit).sd = [];
+                    groups(hit).nModels = 0;
+                    groups(hit).nPartitions = 0;
+                end
+                groups(hit).nModels = groups(hit).nModels+1;
+            end
+        end
+        for g = 1:numel(groups)
+            cols = groups(g).sequenceCols;
+            partitionMeans = nan(nParts,numel(cols),numel(metricIds));
+            for part = 1:nParts
+                records = byPartition{part};
+                selected = records(cellfun(@(D)isequal(D.sequenceCols,cols),records));
+                if isempty(selected), continue; end
+                vals = NMSEQOPTDiagnosticValues(selected,cols);
+                partitionMeans(part,:,:) = mean(vals,1,'omitnan');
+                groups(g).nPartitions = groups(g).nPartitions+1;
+            end
+            groups(g).mean = reshape(mean(partitionMeans,1,'omitnan'), ...
+                [numel(cols) numel(metricIds)]);
+            groups(g).sd = reshape(std(partitionMeans,0,1,'omitnan'), ...
+                [numel(cols) numel(metricIds)]);
+        end
+        Results.SeqDiagnosticSummary{h} = groups;
+    end
+    Results.SeqDiagnosticMetricNames = metricIds;
+    Results = rmfield(Results,'SeqDiagnostics');
 end
 
 for curclass = 1: nclass
@@ -1029,7 +1153,7 @@ for curclass = 1: nclass
                     nk_WeightedMedianRows(Results.BinCV2Predictions_DecisionValues{curclass}, binOOCVW{curclass});
             else
                 Results.MeanCV2PredictedValues{curclass} = ...
-                    nm_nanmedian(Results.BinCV2Predictions_DecisionValues{curclass},2);
+                    median(Results.BinCV2Predictions_DecisionValues{curclass},2,'omitmissing');
             end
             Results.StdCV2PredictedValues{curclass} = ...
                     nm_nanstd(Results.BinCV2Predictions_DecisionValues{curclass},2);
@@ -1048,10 +1172,10 @@ for curclass = 1: nclass
 
             if inp.PERM.flag==1
                 binOOCVDhx = binOOCVD{curclass}(indDicho{curclass},:);
-                hdx = nm_nanmedian(binOOCVDhx,2); hdx(indnan) = nan;
+                hdx = median(binOOCVDhx,2,'omitmissing'); hdx(indnan) = nan;
                 PermPredPerf = zeros(1,inp.PERM.nperms);
                 for curperm = 1:inp.PERM.nperms
-                    PermPred = nm_nanmedian(binOOCVD_perm{curclass}(indDicho{curclass},:,curperm),2);
+                    PermPred = median(binOOCVD_perm{curclass}(indDicho{curclass},:,curperm),2,'omitmissing');
                     PermPredPerf(curperm) = EVALFUNC(labelDicho{curclass}(indDicho{curclass}), PermPred);
                 end
                 Results.PermAnal.ModelObsPerf(curclass) = EVALFUNC(labelDicho{curclass}(indDicho{curclass}), hdx);
@@ -1115,7 +1239,7 @@ for curclass = 1: nclass
                         hdx = Results.Group{g}.MeanCV2PredictedValues{curclass}; 
                         PermPredPerf = zeros(1,inp.PERM.nperms);
                         for curperm = 1:inp.PERM.nperms
-                            PermPred = nm_nanmedian(binOOCVD_perm{curclass}(idx,:,curperm),2);
+                            PermPred = median(binOOCVD_perm{curclass}(idx,:,curperm),2,'omitmissing');
                             PermPredPerf(curperm) = EVALFUNC(Results.Group{g}.ObservedValues{curclass}, PermPred);
                         end
                         Results.Group{g_cnt}.PermAnal.ModelObsPerf(curclass) = EVALFUNC(Results.Group{g}.ObservedValues{curclass}, hdx);
@@ -1133,7 +1257,7 @@ for curclass = 1: nclass
             if size(Results.CV2PredictedValues,2) > 1 && RFE.CV2Class.EnsembleStrategy.AggregationLevel && ~isempty(binOOCVW{1}) && size(Results.CV2PredictedValues,2) == numel(binOOCVW{1})
                 Results.MeanCV2PredictedValues = nk_WeightedMedianRows(Results.CV2PredictedValues, binOOCVW{1});
             else
-                Results.MeanCV2PredictedValues = nm_nanmedian(Results.CV2PredictedValues,2);
+                Results.MeanCV2PredictedValues = median(Results.CV2PredictedValues,2,'omitmissing');
             end
             Results.StdCV2PredictedValues   = nm_nanstd(Results.CV2PredictedValues,2);
             Results.CICV2PredictedValues    = cell2mat(arrayfun( @(i) percentile(Results.CV2PredictedValues(i,:),[2.5 97.5]), ...
@@ -1150,10 +1274,10 @@ for curclass = 1: nclass
             end
             if inp.PERM.flag==1
                 binOOCVDhx = binOOCVD{1};
-                hdx = nm_nanmedian(binOOCVDhx,2); hdx(indnan) = nan;
+                hdx = median(binOOCVDhx,2,'omitmissing'); hdx(indnan) = nan;
                 PermPredPerf = zeros(1,inp.PERM.nperms);
                 for curperm = 1:inp.PERM.nperms
-                    PermPred = nm_nanmedian(binOOCVD_perm{1}(:,:,curperm),2);
+                    PermPred = median(binOOCVD_perm{1}(:,:,curperm),2,'omitmissing');
                     PermPredPerf(curperm) = EVALFUNC(labelOOCV, PermPred);
                 end
                 Results.PermAnal.ModelObsPerf = EVALFUNC(labelOOCV, hdx);
@@ -1193,7 +1317,7 @@ for curclass = 1: nclass
                             hdx = Results.Group{g}.MeanCV2PredictedValues; 
                             PermPredPerf = zeros(1,inp.PERM.nperms);
                             for curperm = 1:inp.PERM.nperms
-                                PermPred = nm_nanmedian(binOOCVD_perm{1}(indg,:,curperm),2);
+                                PermPred = median(binOOCVD_perm{1}(indg,:,curperm),2,'omitmissing');
                                 PermPredPerf(curperm) = EVALFUNC(Results.Group{g}.ObservedValues, PermPred);
                             end
                             Results.Group{g}.PermAnal.ModelObsPerf = EVALFUNC(Results.Group{g}.ObservedValues, hdx);

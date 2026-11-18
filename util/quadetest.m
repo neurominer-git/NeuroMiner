@@ -1,4 +1,17 @@
 function STATS = quadetest(x, xnames, ynames, filename, varargin)
+% Purpose: Run the established Quade complete-block test and conditional post-hoc comparisons.
+% Syntax: STATS = quadetest(x,xnames,ynames,filename,varargin)
+% Inputs: Finite block-by-treatment matrix, optional labels/output filename and alpha/verbose options.
+% Outputs: Quade omnibus statistics and, when omnibus significant, pairwise post-hoc/FDR results and legacy tables.
+% Authority and flow: Preserves the legacy Quade omnibus algorithm; Stage-2 changes only post-hoc t probabilities to two-sided before existing FDR correction.
+% Scientific/state contract: Cross-analysis Quade inference and significance matrix consume this result directly.
+% Invariants: W/T3/T4/critical-value/FDR pathway remains unchanged; post-hoc raw p values are two-sided.
+% Materialization and performance: O(blocks*treatments^2) compact statistical work.
+% Resource declaration: Reads no files, parses no XML, loads no atlas/annotation/mesh resources, scans no voxels or vertices, and creates no feature-scale arrays; compact statistical vectors only.
+% Interactive/retained use: Intended for explicit statistical comparison/report actions, not high-frequency retained interaction.
+% Failure semantics: Existing inputParser validation and legacy failure behavior are preserved.
+% Side effects: No NM mutation; optional legacy file writing occurs only when the existing filename argument is explicitly supplied.
+% Consumers and dependencies: NMResultsViewerCrossAnalysisTools and legacy comparator/export callers; tiedrank, fdr_bh and distribution functions.
 %QUADETEST: Quade test for non parametric two way ANalysis Of VAriance.
 %This function performs the Quade test to analyze unreplicated complete block
 %designs.
@@ -129,7 +142,7 @@ if pvalue<alpha
     cv      = tinv(1-alpha/2,dfd)*denom; %critical value
     mc      = Rdiff>cv; %Find differences greater than critical value
     tval    = Rdiff ./ denom;
-    pval    = 1-tcdf(tval,dfd);
+    pval    = min(1,2*(1-tcdf(abs(tval),dfd)));
     % We do need to correct only the p values in the lower triangle of the
     % matrix without the diagnonal for multiple comparisons
     Jx       = itril(size(pval),0);

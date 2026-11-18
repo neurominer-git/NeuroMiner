@@ -49,9 +49,11 @@ function [Results, FileNames, RootPath] = nk_MLInterpreter(inp)
 %        predictions. The results are then stored in the `Results` structure.
 %
 %   6. **Result Storage**:
-%      - Saves the results to disk, including mapped predictions, Shapley values, and other 
-%        interpretation metrics. Additionally, the function handles the output of image files 
-%        for spatial data (e.g., brain imaging data).
+%      - Saves mapped predictions, Shapley values, and other interpretation metrics in the
+%        MLI result structures/datamats. Direct legacy callers may retain the historical
+%        per-subject voxel NIfTI side effect. NM2 sets suppressLegacyMapExport=true and
+%        materializes optional NIfTI/GIFTI/MGH/MGZ maps only after the authoritative MLI
+%        result has been persisted through its provenance-aware export layer.
 %
 % Global Variables:
 %   - SVM, RFE, MODEFL, CV, SCALE, SAV, CVPOS, FUSION
@@ -152,6 +154,11 @@ end
 BINMOD = iPREPROC.BINMOD;
 
 CVPOS.fFull = FullPartFlag;
+CVPOS.GridAct = GridAct;
+CVPOS.CV2p = NaN;
+CVPOS.CV2f = NaN;
+CVPOS.CV1p = NaN;
+CVPOS.CV1f = NaN;
 
 FileNames = cell(ix,jx);
 
@@ -221,9 +228,6 @@ for h=1:nclass
                 maptype = inp.MLI.Modality{nx}.MAP.map; 
                 % initialize map
                 inp.MLI.Modality{nx}.MAP.map=[]; 
-                % Get the cutoff to determine which features of the statistics
-                % mask should be used.
-                cutoff = inp.MLI.Modality{nx}.MAP.cutoff;
             end
 
             switch maptype
@@ -234,9 +238,9 @@ for h=1:nclass
                 case 'p_FDR_sgn'
                     inp.MLI.Modality{nx}.MAP.map{h} = inp.visdata{inp.curmodal,inp.curlabel}.SignBased_CV2_p_fdr{h};
             end
-            % Is it a percentile cutoff? if so overwrite pre-existing
-            % cutoff (see above)
-            if isfield(inp.MLI.Modality{nx}.MAP,'percentile') && inp.MLI.Modality{nx}.MAP.percentmode
+            % Calculate thresholds on each classifier's own map.
+            cutoff = inp.MLI.Modality{nx}.MAP.cutoff;
+            if strcmp(inp.MLI.Modality{nx}.MAP.percentmode, 'percentile')
                 cutoff = prctile(inp.MLI.Modality{nx}.MAP.map{h}, inp.MLI.Modality{nx}.MAP.cutoff);
             end
             inp.MLI.Modality{nx}.MAP.mapidx{h} = return_imgind(inp.MLI.Modality{nx}.MAP.operator, cutoff, inp.MLI.Modality{nx}.MAP.map{h});
@@ -286,7 +290,8 @@ else
                         % Fraction of unique atlas values to be selected => nfrac 
                         nfrac = ceil( numel(inp.MLI.Modality{nx}.imgops.csvnum) * inp.MLI.Modality{nx}.frac );
                         % Create permutations of atlas indices => tI
-                        [ tI, nperms(nx) ] = uperms( inp.MLI.Modality{nx}.imgops.csvnum, inp.MLI.nperms, nfrac ); 
+                        progressFcn = @(done,total) nm_mli_permutation_progress(done, total, h, nx, nclass, nM, CVPOS);
+                        [ tI, nperms(nx) ] = uperms( inp.MLI.Modality{nx}.imgops.csvnum, inp.MLI.nperms, nfrac, progressFcn ); 
                         % Initialize logical index vector to map selected predictors within the space of MapIdx
                         RandFeats(h, nx).I = false(nperms(nx), nYmap);
                         for nq=1:nperms(nx)
@@ -300,7 +305,8 @@ else
                         nfrac = ceil( nYmap * inp.MLI.Modality{nx}.frac );
                         % return logical vector to permuted indices in
                         % (thresholded) image space.
-                        [ RandFeats(h, nx).I, nperms(nx) ] = uperms( inp.MLI.Modality{nx}.MAP.mapidx{h}, inp.MLI.nperms, nfrac ); 
+                        progressFcn = @(done,total) nm_mli_permutation_progress(done, total, h, nx, nclass, nM, CVPOS);
+                        [ RandFeats(h, nx).I, nperms(nx) ] = uperms( inp.MLI.Modality{nx}.MAP.mapidx{h}, inp.MLI.nperms, nfrac, progressFcn ); 
                     end
                      
                 case {'random'}
@@ -393,9 +399,59 @@ else
     end
 
 end
+
+% Normalize requested MLI iteration count to the actual perturbation design.
+% The generation branch may reduce inp.MLI.nperms when the requested number
+% of iterations exceeds the number of available perturbation rows.  When an
+% existing MLIpermmat is loaded, the same adjustment has to be derived from
+% RandFeats; otherwise downstream code can index beyond RandFeats(h,nx).I.
+effectiveNperms = inf;
+for h=1:nclass
+    for nx=1:nM
+        if h <= size(RandFeats,1) && nx <= size(RandFeats,2) && ...
+                isfield(RandFeats(h,nx),'I') && ~isempty(RandFeats(h,nx).I)
+            effectiveNperms = min(effectiveNperms, size(RandFeats(h,nx).I,1));
+        end
+    end
+end
+if strcmp(inp.MLI.method,'shapley') && exist('wts','var') && ~isempty(wts)
+    if isvector(wts)
+        effectiveNperms = min(effectiveNperms, numel(wts));
+    else
+        effectiveNperms = min(effectiveNperms, size(wts,1));
+    end
+end
+if isfinite(effectiveNperms) && effectiveNperms > 0
+    if effectiveNperms < inp.MLI.nperms
+        warning('Number of MLI iterations adjusted to %g based on the available perturbation matrix.', effectiveNperms);
+    end
+    inp.MLI.nperms = min(inp.MLI.nperms, effectiveNperms);
+    for h=1:nclass
+        for nx=1:nM
+            if h <= size(RandFeats,1) && nx <= size(RandFeats,2) && ...
+                    isfield(RandFeats(h,nx),'I') && ~isempty(RandFeats(h,nx).I) && ...
+                    size(RandFeats(h,nx).I,1) > inp.MLI.nperms
+                RandFeats(h,nx).I = RandFeats(h,nx).I(1:inp.MLI.nperms,:);
+            end
+        end
+    end
+    if strcmp(inp.MLI.method,'shapley') && exist('wts','var') && ~isempty(wts)
+        if isvector(wts)
+            wts = wts(:);
+            if numel(wts) > inp.MLI.nperms
+                wts = wts(1:inp.MLI.nperms);
+            end
+        elseif size(wts,1) > inp.MLI.nperms
+            wts = wts(1:inp.MLI.nperms,:);
+        end
+        if any(wts(:))
+            wts = wts ./ sum(wts(:));
+        end
+    end
+end
 ol=1;
 
-Sstr = ''; if isfield(inp,'issmoothed') && inp.issmoothed, Sstr = 's'; end
+Sstr = ''; if isfield(inp,'isSpatialPreprocessed') && inp.isSpatialPreprocessed, Sstr = 's'; end
 OCVstr = 'Y'; if isfield(inp,'oocvflag') && inp.oocvflag, OCVstr = 'Yocv'; end
 OCVstr = [Sstr OCVstr];
 TRstr = [Sstr 'Y'];
@@ -432,6 +488,9 @@ for f=1:ix % Loop through CV2 permutations
         % Create MLI partition file path
         oMLIpath = nk_GenerateNMFilePath(inp.rootdir, SAV.matname, inp.datatype, inp.multlabelstr, inp.varstr, inp.id, operm, ofold);
         OptModelPath = nk_GenerateNMFilePath( inp.saveoptdir, SAV.matname, 'OptModel', [], inp.varstr, inp.id, operm, ofold);
+        clear predOrig predOrigW predInterp predInterpW predInterpW_pos predInterpW_neg mapInterp mapInterp_ciu mapInterp_cil mapInterp_std shapleyValues
+        orig_recompute_estimates = inp.recompute_estimates;
+        nm_mli_browser_progress(sprintf('Preparing ML interpretation for CV2 partition %g.%g.', f, d), 0, CVPOS, 'cv2_start');
 
         switch inp.analmode
             case 0
@@ -444,22 +503,44 @@ for f=1:ix % Loop through CV2 permutations
                     fprintf('\nMLIdatamat found for CV2 [%g,%g]:',f,d)
                     fprintf('\nLoading: %s',onam)
                     try
+                        nm_mli_browser_progress(sprintf('Loading existing MLIdatamat for CV2 partition %g.%g.', f, d), 5, CVPOS, 'load_mlidatamat');
                         load(oMLIpath)
                         loadfl = true;
+                        if ~exist('predOrigW','var') || isempty(predOrigW), predOrigW = cell(size(predOrig)); end
+                        if ~exist('predInterpW','var') || isempty(predInterpW), predInterpW = cell(size(predInterp,1), size(predInterp,2)); end
+                        if ~exist('predInterpW_pos','var') || isempty(predInterpW_pos), predInterpW_pos = cell(size(predInterp,1), size(predInterp,2)); end
+                        if ~exist('predInterpW_neg','var') || isempty(predInterpW_neg), predInterpW_neg = cell(size(predInterp,1), size(predInterp,2)); end
+                        if ~exist('mapInterp','var') || isempty(mapInterp) || ~exist('mapInterp_ciu','var') || isempty(mapInterp_ciu) || ~exist('mapInterp_cil','var') || isempty(mapInterp_cil) || ~exist('mapInterp_std','var') || isempty(mapInterp_std)
+                            fprintf('\nLoaded MLIdatamat lacks mapped interpretation estimates. Recomputing estimates for CV2 [%g,%g].', f, d);
+                            inp.recompute_estimates = 1;
+                        else
+                            nm_mli_browser_progress(sprintf('Loaded existing MLIdatamat for CV2 partition %g.%g.', f, d), 100, CVPOS, 'load_mlidatamat');
+                        end
                     catch
                         fprintf('\nCould not open file. May be corrupt. Recompute CV2 partition [%g,%g].',f,d);
                         loadfl = false;
                     end
                     
-                elseif exist(oMLIpath,'file') && batchflag
+                elseif exist(oMLIpath,'file') && ~ovrwrt && batchflag
                      % in batch mode we do not compute statistics across the
                     % CV2 partitions
                     [~, onam] = fileparts(oMLIpath);
                     fprintf('\nMLIdatamat found for CV2 [%g,%g]:\n%s',f,d,onam)
                     fprintf('\nBatch mode detected. Continue.')
                     [RootPath, FileNames{f,d}] = fileparts(oMLIpath); 
+                    nm_mli_browser_progress(sprintf('Loading existing MLIdatamat for CV2 partition %g.%g.', f, d), 5, CVPOS, 'load_mlidatamat');
                     load(oMLIpath)
                     loadfl=true;
+                    if ~exist('predOrigW','var') || isempty(predOrigW), predOrigW = cell(size(predOrig)); end
+                    if ~exist('predInterpW','var') || isempty(predInterpW), predInterpW = cell(size(predInterp,1), size(predInterp,2)); end
+                    if ~exist('predInterpW_pos','var') || isempty(predInterpW_pos), predInterpW_pos = cell(size(predInterp,1), size(predInterp,2)); end
+                    if ~exist('predInterpW_neg','var') || isempty(predInterpW_neg), predInterpW_neg = cell(size(predInterp,1), size(predInterp,2)); end
+                    if ~exist('mapInterp','var') || isempty(mapInterp) || ~exist('mapInterp_ciu','var') || isempty(mapInterp_ciu) || ~exist('mapInterp_cil','var') || isempty(mapInterp_cil) || ~exist('mapInterp_std','var') || isempty(mapInterp_std)
+                        fprintf('\nLoaded MLIdatamat lacks mapped interpretation estimates. Recomputing estimates for CV2 [%g,%g].', f, d);
+                        inp.recompute_estimates = 1;
+                    else
+                        nm_mli_browser_progress(sprintf('Loaded existing MLIdatamat for CV2 partition %g.%g.', f, d), 100, CVPOS, 'load_mlidatamat');
+                    end
                 end
                    
                 if ~loadfl 
@@ -636,6 +717,7 @@ for f=1:ix % Loop through CV2 permutations
 
                                         end
                                         fprintf(' done.')
+                                        nm_mli_browser_progress(sprintf('Baseline predictions: predictor %g/%g, parameter %g/%g, CV1 %g.%g, model %g/%g.', h, nclass, m, nP, k, l, u, ul), 15 * min(1, u / max(ul,1)), CVPOS, 'baseline_predictions');
                                     end
                                     
                                     if detrendfl 
@@ -691,6 +773,8 @@ for f=1:ix % Loop through CV2 permutations
                             end
                         end
                         fprintf('\n\n--- Working on case ''%s'' (%g of %g cases) ---', cases{tInd(q)}, q, numel(tInd));
+                        nm_mli_browser_progress(sprintf('Interpreting case %s (%g/%g).', cases{tInd(q)}, q, numel(tInd)), ...
+                            15 + 70 * (q - 1) / max(numel(tInd),1), CVPOS, 'artificial_predictions');
     
                         for h=1:nclass
                            
@@ -762,13 +846,13 @@ for f=1:ix % Loop through CV2 permutations
                                 end
                             case 'shapley'
                                 if inp.oocvflag
-                                    if isfield(inp,'issmoothed') && inp.issmoothed
+                                    if isfield(inp,'isSpatialPreprocessed') && inp.isSpatialPreprocessed
                                         Yocvstr = 'sYocv2';
                                     else
                                         Yocvstr = 'Yocv2';
                                     end
                                 else
-                                    if isfield(inp,'issmoothed') && inp.issmoothed
+                                    if isfield(inp,'isSpatialPreprocessed') && inp.isSpatialPreprocessed
                                     % here we would need to potentially
                                     % account for multiple binary
                                     % classifier-related optimizations of 
@@ -842,8 +926,7 @@ for f=1:ix % Loop through CV2 permutations
                         %% Step 4: generate predictions for artificial cases
                         switch inp.MLI.method
                             case 'posneg'
-                                inp.desc_oocv{1} = sprintf('%g%%-percentile modification', inp.MLI.upper_thresh);
-                                inp.desc_oocv{2} = sprintf('%g%%-percentile modification', inp.MLI.lower_thresh);
+                                inp.desc_oocv = sprintf('Upper/lower %g%%/%g%%-percentile modification', inp.MLI.upper_thresh, inp.MLI.lower_thresh);
                             case 'median'
                                 inp.desc_oocv = 'median modification';
                             case 'medianflip'
@@ -950,6 +1033,7 @@ for f=1:ix % Loop through CV2 permutations
                                                         uD_pos(:,u) = nk_DetrendPredictions2(beta, p, uD_pos(:,u));
                                                         uD_neg(:,u) = nk_DetrendPredictions2(beta, p, uD_neg(:,u));
                                                     end    
+                                                    nm_mli_browser_progress(sprintf('Artificial predictions: case %s (%g/%g), predictor %g/%g, model %g/%g.', cases{tInd(q)}, q, numel(tInd), h, nclass, u, ul), 15 + 70 * ((q - 1) + min(1, u / max(ul,1))) / max(numel(tInd),1), CVPOS, 'artificial_predictions');
                                                 end
                                                 predInterp{q,h,1} = [predInterp{q,h,1} uD_pos];
                                                 predInterp{q,h,2} = [predInterp{q,h,2} uD_neg];
@@ -988,6 +1072,7 @@ for f=1:ix % Loop through CV2 permutations
                                                         p = GD.Detrend{Pspos(m)}.p;
                                                         uD(:,u) = nk_DetrendPredictions2(beta, p, uD(:,u)); 
                                                     end    
+                                                    nm_mli_browser_progress(sprintf('Artificial predictions: case %s (%g/%g), predictor %g/%g, model %g/%g.', cases{tInd(q)}, q, numel(tInd), h, nclass, u, ul), 15 + 70 * ((q - 1) + min(1, u / max(ul,1))) / max(numel(tInd),1), CVPOS, 'artificial_predictions');
                                                 end
                                                 predInterp{q,h} = [predInterp{q,h} uD];
                                                 if isempty(predInterpW{q,h}), predInterpW{q,h} = []; end
@@ -1031,6 +1116,7 @@ for f=1:ix % Loop through CV2 permutations
                                                             p = GD.Detrend{Pspos(m)}.p;
                                                             uD(:,u) = nk_DetrendPredictions2(beta, p, uD(:,u));
                                                         end
+                                                        nm_mli_browser_progress(sprintf('Shapley predictions: case %s (%g/%g), coalition data %g/%g, predictor %g/%g, model %g/%g.', cases{tInd(q)}, q, numel(tInd), i, n_all, h, nclass, u, ul), 15 + 70 * ((q - 1) + ((i - 1) + min(1, u / max(ul,1))) / max(n_all,1)) / max(numel(tInd),1), CVPOS, 'artificial_predictions');
                                                     end
                                                     uD_all(:,:,i) = uD;
                                                 end
@@ -1071,6 +1157,8 @@ for f=1:ix % Loop through CV2 permutations
                             end
                         end
                         fprintf('\n\tCase %s (%g of %g cases)', cases{tInd(q)}, q, numel(tInd));
+                        nm_mli_browser_progress(sprintf('Estimating changes for case %s (%g/%g).', cases{tInd(q)}, q, numel(tInd)), ...
+                            85 + 10 * (q - 1) / max(numel(tInd),1), CVPOS, 'prediction_change_estimates');
 
                         for h=1:nclass
                             if ~isempty(predOrigW{h}) && numel(predOrigW{h}) == size(predOrig{h},2)
@@ -1145,14 +1233,16 @@ for f=1:ix % Loop through CV2 permutations
                                 end
                             end
                         end
+                        nm_mli_browser_progress(sprintf('Computing prediction-change estimates: case %s (%g/%g) in CV2 partition %g.%g.', cases{tInd(q)}, q, numel(tInd), f, d), 85 + 10 * q / max(numel(tInd),1), CVPOS, 'prediction_change_estimates');
                     end
                     fprintf('\nSaving %s', oMLIpath);
                     if exist("predInterpW_pos","var") && ~isempty(predInterpW_pos)
-                        save(oMLIpath,'predOrig', 'predOrigW', 'predInterp', 'mapInterp_ciu', 'mapInterp_cil', 'mapInterp_std', 'predInterpW_pos', 'predInterpW_neg', 'shapleyValues', 'operm','ofold');
+                        save(oMLIpath,'predOrig', 'predOrigW', 'predInterp', 'mapInterp', 'mapInterp_ciu', 'mapInterp_cil', 'mapInterp_std', 'predInterpW_pos', 'predInterpW_neg', 'shapleyValues', 'operm','ofold');
                     else
-                        save(oMLIpath,'predOrig', 'predOrigW', 'predInterp', 'mapInterp_ciu', 'mapInterp_cil', 'mapInterp_std', 'predInterpW', 'shapleyValues', 'operm','ofold');
+                        save(oMLIpath,'predOrig', 'predOrigW', 'predInterp', 'mapInterp', 'mapInterp_ciu', 'mapInterp_cil', 'mapInterp_std', 'predInterpW', 'shapleyValues', 'operm','ofold');
 
                     end
+                    nm_mli_browser_progress(sprintf('Saved MLIdatamat for CV2 partition %g.%g.', f, d), 100, CVPOS, 'save_mlidatamat');
                 end
                 if saveparam 
                     fprintf('\nSaving %s', OptModelPath); save(OptModelPath, 'MD', 'ofold','operm'); 
@@ -1167,13 +1257,20 @@ for f=1:ix % Loop through CV2 permutations
                     [~,vnam] = fileparts(vpth);
                     fprintf('\n\nLoading MLI results for CV2 partition [ %g, %g ]:', f, d);
                     fprintf('\n%s',vnam);
+                    nm_mli_browser_progress(sprintf('Loading existing MLIdatamat for CV2 partition %g.%g.', f, d), 5, CVPOS, 'load_mlidatamat');
                     load(vpth)
                     
-                    % Backward-compatible guards (files created before weights existed):
-                    if ~exist('predOrigW','var'),          predOrigW = [];           end
-                    if ~exist('predInterpW','var'),        predInterpW = [];         end
-                    if ~exist('predInterpW_pos','var'),    predInterpW_pos = [];     end
-                    if ~exist('predInterpW_neg','var'),    predInterpW_neg = [];     end
+                    % Backward-compatible guards (files created before weights or mapped estimates existed):
+                    if ~exist('predOrigW','var') || isempty(predOrigW), predOrigW = cell(size(predOrig)); end
+                    if ~exist('predInterpW','var') || isempty(predInterpW), predInterpW = cell(size(predInterp,1), size(predInterp,2)); end
+                    if ~exist('predInterpW_pos','var') || isempty(predInterpW_pos), predInterpW_pos = cell(size(predInterp,1), size(predInterp,2)); end
+                    if ~exist('predInterpW_neg','var') || isempty(predInterpW_neg), predInterpW_neg = cell(size(predInterp,1), size(predInterp,2)); end
+                    if ~exist('mapInterp','var') || isempty(mapInterp) || ~exist('mapInterp_ciu','var') || isempty(mapInterp_ciu) || ~exist('mapInterp_cil','var') || isempty(mapInterp_cil) || ~exist('mapInterp_std','var') || isempty(mapInterp_std)
+                        fprintf('\nLoaded MLIdatamat lacks mapped interpretation estimates. Recomputing estimates for CV2 [%g,%g].', f, d);
+                        inp.recompute_estimates = 1;
+                    else
+                        nm_mli_browser_progress(sprintf('Loaded existing MLIdatamat for CV2 partition %g.%g.', f, d), 100, CVPOS, 'load_mlidatamat');
+                    end
 
                     if inp.recompute_estimates == 1
                         fprintf('\nRecomputing MLI prediction change estimates in CV2 partition [ %g, %g ]:', f, d);
@@ -1191,6 +1288,8 @@ for f=1:ix % Loop through CV2 permutations
                         for q=1:numel(tInd) % Loop through CV2/OOCV cases 
 
                             fprintf('\n\tCase ''%s'' (%g of %g cases)', cases{tInd(q)}, q, numel(tInd));
+                            nm_mli_browser_progress(sprintf('Estimating changes for case %s (%g/%g).', cases{tInd(q)}, q, numel(tInd)), ...
+                                85 + 10 * (q - 1) / max(numel(tInd),1), CVPOS, 'prediction_change_estimates');
                             
                             for h=1:nclass
                                 if ~isempty(predOrigW{h}) && numel(predOrigW{h}) == size(predOrig{h},2)
@@ -1233,6 +1332,7 @@ for f=1:ix % Loop through CV2 permutations
                                 end
                             end
                         end
+                        nm_mli_browser_progress(sprintf('Computing prediction-change estimates: case %s (%g/%g) in CV2 partition %g.%g.', cases{tInd(q)}, q, numel(tInd), f, d), 85 + 10 * q / max(numel(tInd),1), CVPOS, 'prediction_change_estimates');
                         fprintf('\nSaving %s', oMLIpath);
                         if exist("predInterpW_pos","var") && ~isempty(predInterpW_pos)
                             save(oMLIpath,'predOrig', 'predOrigW', 'predInterp', 'mapInterp', 'mapInterp_ciu', 'mapInterp_cil', 'mapInterp_std', 'predInterpW_pos', 'predInterpW_neg', 'shapleyValues', 'operm','ofold');
@@ -1243,6 +1343,7 @@ for f=1:ix % Loop through CV2 permutations
                 end 
         end
         
+        inp.recompute_estimates = orig_recompute_estimates;
         %% Step 6: Concatenate results and assign them to results container
         [RootPath, FileNames{f,d}] = fileparts(oMLIpath);  
         ll=ll+1;
@@ -1274,9 +1375,11 @@ for f=1:ix % Loop through CV2 permutations
     ol=ol+1;
 end
 ol=ol-1;
+nm_mli_browser_progress('Aggregating ML-interpretation results across CV2 partitions.', 95, CVPOS, 'final_aggregation');
+legacyMapExportEnabled = ~isfield(inp,'suppressLegacyMapExport') || ...
+    isempty(inp.suppressLegacyMapExport) || ~logical(inp.suppressLegacyMapExport(1));
 for h = 1:nclass
     for nx = 1 : nM
-        [ ~, datatype, brainmaski, badcoordsi, labeli, labelopi ] = getD(FUSION.flag, inp, nx);
         switch MODEFL
             case 'classification'
                 Results.BinResults(h).Modality(nx).Y_mapped     = nm_nanmean(Results.BinResults(h).Modality(nx).Y_mapped(:,:,1:ol),3);
@@ -1285,7 +1388,7 @@ for h = 1:nclass
                 Results.BinResults(h).Modality(nx).Y_mapped_std = nm_nanmean(Results.BinResults(h).Modality(nx).Y_mapped_std(:,:,1:ol),3);
                 Results.BinResults(h).Modality(nx).ShapleyValues = nm_nanmean(Results.BinResults(h).Modality(nx).ShapleyValues(:,:,1:ol),3);
                 Results.BinResults(h).RangePred = inp.MLI.RangePred(h);
-                vols = Results.BinResults(h).Modality(nx).Y_mapped;
+                if legacyMapExportEnabled, vols = Results.BinResults(h).Modality(nx).Y_mapped; end
             case 'regression'
                 Results.RegrResults.Modality(nx).Y_mapped       = nm_nanmean(Results.RegrResults.Modality(nx).Y_mapped(:,:,1:ol),3);
                 Results.RegrResults.Modality(nx).Y_mapped_ciu   = nm_nanmean(Results.RegrResults.Modality(nx).Y_mapped_ciu(:,:,1:ol),3);
@@ -1293,13 +1396,20 @@ for h = 1:nclass
                 Results.RegrResults.Modality(nx).Y_mapped_std   = nm_nanmean(Results.RegrResults.Modality(nx).Y_mapped_std(:,:,1:ol),3);
                 Results.RegrResults.Modality(nx).ShapleyValues  = nm_nanmean(Results.RegrResults.Modality(nx).ShapleyValues(:,:,1:ol),3);
                 Results.RegrResults.RangePred = inp.MLI.RangePred(h);
-                vols = Results.RegrResults.Modality(nx).Y_mapped; 
+                if legacyMapExportEnabled, vols = Results.RegrResults.Modality(nx).Y_mapped; end
         end
         
-        % Write image files to disk
-        if datatype == 1 || datatype == 2
+        % Direct legacy callers retain the historical voxel NIfTI side effect.
+        % NM2 explicitly suppresses this writer and therefore does not even
+        % resolve legacy space-definition metadata during final aggregation.
+        if legacyMapExportEnabled
+            [ ~, datatype, brainmaski, badcoordsi, labeli, labelopi ] = getD(FUSION.flag, inp, nx);
+        else
+            datatype = NaN;
+        end
+        if datatype == 1 && legacyMapExportEnabled
             computedCases = find(any(vols,2));
-            fprintf('\Writing out %g cases.',numel(computedCases));
+            fprintf('\nWriting out %g volumetric MLI cases.',numel(computedCases));
             switch MODEFL
                 case 'classification'
                     clstr = ['_cl' num2str(h)];
@@ -1310,18 +1420,65 @@ for h = 1:nclass
                 volnamIDs = {'R','MC', 'Z', 'S'};
                 volnam  = fullfile(inp.rootdir,sprintf('mli%s%s_var%g%s%s', volnamIDs{inp.MLI.znormdata}, ...
                     cases{computedCases(q)}, inp.tF(nx), clstr, inp.multlabelstr));
-                switch datatype
-                    case 1 % SPM-based NIFTI write-out
-                        nk_WriteVol(vols(computedCases(q),:), volnam, 1, brainmaski, badcoordsi, labeli, labelopi);
-                    case 2 % Surface-based write-out
-                        s = MRIread(brainmaski);
-                        volnam = fullfile(pwd,[deblank(volnam) '.mgh']);
-                        s.vol = vols(computedCases(q),:);
-                        MRIwrite(s,filename)
-                end
+                nk_WriteVol(vols(computedCases(q),:), volnam, 1, brainmaski, badcoordsi, labeli, labelopi);
+                nm_mli_browser_progress(sprintf('Writing volumetric MLI output maps: %g/%g cases for modality %g/%g.', q, numel(computedCases), nx, nM), 95 + 5 * q / max(numel(computedCases),1), CVPOS, 'write_output_maps');
             end
         end
     end
+end
+
+function nm_mli_permutation_progress(done, total, h, nx, nclass, nM, CVPOS)
+% nm_mli_permutation_progress - Map uperms progress into the NM2 MLI bridge.
+%
+% Purpose
+%   Convert one uperms(done,total) callback into a monotonic progress value
+%   across the classifier-by-modality perturbation-generation phase.
+%
+% Authority and flow
+%   uperms owns subset generation and reports only local counts. This adapter,
+%   colocated with nk_MLInterpreter, owns NM2 runtime-progress semantics and
+%   forwards to the existing safe browser bridge.
+%
+% Materialization and performance
+%   O(1) per throttled uperms callback. No feature arrays are scanned or
+%   copied. Browser/file-write throttling remains owned by
+%   NMRuntimeProgressTools.
+%
+% Failure semantics
+%   Browser-progress failures are contained by nm_mli_browser_progress and
+%   NMRuntimeProgressTools.writeLegacyModuleProgressSafe; MLI computation is
+%   not made dependent on browser availability.
+
+if total > 0
+    localFraction = max(0, min(1, double(done) / double(total)));
+else
+    localFraction = 1;
+end
+slot = (double(h)-1) * double(nM) + double(nx);
+slotCount = max(1, double(nclass) * double(nM));
+percent = 100 * ((slot - 1) + localFraction) / slotCount;
+
+if nclass > 1
+    message = sprintf(['Generating feature perturbations: classifier %g/%g, ' ...
+        'modality %g/%g, %g/%g unique subsets.'], ...
+        h, nclass, nx, nM, done, total);
+else
+    message = sprintf('Generating feature perturbations: modality %g/%g, %g/%g unique subsets.', ...
+        nx, nM, done, total);
+end
+nm_mli_browser_progress(message, percent, CVPOS, 'permutation_generation');
+
+function nm_mli_browser_progress(message, percent, CVPOS, phase)
+
+global UI
+
+if nargin < 4, phase = ''; end
+if ~(isstruct(UI) && isfield(UI,'enabled') && logical(UI.enabled) && ...
+        isfield(UI,'chartEnabled') && logical(UI.chartEnabled))
+    return;
+end
+if exist('NMRuntimeProgressTools','class') == 8 || exist('NMRuntimeProgressTools','file') == 2
+    NMRuntimeProgressTools.writeLegacyModuleProgressSafe('Interpretation progress', message, percent, CVPOS, phase);
 end
 
 function imgind = return_imgind(typthresh, thresh, img)
@@ -1333,9 +1490,9 @@ if length(thresh) > 1
         case 2
             imgind = (img <= thresh(1) | img >= thresh(2)); 
         case 3
-            imgind = (img > thresh(1) | img < thresh(2)); 
+            imgind = (img > thresh(1) & img < thresh(2)); 
         case 4
-            imgind = (img >= thresh(1) | img <= thresh(2)); 
+            imgind = (img >= thresh(1) & img <= thresh(2)); 
     end
 else
     switch typthresh
@@ -1347,7 +1504,7 @@ else
             imgind = img > thresh;
         case 4
             imgind = img >= thresh;
-        case 5
-            imgind = img == thresh;
+        case {5, 6}
+            imgind = xor(img == thresh, typthresh == 6);
     end
 end

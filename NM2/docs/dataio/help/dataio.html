@@ -1,0 +1,179 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NM2 DataIO Help — NeuroMiner DataIO help</title><style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#152033;background:#f7f9fc;line-height:1.55}
+body{margin:0}.wrap{max-width:1000px;margin:0 auto;padding:24px 30px 64px}header{background:#12233f;color:#fff;padding:20px 30px}
+header h1{margin:0 0 4px;font-size:25px}header p{margin:0;color:#d9e4f4}.toc{background:#fff;border:1px solid #d5dde9;border-radius:10px;padding:14px 18px;margin:18px 0}
+.toc a{display:inline-block;margin:2px 14px 2px 0;color:#174ea6;text-decoration:none}section{scroll-margin-top:14px;background:#fff;border:1px solid #dbe2ec;border-radius:10px;padding:17px 20px;margin:14px 0}
+h2{margin:0 0 8px;font-size:20px}h3{margin:14px 0 6px;font-size:16px}p{margin:7px 0}ol,ul{margin:7px 0 7px 22px;padding:0}li{margin:4px 0}
+code{background:#edf2f7;padding:1px 5px;border-radius:4px}pre{background:#10213a;color:#edf4ff;border-radius:8px;padding:12px;overflow:auto}
+table{border-collapse:collapse;width:100%;margin:9px 0}th,td{border:1px solid #d9e0ea;padding:7px 9px;text-align:left;vertical-align:top}th{background:#eef3f9}
+.note{border-left:4px solid #2563eb;padding:8px 11px;background:#eef5ff}.warn{border-left:4px solid #c2410c;padding:8px 11px;background:#fff4e8}.ok{border-left:4px solid #16a34a;padding:8px 11px;background:#effaf2}
+.steps{border-left:4px solid #2563eb;padding:8px 12px;background:#f5f9ff}.term{font-weight:700}.muted{color:#56657a}.back{font-size:13px;color:#dbe8ff;text-decoration:none}
+details.advanced{margin-top:12px;border-top:1px solid #dde4ee;padding-top:9px}details.advanced summary{cursor:pointer;font-weight:700;color:#34455d}details.advanced[open] summary{margin-bottom:7px}
+.small{font-size:13px}.concepts{background:#f3f6fa;border:1px solid #d8e0ea;border-radius:8px;padding:10px 12px}.concepts b{color:#0f2745}
+</style></head><body><header><div class="wrap" style="padding-top:0;padding-bottom:0"><h1>NeuroMiner DataIO help</h1><p>Step-by-step help for importing data into NM2.</p></div></header><main class="wrap"><nav class="toc"><a href="#training-management">Training modalities</a> <a href="#oocv-management">OOCV / application data</a> <a href="#oocv-modality">Selected OOCV modalities</a> <a href="#modality-overview">Modality overview</a> <a href="#modality-details">Selected modality</a> <a href="#import-task">Data import task</a> <a href="#label-definition">Label definition</a> <a href="#import-options">Import options</a> <a href="#advanced-filters">Advanced filters</a> <a href="#preview-qc-commit">Preview, QC and Commit</a> <a href="#mandatory-navigation">Red / green borders</a> <a href="#diagnostics">Diagnostics</a></nav><section id="training-management"><h2>Training modalities</h2><div class="concepts"><b>Three NM2 words used below:</b> A <b>case</b> is one observation that NM2 analyses—for example one person, participant, scan or sample. A <b>modality</b> is one block of measurements collected for a set of cases, for example questionnaire scores, MRI voxels, ROI values or connectivity edges. A <b>feature</b> is one input measurement that the machine-learning model uses.</div><p>A training dataset contains one or more <b>modalities</b>. For example, modality 1 contains clinical questionnaire variables and modality 2 contains MRI features from the same or overlapping cases.</p>
+<div class="steps"><ol>
+<li>Click <b>Add modality</b> to import a new block of training data.</li>
+<li>Use <b>Modify selected</b> to reopen a modality that has already been committed.</li>
+<li>Use <b>Resume selected</b> to continue an unfinished import task.</li>
+<li>Check the modality overview and diagnostics until every required training modality is ready.</li>
+<li>Click <b>Finalize training data import</b> only when the training dataset is complete.</li>
+</ol></div>
+<div class="warn"><b>Important:</b> finalizing training import is a checkpoint. Confirm that the required modalities, cases, features and labels are correct before you pass it.</div>
+<details class="advanced"><summary>Advanced details</summary><p>The modality manager displays backend DataIO state and capability information. Finalization changes the workflow stage and therefore the actions that NM2 permits next.</p></details></section><section id="oocv-management"><h2>OOCV / application data manager</h2><div class="concepts"><b>Three NM2 words used below:</b> A <b>case</b> is one observation that NM2 analyses—for example one person, participant, scan or sample. A <b>modality</b> is one block of measurements collected for a set of cases, for example questionnaire scores, MRI voxels, ROI values or connectivity edges. A <b>feature</b> is one input measurement that the machine-learning model uses.</div><p><b>OOCV</b> means independent application data: cases that were not used to train the model. Examples are an external validation cohort or new cases to which a trained model will be applied.</p>
+<div class="steps"><ol>
+<li>Enter a clear name or description for the OOCV dataset.</li>
+<li>Tick <b>Labels available for evaluation</b> when the true outcomes/classes are available.</li>
+<li>Click <b>Create OOCV dataset</b>.</li>
+<li>Select the new OOCV dataset.</li>
+<li>Import the modality or modalities required by the trained analysis.</li>
+<li>When one OOCV container contains cases from several study groups, click <b>Configure study groups...</b> after the first modality has established the container Case-ID axis. Read one numeric group-label vector from the MATLAB workspace or a CSV/spreadsheet and align it by Case ID or explicit row order. You can give the groups descriptive names and select one reference group.</li>
+</ol></div>
+<p>The OOCV dataset does not need the same number of cases or the same class proportions as the training dataset. Study-group labels stratify downstream OOCV evaluation; they do not create separate OOCV containers or alter the modality data.</p>
+<details class="advanced"><summary>Advanced details</summary><p>DataIO allows an OOCV dataset to be built one modality at a time. Study groups belong to the OOCV container Case-ID axis and therefore apply to all modalities in that container. DataIO converts the distinct numeric source labels to the backend group IDs 1..K and stores the source mapping, names and optional reference group. The selected trained analysis determines which modalities must be present before application can run.</p></details></section><section id="oocv-modality"><h2>Selected OOCV dataset modalities</h2><p>This table shows the modalities that have been imported into the selected OOCV dataset.</p>
+<div class="steps"><ol>
+<li>Select a modality row to inspect its status.</li>
+<li>Open diagnostics when a modality is incomplete or has warnings. A <b>Distribution shift</b> warning means that the OOCV feature distribution differs substantially from the corresponding training modality in mean level, variance, missingness or training-referenced outlier burden. Review the modality before model application; the warning does not block import.</li>
+<li>Use the maintenance controls only when you intentionally need to replace, relink or re-import stored data.</li>
+</ol></div>
+<p>You can add OOCV modalities one at a time. Model application starts only after the modalities required by the selected trained analysis are present.</p>
+<details class="advanced"><summary>Advanced details</summary><p>DataIO records which OOCV modalities are available. The training/OOCV distribution check is a QC safety screen, not a statistical hypothesis test: it uses predefined discrepancy thresholds to surface potentially important domain shift. The application runner separately checks the modality requirements of the selected trained analysis.</p></details></section><section id="modality-overview"><h2>Modality overview</h2><p>This table summarizes the data that are already committed to NM2.</p>
+<ul><li><b>Cases</b> — the number of observations stored in the modality.</li>
+<li><b>Features</b> — the number of predictor values stored for each case.</li>
+<li><b>Missing values / NaN cases</b> — whether the committed data contain missing values.</li>
+<li><b>Status</b> — whether the modality is ready or needs attention.</li></ul>
+<p>Select a row when you want to inspect or modify that modality.</p>
+<details class="advanced"><summary>Advanced details</summary><p>The overview displays persisted or cached backend summaries. The browser does not independently recompute scientific state.</p></details></section><section id="modality-details"><h2>Selected modality</h2><p>This panel shows details about the modality selected in the overview.</p>
+<div class="steps"><ol>
+<li>Click <b>Show diagnostics</b> to inspect warnings, missing values and source/import information.</li>
+<li>If the committed modality contains the wrong cases, features or labels, return to the modality manager and choose <b>Modify selected</b>.</li>
+<li>Correct the import setup, Preview again and recommit.</li>
+</ol></div>
+<details class="advanced"><summary>Advanced details</summary><p>The panel displays committed diagnostics and persisted source/QC information derived by the backend.</p></details></section><section id="import-task"><h2>Data import task</h2><div class="concepts"><b>Three NM2 words used below:</b> A <b>case</b> is one observation that NM2 analyses—for example one person, participant, scan or sample. A <b>modality</b> is one block of measurements collected for a set of cases, for example questionnaire scores, MRI voxels, ROI values or connectivity edges. A <b>feature</b> is one input measurement that the machine-learning model uses.</div><p>This is the main sequence for adding one modality to NM2.</p>
+<div class="steps"><ol>
+<li>Choose the <b>Source type</b> that matches where the data are stored.</li>
+<li>Choose <b>Classification</b> when the target is a class/category, or <b>Regression</b> when the target is numerical.</li>
+<li>Enter a short <b>Description</b>, for example “Baseline clinical variables” or “T1 MRI”.</li>
+<li>Use the source-specific panel to select the data.</li>
+<li>Assign <b>Case IDs</b>, <b>features</b>, <b>labels</b> and optional <b>covariates</b>.</li>
+<li>Complete the controls marked with red borders. Green borders indicate that the corresponding requirement is satisfied.</li>
+<li>Run <b>Preview</b>, inspect QC/diagnostics and correct any problem.</li>
+<li>Press <b>Commit</b> only when the Preview describes the dataset you intend to store.</li>
+</ol></div>
+<p><b>Case IDs</b> are identifiers that NM2 uses to recognise the same person, sample or scan across different files or data blocks.</p>
+<div class="warn"><b>Your responsibility:</b> NM2 can validate structure and consistency, but you must decide whether the selected data and assignments are scientifically correct for your study.</div>
+<details class="advanced"><summary>Advanced details</summary><p>The UI displays the readiness and validation state produced by DataIO. It does not create a separate scientific interpretation of the imported data.</p></details></section><section id="label-definition"><h2>Label definition</h2><p>For classification, the label value tells NM2 which class each case belongs to. Use class names that clearly describe the groups shown later in Results Viewer.</p>
+<div class="steps"><ol>
+<li>Select the label variable or column.</li>
+<li>Check the source class values that NM2 found.</li>
+<li>Enter clear names, for example <b>Control</b>, <b>Depression</b> and <b>Psychosis</b>.</li>
+<li>Verify that every name is attached to the correct source class value.</li>
+</ol></div>
+<p>For regression, use a target name that describes the numerical outcome, for example <b>Age</b> or <b>Symptom score</b>.</p>
+<div class="warn"><b>Your responsibility:</b> class names do not change the source labels. Make sure that the name you assign to each class describes the correct group.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Training classification data define the canonical class mapping. Label names are attached to those training-defined classes. Labelled OOCV data reuse the same training mapping.</p></details></section><section id="import-options"><h2>Matrix/table import options</h2><p>These settings control how matrix and table imports are interpreted.</p>
+<ul><li><b>Covariate handling</b> — choose whether newly imported covariates are added to the existing covariates or replace them.</li>
+<li><b>Validation mode</b> — use the standard mode for normal imports; use enhanced diagnostics when you specifically need the additional checks.</li>
+<li><b>Map text tokens to missing values</b> — enable this when values such as <code>NA</code>, <code>N/A</code> or <code>missing</code> in the source mean “no value”.</li></ul>
+<p>After changing an import option, run Preview again.</p>
+<div class="warn"><b>Your responsibility:</b> when you map a text token to missing data, make sure that the token is never used as a genuine scientific value in that column.</div>
+<details class="advanced"><summary>Advanced details</summary><p>These options are applied after source retrieval and are shared by the relevant matrix/table import paths.</p></details></section><section id="advanced-filters"><h2>Advanced tabular filters</h2><p>Use row filters when you want only selected rows to enter NM2, for example one visit, one site, or cases meeting a defined criterion.</p>
+<div class="steps"><ol>
+<li>Open <b>Advanced tabular row filters</b>.</li>
+<li>Choose the table or worksheet that contains the filter column.</li>
+<li>Select the column, criterion and value.</li>
+<li>Click <b>Add rule</b>.</li>
+<li>Add further rules when needed.</li>
+<li>Choose <b>AND</b> when every rule must be true. Choose <b>OR</b> when at least one rule must be true.</li>
+<li>Click <b>Apply filters</b>, then run Preview.</li>
+</ol></div>
+<p>Use <b>is missing</b> or <b>is not missing</b> when missingness itself is the criterion.</p>
+<div class="warn"><b>Your responsibility:</b> check the Preview case count and case identities after filtering. A valid filter expression can still select the wrong study population.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Filters run before Case-ID uniqueness checks, case alignment and role materialisation. The filter column does not need to be used as a feature, label, covariate or Case ID.</p></details></section><section id="preview-qc-commit"><h2>Preview, QC and Commit</h2>
+<p><b>Preview</b> lets you check what NM2 would import before anything is committed to the NM dataset.</p>
+<div class="steps"><ol>
+<li>Complete the required controls and click <b>Preview</b>.</li>
+<li>Check the <b>Import summary</b>: the numbers of cases, features, labels and covariates should match what you expect.</li>
+<li>Open <b>Diagnostics &amp; QC</b> and inspect data completeness, feature QC and case QC.</li>
+<li>If filtering or Case-ID matching was used, open <b>Filtering and case-alignment details</b> and confirm that the expected cases were retained.</li>
+<li>Read any red or orange diagnostic messages. Correct red blocking problems and run Preview again.</li>
+<li>Commit only when the Preview describes the dataset you intend to analyse.</li>
+</ol></div>
+<div class="ok"><b>Preview is read-only.</b> It does not change the committed NM dataset.</div>
+<h3>What QC means</h3>
+<p>QC stands for <b>quality control</b>. NM2 summarizes missing values, lack of variation and unusually large feature values so that you can identify data that require inspection before modelling. A QC finding is not automatically an error and does not automatically exclude a case or feature.</p>
+<div class="warn"><b>Your responsibility:</b> NM2 can report what it finds in the imported values, but it cannot decide whether an unusual value is scientifically valid. Review unexpected missingness, constant features and outlier patterns before Commit.</div>
+<details class="advanced"><summary>Advanced details</summary><p>Preview creates and retains the current materialisation. QC consumes that retained materialisation. Commit reuses it while the relevant input settings remain unchanged; otherwise DataIO rematerialises through the same backend path.</p></details></section><section id="mandatory-navigation"><h2>Red and green borders</h2><p>The coloured borders show the next required input or action.</p>
+<ul><li><b>Red border</b> — required information or a required action is still missing.</li>
+<li><b>Green border</b> — that requirement is currently satisfied.</li>
+<li><b>No coloured border</b> — the control is optional, inactive, or is only a candidate selector while another control owns the required action.</li></ul>
+<p>Example: in Shared-key mode, selecting a Case-ID column does not apply it. The <b>Apply shared key</b> button stays red until you press it successfully.</p>
+<p>Follow the red controls in sequence, but still read Preview/QC before Commit.</p>
+<details class="advanced"><summary>Advanced details</summary><p>The borders display existing DataIO readiness/validation state. They do not replace backend validation and do not change scientific state by themselves.</p></details></section><section id="diagnostics"><h2>Diagnostics &amp; QC</h2>
+<p>This page is the final check of what NM2 understood from your import setup. Read it from top to bottom. You should be able to decide from this page whether the data are ready to Commit.</p>
+<h3>1. Import status</h3>
+<ul>
+<li><b>Green</b> — no blocking problem was found. You still need to check the counts and QC results.</li>
+<li><b>Orange</b> — NM2 found one or more warnings. A warning does not block Commit by itself, but you should understand it before continuing.</li>
+<li><b>Red</b> — a blocking problem must be corrected before Commit.</li>
+</ul>
+<h3>2. Import summary</h3>
+<p>Confirm that the numbers match the dataset you intended to import:</p>
+<ul>
+<li><b>Cases</b> — the people, samples, scans or other observations that will enter this modality.</li>
+<li><b>Features</b> — the measurements that will be available to the machine-learning model. Depending on the modality these may be table columns, voxels, ROI values, connectivity edges or surface measurements.</li>
+<li><b>Label targets</b> — outcomes supplied for classification or regression.</li>
+<li><b>Covariates</b> — additional case-level variables such as age, sex or site.</li>
+</ul>
+<p>Unexpected counts often indicate that the wrong source was selected, a filter removed unintended cases, or Case IDs did not match as expected.</p>
+<h3>3. Data completeness</h3>
+<ul>
+<li><b>Cases with no missing features</b> — every feature has a value for these cases.</li>
+<li><b>Cases with some missing features</b> — at least one feature is missing and at least one feature is present.</li>
+<li><b>Cases with all features missing</b> — no feature value is available for these cases. These cases require particular attention.</li>
+<li><b>Features with all values missing</b> — the feature has no observed value in any case.</li>
+<li><b>Constant features</b> — the same observed value occurs in every case. Such a feature contains no variation for modelling.</li>
+<li><b>Missing values (NaN)</b> — the total number of values represented as missing in MATLAB. <code>NaN</code> means “Not a Number” and is the standard numerical marker used by NM2 for missing numeric values.</li>
+<li><b>Infinite values (Inf)</b> — values represented as positive or negative infinity. These are different from ordinary missing values and should normally be investigated.</li>
+<li><b>Feature mean range</b> and <b>Feature SD range</b> — the smallest and largest feature means and standard deviations. SD means standard deviation and describes how much a feature varies across cases.</li>
+</ul>
+<p>Missing values are not automatically errors: later preprocessing can handle missing data in supported workflows. Nevertheless, completely missing cases or features and unexpectedly high missingness should be investigated before Commit.</p>
+<h3>4. Feature QC</h3>
+<p>Feature QC summarizes quality across the measurements. The default <b>RMS feature z-score</b> summarizes how strongly a case deviates from typical standardized feature values across the feature set; larger values indicate a stronger overall deviation pattern.</p>
+<ul>
+<li><b>Features with missing values</b> — how many features contain at least one missing case.</li>
+<li><b>Constant / near-constant features</b> — features with no, or almost no, variation.</li>
+<li><b>Highest missing rate in one feature</b> — the largest percentage of missing cases found in any single feature.</li>
+<li><b>Highest outlier rate in one feature</b> — the largest percentage of cases flagged as unusually far from the typical values of any single feature.</li>
+</ul>
+<h3>5. Case QC</h3>
+<p>Case QC looks at the same data from the case perspective:</p>
+<ul>
+<li><b>Highest missing-feature rate in one case</b> — the largest percentage of missing features found in any individual case.</li>
+<li><b>Highest outlier-feature rate in one case</b> — the largest percentage of features flagged as unusual for any individual case.</li>
+</ul>
+<p>A high outlier rate is a signal to inspect the data. NM2 does not automatically declare the case or feature invalid.</p>
+<h3>6. Detailed QC rankings</h3>
+<p>Open this section to see the cases and features with the largest QC values. NM2 shows only a small highest-ranked subset on this page so that the browser remains responsive.</p>
+<p>For very high-dimensional data, such as SNP or DNA-methylation data with hundreds of thousands or millions of features, NM2 displays summary statistics and the highest-ranked features instead of rendering every feature in the diagnostics page. This does <b>not</b> remove features from the import.</p>
+<h3>7. Filtering and case alignment</h3>
+<p>Open <b>Filtering and case-alignment details</b> when you used row filters or Case IDs. The tables show how many rows entered each step, how many cases matched, and whether rows were removed or added while the final case list was constructed.</p>
+<h3>8. Diagnostic messages</h3>
+<p>The message colours tell you how to interpret each entry:</p>
+<ul>
+<li><b style="color:#15803d">OK / green</b> — a check or processing step completed successfully.</li>
+<li><b style="color:#1d4ed8">Info / blue</b> — NM2 records what it found or did.</li>
+<li><b style="color:#b45309">Warning / orange</b> — review the finding before continuing.</li>
+<li><b style="color:#b91c1c">Error / red</b> — a blocking error must be corrected before Commit.</li>
+</ul>
+<p>Use the message filters to show only errors, warnings, information or successful checks. Repeated identical messages are collapsed into one entry. Open <b>Technical details</b> when you need the internal source name or complete backend message for troubleshooting.</p>
+<div class="warn"><b>Your responsibility:</b> a technically valid import can still contain the wrong scientific data. Before Commit, confirm that the case identities, feature counts, labels, covariates and QC patterns are plausible for your study.</div>
+<p>When asking for support, open <b>Technical details</b> and copy the complete message, including the source and any stack information.</p>
+<details class="advanced"><summary>Advanced details</summary><p>Diagnostic severity is assigned by backend source discovery, materialisation, validation, QC and Commit paths. The browser does not reinterpret blocking state. For large feature spaces, full feature-level QC vectors are deliberately not transferred to or rendered by the browser once the configured response limit is exceeded; compact summaries and top-feature lists remain available.</p></details></section><section id="case-qc-viewer"><h2>Case QC viewer</h2>
+<p>The Case QC viewer lets you inspect one case at a time after Preview has computed QC. <b>Case:</b> shows the Case ID that identifies the case currently displayed.</p>
+<ul><li>Use the left and right arrow buttons to move to the previous or next case.</li><li>Use <b>Previous QC-flagged</b> or <b>Next QC-flagged</b> to jump only between cases that NM2 recommends for review.</li><li><b>QC-flagged</b> means that the case reaches the current QC review threshold, or that all feature values are missing, or that the case is constant. It is a review aid only.</li><li>A QC-flagged case is <b>not</b> automatically excluded. Inclusion remains an explicit import decision.</li><li>From <b>Detailed QC rankings</b>, click <b>Inspect</b> to open that Case ID directly in the appropriate viewer.</li></ul>
+<p>The central display depends on the data representation. <b>Tabular non-imaging data</b> use the feature-QC viewer. Moderate tabular data show an exact feature profile; very high-dimensional tabular data open with a distribution histogram, where highlighted tail bars identify unusual z-score ranges and selecting a bar lists a bounded set of exact matching features. An optional <b>Ordered feature overview</b> is useful only when column order itself has scientific or technical meaning. Volumetric data, surface/vertex data and connectivity data keep their dedicated QC viewers. ROI/parcellated QC vectors are projected onto their configured sMRI atlas/template or surface annotation and never enter the tabular profile/histogram pipeline. A case viewer offers only case-level QC maps or matrices. Group-level QC statistics are available only in the separate group QC viewer. In volumetric group QC, NM2 uses the retained group mean structural image as the anatomical background and overlays the selected group QC statistic; the group outlier-rate map is defined by the displayed |z| threshold.</p>
+<div class="warn"><b>Your responsibility:</b> QC identifies unusual data patterns but cannot determine whether they are scientifically valid. Inspect the source data and study context before excluding a case.</div>
+<details class="advanced"><summary>Advanced details</summary><p>QC-flagged navigation is derived from the retained Preview QC case metrics. It does not create or persist a separate flagged-case state and does not change imported scientific data.</p></details></section><section id="provenance-help"><h2>Source-specific help</h2><p>Click the <b>?</b> beside a DataIO panel to open the help for that exact part of the import.</p>
+<p>The help drawer stays open when you click a different <b>?</b> and moves directly to the new topic. Click the same <b>?</b>, the Close button, or press <b>Esc</b> to close the drawer.</p>
+<p>Read the main text first. It is written as a step-by-step guide for users who are new to NM2. Open <b>Advanced details</b> only when you want the technical background.</p>
+<details class="advanced"><summary>Advanced details</summary><p>The active source type determines which provenance-specific help file is used. Stable section anchors link each panel button to its corresponding help topic.</p></details></section></main></body></html>

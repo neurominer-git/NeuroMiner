@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>DataIO architecture</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+  *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+  h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+  a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+  p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+  table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+  math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+  hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+  @media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+  @media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">DataIO architecture</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#dataio-architecture" id="toc-dataio-architecture">DataIO
+architecture</a>
+<ul>
+<li><a href="#role" id="toc-role">Role</a></li>
+<li><a href="#architectural-rule"
+id="toc-architectural-rule">Architectural rule</a></li>
+<li><a href="#canonical-flow" id="toc-canonical-flow">Canonical
+flow</a></li>
+<li><a href="#primary-authorities" id="toc-primary-authorities">Primary
+authorities</a></li>
+<li><a href="#canonical-provenance-catalogue"
+id="toc-canonical-provenance-catalogue">Canonical provenance
+catalogue</a></li>
+<li><a href="#state-and-persistence"
+id="toc-state-and-persistence">State and persistence</a></li>
+<li><a href="#case-axis-contracts"
+id="toc-case-axis-contracts">Case-axis contracts</a></li>
+<li><a href="#training-owned-classification-axis"
+id="toc-training-owned-classification-axis">Training-owned
+classification axis</a></li>
+<li><a href="#filters" id="toc-filters">Filters</a></li>
+<li><a href="#preview-qc-and-commit"
+id="toc-preview-qc-and-commit">Preview, QC and Commit</a></li>
+<li><a href="#provenance-ownership-downstream"
+id="toc-provenance-ownership-downstream">Provenance ownership
+downstream</a></li>
+<li><a href="#browser-navigation-contract"
+id="toc-browser-navigation-contract">Browser navigation
+contract</a></li>
+<li><a href="#further-documentation"
+id="toc-further-documentation">Further documentation</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="dataio-architecture">DataIO architecture</h1>
+<h2 id="role">Role</h2>
+<p>DataIO is the NeuroMiner authority that turns external/workspace data
+into training and OOCV/application modalities together with the
+case-axis, feature-space and spatial provenance required downstream.
+Browser and public-API configuration converge on the same MATLAB
+authorities; the browser does not define an independent scientific
+import grammar.</p>
+<h2 id="architectural-rule">Architectural rule</h2>
+<p>A provenance-specific layer may discover, retrieve and type-convert
+its source. Scientific semantics are generic wherever the problem is
+generic. In particular, DataIO must not maintain provenance-specific
+duplicates of:</p>
+<ul>
+<li>classification label canonicalization;</li>
+<li>Case-ID matching;</li>
+<li>row filtering;</li>
+<li>first-case-axis policy;</li>
+<li>Preview/QC/Commit materialisation;</li>
+<li>training/OOCV target semantics.</li>
+</ul>
+<h2 id="canonical-flow">Canonical flow</h2>
+<pre class="mermaid"><code>flowchart LR
+    UI[Browser controls] --&gt; STATE[NMDataIOStateTools]
+    API[Public API specs] --&gt; STATE
+    STATE --&gt; RETRIEVE[Provenance retrieval / inspection]
+    RETRIEVE --&gt; FILTER[Generic row filtering where applicable]
+    FILTER --&gt; ALIGN[Generic key / row-order alignment]
+    ALIGN --&gt; LABEL[Generic labels / covariates / class semantics]
+    LABEL --&gt; MAT[Canonical retained materialisation]
+    MAT --&gt; PREVIEW[Preview + diagnostics + mandatory QC]
+    PREVIEW --&gt; COMMIT[Commit]
+    COMMIT --&gt; NM[NM modality / OOCV container + datadescriptor provenance]
+    NM --&gt; RV[Scientific State / Results Viewer / Report Builder]</code></pre>
+<h2 id="primary-authorities">Primary authorities</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Contract</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Canonical source-type vocabulary and state ↔︎ IO translation</td>
+<td><code>dataio/NMDataIOStateTools.m</code></td>
+</tr>
+<tr class="even">
+<td>Public import API</td>
+<td><code>dataio/NMDataIOAPITools.m</code></td>
+</tr>
+<tr class="odd">
+<td>Import target normalization</td>
+<td><code>dataio/NMDataIOImportTargetTools.m</code></td>
+</tr>
+<tr class="even">
+<td>Generic matrix/tabular materialisation, Preview and Commit</td>
+<td><code>dataio/NMDataIOImportTools.m</code></td>
+</tr>
+<tr class="odd">
+<td>Label normalization and training class map</td>
+<td><code>dataio/NMDataIOLabelStatsTools.m</code></td>
+</tr>
+<tr class="even">
+<td>Ephemeral retained materialisation</td>
+<td><code>dataio/NMDataIOMaterializationCache.m</code></td>
+</tr>
+<tr class="odd">
+<td>Structured diagnostics</td>
+<td><code>dataio/NMDataIOMessageTools.m</code></td>
+</tr>
+<tr class="even">
+<td>Browser-mode/OOCV-container rules</td>
+<td><code>dataio/NMDataIOBrowserModeTools.m</code></td>
+</tr>
+<tr class="odd">
+<td>Database retrieval/type conversion</td>
+<td><code>dataio/NMDataIODatabaseTools.m</code></td>
+</tr>
+<tr class="even">
+<td>Table reading and role references</td>
+<td><code>dataio/NMDataIOTableReadTools.m</code>,
+<code>NMDataIOTableRoleTools.m</code></td>
+</tr>
+<tr class="odd">
+<td>Volumetric/surface import</td>
+<td><code>dataio/NMDataIOImageImportTools.m</code>,
+<code>NMDataIOSurfaceTools.m</code></td>
+</tr>
+<tr class="even">
+<td>Connectivity</td>
+<td><code>dataio/NMDataIOConnectivityTools.m</code></td>
+</tr>
+<tr class="odd">
+<td>ROI/parcellated data</td>
+<td><code>dataio/NMDataIOROIDirectTools.m</code>,
+<code>NMDataIOROIProvenanceTools.m</code></td>
+</tr>
+<tr class="even">
+<td>Feature QC</td>
+<td><code>dataio/NMDataIOFeatureQCTools.m</code>,
+<code>NMDataIOQCReportTools.m</code></td>
+</tr>
+<tr class="odd">
+<td>Browser service/UI projection</td>
+<td><code>ui/NMDataIOUI.m</code>,
+<code>ui/NMDataIOUI_main.js</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="canonical-provenance-catalogue">Canonical provenance
+catalogue</h2>
+<p><code>NMDataIOStateTools.sourceTypeCatalogue()</code> is the single
+provenance vocabulary for browser/API source identity. It owns the
+source id, user-facing label and provenance help file for:</p>
+<ul>
+<li>MATLAB workspace variables (<code>workspace</code>)</li>
+<li>MAT-file variables (<code>matfile</code>)</li>
+<li>MATLAB tables (<code>tablevar</code>)</li>
+<li>text/CSV/Excel files (<code>tablefile</code>)</li>
+<li>database connector (<code>database</code>)</li>
+<li>3D image files (<code>image-list</code>)</li>
+<li>ROI-anchored connectivity (<code>connectivity</code>)</li>
+<li>surface/vertex scalar files (<code>surface-list</code>)</li>
+<li>ROI/parcellated data (<code>roi</code>)</li>
+</ul>
+<p>Help/UI/documentation code must query this catalogue rather than
+maintaining another provenance list.</p>
+<h2 id="state-and-persistence">State and persistence</h2>
+<p><code>NMDataIOStateTools</code> translates browser/API state to the
+established IO representation and back. Persisted
+<code>input_settings</code>/DataIO state retain scientific source
+identity, roles, filters, alignment, label semantics and provenance
+needed for Modify/Resume. Transient execution resources are
+intentionally not persisted.</p>
+<p>For database sources, credentials and live namespace/table catalogues
+are session-only. A restored database name does not imply that the
+current browser session has rediscovered the database. Resume/Modify
+therefore reconnects and rehydrates the live catalogue before source
+refresh.</p>
+<h2 id="case-axis-contracts">Case-axis contracts</h2>
+<p>Tabular/matrix DataIO supports three explicit alignment
+contracts:</p>
+<ol type="1">
+<li><strong>Shared key</strong> — one ordered key tuple is applied to
+all participating row-bearing objects.</li>
+<li><strong>Key per block</strong> — each row-bearing
+label/feature/covariate block has its own ordered key tuple.</li>
+<li><strong>Explicit row order</strong> — participating objects are
+asserted to share row order and compatible row count.</li>
+</ol>
+<p>When a new training/OOCV case axis is established, first-axis policy
+is explicit: complete-case intersection, target-anchored, or feature
+union. Later modalities align to the existing axis.</p>
+<h2 id="training-owned-classification-axis">Training-owned
+classification axis</h2>
+<p>Training labels establish the source-value → canonical-class mapping
+once. The persisted map is authoritative for labelled OOCV data. OOCV
+encounter order, class frequency or represented class subset never
+creates a new local class axis. Missing labels remain <code>NaN</code>;
+unseen raw OOCV classes are blocking.</p>
+<h2 id="filters">Filters</h2>
+<p>Generic tabular filters execute on provenance-object rows before key
+uniqueness, alignment and role materialisation. Object-specific rules
+target one source object; cross-table rules expand through the same
+object-level filter authority using exact shared column names. Filter
+columns do not need to be key or scientific-role columns.</p>
+<h2 id="preview-qc-and-commit">Preview, QC and Commit</h2>
+<p>Preview is read-only with respect to committed NM modality data. It
+invokes the canonical materializer, computes diagnostics and mandatory
+QC, and retains the materialisation in
+<code>NMDataIOMaterializationCache</code>. Commit reuses that retained
+materialisation when the scientific state is unchanged; otherwise it
+invokes the same materializer on cache miss.</p>
+<p>The materialisation cache is execution state only. It is not
+serialized into NM, recipes, browser recovery state or generated API
+code.</p>
+<h2 id="provenance-ownership-downstream">Provenance ownership
+downstream</h2>
+<p>Committed modality descriptors are the source of truth for
+feature-space/spatial provenance. Results Viewer and Scientific State
+consumers may adapt or project these contracts, but must not infer
+biomedical identity from feature names, vector lengths or generic
+visualization metadata.</p>
+<p>Canonical ROI provenance preserves ROI IDs, names, ordering,
+hemisphere and spatial identity. Connectivity provenance preserves
+node/edge identity. Image/surface provenance preserves the native
+spatial reference required for QC and visualization.</p>
+<h2 id="browser-navigation-contract">Browser navigation contract</h2>
+<p>Mandatory-field borders are a UI projection of existing
+readiness/validation rules, not a validator. The control owning the next
+mandatory action is red until satisfied and bright green after
+satisfaction. Candidate lists remain neutral when a separate
+Apply/Refresh action owns the requirement. Optional, hidden and disabled
+controls remain neutral.</p>
+<p>Panel-level <code>?</code> buttons resolve stable help topics into
+one responsive in-page help drawer. The same drawer is used in ordinary
+browser and html-relay rendering because it lives inside the DataIO
+document. On wide viewports it docks at the right and the DataIO
+workspace shifts/contracts into the remaining width; on laptop-width
+viewports it overlays the right side without shrinking the import task.
+Clicking the same <code>?</code> again or the explicit Close button
+hides the drawer; another <code>?</code> reuses it and navigates to the
+requested anchor. Provenance help-file identity comes from the canonical
+source catalogue.</p>
+<h2 id="further-documentation">Further documentation</h2>
+<p>See <a href="dataio/README.md"><code>docs/dataio/README.md</code></a>
+for lifecycle, API, diagnostics/QC and provenance-specific interactive
+help.</p>
+</body>
+</html>

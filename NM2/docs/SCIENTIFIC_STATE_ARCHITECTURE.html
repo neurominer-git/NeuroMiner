@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Scientific semantics and runtime state architecture</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css">:root{color-scheme:light;--ink:#172733;--muted:#5b7080;--line:#cbd8e2;--accent:#2d6f9e;--soft:#eef4f8;--code:#f5f7f9;--header:#0f3654;--orange:#f35138}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0 auto;max-width:1160px;padding:38px 52px 70px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.58;font-size:16px}
+h1{margin:0 0 1.2rem;padding-bottom:.55rem;border-bottom:3px solid var(--accent);font-size:2.15rem;line-height:1.12;letter-spacing:-.025em;color:var(--header)}h2{margin-top:2.2rem;padding-bottom:.3rem;border-bottom:1px solid var(--line);font-size:1.55rem;color:var(--header)}h3{margin-top:1.75rem;font-size:1.22rem;color:var(--header)}h4{color:var(--header)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}a:hover{color:#225a82}
+p,li{max-width:92ch}blockquote{margin:1.2rem 0;padding:.7rem 1rem;border-left:4px solid var(--accent);background:var(--soft);color:#29404f}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border-radius:4px;padding:.08em .3em;font-size:.91em}pre{overflow:auto;padding:16px 18px;border:1px solid #dce4ea;border-radius:10px;background:var(--code);line-height:1.42;box-shadow:0 2px 8px rgba(15,54,84,.035)}pre code{padding:0;background:none}pre.mermaid,div.sourceCode:has(code.mermaid){border-left:4px solid var(--accent)}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.94rem}th,td{border:1px solid var(--line);padding:.55rem .65rem;vertical-align:top}th{background:var(--soft);text-align:left;color:var(--header)}tbody tr:nth-child(even){background:#fbfcfd}
+math[display="block"]{display:block;overflow-x:auto;margin:1.25rem 0;font-size:1.05em}nav#TOC{margin:1rem 0 2rem;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}nav#TOC>ul{columns:2;column-gap:2.2rem}nav#TOC li{break-inside:avoid;margin:.18rem 0}nav#TOC a{text-decoration:none}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}.nm2-doc-note{margin:-.35rem 0 1.4rem;color:var(--muted);font-size:.9rem}.nm2-index-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:1.5rem 0}.nm2-index-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;text-decoration:none}.nm2-index-card:hover{background:var(--soft)}
+@media(max-width:760px){body{padding:24px 20px 50px;font-size:15px}h1{font-size:1.8rem}h2{font-size:1.35rem}nav#TOC>ul{columns:1}table{display:block;overflow-x:auto}}
+@media print{body{max-width:none;padding:0;font-size:10.5pt}nav#TOC{break-after:page}a{color:inherit}pre{white-space:pre-wrap;box-shadow:none}h2,h3{break-after:avoid}table,pre,blockquote{break-inside:avoid}}
+</style>
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#scientific-semantics-and-runtime-state-architecture" id="toc-scientific-semantics-and-runtime-state-architecture">Scientific
+semantics and runtime state architecture</a>
+<ul>
+<li><a href="#why-this-layer-exists" id="toc-why-this-layer-exists">Why
+this layer exists</a></li>
+<li><a href="#current-authority-graph" id="toc-current-authority-graph">Current authority graph</a></li>
+<li><a href="#scientific-annotation" id="toc-scientific-annotation">Scientific Annotation</a></li>
+<li><a href="#scientific-capability" id="toc-scientific-capability">Scientific Capability</a></li>
+<li><a href="#scientific-directory" id="toc-scientific-directory">Scientific Directory</a></li>
+<li><a href="#runtime-scientific-state" id="toc-runtime-scientific-state">Runtime Scientific State</a>
+<ul>
+<li><a href="#explicit-analysis-set-inventory-mode" id="toc-explicit-analysis-set-inventory-mode">Explicit analysis-set
+inventory mode</a></li>
+</ul></li>
+<li><a href="#browser-relationship" id="toc-browser-relationship">Browser relationship</a></li>
+<li><a href="#stability-rule" id="toc-stability-rule">Stability
+rule</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="scientific-semantics-and-runtime-state-architecture">Scientific
+semantics and runtime state architecture</h1>
+<h2 id="why-this-layer-exists">Why this layer exists</h2>
+<p>Results Viewer consumers need a common scientific vocabulary without
+becoming coupled to the storage grammar of individual <code>NM</code>
+result containers. NM2 separates four related but distinct authorities:
+Scientific Annotation, Scientific Capability, Scientific Directory, and
+runtime Scientific State.</p>
+<h2 id="current-authority-graph">Current authority graph</h2>
+<pre class="mermaid"><code>flowchart TD
+    PA[&quot;Domain payload authority&quot;] --&gt; ANN[&quot;Scientific Annotation\nsemantic schema + material mapping&quot;]
+    PA --&gt; PAY[&quot;Materialized payload&quot;]
+    CAP[&quot;Scientific Capability registry&quot;] --&gt; FNS[&quot;Existing authoritative scientific functions&quot;]
+    PAY --&gt; ST[&quot;Scientific State&quot;]
+    FNS --&gt; ST
+    ANN --&gt; ST
+    ANN --&gt; DIR[&quot;Scientific Directory&quot;]
+    DIR --&gt; QUERY[&quot;Shared schema query semantics&quot;]
+    QUERY --&gt; ST
+    ST --&gt; RV[&quot;Results Viewer admission/navigation&quot;]
+    ST --&gt; RB[&quot;Report Builder component planning&quot;]</code></pre>
+<h2 id="scientific-annotation">Scientific Annotation</h2>
+<p><code>core/NMResultsViewerScientificAnnotation.m</code> defines the
+shared cross-domain scientific vocabulary and the mapping between
+semantic schema and domain materialization facts. The current
+implementation identifies itself as
+<code>NM-SCIENTIFIC-ANNOTATION-V7</code> and includes the
+<code>ml_interpretation</code> domain, which shares Feature Inspection
+coordinates except that its component coordinate is not applicable.</p>
+<p>The annotation is attached by domain authorities after they have
+resolved the underlying scientific material. It is not a substitute
+materializer and does not own raw <code>NM</code> traversal.</p>
+<p>For multi-class Model Performance, the target schema also carries the
+scientific class contrast. Aggregate multi-group performance is
+represented as <code>schema.target.classContrast = all_classes</code>; a
+selected class-vs-REST artefact is represented as
+<code>one_vs_rest</code> together with its canonical
+<code>classIndex</code> and <code>className</code>. This identity is
+produced by the Model Performance materializer and is therefore
+available to Scientific State, Scientific Directory, Cross-analysis and
+Report Builder without downstream interpretation of
+<code>multiClassModeIndex</code>.</p>
+<h2 id="scientific-capability">Scientific Capability</h2>
+<p><code>core/NMResultsViewerScientificCapability.m</code> registers
+existing authoritative scientific functions and interrogates their
+semantic needs/provides declarations. The registry therefore identifies
+which authorities can participate in capability discovery without
+centralising their scientific implementation. The current registry
+contract is <code>NM-SCIENTIFIC-CAPABILITY-V2</code>.</p>
+<p>Registered authorities include performance/result extraction, QC,
+model optimization, Feature Inspection/relation payloads, ML
+interpretation, imaging, native surface and connectivity pathways.</p>
+<h2 id="scientific-directory">Scientific Directory</h2>
+<p><code>core/NMResultsViewerScientificDirectory.m</code> is a
+lightweight index/query authority over already-valid scientific
+annotations. It indexes scientific schema plus opaque caller-owned
+references. It does not own numerical payloads or materialize them. Its
+current contract is <code>NM-SCIENTIFIC-DIRECTORY-V1</code>.</p>
+<p>The Directory also supplies the common schema matching semantics
+reused by Scientific State queries.</p>
+<h2 id="runtime-scientific-state">Runtime Scientific State</h2>
+<p><code>core/NMResultsViewerScientificState.m</code> builds a runtime
+scientific-space view from already materialized payloads and the
+registered capability graph. It distinguishes materialized scientific
+artefacts from derivable artefacts and visualizations while retaining
+source identities and schemas rather than copying numerical arrays. Its
+current contract is <code>NM-SCIENTIFIC-STATE-V1</code>.</p>
+<p>The current Results Viewer and Report Builder consume this state
+directly. This supersedes older documentation that described Scientific
+State as shadow-only or Report Builder discovery as independently
+authoritative.</p>
+<p>Report Builder may retain compact configuration facts derived from
+the State-gated catalogue, such as the exact Feature Inspection context
+ids admitted for ROI Mapper and the user-selected comparison coordinate.
+Those facts are references into authoritative Scientific State/catalogue
+identity, not a second scientific-state materialization. Preview/export
+consume those established references and do not rediscover ROI Mapper
+availability or comparison coordinates from newly materialized payloads.
+Heavy atlas/ROI resources remain outside Scientific State and are
+materialized only by the existing imaging/ROI authority when output is
+prepared.</p>
+<p>The V7 source schema also makes result/application source, model
+source, and OOCV subgroup index explicit (<code>schema.source.id</code>,
+<code>schema.source.modelSource</code>,
+<code>schema.source.subgroupIndex</code>). These coordinates were
+previously present only in material/runtime identity and are now
+queryable through Scientific Directory/State.</p>
+<h3 id="explicit-analysis-set-inventory-mode">Explicit analysis-set
+inventory mode</h3>
+<p>Scientific State retains its lazy single-analysis behavior for
+ordinary Results Viewer interaction, but it can also be explicitly
+requested for a fixed set of completed analyses through
+<code>NMResultsViewerScientificState.forAnalysisSet</code>. This
+<code>analysis_set</code> mode is an inventory operation, not eager
+multi-analysis result materialization.</p>
+<p>The inventory reuses the same
+<code>NMResultsViewerTools.resultTypesForAnalysis</code> capability
+authority that populates the ordinary Result type selector for each
+member analysis. Each inventory row stores both that compact result-type
+catalogue and <code>effectivePerformanceResultType</code>, resolved once
+through <code>NMResultsViewerTools.defaultPerformanceResultType</code>
+from the already-built catalogue. It also stores the fixed-schema Model
+Optimization criterion identity (<code>key</code>, code, labels and
+display scale) from
+<code>NMResultsViewerTools.modelOptimizationCriterionIdentity</code>.
+Cross-analysis can therefore reject criterion-incompatible sets before
+materializing any CV2 matrix. Consumers project these established
+identities without reconstructing single-analysis Scientific State or
+reinterpreting result-type rows. CV-equivalence grouping delegates to
+<code>nk_GetAnalysisStatus</code>; Scientific State does not inspect or
+compare CV indices itself. The resulting state contains canonical
+analysis identity, capability availability, effective Performance result
+type, optimization-criterion identity, CV-equivalence group, aggregated
+scientific artefact/visualization metadata and a Scientific Directory
+spanning the selected set.</p>
+<p>Transient checkbox selection is deliberately distinct from queried
+scientific state. Multi-analysis consumers modify a candidate analysis
+set locally and rebuild the inventory only after an explicit
+<strong>Query results</strong> action. This prevents every checkbox
+interaction from triggering repeated scientific-state construction and
+gives consumers a clear stale/current boundary.</p>
+<p>The Results Viewer session boundary retains each queried
+<code>analysis_set</code> inventory by canonical set identity. A Report
+Builder opened for the same set, and subsequent switches of its
+per-analysis configuration focus, reuse that resident Scientific State
+rather than re-running capability discovery or CV-equivalence grouping.
+The cache contains only server-built Scientific State, is bounded, is
+never populated from browser-supplied state, and is invalidated when the
+session NM snapshot is persistently changed. This is residency of an
+authoritative materialization, not a second scientific-state
+constructor.</p>
+<p>The same inventory is consumed by Cross-analysis and the
+multi-analysis Report Builder. Cross-analysis numerical products such as
+the Performance table and Statistical comparison remain separately
+materialized derived artefacts; their returned Scientific State records
+<code>scope.type = analysis_set</code> and provenance for the exact
+analysis set.</p>
+<h2 id="browser-relationship">Browser relationship</h2>
+<p><code>ui/NMResultsViewerUI_main.js</code> retains an active
+Scientific State with the current browser payload and uses it for
+representation admission and panel availability. Scientific annotations
+are also exposed by the generic panel information control; the browser
+displays the authoritative annotation rather than recreating semantic
+identity locally.</p>
+<h2 id="stability-rule">Stability rule</h2>
+<p>Scientific schema concepts may be described here because they cross
+many authorities. Exact material fields, accepted arguments, validation
+rules and error conditions remain documented inside the implementing
+MATLAB functions/classes.</p>
+</body>
+</html>

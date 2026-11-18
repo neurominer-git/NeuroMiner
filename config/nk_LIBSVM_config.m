@@ -41,7 +41,7 @@ else
 end
 switch classifier
     case 0
-        clstr = 'C-SVC (L1-loss)';
+        clstr = 'C-SVC (L2-regularized, hinge-loss SVM)';
     case 1
         switch LIBSVMver
             case {0,1,2}

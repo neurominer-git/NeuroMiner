@@ -125,7 +125,13 @@ strout = 'Construct';
 
 % Perform cross-CV1 probabilistic feature selection if enabled.
 if isfield(Param, 'PFE') && Param.PFE.flag
-    [IN, OUT] = SelectFeaturesAcrossCV1(IN, OUT, Param, minmaxfl, 0);
+    % Filter CostFun and wrapper datamode are distinct persisted criteria.
+    if OptMode == 0
+        pfeSelectionMode = Param.CostFun;
+    else
+        pfeSelectionMode = Param.datamode;
+    end
+    [IN, OUT] = SelectFeaturesAcrossCV1(IN, OUT, Param, minmaxfl, 0, pfeSelectionMode);
 end
 
 %% Step 4: Optional Retraining of the Classifier

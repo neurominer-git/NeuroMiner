@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Fractionated decision scores | NeuroMiner 2.0</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+<style>
+body { max-width: 880px; margin: 2.5rem auto; padding: 0 2rem; color:#202835; line-height:1.58; font: 16px/1.58 system-ui, -apple-system, Segoe UI, sans-serif; }
+h1, h2, h3 { line-height:1.25; color:#17243e; }
+h1 {font-size:2rem;} h2 {font-size:1.45rem; margin-top:2.25rem;} h3 {font-size:1.15rem; margin-top:1.55rem;}
+table {border-collapse:collapse; width:100%; display:block; overflow-x:auto; font-size:.89rem; line-height:1.4; margin:1rem 0 1.5rem;}
+th,td {padding:.6rem .7rem; text-align:left; border-bottom:1px solid #d8dee8; vertical-align:top;} th {background:#f1f4f8;}
+code {background:#f1f4f8; border-radius:3px; padding:.12rem .25rem;} math[display=block] {overflow-x:auto; max-width:100%; display:block; padding:.55rem 0;}
+@media print {body {font: 11pt/1.42 Georgia,serif; max-width:none;} h2,h3 {break-after:avoid;} table {font-size:9pt;} tr {break-inside:avoid;}}
+@media (max-width: 650px) {body{margin:1rem auto; padding:0 1rem;} table{font-size:.8rem;}}
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Fractionated decision scores | NeuroMiner 2.0</h1>
+</header>
+<h1
+id="fractionated-decision-scores-understanding-component-contributions">Fractionated
+decision scores: understanding component contributions</h1>
+<p><strong>NeuroMiner 2.0 · Methodological guide</strong></p>
+<h2 id="what-are-fractionated-decision-scores">What are fractionated
+decision scores?</h2>
+<p>A machine-learning model can base a decision on several components of
+a reduced feature space. <strong>Fractionated decision scores</strong>
+(abbreviated <strong>Dx</strong>) describe how strongly each component
+contributes to a particular subject’s model decision, and in which
+direction.</p>
+<p>A <strong>positive</strong> component contribution moves the model’s
+decision score towards its positive decision direction; a
+<strong>negative</strong> contribution moves it in the opposite
+direction. The interpretation of the positive direction follows the
+model’s target coding. A large contribution indicates influence on the
+decision score, not necessarily a large effect on clinical risk or a
+calibrated probability.</p>
+<p>Unlike a feature-weight map, which characterizes a model, Dx is
+<strong>subject-specific</strong>: two subjects evaluated by the same
+model can have different contributions from the same component.</p>
+<h2 id="how-are-dx-contributions-calculated">How are Dx contributions
+calculated?</h2>
+<p>NeuroMiner computes Dx in the <strong>fitted model’s input
+space</strong>, usually the components obtained from dimensionality
+reduction (such as PCA). The subject’s component coordinates, their
+order, and the trained model must refer to the <em>same</em>
+preprocessing and feature-selection steps. A component score is not the
+same thing as an original MRI voxel, biomarker, or other raw
+feature.</p>
+<p>Different algorithms require different mathematical decompositions,
+but the supported implementations share one principle: <strong>for a
+complete, unfiltered fitted model, component contributions plus a
+model-specific reference score reconstruct its prediction on an
+explicitly defined score scale</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>g</mi><mi>m</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>z</mi><mi>s</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>r</mi><mi>m</mi></msub><mo>+</mo><munderover><mo>∑</mo><mrow><mi>c</mi><mo>=</mo><mn>1</mn></mrow><msub><mi>K</mi><mi>m</mi></msub></munderover><msub><mi>D</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+g_m(z_s)=r_m+\sum_{c=1}^{K_m}D_{smc}.
+</annotation></semantics></math></p>
+<p>Here
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>g</mi><mi>m</mi></msub><annotation encoding="application/x-tex">g_m</annotation></semantics></math>
+is the selected <em>raw/additive</em> model score,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>r</mi><mi>m</mi></msub><annotation encoding="application/x-tex">r_m</annotation></semantics></math>
+is an intercept or reference prediction, and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>D</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><annotation encoding="application/x-tex">D_{smc}</annotation></semantics></math>
+is the contribution of component
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+for subject
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>
+under fitted model
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>.
+The score
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>g</mi><mi>m</mi></msub><annotation encoding="application/x-tex">g_m</annotation></semantics></math>
+is not necessarily the final displayed probability or class label. The
+distinction matters for classification, survival analysis, and
+ensembles.</p>
+<h3
+id="linear-and-affine-learners-component-score-fitted-coefficient">Linear
+and affine learners: component score × fitted coefficient</h3>
+<p>For an eligible affine learner,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>z</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><annotation encoding="application/x-tex">z_{smc}</annotation></semantics></math>
+is the subject’s value on component
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mrow><mi>m</mi><mi>c</mi></mrow></msub><annotation encoding="application/x-tex">w_{mc}</annotation></semantics></math>
+is the <strong>actual fitted prediction coefficient</strong>, not a
+feature-importance estimate:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>D</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mo>=</mo><msub><mi>z</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>w</mi><mrow><mi>m</mi><mi>c</mi></mrow></msub><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>g</mi><mi>m</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>z</mi><mi>s</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>b</mi><mi>m</mi></msub><mo>+</mo><munder><mo>∑</mo><mi>c</mi></munder><msub><mi>z</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>w</mi><mrow><mi>m</mi><mi>c</mi></mrow></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+D_{smc}=z_{smc}\,w_{mc},\qquad
+ g_m(z_s)=b_m+\sum_c z_{smc}\,w_{mc}.
+</annotation></semantics></math></p>
+<p>The reference
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mi>m</mi></msub><mo>=</mo><msub><mi>b</mi><mi>m</mi></msub></mrow><annotation encoding="application/x-tex">r_m=b_m</annotation></semantics></math>
+is the fitted intercept (zero where the native predictor has no
+intercept). Where NeuroMiner already supplies a valid coefficient
+vector, that vector is used directly. Otherwise, the fitted model
+supplies the exact coefficients, including any required intercept,
+selected GLMNET regularization-path column, or linear-kernel
+transformation. <strong>Surrogate visualization weights are not used as
+Dx coefficients.</strong></p>
+<p>For models evaluated on a positive model-specific normalization scale
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>m</mi></msub><annotation encoding="application/x-tex">a_m</annotation></semantics></math>,
+contributions and the intercept must be scaled consistently:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mo>=</mo><mfrac><msub><mi>D</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><msub><mi>a</mi><mi>m</mi></msub></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mfrac><mrow><msub><mi>g</mi><mi>m</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>z</mi><mi>s</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><msub><mi>a</mi><mi>m</mi></msub></mfrac><mo>=</mo><mfrac><msub><mi>b</mi><mi>m</mi></msub><msub><mi>a</mi><mi>m</mi></msub></mfrac><mo>+</mo><munder><mo>∑</mo><mi>c</mi></munder><msub><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\widetilde D_{smc}=\frac{D_{smc}}{a_m},\qquad
+\frac{g_m(z_s)}{a_m}=\frac{b_m}{a_m}+\sum_c\widetilde D_{smc}.
+</annotation></semantics></math></p>
+<p>For a linear SVM, dividing by the Euclidean norm of its coefficient
+vector gives the geometric-margin scale in that fitted coordinate
+system. NeuroMiner preserves its established SVM normalization and
+component-selection conventions. This does <strong>not</strong> turn a
+margin into a probability, establish cross-fold calibration, or imply
+that the intercept is available in the displayed Dx matrix.</p>
+<h3
+id="decision-trees-and-ensembles-prediction-changes-along-the-path">Decision
+trees and ensembles: prediction changes along the path</h3>
+<p>A tree does not have a single global coefficient for each component.
+Instead, NeuroMiner decomposes the prediction <strong>along the path
+actually followed by the subject</strong>, from a reference node to the
+terminal leaf. If
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mi>j</mi></msub><annotation encoding="application/x-tex">v_j</annotation></semantics></math>
+denotes the native score assigned to node
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>,
+then</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>D</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mo>=</mo><munder><mo>∑</mo><mrow><mi>j</mi><mo>∈</mo><msub><mo>path</mo><mi>m</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>z</mi><mi>s</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>:</mo><mspace width="0.167em"></mspace><mo>split</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>parent</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>c</mi></mrow></munder><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo>−</mo><msub><mi>v</mi><mrow><mo>parent</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>r</mi><mi>m</mi></msub><mo>=</mo><msub><mi>v</mi><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">t</mi></mrow></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+D_{smc}=\sum_{j\in\operatorname{path}_m(z_s):\,\operatorname{split}(\operatorname{parent}(j))=c}
+\bigl(v_j-v_{\operatorname{parent}(j)}\bigr),
+\qquad r_m=v_{\mathrm{root}}.
+</annotation></semantics></math></p>
+<p>A component may be used at several split nodes; all of its path
+changes are added. These changes <em>telescope</em>, so the reference
+score plus all contributions equals the leaf prediction. In a random
+forest, contributions and reference scores are combined across trees
+using the ensemble’s native averaging or vote-summing rule. Gradient
+boosting additionally includes its initial prediction and
+learning-rate-weighted trees.</p>
+<p>The decomposition is <strong>exact on the selected score
+scale</strong>, but its allocation of interaction effects to components
+depends on the tree structure and node-score convention. It is not a
+SHAP value, a permutation importance, or a causal effect.</p>
+<h3
+id="dense-neural-networks-reference-relative-layerwise-secants">Dense
+neural networks: reference-relative layerwise secants</h3>
+<p>For the supported fitted dense neural networks, NeuroMiner uses a
+<strong>layerwise secant decomposition</strong> (DeepLIFT-Rescale-style)
+relative to a fixed reference input
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>z</mi><mn>0</mn></msub><annotation encoding="application/x-tex">z_0</annotation></semantics></math>.
+The integrated visualization pathway uses the <strong>zero vector in the
+fitted model coordinates</strong> as its reference. This does not
+necessarily represent an average or clinically meaningful
+individual.</p>
+<p>For a hidden activation
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>
+with pre-activation
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>u</mi><annotation encoding="application/x-tex">u</annotation></semantics></math>
+and reference activation
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mn>0</mn></msub><annotation encoding="application/x-tex">u_0</annotation></semantics></math>,
+the local multiplier is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>=</mo><mfrac><mrow><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>u</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>u</mi><mn>0</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>u</mi><mo>−</mo><msub><mi>u</mi><mn>0</mn></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">
+q=\frac{h(u)-h(u_0)}{u-u_0}
+</annotation></semantics></math></p>
+<p>(with its derivative limit when
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi><mo>=</mo><msub><mi>u</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">u=u_0</annotation></semantics></math>).
+Multipliers are propagated through the <em>fitted</em> weight matrices
+to obtain an effective subject- and component-specific multiplier
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><annotation encoding="application/x-tex">M_{smc}</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>D</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>z</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mo>−</mo><msub><mi>z</mi><mrow><mn>0</mn><mi>c</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>M</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>r</mi><mi>m</mi></msub><mo>=</mo><msub><mi>g</mi><mi>m</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>z</mi><mn>0</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+D_{smc}=(z_{smc}-z_{0c})\,M_{smc},\qquad
+r_m=g_m(z_0).
+</annotation></semantics></math></p>
+<p>This reproduces the raw network output difference, within numerical
+precision, for the admitted dense architectures. In binary
+classification it is applied to the <strong>pre-sigmoid logit</strong>
+or, for the default two-output softmax network, the <strong>difference
+between the relevant class logits</strong>. The native probability is
+obtained only <em>after</em> reconstructing the raw score. For
+matLearn’s binary MLP, the native prediction interface supplies hard
+labels rather than an independent numerical logit.</p>
+<p>Exact reconstruction is <strong>not</strong> proof that this
+assignment is uniquely correct: the contributions depend on the
+reference point, the network representation and the secant attribution
+convention. Different reference points can yield different Dx profiles
+for the same unchanged prediction.</p>
+<h3 id="which-algorithm-families-use-which-calculation">Which algorithm
+families use which calculation?</h3>
+<p>The table describes the <strong>verified configurations</strong>, not
+automatic support for every option of an algorithm with the same name.
+Some kernel, multiclass, custom-network and feature-transformation
+variants have no validated Dx contract.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Algorithm family</th>
+<th>Contribution calculation</th>
+<th>Raw/additive score and reference</th>
+<th>Interpretation / restriction</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Linear LIBSVM / LIBLINEAR</td>
+<td>Component coordinate × existing primal coefficient</td>
+<td>Existing SVM margin convention; legacy normalization may apply</td>
+<td>Established Dx branch retained</td>
+</tr>
+<tr class="even">
+<td>GLMFIT; GLMNET</td>
+<td>Exact fitted GLM coefficients; for GLMNET the prediction-active
+final lambda</td>
+<td>Linear predictor / link (identity or logit); fitted intercept</td>
+<td>A probability, if provided, is a nonlinear transformation of the
+logit</td>
+</tr>
+<tr class="odd">
+<td>ELASVM; BAYLIN</td>
+<td>Exact fitted affine coefficients</td>
+<td>Pre-sigmoid linear score / fitted Bayesian regression score</td>
+<td>BAYLIN’s classification interface currently exposes a raw predictor,
+not necessarily a probability</td>
+</tr>
+<tr class="even">
+<td>Direct, non-kernel BLOREG</td>
+<td>Exact fitted sparse coefficients</td>
+<td>Raw logit, intercept zero</td>
+<td>NeuroMiner’s native classification score is a <strong>centred
+probability</strong>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>g</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">\sigma(g)-0.5</annotation></semantics></math>;
+zero coefficients can eliminate PCA maps</td>
+</tr>
+<tr class="odd">
+<td>WBLCOX</td>
+<td>Exact fitted coefficients</td>
+<td>Log-relative-hazard score; reference zero</td>
+<td>Not an event probability; survival-time transforms require
+additional model information</td>
+</tr>
+<tr class="even">
+<td>Linear-kernel MikRVM / MVTRVR</td>
+<td>Convert relevant fitted dual coefficients into primal component
+coefficients</td>
+<td>Affine score in the original fitted component coordinates</td>
+<td>Verified linear-kernel variants only, not general nonlinear
+kernels</td>
+</tr>
+<tr class="odd">
+<td>matLearn affine regression and classification</td>
+<td>Exact fitted <code>w</code>/<code>weights</code> with the
+appropriate intercept and admitted options</td>
+<td>Regression output or native affine classification score / link</td>
+<td>Covers tested L1, L2, least-squares, NB, unregularized Huber, ARD,
+Student-t (linear), SVM/HSVM/SSVM (linear), logistic, elastic-net
+logistic and exponential-loss variants; restrictions apply</td>
+</tr>
+<tr class="even">
+<td>DECTRE; RNDFOR</td>
+<td>Root-to-leaf path changes, averaged across trees for RNDFOR</td>
+<td>DECTRE: centred class probability; RNDFOR: predicted response or
+class probability</td>
+<td>Contributions depend on fitted split paths and node-score
+convention</td>
+</tr>
+<tr class="odd">
+<td>GRDBST</td>
+<td>Initial boosting score + learning-rate-weighted tree paths</td>
+<td>Regression response or binary <strong>raw logit</strong></td>
+<td>Classification probabilities are nonlinear transformations of the
+additive score</td>
+</tr>
+<tr class="even">
+<td>matLearn stumps / random forest</td>
+<td>Branch/leaf differences or sum of hard tree-vote contributions</td>
+<td>Class vote (typically
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>1</mn><mi>/</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">-1/+1</annotation></semantics></math>),
+vote sum, or constant-leaf regression output</td>
+<td>Not automatically a calibrated probability</td>
+</tr>
+<tr class="odd">
+<td>MLPERC; TFDEEP; matLearn MLP</td>
+<td>Layerwise secants relative to the zero-input reference</td>
+<td>Regression output, binary raw logit, or two-class logit
+difference</td>
+<td>Admitted dense architectures only; attribution is
+reference-dependent</td>
+</tr>
+</tbody>
+</table>
+<p>Other algorithms or configurations without a verified decomposition
+should <strong>not</strong> be interpreted as having exact Dx merely
+because their model provides feature-importance or gradient weights. In
+particular, support for a feature-weight map is not equivalent to
+support for fractionated predictions.</p>
+<h3
+id="why-a-contribution-sum-may-differ-from-the-displayed-prediction">Why
+a contribution sum may differ from the displayed prediction</h3>
+<p>The exact identity applies to the <strong>complete contribution
+vector for one fitted model and its correct reference score, on the
+correct raw score scale</strong>. Several later operations change what
+the user sees:</p>
+<ul>
+<li><strong>Component selection:</strong> Visualization may restrict Dx
+to components retained by the existing <code>Fadd</code> selection. The
+omitted contributions are not implicitly zero in the full fitted
+predictor.</li>
+<li><strong>Probability and other output links:</strong> Sigmoid,
+softmax, centred-probability, and survival-risk transforms must be
+applied to the <em>reconstructed total raw score</em>, not separately to
+each component contribution.</li>
+<li><strong>Cross-validation aggregation:</strong> NeuroMiner aligns
+components and computes conditional out-of-sample means. Components can
+have different model coverage; summing their displayed means is
+generally <strong>not</strong> the ensemble prediction.</li>
+<li><strong>Reference persistence:</strong> The integrated Dx producer
+computes a model reference/intercept where supported, but the existing
+Results Viewer <code>FracDec_CV2_*</code> fields do not separately
+persist every fitted-model reference score. They are
+component-contribution summaries, not a replacement prediction
+source.</li>
+</ul>
+<p>The established model-prediction output remains authoritative for
+reported classification, regression and survival predictions.</p>
+<h3 id="a-short-example-across-model-families">A short example across
+model families</h3>
+<p>Suppose a fitted model has an additive raw score of
+<strong>1.4</strong> with a reference score of <strong>0.2</strong>, and
+two components contribute <strong>+1.7</strong> and
+<strong>−0.5</strong>. The reconstruction is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.2</mn><mo>+</mo><mn>1.7</mn><mo>−</mo><mn>0.5</mn><mo>=</mo><mn>1.4</mn></mrow><annotation encoding="application/x-tex">0.2+1.7-0.5=1.4</annotation></semantics></math>.</p>
+<ul>
+<li>In a <strong>linear model</strong>, the two contributions are
+component scores multiplied by fitted coefficients.</li>
+<li>In a <strong>tree</strong>, they could be sums of node-to-node
+changes attributable to the two splitting components.</li>
+<li>In a <strong>neural network</strong>, they could arise from
+layerwise secant multipliers relative to the chosen input
+reference.</li>
+</ul>
+<p>All three can reconstruct the <strong>same numeric raw
+score</strong>, but that does not make their attribution conventions
+interchangeable. If the raw score is a binary logit, a probability would
+be
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1.4</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma(1.4)</annotation></semantics></math>—it
+is <em>not</em> the sum of component-wise probabilities.</p>
+<h2
+id="why-do-components-need-to-be-matched-across-cross-validation-folds">Why
+do components need to be matched across cross-validation folds?</h2>
+<p>Components are obtained separately within training partitions. Their
+number, order and direction can differ across fitted models. To compare
+them, NeuroMiner matches corresponding component patterns to a shared
+reference.</p>
+<p>A component’s axis has an arbitrary orientation. If the component
+scores change sign, its fitted coefficient changes sign as well. The
+signed <em>decision contribution</em> remains the same:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>−</mi><msub><mi>z</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>−</mi><msub><mi>w</mi><mrow><mi>m</mi><mi>c</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>z</mi><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><msub><mi>w</mi><mrow><mi>m</mi><mi>c</mi></mrow></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+(-z_{smc})(-w_{mc}) = z_{smc}w_{mc}.
+</annotation></semantics></math></p>
+<p>Therefore, aligning a component’s visual orientation must not reverse
+an already calculated Dx contribution. <strong>Matching changes the
+component identity to which a contribution is assigned, not whether that
+contribution supports the positive or negative decision
+direction.</strong></p>
+<p>If several components from the <em>same model</em> correspond to one
+reference component, their signed contributions are
+<strong>added</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mi>s</mi><mi>m</mi><mi>r</mi></mrow><mrow><mi mathvariant="normal">g</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">p</mi></mrow></msubsup><mo>=</mo><munder><mo>∑</mo><mrow><mi>c</mi><mo>∈</mo><msub><mi>G</mi><mrow><mi>m</mi><mi>r</mi></mrow></msub></mrow></munder><msub><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mi>s</mi><mi>m</mi><mi>c</mi></mrow></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\widetilde D_{smr}^{\mathrm{group}} =
+\sum_{c\in G_{mr}} \widetilde D_{smc}.
+</annotation></semantics></math></p>
+<p>For example, contributions of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>+</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">+2</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>5</mn></mrow><annotation encoding="application/x-tex">-5</annotation></semantics></math>
+group to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>3</mn></mrow><annotation encoding="application/x-tex">-3</annotation></semantics></math>,
+rather than to their mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>1.5</mn></mrow><annotation encoding="application/x-tex">-1.5</annotation></semantics></math>.
+This preserves the net effect of those components on the individual
+model’s decision margin.</p>
+<h2 id="how-are-scores-summarized-across-fitted-models">How are scores
+summarized across fitted models?</h2>
+<p>NeuroMiner uses <strong>out-of-sample evaluation</strong>: a
+subject’s component score is summarized using eligible models in which
+that subject was evaluated as a cross-validation test case. The summary
+also conditions on whether the registered component exists in each such
+model.</p>
+<p>For reference component
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>,
+let
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ℰ</mi><mrow><mi>s</mi><mi>r</mi></mrow></msub><annotation encoding="application/x-tex">\mathcal E_{sr}</annotation></semantics></math>
+contain the eligible out-of-sample models with a valid contribution for
+subject
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>.
+The displayed mean contribution is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>D</mi><mo accent="true">¯</mo></mover><mrow><mi>s</mi><mi>r</mi></mrow></msub><mo>=</mo><mfrac><mn>1</mn><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>ℰ</mi><mrow><mi>s</mi><mi>r</mi></mrow></msub><mo stretchy="true" form="postfix">|</mo></mrow></mfrac><munder><mo>∑</mo><mrow><mi>m</mi><mo>∈</mo><msub><mi>ℰ</mi><mrow><mi>s</mi><mi>r</mi></mrow></msub></mrow></munder><msubsup><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mi>s</mi><mi>m</mi><mi>r</mi></mrow><mrow><mi mathvariant="normal">g</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">p</mi></mrow></msubsup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\overline D_{sr}=\frac{1}{|\mathcal E_{sr}|}
+\sum_{m\in\mathcal E_{sr}}\widetilde D_{smr}^{\mathrm{group}}.
+</annotation></semantics></math></p>
+<p>This is a <strong>conditional mean: the average contribution of a
+component when it is represented in the subject’s eligible
+models</strong>. It is not the contribution averaged over every fitted
+model, including those in which the component is absent.</p>
+<p>The <strong>number of contributing models</strong> is consequently
+important when comparing components. Two similar mean contributions can
+be supported by substantially different numbers of eligible model
+evaluations.</p>
+<h2 id="why-are-some-subjectcomponent-cells-missing">Why are some
+subject–component cells missing?</h2>
+<p>A component may be present in some training partitions and absent in
+others. A subject is evaluated only in designated test partitions. As a
+result, a particular subject may have no out-of-sample model that both
+evaluates that subject and contains a given reference component.</p>
+<p>In that case, NeuroMiner represents the corresponding Dx value as
+<strong><code>NaN</code> (not available)</strong>, not as zero. This is
+<em>structural missingness</em>: no eligible component contribution was
+observed. It does not mean that the component had no effect, that the
+model predicted zero, or that the subject’s data were necessarily
+missing.</p>
+<p>The characteristic blocks of missing cells in a subject-by-component
+heatmap can therefore reflect the interaction of cross-validation
+membership and component occurrence across folds.</p>
+<h2 id="how-should-fractionated-decision-scores-be-interpreted">How
+should fractionated decision scores be interpreted?</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Observation</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Large positive Dx</td>
+<td>The represented component shifts the subject’s decision score
+towards the model’s positive direction.</td>
+</tr>
+<tr class="even">
+<td>Large negative Dx</td>
+<td>The represented component shifts the score towards the negative
+direction.</td>
+</tr>
+<tr class="odd">
+<td>Dx near zero</td>
+<td>The component has little net contribution to that model’s decision
+score on the reported scale.</td>
+</tr>
+<tr class="even">
+<td><code>NaN</code></td>
+<td>No valid, eligible out-of-sample contribution was available for that
+subject and component.</td>
+</tr>
+<tr class="odd">
+<td>Similar Dx values with different coverage</td>
+<td>Similar conditional strengths, but different amounts of supporting
+model evidence.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Important:</strong> Summing <em>conditional means</em> across
+reference components does not generally reconstruct the final
+cross-validated ensemble decision score. Different components can be
+present in different subsets of models, and some ensembles combine
+fitted-model scores nonlinearly. For all supported algorithm families,
+additive reconstruction is a <strong>within-model property of the
+complete, unfiltered decomposition on its specified raw score
+scale</strong>, including its intercept/reference; it is not a general
+property of the displayed conditional CV2 means.</p>
+<h2 id="population-profiles-where-do-components-have-impact">Population
+profiles: where do components have impact?</h2>
+<p>The <strong>Population profiles</strong> view summarizes the existing
+<em>subject × retained-component</em> matrix of conditional,
+out-of-sample mean Dx values. It describes how broadly a component
+contributes across subjects, how large its contributions tend to be, and
+how often the sign is positive or negative. It does <strong>not</strong>
+compute new fitted-model scores or establish predictive, statistical, or
+causal significance.</p>
+<p>For component
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>,
+let
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>c</mi></msub><annotation encoding="application/x-tex">F_c</annotation></semantics></math>
+contain the subjects with <strong>finite</strong> mean contributions
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>D</mi><mo accent="true">¯</mo></mover><mrow><mi>s</mi><mi>c</mi></mrow></msub><annotation encoding="application/x-tex">\overline D_{sc}</annotation></semantics></math>;
+let
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mi>c</mi></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>F</mi><mi>c</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">n_c=|F_c|</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+be the total number of subjects in the displayed matrix. A missing
+<code>NaN</code> cell is excluded from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>c</mi></msub><annotation encoding="application/x-tex">F_c</annotation></semantics></math>;
+a genuine zero is included.</p>
+<h3 id="contribution-magnitude-and-concentration">Contribution magnitude
+and concentration</h3>
+<p>The <strong>mean absolute Dx</strong> measures the typical
+contribution magnitude among subjects with an available
+contribution:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>A</mi><mi>c</mi></msub><mo>=</mo><mfrac><mn>1</mn><msub><mi>n</mi><mi>c</mi></msub></mfrac><munder><mo>∑</mo><mrow><mi>s</mi><mo>∈</mo><msub><mi>F</mi><mi>c</mi></msub></mrow></munder><mrow><mo stretchy="true" form="prefix">|</mo><msub><mover><mi>D</mi><mo accent="true">¯</mo></mover><mrow><mi>s</mi><mi>c</mi></mrow></msub><mo stretchy="true" form="postfix">|</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+A_c = \frac{1}{n_c}\sum_{s\in F_c}|\overline D_{sc}|.
+</annotation></semantics></math></p>
+<p>The <strong>effective number of contributing subjects</strong>
+measures the spread of absolute contributions:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mrow><mrow><mi mathvariant="normal">e</mi><mi mathvariant="normal">f</mi><mi mathvariant="normal">f</mi></mrow><mo>,</mo><mi>c</mi></mrow></msub><mo>=</mo><mfrac><msup><mrow><mo stretchy="true" form="prefix">(</mo><munder><mo>∑</mo><mrow><mi>s</mi><mo>∈</mo><msub><mi>F</mi><mi>c</mi></msub></mrow></munder><mrow><mo stretchy="true" form="prefix">|</mo><msub><mover><mi>D</mi><mo accent="true">¯</mo></mover><mrow><mi>s</mi><mi>c</mi></mrow></msub><mo stretchy="true" form="postfix">|</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><mrow><munder><mo>∑</mo><mrow><mi>s</mi><mo>∈</mo><msub><mi>F</mi><mi>c</mi></msub></mrow></munder><msubsup><mover><mi>D</mi><mo accent="true">¯</mo></mover><mrow><mi>s</mi><mi>c</mi></mrow><mrow><mspace width="0.167em"></mspace><mn>2</mn></mrow></msubsup></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+N_{\mathrm{eff},c} = \frac{\left(\sum_{s\in F_c}|\overline D_{sc}|\right)^2}{\sum_{s\in F_c}\overline D_{sc}^{\,2}}.
+</annotation></semantics></math></p>
+<p>It is the number of <em>equally contributing</em> subjects that would
+have the same concentration as the observed distribution,
+<strong>not</strong> the number of subjects with nonzero Dx. For
+example, contributions <code>[1, 1, 1, 1]</code> yield
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mrow><mi mathvariant="normal">e</mi><mi mathvariant="normal">f</mi><mi mathvariant="normal">f</mi></mrow></msub><mo>=</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">N_{\mathrm{eff}}=4</annotation></semantics></math>,
+while <code>[4, 0, 0, 0]</code> yields
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mrow><mi mathvariant="normal">e</mi><mi mathvariant="normal">f</mi><mi mathvariant="normal">f</mi></mrow></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">N_{\mathrm{eff}}=1</annotation></semantics></math>.
+Opposite signs do not cancel: <code>[1, -1, 1, -1]</code> also yields
+4.</p>
+<p>To compare components with different numbers of available subjects,
+the display reports the <strong>normalized concentration
+score</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>c</mi></msub><mo>=</mo><mn>1</mn><mo>−</mo><mfrac><msub><mi>N</mi><mrow><mrow><mi mathvariant="normal">e</mi><mi mathvariant="normal">f</mi><mi mathvariant="normal">f</mi></mrow><mo>,</mo><mi>c</mi></mrow></msub><msub><mi>n</mi><mi>c</mi></msub></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+S_c = 1 - \frac{N_{\mathrm{eff},c}}{n_c}.
+</annotation></semantics></math></p>
+<p>A score of <strong>0</strong> indicates equal absolute contributions
+among all finite subjects. Larger scores indicate more unequal,
+concentrated contributions; the theoretical maximum for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mi>c</mi></msub><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">n_c&gt;0</annotation></semantics></math>
+is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mn>1</mn><mi>/</mi><msub><mi>n</mi><mi>c</mi></msub></mrow><annotation encoding="application/x-tex">1-1/n_c</annotation></semantics></math>,
+not exactly 1. The score is <strong>undefined</strong> if no subjects
+have finite Dx, or if all finite Dx values are exactly zero (the ratio
+becomes
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mi>/</mi><mn>0</mn></mrow><annotation encoding="application/x-tex">0/0</annotation></semantics></math>).
+Neither case should be displayed as zero concentration. The effective
+number and concentration depend on the available sample; compare them
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mi>c</mi></msub><annotation encoding="application/x-tex">n_c</annotation></semantics></math>
+and coverage.</p>
+<p><strong>Magnitude and concentration answer different
+questions.</strong> Multiplying all Dx values of a component by a common
+positive factor changes
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>A</mi><mi>c</mi></msub><annotation encoding="application/x-tex">A_c</annotation></semantics></math>
+but not
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mi>c</mi></msub><annotation encoding="application/x-tex">S_c</annotation></semantics></math>.
+A component may have high concentration but negligible absolute impact,
+or substantial absolute impact that is broadly distributed.</p>
+<h3 id="direction-and-subject-coverage">Direction and subject
+coverage</h3>
+<p>Among the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mi>c</mi></msub><annotation encoding="application/x-tex">n_c</annotation></semantics></math>
+subjects with finite Dx, the <strong>positive</strong>,
+<strong>negative</strong>, and <strong>zero</strong> prevalences are,
+respectively:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>P</mi><mi>c</mi><mo>+</mo></msubsup><mo>=</mo><mfrac><mrow><mi>#</mi><mo stretchy="false" form="prefix">{</mo><mi>s</mi><mo>∈</mo><msub><mi>F</mi><mi>c</mi></msub><mo>:</mo><msub><mover><mi>D</mi><mo accent="true">¯</mo></mover><mrow><mi>s</mi><mi>c</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="false" form="postfix">}</mo></mrow><msub><mi>n</mi><mi>c</mi></msub></mfrac><mo>,</mo><mspace width="1.0em"></mspace><msubsup><mi>P</mi><mi>c</mi><mo>−</mo></msubsup><mo>=</mo><mfrac><mrow><mi>#</mi><mo stretchy="false" form="prefix">{</mo><mi>s</mi><mo>∈</mo><msub><mi>F</mi><mi>c</mi></msub><mo>:</mo><msub><mover><mi>D</mi><mo accent="true">¯</mo></mover><mrow><mi>s</mi><mi>c</mi></mrow></msub><mo>&lt;</mo><mn>0</mn><mo stretchy="false" form="postfix">}</mo></mrow><msub><mi>n</mi><mi>c</mi></msub></mfrac><mo>,</mo><mspace width="1.0em"></mspace><msubsup><mi>P</mi><mi>c</mi><mn>0</mn></msubsup><mo>=</mo><mfrac><mrow><mi>#</mi><mo stretchy="false" form="prefix">{</mo><mi>s</mi><mo>∈</mo><msub><mi>F</mi><mi>c</mi></msub><mo>:</mo><msub><mover><mi>D</mi><mo accent="true">¯</mo></mover><mrow><mi>s</mi><mi>c</mi></mrow></msub><mo>=</mo><mn>0</mn><mo stretchy="false" form="postfix">}</mo></mrow><msub><mi>n</mi><mi>c</mi></msub></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+P_c^+ = \frac{\#\{s\in F_c:\overline D_{sc}&gt;0\}}{n_c},\quad
+P_c^- = \frac{\#\{s\in F_c:\overline D_{sc}&lt;0\}}{n_c},\quad
+P_c^0 = \frac{\#\{s\in F_c:\overline D_{sc}=0\}}{n_c}.
+</annotation></semantics></math></p>
+<p>These three percentages add to 100% when
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mi>c</mi></msub><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">n_c&gt;0</annotation></semantics></math>.
+The prevalence of positive and negative contributions refers to the
+model’s signed decision direction, not diagnostic prevalence or clinical
+risk.</p>
+<p><strong>Subject coverage</strong> is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mi>c</mi></msub><mo>=</mo><msub><mi>n</mi><mi>c</mi></msub><mi>/</mi><mi>N</mi></mrow><annotation encoding="application/x-tex">C_c=n_c/N</annotation></semantics></math>.
+It is the proportion of subjects with an available Dx for that
+component, <strong>not</strong> the percentage of fitted models
+representing that component. Those are different denominators. If
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mi>c</mi></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">n_c=0</annotation></semantics></math>,
+sign percentages and mean absolute Dx are undefined, while subject
+coverage is zero (assuming
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">N&gt;0</annotation></semantics></math>).</p>
+<h3 id="reading-the-population-view">Reading the population view</h3>
+<p>The chart displays the first 25 finite values of the selected metric
+in the current table sort order. The chart metric (concentration,
+effective N, magnitude, sign prevalence, finite N, or coverage) can be
+changed independently of the table sorting. The complete component table
+can be sorted by clicking column headers, and a component can be
+activated directly from a bar or table row.</p>
+<p>Population concentration is <strong>descriptive heterogeneity of
+model attribution</strong>. It is neither evidence for a distinct
+biological subtype nor a validated measure of clinical importance. Very
+low coverage, outliers, and unequal availability across cross-validation
+folds may all affect concentration. Interpret signs and magnitudes in
+the context of the original model, component representation, and valid
+out-of-sample evaluations. The original Model Performance predictions
+remain authoritative.</p>
+<h2 id="subject-clusters-who-has-similar-contribution-profiles">Subject
+clusters: who has similar contribution profiles?</h2>
+<p>The <strong>Subject clusters</strong> view groups subjects by their
+signed, out-of-sample Dx contribution profiles using deterministic
+<strong>average-linkage hierarchical clustering</strong> and exact
+optimal leaf ordering. The <strong>contribution space</strong> can be
+either <em>Raw signed Dx</em> or <em>Relative signed Dx</em>;
+<strong>Relative signed Dx is the default for a new panel</strong>. A
+user may choose a fixed cluster count or ask NeuroMiner to select
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+from a specified range using one of four descriptive criteria. These are
+exploratory groups, not established clinical subtypes.</p>
+<h3 id="clustering-space-missingness-and-distance">Clustering space,
+missingness and distance</h3>
+<p><strong>Missingness policy.</strong> Only retained components whose
+Dx is finite for <strong>every subject in the selected cohort</strong>
+enter the clustering distance. All subjects are retained, while a
+component missing for even one subject is excluded <em>from clustering
+only</em>, not from the underlying Dx matrix or the descriptive cluster
+profiles. At least <strong>two completely covered components</strong>
+are required. If this is not satisfied, clustering is unavailable and
+NeuroMiner reports the reason. This policy neither imputes structural
+missingness as zero nor compares subject distances built from different
+component subsets. Because it can remove many components, the view
+reports the admitted component count.</p>
+<p>For
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+subjects and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+fully covered components, let
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>X</mi><mrow><mi>s</mi><mi>c</mi></mrow></msub><mo>=</mo><msub><mover><mi>D</mi><mo accent="true">¯</mo></mover><mrow><mi>s</mi><mi>c</mi></mrow></msub></mrow><annotation encoding="application/x-tex">X_{sc}=\overline D_{sc}</annotation></semantics></math>
+denote the conditional, out-of-sample mean Dx contribution of component
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+in subject
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>.
+In <strong>Raw signed Dx</strong> mode, the subject dissimilarity is the
+root mean squared difference:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mrow><mi>s</mi><mi>t</mi></mrow></msub><mo>=</mo><msqrt><mrow><mfrac><mn>1</mn><mi>p</mi></mfrac><munderover><mo>∑</mo><mrow><mi>c</mi><mo>=</mo><mn>1</mn></mrow><mi>p</mi></munderover><msup><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>X</mi><mrow><mi>s</mi><mi>c</mi></mrow></msub><mo>−</mo><msub><mi>X</mi><mrow><mi>t</mi><mi>c</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow></msqrt><mi>.</mi></mrow><annotation encoding="application/x-tex">
+d_{st}=\sqrt{\frac{1}{p}\sum_{c=1}^{p}(X_{sc}-X_{tc})^2}.
+</annotation></semantics></math></p>
+<p>In <strong>Relative signed Dx</strong> mode, the subject’s profile is
+first normalized by its total absolute contribution across the admitted
+components:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>R</mi><mrow><mi>s</mi><mi>c</mi></mrow></msub><mo>=</mo><mfrac><msub><mi>X</mi><mrow><mi>s</mi><mi>c</mi></mrow></msub><mrow><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>p</mi></munderover><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>X</mi><mrow><mi>s</mi><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">|</mo></mrow></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><msubsup><mi>d</mi><mrow><mi>s</mi><mi>t</mi></mrow><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">v</mi><mi mathvariant="normal">e</mi></mrow></msubsup><mo>=</mo><msqrt><mrow><mfrac><mn>1</mn><mi>p</mi></mfrac><munderover><mo>∑</mo><mrow><mi>c</mi><mo>=</mo><mn>1</mn></mrow><mi>p</mi></munderover><msup><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>R</mi><mrow><mi>s</mi><mi>c</mi></mrow></msub><mo>−</mo><msub><mi>R</mi><mrow><mi>t</mi><mi>c</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow></msqrt><mi>.</mi></mrow><annotation encoding="application/x-tex">
+R_{sc}=\frac{X_{sc}}{\sum_{j=1}^{p}|X_{sj}|},\qquad
+d_{st}^{\mathrm{relative}}=\sqrt{\frac{1}{p}\sum_{c=1}^{p}(R_{sc}-R_{tc})^2}.
+</annotation></semantics></math></p>
+<p>The relative representation emphasizes the <em>composition and
+direction</em> of a subject’s contributions instead of their overall
+amplitude. The signs are preserved. If a subject’s absolute contribution
+total is zero, this normalization is undefined and clustering in
+relative mode is not performed; the row is <strong>not</strong> assigned
+an artificial profile. Raw and relative distances have different
+interpretations and should not be compared numerically as though they
+were on the same scale.</p>
+<p>The resulting distance matrix defines an average-linkage dendrogram.
+NeuroMiner determines a deterministic, exact tree-compatible
+<strong>optimal leaf order</strong> that minimizes the sum of distances
+between adjacent leaves. Cluster IDs are assigned in this ordered
+coordinate; they are identifiers, not an ordering of severity or
+prognosis. A fixed cut produces the requested number of groups.</p>
+<h3 id="fixed-clustering-and-automatic-selection-of-k">Fixed clustering
+and automatic selection of k</h3>
+<p>In <strong>Fixed</strong> mode, the cluster-count selector offers
+<strong>2–8 groups</strong>. In <strong>Auto-select</strong> mode, the
+user specifies <em>Min k</em>, <em>Max k</em>, the optimization
+<strong>criterion</strong>, and—when applicable—the <strong>bootstrap
+iterations</strong>. Initial Min/Max values are 2 and 8; unlike the
+fixed selector, the permitted upper limit for auto-selection is the
+number of available subjects, rather than an arbitrary ceiling of 8. The
+requested range must satisfy
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mo>≤</mo><msub><mi>k</mi><mo>min</mo></msub><mo>≤</mo><msub><mi>k</mi><mo>max</mo></msub><mo>≤</mo><mi>n</mi></mrow><annotation encoding="application/x-tex">2\le k_{\min}\le k_{\max}\le n</annotation></semantics></math>.
+A very wide range, especially with bootstrap criteria, can be
+computationally expensive.</p>
+<p>The initial criterion is <strong>Silhouette</strong>. The bootstrap
+control permits <strong>4–100 iterations</strong> (initial value
+<strong>16</strong>) for <strong>ARI stability, PAC and consensus
+cophenetic</strong>; it is disabled for <strong>Silhouette</strong>,
+which does not use resampling. Editing inputs does not perform an
+optimization: the user must press <strong>Optimize</strong>. The
+existing progress viewer reports bootstrap-tree preparation and the
+currently evaluated
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>.</p>
+<p>A single average-linkage tree of the original Dx distance matrix is
+cut at each integer
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+in the requested range. For resampling criteria, the algorithm
+additionally constructs feature-bootstrap trees, described below. Each
+criterion is evaluated at every candidate
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+on the same subject set. The optimization plot uses the shared NM2
+Cartesian plotting library, with <strong>number of clusters
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>)</strong>
+on the horizontal axis, the criterion value on the vertical axis, and
+the chosen
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+highlighted. NeuroMiner selects the highest finite score for Silhouette,
+ARI and Cophenetic, or the lowest finite score for PAC. <strong>Ties
+favor the smaller k</strong>. Undefined criterion values are not
+eligible; if no candidate has a finite value, selection fails
+explicitly. Model predictions, classification errors and clinical
+outcomes do <strong>not</strong> influence cluster selection.</p>
+<h3
+id="feature-bootstrap-stability-and-consensus-clustering">Feature-bootstrap
+stability and consensus clustering</h3>
+<p>The three resampling criteria use a <strong>feature
+bootstrap</strong>, not a subject bootstrap. Each of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math>
+iterations samples the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+fully covered Dx <strong>component columns with replacement</strong>,
+retaining all
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+subjects, recomputes the root mean squared distances and fits a new
+average-linkage tree. The procedure uses a local deterministic random
+stream (seed <strong>271828</strong>) rather than modifying MATLAB’s
+global random state. The same set of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math>
+bootstrap trees is evaluated at each candidate
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>,
+so changing
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+does not require redrawing bootstrap samples. This perturbation tests
+sensitivity to component reweighting; it does <strong>not</strong>
+assess stability under resampling subjects or independent cohorts.</p>
+<p>Let
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>g</mi><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>b</mi><mo>,</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">g_s^{(b,k)}</annotation></semantics></math>
+denote the group of subject
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>
+when bootstrap tree
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>
+is cut to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+clusters. The <strong>consensus co-clustering matrix</strong> at
+candidate
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>C</mi><mrow><mi>s</mi><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mfrac><mn>1</mn><mi>B</mi></mfrac><munderover><mo>∑</mo><mrow><mi>b</mi><mo>=</mo><mn>1</mn></mrow><mi>B</mi></munderover><mn>𝟏</mn><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">[</mo><msubsup><mi>g</mi><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>b</mi><mo>,</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><msubsup><mi>g</mi><mi>t</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>b</mi><mo>,</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo stretchy="true" form="postfix">]</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+C_{st}^{(k)}=\frac{1}{B}\sum_{b=1}^{B}
+\mathbf{1}\!\left[g_s^{(b,k)}=g_t^{(b,k)}\right].
+</annotation></semantics></math></p>
+<p>Each
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>C</mi><mrow><mi>s</mi><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">C_{st}^{(k)}</annotation></semantics></math>
+is the fraction of bootstrap partitions placing subjects
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+together. Thus
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>C</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></msup><annotation encoding="application/x-tex">C^{(k)}</annotation></semantics></math>
+is symmetric, its diagonal equals 1, and all its entries lie between 0
+and 1. Values near <strong>1</strong> indicate consistently co-clustered
+pairs, values near <strong>0</strong> consistently separated pairs, and
+intermediate values indicate ambiguous assignment under component
+resampling. These frequencies should <strong>not</strong> be interpreted
+as posterior probabilities of clinical subtype membership.</p>
+<p>The four available criteria are:</p>
+<ul>
+<li><p><strong>Silhouette (maximize).</strong> For each subject,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>s</mi></msub><annotation encoding="application/x-tex">a_s</annotation></semantics></math>
+is its mean distance to other subjects in its own full-data cluster and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>b</mi><mi>s</mi></msub><annotation encoding="application/x-tex">b_s</annotation></semantics></math>
+the smallest mean distance to another cluster. The criterion is the mean
+of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>b</mi><mi>s</mi></msub><mo>−</mo><msub><mi>a</mi><mi>s</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>a</mi><mi>s</mi></msub><mo>,</mo><msub><mi>b</mi><mi>s</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">(b_s-a_s)/\max(a_s,b_s)</annotation></semantics></math>;
+singleton clusters contribute zero. This uses the <strong>original Dx
+distances only</strong> and no bootstrap trees.</p></li>
+<li><p><strong>Adjusted Rand index (ARI) stability (maximize).</strong>
+For each
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>,
+NeuroMiner compares the full-data cluster partition with each of the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math>
+feature-bootstrap partitions using the adjusted Rand index, then
+averages the defined values. This quantifies partition agreement under
+component resampling, rather than agreement with an external ground
+truth.</p></li>
+<li><p><strong>Proportion of ambiguous clustering, PAC
+(minimize).</strong> Using only distinct unordered subject pairs
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>&lt;</mo><mi>t</mi></mrow><annotation encoding="application/x-tex">s&lt;t</annotation></semantics></math>),
+the criterion is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">A</mi><mi mathvariant="normal">C</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>2</mn><mrow><mi>n</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>−</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><munder><mo>∑</mo><mrow><mi>s</mi><mo>&lt;</mo><mi>t</mi></mrow></munder><mn>𝟏</mn><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">[</mo><mn>0.1</mn><mo>&lt;</mo><msubsup><mi>C</mi><mrow><mi>s</mi><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>&lt;</mo><mn>0.9</mn><mo stretchy="true" form="postfix">]</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\mathrm{PAC}(k)=\frac{2}{n(n-1)}\sum_{s&lt;t}
+\mathbf{1}\!\left[0.1&lt;C_{st}^{(k)}&lt;0.9\right].
+</annotation></semantics></math></p>
+<p>The ambiguity interval is <strong>strictly between</strong> 0.1 and
+0.9. Lower PAC indicates fewer ambiguously co-clustered pairs under the
+specified feature bootstrap.</p></li>
+<li><p><strong>Consensus-tree cophenetic correlation
+(maximize).</strong> At each
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>,
+construct the <em>consensus dissimilarity</em>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><msup><mi>C</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></msup></mrow><annotation encoding="application/x-tex">1-C^{(k)}</annotation></semantics></math>,
+with a zero diagonal, then fit an additional average-linkage hierarchy
+to that dissimilarity. The cophenetic distances from this
+<strong>consensus-derived tree</strong> are compared with the
+off-diagonal consensus dissimilarities using their <strong>Pearson
+correlation</strong>. A higher correlation describes how faithfully this
+auxiliary hierarchy captures the consensus dissimilarities. The original
+Dx dendrogram’s cophenetic correlation is <strong>not</strong> used to
+select
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>:
+that quantity would remain unchanged when the original tree is cut at
+different cluster counts.</p></li>
+</ul>
+<h3 id="reading-the-selected-k-consensus-heatmap">Reading the selected-k
+consensus heatmap</h3>
+<p>When <strong>PAC</strong> or <strong>Consensus cophenetic</strong> is
+used in Auto-select mode, a <strong>consensus matrix for the winning
+k</strong> appears beside the optimization curve. It contains the actual
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>C</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></msup><annotation encoding="application/x-tex">C^{(k)}</annotation></semantics></math>
+accumulated during scoring; NeuroMiner retains the selected matrix
+rather than running another bootstrap analysis or constructing a proxy
+from the final full-data cluster labels. The matrix is not displayed for
+Silhouette, ARI or fixed-count clustering.</p>
+<p><strong>Rows and columns represent the same subjects, in the optimal
+leaf order of the original Dx average-linkage dendrogram</strong>, not
+in the leaf order of the auxiliary consensus tree used by the Cophenetic
+criterion. A common order makes the consensus pattern comparable with
+the displayed full-data clusters. The heatmap color scale runs from
+<strong>0</strong> (rarely or never co-clustered) to <strong>1</strong>
+(always co-clustered across bootstrap iterations). The axes refer to
+subject positions in this optimal leaf order; the separate subject table
+provides the corresponding Case IDs.</p>
+<p>For <strong>up to 72 subjects</strong>, each cell shows an individual
+subject-pair frequency. For <strong>more than 72 subjects</strong>,
+NeuroMiner partitions the ordered subjects into at most <strong>72
+contiguous blocks</strong> and displays the <strong>arithmetic average
+of all consensus entries</strong> within each block pair. The annotation
+identifies the result as block-averaged; no individual subject
+resolution should be inferred from a block. An aggregated diagonal block
+can be <strong>less than 1</strong>, even though every original
+individual-subject diagonal entry is 1, because the block average
+includes off-diagonal pairs. This aggregation is
+<strong>display-only</strong>: selection statistics and group
+assignments are computed on the full subject-level matrices.</p>
+<p>The consensus heatmap and the <strong>cluster contribution
+heatmap</strong> describe different objects: the former shows
+<em>subject-pair clustering stability</em>, whereas the latter
+summarizes <em>component contributions within the resulting groups</em>.
+The cluster contribution heatmap defaults to each cluster’s <strong>raw
+mean signed Dx</strong> for each retained component, regardless of
+whether clustering used raw or relative distances. Its display selector
+also offers deviation from the whole-cohort mean and mean absolute Dx.
+The displayed heatmap ranks 25 components by their greatest
+between-cluster deviation; all retained components, including those
+excluded from distance computation, remain available in the expandable
+<strong>All component profiles</strong> table, with finite counts.
+Selecting a component uses existing backprojection navigation, while a
+separate subject table permits navigation to individual Dx profiles.</p>
+<h3
+id="interpretation-and-limitations-of-automatic-selection">Interpretation
+and limitations of automatic selection</h3>
+<p>ARI and PAC characterize partition stability <strong>under this
+particular feature-resampling scheme</strong>; the consensus cophenetic
+correlation instead measures the fidelity of a hierarchy fitted to the
+consensus dissimilarities. None establishes optimal clinical taxonomy or
+generalizability. These criteria can favor different values of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>.
+When the optimum is at the search-range boundary, it is the best value
+<strong>within the tested range</strong>, not evidence of a globally
+preferred number of clusters. In particular, allowing
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mi>n</mi></mrow><annotation encoding="application/x-tex">k=n</annotation></semantics></math>
+can make <strong>PAC trivially zero</strong>: every subject is a
+singleton in every bootstrap partition, so no pair is ambiguously
+co-clustered. That degeneracy is not evidence for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+meaningful subtypes. With few fully covered components, resampling
+repeatedly draws from a very limited feature set; with few bootstrap
+iterations, consensus frequencies are coarse (increments of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>B</mi></mrow><annotation encoding="application/x-tex">1/B</annotation></semantics></math>).
+Both can make the apparent stability and preferred cluster count
+sensitive to configuration. Finally, the selected
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>,
+consensus matrix and cluster profiles are conditional on the fitted
+predictive model, the Dx construction, the component-matching and
+missingness policy, the cohort and the chosen contribution space.
+Independent-cohort validation is required for claims beyond descriptive
+exploratory structure.</p>
+<h3 id="associations-with-original-model-performance">Associations with
+original model performance</h3>
+<p>The group summary reports group size, number of subjects with
+evaluable performance, mean original model score/prediction and, where
+available, the <strong>misclassification percentage</strong>
+(classification) or <strong>mean absolute prediction error</strong>
+(regression). These quantities come exclusively from the existing Model
+Performance extraction and are joined to Dx subjects by canonical
+<strong>Case ID</strong>. They are not obtained by summing
+component-wise conditional Dx means. Subjects without an unambiguous
+matching prediction and observed outcome are excluded from the error
+summary but retained in the cluster. No model-performance metric
+participates in constructing the clusters.</p>
+<p>Cluster-related performance differences are <strong>post-hoc,
+descriptive associations</strong> assessed on the same subjects used to
+discover groups. They do not demonstrate predictive subgroup
+generalization, statistical significance, or biological mechanism. In
+particular, the clusters may depend on the fitted model and its
+cross-validation component-availability patterns; independent-cohort
+replication and stability analysis would be required before stronger
+claims.</p>
+<h2 id="scope-and-limitations">Scope and limitations</h2>
+<ul>
+<li><strong>Component presence matters.</strong> A highly influential
+component that appears in few models is not equivalent to a consistently
+represented component of the same mean magnitude.</li>
+<li><strong>Score domains and normalization are model-specific.</strong>
+SVM margins, logits, probabilities, risk scores, regression outputs and
+hard votes are not interchangeable units. L2-normalized SVM margins are
+not calibrated probabilities; native output transformations must be
+respected.</li>
+<li><strong>Completeness does not imply uniqueness.</strong> Supported
+tree and dense-network methods reconstruct the fitted raw model score
+exactly within numerical tolerance, but interaction allocation follows a
+path or reference-based convention. Another mathematically complete
+attribution may differ.</li>
+<li><strong>Reference scores and component selection matter.</strong>
+The complete per-model decomposition includes an intercept/reference and
+all modeled components. Selected, aligned, conditionally averaged
+results may not reconstruct the displayed ensemble prediction.</li>
+<li><strong>Component contributions are not causal effects.</strong> Dx
+describes how the fitted model uses component values. It does not
+establish that intervening on a component would change the clinical
+outcome.</li>
+<li><strong>Algorithm options matter.</strong> Validated affine, tree
+and dense-network configurations do not imply support for every kernel,
+multiclass, feature-transformed or custom-architecture variant. Feature
+importance alone is not an exact Dx decomposition.</li>
+<li><strong>Early-fusion components can mix modalities.</strong> Their
+contributions describe shared, potentially multimodal components rather
+than necessarily modality-specific effects.</li>
+</ul>
+<p><strong>In brief:</strong> Dx describes the signed contribution of a
+fitted model-input component to an individual’s prediction on a defined
+additive score scale. Linear models use fitted coefficients; trees use
+changes along decision paths; dense networks use reference-relative
+secants. The model-level decomposition is complete when all
+contributions and the reference score are included. The displayed
+conditional, out-of-sample component means are interpretation
+summaries—not a substitute for the original predictions. Missing
+component–subject combinations remain unavailable rather than being
+assigned zero.</p>
+</body>
+</html>
