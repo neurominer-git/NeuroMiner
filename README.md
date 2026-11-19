@@ -1,4 +1,4 @@
-# NeuroMiner 1.3
+# NeuroMiner 2.0
 
 NeuroMiner has been continuously developed by [Nikolaos Koutsouleris](https://www.imprs-tp.mpg.de/person/43420/2484), [Clara Vetter](https://cdn0.scrvt.com/4d3e519fe5939342b95c7312343779ef/d44b9dca07ed3899/0915c2a47419/Clara_Vetter_CV.pdf), [Ariane Wiegand](https://www.psych.mpg.de/person/123169/1496336), [Lisa Hahn](https://cdn.lmu-klinikum.de/b8f7c0800a78b6e9/31d86944cc71/Lisa-Hahn.pdf) and [Sergio Mena](https://www.kcl.ac.uk/people/sergio-mena-ortega) since 2009 to provide clinical researchers with cutting-edge machine learning methods for the analysis of heterogeneous data, such as clinical and neurocognitive read-outs, structural and functional neuroimaging data, and genetic information. 
 
@@ -9,13 +9,14 @@ The current release 1.3 of NeuroMiner has been tested in the [Section for Precis
 # Quick start
 
 To use NeuroMiner, download this repository and add the directory to your Matlab path (including subdirectories). 
-For further information on installation and configuration see the [installation guide](https://neurominer-git.github.io/NeuroMiner_1.3/3.0_gettingstarted.html). 
+For further information on installation and configuration see the [installation guide](https://neurominer-git.github.io/NeuroMiner/intro.html). 
+To start NM2 using the new UI type nm ui at the MATLAB prompt. In server environments with limited browser capabilities or MATLAB ONLINE use "nm ui html-relay".
 
 ## NeuroMiner Manual
-To get a detailed overview of the functionalities and how to use it, see [NeuroMiner's GitHub Pages](https://neurominer-git.github.io/NeuroMiner_1.3/1.0_introduction.html).  
+To get a detailed overview of the functionalities and how to use it, see [NeuroMiner's GitHub Pages](https://neurominer-git.github.io/NeuroMiner/intro.html).  
 
 ## How to cite
-> N Koutsouleris, C. Vetter, A. Wiegand, L. Hahn and S. Mena (2024). Neurominer [Computer software]. Retrieved from https://github.com/neurominer-git/NeuroMiner_1.3
+> N Koutsouleris, C. Vetter, A. Wiegand, L. Hahn and S. Mena (2024). Neurominer [Computer software]. Retrieved from https://github.com/neurominer-git/NeuroMiner
 
 ## License
 NeuroMiner is copyright, distributed under the GNU General Public License.
