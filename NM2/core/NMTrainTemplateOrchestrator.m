@@ -4533,15 +4533,9 @@ classdef NMTrainTemplateOrchestrator < handle
             items = {};
             multi = obj.Multi;
             if isfield(state,'multi') && isstruct(state.multi), multi = state.multi; end
-            flag = false; present = isstruct(multi) && ~isempty(fieldnames(multi));
-            try
-                if isfield(multi,'multiFlag'), flag = logical(multi.multiFlag); end
-                if isfield(multi,'flag'), flag = flag || logical(multi.flag); end
-            catch
-                flag = false;
-            end
-            isMulti = false;
-            try, isMulti = logical(state.multiAvailable); catch, end
+            flag = logical(multi.multiFlag);
+            present = ~isempty(fieldnames(multi));
+            isMulti = logical(multi.multiAvailable);
             if ~isMulti && flag
                 items{end+1} = obj.auditItem('multi.enabled.inactiveTask','multi','warning', ...
                     'MULTI is enabled outside a multi-class task', 'A MULTI configuration is active although the effective label is binary or regression.', ...
