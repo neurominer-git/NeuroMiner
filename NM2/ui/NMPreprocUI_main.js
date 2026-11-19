@@ -32,7 +32,7 @@ function ensureStagedState(){if(!STATE)STATE={}; if(!STATE.subject)STATE.subject
  * ensureGlobalState  Ensure the global state prerequisite exists before downstream rendering or requests.
  * It supports preprocessing template browser editor at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
-function ensureGlobalState(){ensureStagedState();let gs=(SPEC&&SPEC.globalOptions)||{};let d=clone(gs.defaultState||{});if(!STATE.global||typeof STATE.global!=="object")STATE.global={};STATE.global=Object.assign(d,STATE.global);return STATE.global;}
+function ensureGlobalState(){ensureStagedState();STATE.global ??= clone(Object.assign({},SPEC && SPEC.globalOptions && SPEC.globalOptions.defaultState));return STATE.global;}
 /** OOCV application editing policy projected by the MATLAB authority. */
 function editPolicy(){return (SPEC&&SPEC.editPolicy)||{};}
 function isOOCVApplicationMode(){return String(editPolicy().mode||"").toLowerCase()==="oocv_application";}
