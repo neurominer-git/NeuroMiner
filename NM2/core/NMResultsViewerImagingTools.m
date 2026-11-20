@@ -887,7 +887,7 @@ classdef NMResultsViewerImagingTools
             % nm2-allow: public imaging atlas-resource boundary converts failures into the documented diagnostic payload
             catch ME
                 payload.ok = false;
-                payload.message = sprintf('%s: %s',ME.identifier,ME.message);
+                payload.message = NMUIErrorTools.messageWithStack(ME,'Loading the selected ROI atlas failed.',2);
                 payload.diagnostics = NMImagingContractTools.diagnostic( ...
                     'error','imaging_atlas_resource_failure','NMResultsViewerImagingTools.getImagingAtlasResource', ...
                     payload.message,'',ME);

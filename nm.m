@@ -73,33 +73,41 @@ if nargout > 1
     error('nm:TooManyOutputs', 'nm returns at most one updated NM structure.');
 end
 startup = localParseStartupArguments(varargin);
-nosplash = startup.nosplash;
+if startup.hasNMInput && isempty(startup.writeBackVariable) && nargout == 0
+    error('nm:OutputRequired','A structure passed by value requires an NM output. Supply a workspace variable name for automatic write-back.');
+end
 EXPERT = startup.expert;
 OCTAVE = startup.octave;
 DEV = startup.dev;
-useBrowserUI = startup.ui;
-if startup.hasNMInput
-    NM = startup.NMInput;
-end
 init = struct('all', 1, 'addrootpath', 0, 'addDRpath', 0, 'addLIBSVMpath', 0, 'addMIpath', 0, 'addLIBLINpath', 0, 'addMikeRVMpath', 0);
-nk_Initialize(init);
+if startup.hasNMInput
+    baseNM = evalin('base','whos(''NM'')');
+    if ~strcmp(startup.writeBackVariable,'NM') && ~isempty(baseNM) && baseNM.global
+        error('nm:GlobalNMConflict','Base-workspace NM is global and cannot be isolated from a separately named NM input.');
+    end
+    nk_Initialize(init, startup.NMInput);
+else
+    nk_Initialize(init);
+end
+UI = struct('enabled',startup.ui,'mode','cli','appUI',startup.ui, ...
+    'bridgeEnabled',startup.ui,'devMode',DEV,'source','legacy_cli', ...
+    'uiTarget',startup.uiTarget,'sessionTmpDir','','writeBackReady',~startup.ui);
+if startup.ui, UI.mode = 'browser'; UI.source = 'workbench'; end
 
-UI = localUIContext(useBrowserUI, DEV, ...
-    ternaryUI(useBrowserUI, 'workbench', 'legacy_cli'), startup.uiTarget);
-
-if ~nosplash && ~useBrowserUI, splash('splash','png',1500); end
-obj = onCleanup(@()QuitNeuroMiner(startup.writeBackVariable)); 
+if ~startup.nosplash && ~startup.ui, splash('splash','png',1500); end
+obj = onCleanup(@()QuitNeuroMiner(startup.writeBackVariable, startup.targetExisted)); 
 
 % In development mode, the browser-based NM 2.0 workbench is the main
 % interface. The legacy command-line menu below is retained for ordinary
 % non-UI operation only and should not be entered by `nm dev`.
-if localUIEnabled(UI)
+if UI.appUI
     [~, startupSplashToken] = fileparts(tempname);
     ctx = struct('materializeTemplateOnClose', true, ...
         'uiTarget', UI.uiTarget, ...
-        'showStartupSplash', ~nosplash, ...
+        'showStartupSplash', ~startup.nosplash, ...
         'startupSplashToken', startupSplashToken);
     NM = NMAppUI.openWorkbench(NM, [], ctx, [], true);
+    UI.writeBackReady = true;
     if nargout == 1, varargout{1} = localCleanSessionNM(NM); end
     return
 end
@@ -492,18 +500,18 @@ startup = struct( ...
     'hasNMInput', false, ...
     'NMInput', struct(), ...
     'writeBackVariable', 'NM');
-namedInput = '';
 uiTargetSpecified = false;
 
 for i = 1:numel(args)
     value = args{i};
     if isstruct(value)
-        if startup.hasNMInput || ~isempty(namedInput)
+        if startup.hasNMInput
             error('nm:MultipleNMInputs', ...
                 'Specify exactly one NM structure input.');
         end
         startup.hasNMInput = true;
         startup.NMInput = value;
+        startup.writeBackVariable = '';
         continue
     end
     if ~(ischar(value) || (isstring(value) && isscalar(value)))
@@ -536,11 +544,18 @@ for i = 1:numel(args)
                 error('nm:UnknownStartupArgument', ...
                     'Unknown NeuroMiner startup argument: %s', token);
             end
-            if ~isempty(namedInput) || startup.hasNMInput
-                error('nm:MultipleNMInputs', ...
-                    'Specify exactly one NM structure input.');
+            if startup.hasNMInput
+                error('nm:MultipleNMInputs','Specify exactly one NM structure input.');
             end
-            namedInput = token;
+            if evalin('base',sprintf('exist(''%s'',''var'')',token)) ~= 1
+                error('nm:NMInputNotFound','The base-workspace variable %s does not exist.',token);
+            end
+            inputNM = evalin('base',token);
+            assert(isstruct(inputNM),'nm:InvalidNMInput', ...
+                'The base-workspace variable %s must contain a struct.',token);
+            startup.hasNMInput = true;
+            startup.NMInput = inputNM;
+            startup.writeBackVariable = token;
     end
 end
 
@@ -549,53 +564,10 @@ if uiTargetSpecified && ~startup.ui
         'A browser-* or html-relay target requires the ui startup option.');
 end
 
-if ~isempty(namedInput)
-    existsInBase = evalin('base', sprintf('exist(''%s'',''var'')', namedInput));
-    if existsInBase ~= 1
-        error('nm:NMInputNotFound', ...
-            'The base-workspace variable %s does not exist.', namedInput);
-    end
-    inputNM = evalin('base', namedInput);
-    if ~isstruct(inputNM)
-        error('nm:InvalidNMInput', ...
-            'The base-workspace variable %s must contain a struct.', namedInput);
-    end
-    startup.hasNMInput = true;
-    startup.NMInput = inputNM;
-    startup.writeBackVariable = namedInput;
-end
+startup.targetExisted = ~isempty(startup.writeBackVariable) && ...
+    evalin('base',sprintf('exist(''%s'',''var'')',startup.writeBackVariable)) == 1;
 end
 
-
-function out = ternaryUI(cond, a, b)
-if cond
-    out = a;
-else
-    out = b;
-end
-end
-
-function ui = localUIContext(enabled, devMode, source, uiTarget)
-if nargin < 1 || isempty(enabled), enabled = false; end
-if nargin < 2 || isempty(devMode), devMode = false; end
-if nargin < 3 || isempty(source), source = 'legacy_cli'; end
-if nargin < 4 || isempty(uiTarget), uiTarget = 'browser-default'; end
-ui = struct('enabled',logical(enabled), ...
-    'mode', ternaryUI(logical(enabled),'browser','cli'), ...
-    'appUI', logical(enabled), ...
-    'bridgeEnabled', logical(enabled), ...
-    'devMode', logical(devMode), ...
-    'source', char(source), ...
-    'uiTarget', char(uiTarget));
-end
-
-function tf = localUIEnabled(ui)
-tf = isstruct(ui) && isfield(ui,'appUI') && logical(ui.appUI);
-end
-
-function tf = localUIBridgeEnabled(ui)
-tf = isstruct(ui) && isfield(ui,'bridgeEnabled') && logical(ui.bridgeEnabled);
-end
 
 function cleanNM = localCleanSessionNM(NM)
 cleanNM = NM;
@@ -604,14 +576,12 @@ if isstruct(cleanNM) && isfield(cleanNM,'runtime')
 end
 end
 
-function QuitNeuroMiner(writeBackVariable)
+function QuitNeuroMiner(writeBackVariable, targetExisted)
 global NM UI
-
-if nargin < 1 || isempty(writeBackVariable), writeBackVariable = 'NM'; end
 
 fprintf('\n'); %clc;
 fprintf('Good Bye... \n');
-if localUIBridgeEnabled(UI)
+if UI.bridgeEnabled
     try
         NMUIBridgeTools.killActiveBridges('NeuroMiner was interrupted from the MATLAB command window. The NM2 UI bridge is shutting down.');
     catch ME
@@ -621,9 +591,32 @@ end
 delete(findobj('Tag','PrintCVBarsBin'));
 delete(findobj('Name','Probabilistic Feature Exraction'));
 clear CALIBAVAIL OOCVAVAIL
-NMx = localCleanSessionNM(NM);
+NMx = NM;
+recovered = false;
+if ~UI.writeBackReady && UI.bridgeEnabled && ~isempty(UI.sessionTmpDir)
+    [NMx, recovered] = NMDataIOUI.loadSessionNM(NM, UI.sessionTmpDir);
+end
+NMx = localCleanSessionNM(NMx);
+nowExists = ~isempty(writeBackVariable) && evalin('base',sprintf('exist(''%s'',''var'')',writeBackVariable)) == 1;
 clearvars -global NM st
-assignin('base', char(writeBackVariable), NMx)
+if (UI.writeBackReady || recovered) && ~isempty(writeBackVariable)
+    if nowExists ~= targetExisted
+        if targetExisted, detail = 'disappeared'; else, detail = 'appeared since launch'; end
+        choice = strtrim(input(sprintf('Workspace variable %s has %s. Enter %s, another NEW variable name, or Return to cancel: ', ...
+            writeBackVariable, detail, writeBackVariable),'s'));
+        if ~isempty(choice) && (~isvarname(choice) || ...
+                (~strcmp(choice,writeBackVariable) && evalin('base',sprintf('exist(''%s'',''var'')',choice)) == 1))
+            fprintf('[nm] Invalid or occupied target; workspace write-back cancelled.\n');
+            choice = '';
+        end
+        writeBackVariable = choice;
+    end
+    if ~isempty(writeBackVariable)
+        assignin('base', char(writeBackVariable), NMx)
+    end
+else
+    fprintf('[nm] No committed NM session state was recovered; workspace write-back skipped.\n');
+end
 if exist(fullfile(pwd,'temp.nii'),'file'); delete('temp.nii'); end
 if exist('tempMLI.nii','file'); delete('tempMLI.nii'); end
 try warning('off','last'); catch; end

@@ -3576,7 +3576,7 @@ body.rvFeatureInspectionMode .rvControls{
 
 /* Corrected world-coordinate 3-D viewer */
 .rvImagingViewModeBar{display:flex;flex:0 0 auto;align-items:center;justify-content:center;gap:4px;min-height:34px;padding:4px 7px;border-bottom:1px solid var(--rv-border,#d1d5db);background:var(--rv-card,#f8fafc);box-sizing:border-box}
-.rvImagingViewModeBar button{height:27px;min-width:96px;padding:2px 10px;border:1px solid var(--rv-border,#cbd5e1);border-radius:4px;background:var(--rv-panel,#fff);color:inherit;white-space:nowrap;line-height:1.1}
+.rvImagingViewModeBar button{height:27px;min-width:96px;padding:2px 10px;border:1px solid var(--rv-border,#cbd5e1);border-radius:4px;background:var(--rv-panel,#fff);color:inherit;white-space:nowrap;line-height:1.1;cursor:default;user-select:none}
 .rvImagingViewModeBar button.isActive{font-weight:700;border-color:var(--rv-accent,#2563eb);background:var(--rv-accent-soft,#eff6ff)}
 .rvImagingViewModeBar button.isPending{font-weight:700;border-color:var(--rv-accent,#2563eb);background:var(--rv-accent-soft,#eff6ff);cursor:progress}.rvImagingViewModeBar button.isPending::after{content:'…';display:inline-block;margin-left:5px}
 .rvImaging3DLayout{display:grid;flex:1 1 auto;grid-template-columns:minmax(165px,195px) minmax(0,1fr) minmax(225px,270px);grid-template-rows:minmax(0,1fr) auto;gap:7px;height:auto;min-height:0;padding:7px;box-sizing:border-box;overflow:hidden}
@@ -3949,7 +3949,7 @@ body.rvFeatureInspectionMode .rvControls{
 .rvImagingControlTooltip[hidden]{display:none!important}
 .rvImagingControlTooltip strong{font-size:11.5px;font-weight:750;color:#fff}
 .rvImagingControlTooltip span{color:#dbe4f0}
-[data-imaging-tooltip]{cursor:inherit!important}
+[data-imaging-tooltip]{cursor:inherit}
 .rvImagingControls button[data-imaging-zoom]{cursor:pointer}
 @media(max-height:720px){
   .rvImagingControls,
@@ -4182,7 +4182,6 @@ body.rvFeatureInspectionMode .rvControls{
 .rvImagingColorbarStops{position:absolute;inset:0;overflow:visible;pointer-events:none}
 .rvImagingColorStop{position:absolute;left:26px;width:30px;height:16px;margin:0;padding:0;border:1px solid color-mix(in srgb,var(--rv-stop-color,#fff) 55%,#111);border-radius:2px;background:var(--rv-stop-color,#fff)!important;clip-path:polygon(0 50%,28% 0,100% 0,100% 100%,28% 100%);cursor:ns-resize;pointer-events:auto;box-shadow:0 0 0 1px rgba(255,255,255,.48);touch-action:none}
 .rvImagingColorStop:hover,.rvImagingColorStop:focus-visible{outline:2px solid var(--rv-accent,#2563eb);outline-offset:1px;z-index:2}
-.rvImagingColorStopPicker{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .rvImagingColorStopMenu{position:fixed;z-index:100000;display:grid;min-width:155px;padding:4px;border:1px solid var(--rv-border,#cbd5e1);border-radius:5px;background:var(--rv-panel,#fff);box-shadow:0 10px 28px rgba(15,23,42,.30)}
 .rvImagingColorStopMenu button{min-height:27px;padding:4px 8px;border:0;border-radius:3px;background:transparent;color:var(--rv-text,#111827);text-align:left;font:inherit;cursor:pointer}
 .rvImagingColorStopMenu button:hover:not(:disabled){background:var(--rv-hover,#e2e8f0)}
@@ -4192,6 +4191,7 @@ body.rvFeatureInspectionMode .rvControls{
 
 /* Longer shared colourbar, compact stops, and metric-position labels. */
 .rvImagingColorbarEditor{
+  position:relative;
   grid-template-rows:auto minmax(180px,1fr) auto;
   min-height:218px;
   padding:2px 56px 5px 64px;
@@ -4219,9 +4219,9 @@ body.rvFeatureInspectionMode .rvControls{
   text-shadow:0 1px 0 var(--rv-panel,#fff);
 }
 .rvImagingColorStopPicker{
-  position:fixed;
-  left:-10000px;
-  top:0;
+  position:absolute;
+  right:2px;
+  top:calc(50% - 12px);
   width:24px;
   height:24px;
   opacity:.001;

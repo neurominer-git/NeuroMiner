@@ -1,4 +1,4 @@
-function nk_Initialize(action)
+function nk_Initialize(action, varargin)
 % =========================================================================
 % nk_Initialize(action)
 % =========================================================================
@@ -22,9 +22,11 @@ NMinfo.info.inst    = 'Ludwig-Maximilians-University / King''s College London';
 NMinfo.info.datever = '11/2026';
 NMinfo.info.timestamp = datetime("today");
 NMinfo.info.email   = 'nm@pronia.eu';
-try
+if ~isempty(varargin)
+    NM = varargin{1};
+elseif evalin('base','exist(''NM'',''var'')') == 1
     NM = evalin('base','NM');
-catch
+else
     NM = [];
 end
 CALIBAVAIL          = false;

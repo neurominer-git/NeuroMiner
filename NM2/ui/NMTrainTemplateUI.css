@@ -491,6 +491,9 @@ header {
   width: auto;
   text-align: center;
 }
+.auditHeading { align-items: center; }
+.auditHeading label { margin-bottom: 0; }
+.auditHeading button { box-sizing: border-box; width: 24px; height: 24px; padding: 0; display: grid; place-items: center; }
 .savPrefixRow {
   display: flex;
   align-items: center;

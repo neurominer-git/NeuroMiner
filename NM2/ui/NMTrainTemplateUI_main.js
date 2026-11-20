@@ -3078,19 +3078,15 @@ function activePreprocSummaryText() {
  */
 function auditSeverity() {
   if (STATE.readinessDiagnostic) return "warning";
-  let s =
-    STATE.auditSummary && STATE.auditSummary.severity
-      ? String(STATE.auditSummary.severity).toLowerCase()
-      : "ok";
-  return ["error", "warning", "ok"].includes(s) ? s : "ok";
+  const s = STATE.auditSummary.severity;
+  return s === "error" || s === "warning" ? s : "ok";
 }
 /**
  * auditSummaryText  Build the audit summary text shown to users in the browser UI.
  * It supports training-template configurator browser page at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
 function auditSummaryText() {
-  let summary = STATE.auditSummary && STATE.auditSummary.displayText
-    ? STATE.auditSummary.displayText : "Configuration audit not available for this session.";
+  const summary = STATE.auditSummary.displayText;
   return STATE.readinessDiagnostic
     ? "Configuration not yet complete: " + STATE.readinessDiagnostic + "\n" + summary
     : summary;
@@ -3106,15 +3102,10 @@ function auditTopMessage() {
   if (s !== "error" && s !== "warning") return null;
   let pp = preprocIllegalMessage();
   if (pp) return { text: pp, kind: s === "error" ? "danger" : "warning" };
-  let it =
-    STATE.auditSummary && STATE.auditSummary.topItem
-      ? STATE.auditSummary.topItem
-      : null;
-  let txt = "";
-  if (it && it.title) {
-    txt = String(it.title);
-    if (it.message) txt += ": " + String(it.message);
-  } else txt = auditSummaryText();
+  const it = STATE.auditSummary.topItem;
+  const txt = it && it.title
+    ? String(it.title) + (it.message ? ": " + String(it.message) : "")
+    : auditSummaryText();
   return { text: txt, kind: s === "error" ? "danger" : "warning" };
 }
 /**
@@ -3123,9 +3114,8 @@ function auditTopMessage() {
  * Side effects: updates DOM markup, CSS classes or control state for the active browser page.
  */
 function renderAuditSummary() {
-  let fld = document.getElementById("auditField"),
-    sum = document.getElementById("auditSummary");
-  if (!fld || !sum) return;
+  const fld = document.getElementById("auditField");
+  const sum = document.getElementById("auditSummary");
   let sev = auditSeverity();
   sum.textContent = auditSummaryText();
   fld.classList.toggle("dangerField", sev === "error");
@@ -5092,6 +5082,13 @@ let saveBtn = document.getElementById("saveTrainTemplate");
 if (saveBtn) saveBtn.onclick = saveTrainTemplate;
 let loadBtn = document.getElementById("loadTrainTemplate");
 if (loadBtn) loadBtn.onclick = loadTrainTemplate;
+const auditBtn = document.getElementById("refreshAudit");
+auditBtn.onclick = () => {
+  auditBtn.disabled = true;
+  return applyMenuContext({ includeCanvas: true, force: true })
+    .then(null, (e) => status("Configuration audit failed: " + e.message, "danger"))
+    .finally(() => { auditBtn.disabled = false; });
+};
 let toggleBtn = document.getElementById("toggleCanvasView");
 if (toggleBtn)
   toggleBtn.onclick = async () => {

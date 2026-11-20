@@ -23,8 +23,8 @@
 
   function fail(code,message){
     const error=new Error(String(message||'Results Viewer information-control failure.'));
-    error.name='NMResultsViewerInformationControlsError';
     error.code=String(code||'NMResultsViewerInformationControls:Failure');
+    error.message=`${error.message} (${error.code})\nJavaScript stack, top 2 frame(s):\n${error.stack.split('\n').slice(1,3).join('\n')}`;
     throw error;
   }
   function arr(value){return Array.isArray(value)?value:[];}

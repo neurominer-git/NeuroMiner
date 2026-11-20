@@ -10,7 +10,7 @@ classdef NMAppUI
 % -------------------------------------------------------------------------
 
     methods (Static)
-        function NM = open(NM, outDir, ctx, port, initialPage, sessionOptions)
+        function NM = open(NM, outDir, ctx, port, initialPage, sessionOptions, varargin)
             % open  Launch the NM 2.0 app shell at the requested page.
             %
             % Creates an app-level session state, exports the workbench shell, starts the local browser
@@ -26,11 +26,16 @@ classdef NMAppUI
             if nargin < 5 || isempty(initialPage), initialPage = 'landing'; end
             if nargin < 6, sessionOptions = struct(); end
             if ~isstruct(ctx), ctx = struct(); end
+            trackSession = ~isempty(varargin) && logical(varargin{1});
             NM = NMDataIOFeatureQCTools.normalizePersistedNMQC(NM);
 
             while true
                 app = NMAppUI.createAppState(NM, ctx, initialPage);
                 paths = NMAppUI.export(app, outDir, ctx);
+                if trackSession
+                    global UI
+                    UI.sessionTmpDir = paths.tmpDir;
+                end
                 NMUIStateTools.initialize(paths.tmpDir, NM, initialPage);
                 handler = @(req, tmpDir) NMAppUI.handleMatlabService(app, req, tmpDir, ctx);
                 uiTarget = 'browser-default';
@@ -148,7 +153,7 @@ classdef NMAppUI
             if recovered && ~isempty(recoveryModuleKey)
                 sessionOptions.InitialQuery = struct('moduleKey',recoveryModuleKey);
             end
-            NM = NMAppUI.open(NM, outDir, ctx, port, initialPage, sessionOptions);
+            NM = NMAppUI.open(NM, outDir, ctx, port, initialPage, sessionOptions, applicationStartup);
         end
 
         function NM = openTemplate(NM, outDir, ctx, port)

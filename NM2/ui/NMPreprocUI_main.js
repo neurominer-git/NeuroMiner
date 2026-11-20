@@ -1082,54 +1082,40 @@ function renderCombatCovariateTable(cfg,f,val,onChange){let rows=syncCombatCovar
  * Side effects: updates DOM markup, CSS classes or control state for the active browser page.
  */
 function renderCovariateField(cfg,f,val,onChange){
-    let multiple=(f.multiple===true)||String(f.type||"").toLowerCase().endsWith("s");
-    let opts=covarOptions();
-    let sel=arr(val).map(Number).filter(x=>!Number.isNaN(x));
-    let inp=document.createElement("select");
-    const viewportKey=String(f.name||"");
-    inp.dataset.nmPreprocCovariateField=viewportKey;
-    if(multiple){
-        inp.multiple=true;
-        inp.size=Math.min(Math.max(opts.length+((f.allowEmpty!==false)?1:0),4),10);
-        inp.title="Click a covariate to select or deselect it; modifier keys are not required.";
-        if(f.allowEmpty!==false){let empty=document.createElement("option");empty.value="";empty.textContent="<none>";empty.selected=sel.length===0;inp.appendChild(empty);}
-    }else{let empty=document.createElement("option");empty.value="";empty.textContent="<none>";inp.appendChild(empty);}
-    if(!opts.length){let o=document.createElement("option");o.disabled=true;o.textContent="<no covariates available>";inp.appendChild(o);}
-    opts.forEach(c=>{let o=document.createElement("option");o.value=Number(c.index);o.textContent=covarLabel(c);if(sel.indexOf(Number(c.index))>=0)o.selected=true;inp.appendChild(o);});
-    const commitSelection=()=>{
-        const scrollTop=inp.scrollTop;
-        let vals=Array.from(inp.selectedOptions).filter(o=>!o.disabled&&o.value!=="").map(o=>Number(o.value));
-        cfg[f.name]=multiple?vals:(vals.length?vals[0]:[]);
-        const viewportRoot=inp.closest("#editor,#globalOptions")||document;
-        onChange();
-        if(multiple)window.requestAnimationFrame(()=>{
-            const next=Array.from(viewportRoot.querySelectorAll("select[data-nm-preproc-covariate-field]")).find(node=>node.dataset.nmPreprocCovariateField===viewportKey);
-            if(next){next.focus({preventScroll:true});next.scrollTop=scrollTop;}
+    const opts=covarOptions();
+    if(f.type==="covariate_indices"){
+        const root=document.createElement("div");
+        const selected=new Set(arr(val).map(Number));
+        root.style.cssText="max-height:240px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:9px;background:white;padding:3px";
+        if(!opts.length){root.textContent="<no covariates available>";return root;}
+        opts.forEach(c=>{
+            const index=Number(c.index);
+            const row=document.createElement("label");
+            const box=document.createElement("input");
+            const name=document.createElement("span");
+            row.style.cssText="display:flex;align-items:center;gap:6px;margin:0;padding:2px 6px;line-height:18px;cursor:pointer;font-weight:400;font-size:13px";
+            box.type="checkbox";
+            box.value=String(index);
+            box.checked=selected.has(index);
+            box.style.cssText="margin:0;padding:0;width:15px;height:15px;flex:0 0 auto";
+            name.textContent=covarLabel(c);
+            box.onchange=()=>{
+                if(box.checked)selected.add(index);
+                else selected.delete(index);
+                cfg[f.name]=opts.filter(o=>selected.has(Number(o.index))).map(o=>Number(o.index));
+                onChange();
+            };
+            row.appendChild(box);
+            row.appendChild(name);
+            root.appendChild(row);
         });
-    };
-    if(multiple){
-        inp.onmousedown=(event)=>{
-            const option=event.target;
-            if(!option||String(option.tagName||"").toLowerCase()!=="option"||option.disabled)return;
-            event.preventDefault();
-            const selectedValues=Array.from(inp.options).filter(o=>o.selected&&o.value!==""&&!o.disabled);
-            if(option.value===""){
-                Array.from(inp.options).forEach(o=>{o.selected=(o===option);});
-            }else{
-                const nextSelected=!option.selected;
-                if(!nextSelected&&f.allowEmpty===false&&selectedValues.length<=1){inp.focus({preventScroll:true});return;}
-                option.selected=nextSelected;
-                const empty=Array.from(inp.options).find(o=>o.value==="");
-                if(empty){
-                    const anySelected=Array.from(inp.options).some(o=>o.selected&&o.value!==""&&!o.disabled);
-                    empty.selected=!anySelected;
-                }
-            }
-            inp.focus({preventScroll:true});
-            commitSelection();
-        };
+        return root;
     }
-    inp.onchange=commitSelection;
+    const inp=document.createElement("select"),empty=document.createElement("option");
+    empty.value="";empty.textContent="<none>";inp.appendChild(empty);
+    if(!opts.length){let o=document.createElement("option");o.disabled=true;o.textContent="<no covariates available>";inp.appendChild(o);}
+    opts.forEach(c=>{let o=document.createElement("option");o.value=Number(c.index);o.textContent=covarLabel(c);if(Number(val)===Number(c.index))o.selected=true;inp.appendChild(o);});
+    inp.onchange=()=>{cfg[f.name]=inp.value===""?[]:Number(inp.value);onChange();};
     return inp;
 }
 /**
@@ -1624,7 +1610,7 @@ function renderLearnerParamTable(cfg,f,val,onChange){
  */
 function renderField(cfg,f,onChange,st){
     let downstreamOnChange=onChange;
-    onChange=(changedField)=>{let cf=changedField||f;let p=childStatePathForField(cfg,cf,st);if(p)markChildChangedPath(p);if(downstreamOnChange)downstreamOnChange(cf);};
+    onChange=(changedField)=>{let cf=changedField||f;let p=childStatePathForField(cfg,cf,st);if(p)markChildChangedPath(p);if(cf.type==="covariate_indices"&&st){renderPreview();return;}if(downstreamOnChange)downstreamOnChange(cf);};
     let div=document.createElement("div"); div.className="field";
     let lab=document.createElement("label"); lab.textContent=f.label||f.name; div.appendChild(lab);(isMLMode()?ML_CONTEXT_HELP:PREPROC_CONTEXT_HELP).button(lab,isMLMode()?mlFieldHelpTopic(f):preprocFieldHelpTopic(f,st),f.label||f.name);
     let val=cfg?fieldValue(cfg,f):undefined;
