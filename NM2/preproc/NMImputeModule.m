@@ -94,7 +94,7 @@ classdef NMImputeModule < NMPreprocModule
                 cfg.blockIndexVar = [];
             elseif isfield(cfg,'featureScope') && strcmpi(char(cfg.featureScope),'subspace')
                 mask = cfg.blockIndexVar;
-                if isempty(mask)
+                if strict && isempty(mask)
                     report.errors{end+1} = 'Field blockIndexVar must define a non-empty 0/1 feature mask when featureScope is subspace.';
                 elseif any(mask(:) ~= 0 & mask(:) ~= 1)
                     report.errors{end+1} = 'Field blockIndexVar must contain only 0/1 values.';

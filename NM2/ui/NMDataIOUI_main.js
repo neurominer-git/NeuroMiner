@@ -77,7 +77,7 @@ let IMAGE_VIEWER_SERVER_RENDER_PENDING = false;
 let SURFACE_VIEWER_MESH = null;
 let SURFACE_VIEWER_GL = null;
 let SURFACE_VIEWER_RAF = null;
-let SURFACE_VIEWER_STATE = { rotX: -0.25, rotZ: 0.0, zoom: 1.0, dragging: false, lastX: 0, lastY: 0 };
+const SURFACE_VIEWER_STATE = {rotX:-0.25,rotZ:0,zoom:1,panX:0,panY:0};
 let ATLAS_DESCRIPTOR_INSPECTION = null;
 let CONNECTIVITY_DESCRIPTOR_INSPECTION = null;
 let CONNECTIVITY_TABLE_SCHEMA = null;
@@ -437,7 +437,6 @@ function variableRoleRefs(values) {
     return variableRefFromId(value);
   });
 }
-function variableRoleIds(refs) { return arr(refs).map((r) => typeof r === 'string' ? r : String((r && (r.id || r.name)) || '')).filter(Boolean); }
 function variableRoleRefId(ref) { return typeof ref === 'string' ? String(ref) : String((ref && (ref.id || ref.name)) || ''); }
 function variableRoleCaseRefs(ref) {
   if (!ref || typeof ref !== 'object') return [];
@@ -446,7 +445,6 @@ function variableRoleCaseRefs(ref) {
   return [];
 }
 function variableRoleCaseIds(ref) { return variableRoleCaseRefs(ref).map(variableRoleRefId).filter(Boolean); }
-function variableRoleCaseId(ref) { const ids = variableRoleCaseIds(ref); return ids[0] || ''; }
 function sourceVariableSourceIdentity(ref) {
   const r = sourceVariableById(variableRoleRefId(ref)) || ref || {};
   const st = String(r.sourceType || sourceType() || 'workspace').toLowerCase();
@@ -1059,22 +1057,6 @@ function optionVariableRefs(id) {
     }
     return variableRefFromId(o.value);
   });
-}
-function selectedVariableRefs(id) {
-  const el = document.getElementById(id);
-  if (!el) return [];
-  return Array.from(el.selectedOptions || []).map((o) => {
-    if (o.dataset && o.dataset.ref) {
-      try { return JSON.parse(o.dataset.ref); } catch (_) { /* fall through */ }
-    }
-    return variableRefFromId(o.value);
-  });
-}
-function selectedVariableSourcePaths() {
-  const roles = currentVariableRoles();
-  const refs = [].concat(roles.caseId, roles.labels, roles.features, roles.featureNames, roles.covariates, roles.covariateNames);
-  const paths = refs.map((ref) => String((ref && (ref.sourcePath || ref.filePath)) || '')).filter(Boolean);
-  return Array.from(new Set(paths));
 }
 function variableRefRowCount(ref) {
   const w = sourceVariableById(variableRoleRefId(ref)) || ref;
@@ -1831,8 +1813,7 @@ function changeSourceType() {
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
 function committedModalityCount() {
-  if (Number.isFinite(Number(STATE.committedModalityCount))) return Number(STATE.committedModalityCount);
-  return arr(STATE.modalityInfo).filter((info) => info && info.storageMode !== 'unknown').length;
+  return Number(STATE.committedModalityCount);
 }
 /**
  * dataIOMode  Provide the data iomode helper used by DataIO browser page for import configuration, preview, QC and commit operations.
@@ -3372,9 +3353,7 @@ function materializationIdentityState(state) {
   const drop = ['materializationRevision','draftDirty','preview','persistedInspection','persistedQC','oocvScientificPolicy',
     'existingCovariateNames','existingLabelAvailable','existingLabelColumns','oocvLabelsPresent'];
   drop.forEach((k) => { if (Object.prototype.hasOwnProperty.call(x,k)) delete x[k]; });
-  const matrixSource = String(x.sourceType || ((x.matrix || {}).sourceType || '')).trim().toLowerCase();
-  if (['workspace','matfile','tablefile','tablevar','database'].includes(matrixSource)) delete x.selection;
-  else if (x.selection && typeof x.selection === 'object' && Object.prototype.hasOwnProperty.call(x.selection,'selCases')) delete x.selection.selCases;
+  delete x.selection;
   if (x.matrix && typeof x.matrix === 'object' && Object.prototype.hasOwnProperty.call(x.matrix,'databasePassword')) delete x.matrix.databasePassword;
   ['roi','image','connectivity'].forEach((key) => {
     const branch = x[key];
@@ -4858,29 +4837,50 @@ async function pickAtlasFileFor(kind) {
  * qcSequentialRgb  Provide the qc sequential rgb helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
+const QC_SEQUENTIAL_STOPS = [
+  [248, 250, 252],
+  [255, 209, 102],
+  [232, 93, 4]
+];
+const QC_HYBRID_NEGATIVE_STOPS = [[40, 200, 232], [39, 93, 241], [139, 16, 232]];
+const QC_HYBRID_POSITIVE_STOPS = [[255, 223, 89], [255, 140, 34], [223, 22, 45]];
+const QC_BIPOLAR_GRADIENT = 'linear-gradient(90deg, #40a0ff 0%, #e5e7eb 50%, #ff5050 100%)';
+const qcRgbInterpolate = window.NMImageSliceViewer.rgbInterpolate;
+const qcGroupTone = window.NMImageSliceViewer.groupTone;
+const qcGroupGradient = window.NMImageSliceViewer.groupGradient;
+const qcGroupMatrixRgb = window.NMImageSliceViewer.groupMatrixRgb;
 function qcSequentialRgb(t) {
   const x = Math.max(0, Math.min(1, Number(t) || 0));
-  if (x < 0.5) {
-    const u = x / 0.5;
-    return [Math.round(248 + u * (255 - 248)), Math.round(250 + u * (209 - 250)), Math.round(252 + u * (102 - 252))];
-  }
-  const u = (x - 0.5) / 0.5;
-  return [Math.round(255 + u * (232 - 255)), Math.round(209 + u * (93 - 209)), Math.round(102 + u * (4 - 102))];
+  const index = x < 0.5 ? 0 : 1;
+  const weight = index === 0 ? x / 0.5 : (x - 0.5) / 0.5;
+  return qcRgbInterpolate(QC_SEQUENTIAL_STOPS, index, weight);
 }
 
 /** Resolve sequential versus bipolar display semantics from the materialized finite payload. */
-function qcDisplaySemantics(overlayKind, windowVals, values) {
+function qcDisplaySemantics(overlayKind, windowVals, values, metricKey = '') {
   const kind = String(overlayKind || 'sequential');
   const win = arr(windowVals).map((x) => Number(x));
-  if (kind !== 'sequential') return { kind, window: win };
+  const group = metricKey === 'feature_mean' || metricKey === 'feature_std';
+  if (kind !== 'sequential' && !group) return { kind, window: win };
   let minValue = Infinity; let maxValue = -Infinity;
+  const step = group ? Math.max(1, Math.ceil(values.length / 65536)) : 0;
+  const sample = [];
   for (let i = 0; i < values.length; i += 1) {
     const value = Number(values[i]);
     if (!Number.isFinite(value)) continue;
     if (value < minValue) minValue = value;
     if (value > maxValue) maxValue = value;
+    if (step && i % step === 0) sample.push(value);
   }
-  if (!(minValue < 0 && maxValue > 0)) return { kind, window: win };
+  const signed = kind === 'bipolar' || (minValue < 0 && (metricKey === 'feature_mean' || maxValue > 0));
+  if (group && sample.length) {
+    if (signed) for (let i = 0; i < sample.length; i += 1) sample[i] = Math.abs(sample[i]);
+    sample.sort((a, b) => a - b);
+    const upper = Math.max(quantileSorted(sample, 0.99), 1e-6);
+    if (signed) return { kind: 'bipolar', window: [-upper, upper] };
+    return { kind, window: [metricKey === 'feature_std' ? 0 : quantileSorted(sample, 0.01), upper] };
+  }
+  if (!signed) return { kind, window: win };
   const bound = Math.max(Math.abs(minValue), Math.abs(maxValue));
   return { kind: 'bipolar', window: [-bound, bound] };
 }
@@ -5635,11 +5635,7 @@ function connectivityQCMetricInfo(key) {
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
 function connectivityQCNumericMatrix(raw) {
-  return arr(raw).map((row) => arr(row).map((x) => {
-    if (x === null || x === undefined || x === '') return NaN;
-    const v = Number(x);
-    return Number.isFinite(v) ? v : NaN;
-  }));
+  return arr(raw).map(connectivityQCNumericVector);
 }
 function connectivityQCNumericVector(raw) {
   return arr(raw).map((x) => {
@@ -5669,9 +5665,7 @@ function hydrateConnectivityQCSubjectMatrices(pkg) {
   const p = pkg || {};
   if (p.mode !== 'subject' || !arr(p.subjectEdgeValues).length || !arr(p.edgeIndex).length) return;
   const x = connectivityQCNumericVector(p.subjectEdgeValues);
-  const mean = connectivityQCNumericVector(p.edgeMean);
-  const sd = connectivityQCNumericVector(p.edgeSD);
-  const z = x.map((v, i) => Number.isFinite(v) && Number.isFinite(mean[i]) && Number.isFinite(sd[i]) && sd[i] > 0 ? (v - mean[i]) / sd[i] : NaN);
+  const z = connectivityQCNumericVector(p.subjectEdgeZ);
   p.subjectMatrix = connectivityQCEdgeVectorMatrix(p, x);
   p.subjectZMatrix = connectivityQCEdgeVectorMatrix(p, z);
   p.subjectAbsZMatrix = connectivityQCEdgeVectorMatrix(p, z.map((v) => Number.isFinite(v) ? Math.abs(v) : NaN));
@@ -5682,15 +5676,16 @@ function hydrateConnectivityQCSubjectMatrices(pkg) {
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
 function connectivityQCMetricMatrix(pkg, key) {
-  const p = pkg || CONNECTIVITY_QC_PACKAGE || {};
-  const k = key || (document.getElementById('cqMetric') ? document.getElementById('cqMetric').value : '') || 'group_mean';
-  if (k === 'group_sd') return connectivityQCNumericMatrix(p.groupSDMatrix);
-  if (k === 'group_missing_rate') return connectivityQCNumericMatrix(p.groupMissingRateMatrix);
-  if (k === 'subject_value') return connectivityQCNumericMatrix(p.subjectMatrix);
-  if (k === 'subject_z') return connectivityQCNumericMatrix(p.subjectZMatrix);
-  if (k === 'subject_abs_z') return connectivityQCNumericMatrix(p.subjectAbsZMatrix);
-  if (k === 'subject_missing') return connectivityQCNumericMatrix(p.subjectMissingMatrix);
-  return connectivityQCNumericMatrix(p.groupMeanMatrix);
+  switch(key){
+    case 'group_sd': return pkg.groupSDMatrix;
+    case 'group_missing_rate': return pkg.groupMissingRateMatrix;
+    case 'subject_value': return pkg.subjectMatrix;
+    case 'subject_z': return pkg.subjectZMatrix;
+    case 'subject_abs_z': return pkg.subjectAbsZMatrix;
+    case 'subject_missing': return pkg.subjectMissingMatrix;
+    case 'group_mean': return pkg.groupMeanMatrix;
+    default: throw new Error(`Unknown connectivity QC metric: ${key}`);
+  }
 }
 /**
  * connectivityQCMetricUsesZThreshold  Provide the connectivity qcmetric uses zthreshold helper used by DataIO browser page for import configuration, preview, QC and commit operations.
@@ -5707,20 +5702,6 @@ function connectivityQCMetricUsesZThreshold(key) {
 function connectivityQCZThresholdValue() {
   const thr = Number(val('cqZThreshold'));
   return Number.isFinite(thr) && thr >= 0 ? thr : 3;
-}
-/**
- * connectivityQCDisplayMatrix  Provide the connectivity qcdisplay matrix helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function connectivityQCDisplayMatrix(pkg, key, zThreshold) {
-  const raw = connectivityQCMetricMatrix(pkg, key);
-  if (!connectivityQCMetricUsesZThreshold(key)) return raw;
-  const thr = Number.isFinite(Number(zThreshold)) && Number(zThreshold) >= 0 ? Number(zThreshold) : 3;
-  return raw.map((row) => arr(row).map((x) => {
-    const v = Number(x);
-    if (!Number.isFinite(v)) return NaN;
-    return Math.abs(v) >= thr ? v : 0;
-  }));
 }
 /**
  * updateConnectivityQCThresholdControl  Update connectivity qcthreshold control state or markup after user interaction or bridge refresh.
@@ -5800,24 +5781,14 @@ function connectivityQCRgbForValue(value, scale, limit) {
   const v = Number(value);
   if (!Number.isFinite(v)) return [247, 247, 247];
   const mode = String(scale || 'signed');
-  if (mode === 'rate') {
-    const t = Math.max(0, Math.min(1, v));
-    return [255, Math.round(255 * (1 - t)), 255];
-  }
-  if (mode === 'sequential') {
-    const t = Math.max(0, Math.min(1, limit > 0 ? Math.abs(v) / limit : 0));
-    return [255, Math.round(255 * (1 - t)), Math.round(255 * (1 - t))];
+  if (mode === 'rate' || mode === 'sequential') {
+    const t = Math.max(0, Math.min(1, mode === 'rate' ? v : (limit > 0 ? Math.abs(v) / limit : 0)));
+    const fade = Math.round(255 * (1 - t));
+    return [255, fade, mode === 'rate' ? 255 : fade];
   }
   const z = Math.max(0, Math.min(1, limit > 0 ? Math.abs(v) / limit : 0));
   if (v < 0) { const rg = Math.round(255 * (1 - z)); return [rg, rg, 255]; }
   const gb = Math.round(255 * (1 - z)); return [255, gb, gb];
-}
-/**
- * connectivityQCRgbCss  Provide the connectivity qcrgb css helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function connectivityQCRgbCss(rgb) {
-  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
 }
 /**
  * connectivityQCColorbarBackground  Provide the connectivity qccolorbar background helper used by DataIO browser page for import configuration, preview, QC and commit operations.
@@ -5825,15 +5796,13 @@ function connectivityQCRgbCss(rgb) {
  */
 function connectivityQCColorbarBackground(scale, limit) {
   const mode = String(scale || 'signed');
-  if (mode === 'rate') {
-    return `linear-gradient(180deg, ${connectivityQCRgbCss(connectivityQCRgbForValue(1, 'rate', 1))} 0%, ${connectivityQCRgbCss(connectivityQCRgbForValue(0, 'rate', 1))} 100%)`;
-  }
-  if (mode === 'sequential') {
-    const top = Math.max(0, Number(limit || 0));
-    return `linear-gradient(180deg, ${connectivityQCRgbCss(connectivityQCRgbForValue(top, 'sequential', top))} 0%, ${connectivityQCRgbCss(connectivityQCRgbForValue(0, 'sequential', top))} 100%)`;
-  }
-  const top = Math.max(0, Number(limit || 0));
-  return `linear-gradient(180deg, ${connectivityQCRgbCss(connectivityQCRgbForValue(top, 'signed', top))} 0%, ${connectivityQCRgbCss(connectivityQCRgbForValue(0, 'signed', top))} 50%, ${connectivityQCRgbCss(connectivityQCRgbForValue(-top, 'signed', top))} 100%)`;
+  const top = mode === 'rate' ? 1 : Math.max(0, Number(limit));
+  const values = mode === 'signed' ? [top, 0, -top] : [top, 0];
+  const stops = values.map((v, i) => {
+    const rgb = connectivityQCRgbForValue(v, mode, top);
+    return `rgb(${rgb.join(',')}) ${100 * i / (values.length - 1)}%`;
+  });
+  return `linear-gradient(180deg, ${stops.join(',')})`;
 }
 /**
  * connectivityQCScaleLabel  Build the connectivity qcscale label shown to users in the browser UI.
@@ -5861,7 +5830,7 @@ function connectivityQCColorbarLabel(metric) {
  * It is a browser rendering helper: it updates DOM or SVG state from already retrieved NeuroMiner payloads and does not define new scientific results.
  * Side effects: updates DOM markup, CSS classes or control state for the active browser page.
  */
-function updateConnectivityQCColorbar(metric, limit) {
+function updateConnectivityQCColorbar(metric, limit, groupDisplay) {
   const title = document.getElementById('cqColorbarTitle');
   const grad = document.getElementById('cqColorbarGradient');
   const maxEl = document.getElementById('cqColorbarMax');
@@ -5870,24 +5839,27 @@ function updateConnectivityQCColorbar(metric, limit) {
   const note = document.getElementById('cqColorbarNote');
   if (!grad) return;
   const scale = String((metric || {}).scale || 'signed');
-  grad.classList.remove('signed', 'sequential', 'rate');
-  grad.classList.add(scale === 'rate' ? 'rate' : (scale === 'sequential' ? 'sequential' : 'signed'));
-  grad.style.background = connectivityQCColorbarBackground(scale, limit);
+  const zMetric = connectivityQCMetricUsesZThreshold(metric.key);
+  grad.classList.remove('signed','sequential','rate','hybridSigned','hybridAbsolute');
+  grad.classList.add(zMetric ? (metric.key === 'subject_abs_z' ? 'hybridAbsolute' : 'hybridSigned') : scale);
+  grad.style.background = groupDisplay
+    ? qcGroupGradient(metric.key, groupDisplay.window, groupDisplay.kind, '0deg')
+    : zMetric ? '' : connectivityQCColorbarBackground(scale,limit);
+  if (zMetric) {
+    const threshold = connectivityQCZThresholdValue();
+    const rawWindow = connectivityQCNumericVector(CONNECTIVITY_QC_PACKAGE.cohortZWindow);
+    const lo = Math.min(rawWindow[0],-3*threshold), hi = Math.max(rawWindow[1],3*threshold);
+    if (note) note.textContent = `Grey: |z| < ${connectivityQCScaleLabel(threshold)}; linear to ${connectivityQCScaleLabel(2*threshold)}, logarithmic beyond.`;
+    if (maxEl) maxEl.textContent = connectivityQCScaleLabel(metric.key === 'subject_abs_z' ? Math.max(-lo,hi) : hi);
+    if (minEl) minEl.textContent = connectivityQCScaleLabel(metric.key === 'subject_abs_z' ? 0 : lo);
+  }
   if (title) title.textContent = connectivityQCColorbarLabel(metric);
   if (midEl) midEl.textContent = '';
-  if (note) note.textContent = '';
-  if (scale === 'rate') {
-    if (maxEl) maxEl.textContent = connectivityQCScaleLabel(1);
-    if (minEl) minEl.textContent = connectivityQCScaleLabel(0);
-  } else if (scale === 'sequential') {
-    const top = Math.max(0, Number(limit || 0));
-    if (maxEl) maxEl.textContent = connectivityQCScaleLabel(top);
-    if (minEl) minEl.textContent = connectivityQCScaleLabel(0);
-  } else {
-    const top = Math.max(0, Number(limit || 0));
-    if (maxEl) maxEl.textContent = connectivityQCScaleLabel(top);
-    if (minEl) minEl.textContent = connectivityQCScaleLabel(-top);
-  }
+  if (!zMetric && note) note.textContent = '';
+  if (zMetric) return;
+  const top = scale === 'rate' ? 1 : Math.max(0, Number(limit));
+  if (maxEl) maxEl.textContent = connectivityQCScaleLabel(groupDisplay ? groupDisplay.window[1] : top);
+  if (minEl) minEl.textContent = connectivityQCScaleLabel(groupDisplay ? groupDisplay.window[0] : scale === 'signed' ? -top : 0);
 }
 /**
  * renderConnectivityQCMatrix  Render the connectivity qcmatrix UI region from current browser state.
@@ -5917,34 +5889,32 @@ function renderConnectivityQCMatrixNow() {
   const metric = connectivityQCMetricInfo(metricKey);
   updateConnectivityQCThresholdControl();
   const zThreshold = connectivityQCZThresholdValue();
-  const M = connectivityQCDisplayMatrix(pkg, metricKey, zThreshold);
+  const M = connectivityQCMetricMatrix(pkg, metricKey);
   const n = M.length;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (!n) {
     if (summary) summary.textContent = 'No connectivity matrix available for this metric.';
     if (hover) hover.textContent = 'No ROI-by-ROI edge under cursor.';
     return;
   }
-  const finiteVals = [];
-  M.forEach((row) => arr(row).forEach((x) => { const v = Number(x); if (Number.isFinite(v)) finiteVals.push(v); }));
-  const absLimit = finiteVals.length ? Math.max(...finiteVals.map((x) => Math.abs(x))) : 0;
-  const maxLimit = finiteVals.length ? Math.max(...finiteVals.map((x) => Math.max(0, x))) : 0;
-  const scaleLimit = metric.scale === 'signed' ? absLimit : (metric.scale === 'rate' ? 1 : maxLimit);
-  updateConnectivityQCColorbar(metric, scaleLimit);
-  const cap = Math.min(120, n);
-  const w = canvas.width / cap;
-  const h = canvas.height / cap;
-  for (let r = 0; r < cap; r += 1) {
-    for (let c = 0; c < cap; c += 1) {
-      const v = M[r] ? Number(M[r][c]) : NaN;
-      const rgb = connectivityQCRgbForValue(v, metric.scale, scaleLimit);
-      ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-      ctx.fillRect(c * w, r * h, Math.max(1, w), Math.max(1, h));
-    }
-  }
-  ctx.strokeStyle = '#667085'; ctx.strokeRect(0, 0, canvas.width, canvas.height);
+  let scaleLimit = 0;
+  if(metric.scale === 'rate') scaleLimit = 1;
+  else for(const row of M) for(const v of row) if(Number.isFinite(v))
+    scaleLimit = Math.max(scaleLimit, metric.scale === 'signed' ? Math.abs(v) : v);
+  const isGroupTone = metricKey === 'group_mean' || metricKey === 'group_sd';
+  const groupDisplay = isGroupTone ? qcDisplaySemantics(metric.scale === 'signed' ? 'bipolar' : 'sequential',
+    [0, scaleLimit], M.flat(), metricKey === 'group_sd' ? 'feature_std' : 'feature_mean') : null;
+  updateConnectivityQCColorbar(metric, scaleLimit, groupDisplay);
+  const zMetric = connectivityQCMetricUsesZThreshold(metricKey);
+  const zWindow = connectivityQCNumericVector(pkg.cohortZWindow);
+  const api = window.NMImageSliceViewer;
+  api.mountMouseHelp(canvas.parentElement,'connectivity');
+  api.drawMatrix(canvas,M,v=>!Number.isFinite(v) ? [247,247,247] : zMetric
+    ? (Math.abs(v)<zThreshold ? [203,213,225] : qcHybridPalette(v,zThreshold,zWindow,metricKey === 'subject_abs_z').rgb)
+    : groupDisplay ? qcGroupMatrixRgb(v, metricKey, groupDisplay)
+    : connectivityQCRgbForValue(v,metric.scale,scaleLimit));
+  api.getOrCreate('dataio-connectivity',{canvas,frame:canvas.parentElement,viewport:canvas.parentElement.parentElement.parentElement,
+    dims:[n,n,1],minZoom:1,maxZoom:Math.max(4,n/100),valueAt:(x,y)=>M[y][x],onHover:cell=>updateConnectivityQCHover(cell,metricKey),
+    tooltipText:cell=>`${connectivityQCNodeLabel(pkg,cell.y+1)} × ${connectivityQCNodeLabel(pkg,cell.x+1)}: ${formatCell(cell.value)}`});
   if (status) status.textContent = pkg.mode === 'subject' ? `Connectivity case QC for ${pkg.caseId || 'the selected case'}.` : 'Group-level connectivity QC.';
   if (subj) {
     if (pkg.mode === 'subject') {
@@ -5955,13 +5925,12 @@ function renderConnectivityQCMatrixNow() {
     }
   }
   if (summary) {
-    const trunc = n > cap ? ` Matrix rendering capped at ${cap} × ${cap} nodes for browser responsiveness.` : '';
     const eqc = pkg.edgeSpaceQC || {};
     const undirected = String(pkg.matrixType || 'undirected').toLowerCase() !== 'directed';
     const diagTxt = pkg.includeDiagonal ? (eqc.diagonalAvailable ? 'diagonal edges included' : 'diagonal-edge QC unavailable') : 'diagonal excluded by edge definition';
     const symTxt = undirected ? 'undirected edge space mirrored by definition' : (eqc.symmetryAvailable ? 'reciprocal-edge comparison available' : 'reciprocal-edge comparison unavailable');
     const thresholdTxt = connectivityQCMetricUsesZThreshold(metricKey) ? ` Edges with |z| < ${formatCell(zThreshold)} are rendered neutral.` : '';
-    summary.textContent = `${metric.label}: ${fmtNumber(pkg.nNodes)} ROI node(s), ${fmtNumber(pkg.nEdges)} imported edge(s), ${fmtNumber(pkg.nSubjects)} case(s). ${diagTxt}; ${symTxt}.${thresholdTxt}${trunc}`;
+    summary.textContent = `${metric.label}: ${fmtNumber(pkg.nNodes)} ROI node(s), ${fmtNumber(pkg.nEdges)} imported edge(s), ${fmtNumber(pkg.nSubjects)} case(s). ${diagTxt}; ${symTxt}.${thresholdTxt}`;
   }
   if (hover && !hover.dataset.touched) hover.textContent = 'Hover over the matrix to inspect an ROI-by-ROI edge.';
   const subjectMode = pkg.mode === 'subject';
@@ -5981,20 +5950,10 @@ function renderConnectivityQCMatrixNow() {
  * updateConnectivityQCHover  Update connectivity qchover state or markup after user interaction or bridge refresh.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
-function updateConnectivityQCHover(ev) {
+function updateConnectivityQCHover(cell, metricKey) {
   const pkg = CONNECTIVITY_QC_PACKAGE;
-  const canvas = document.getElementById('cqMatrix');
   const hover = document.getElementById('cqHover');
-  if (!pkg || !canvas || !hover) return;
-  const metricKey = val('cqMetric');
-  const M = connectivityQCMetricMatrix(pkg, metricKey);
-  const n = M.length;
-  if (!n) return;
-  const cap = Math.min(120, n);
-  const rect = canvas.getBoundingClientRect();
-  const c = Math.floor((ev.clientX - rect.left) / (rect.width / cap));
-  const r = Math.floor((ev.clientY - rect.top) / (rect.height / cap));
-  if (r < 0 || c < 0 || r >= cap || c >= cap) return;
+  const r = cell.y, c = cell.x;
   const a = r + 1, b = c + 1;
   const e = connectivityQCEdgeInfo(pkg, a, b);
   const labelA = connectivityQCNodeLabel(pkg, a);
@@ -6002,22 +5961,16 @@ function updateConnectivityQCHover(ev) {
   if (!e) {
     hover.textContent = `${labelA} × ${labelB}: edge not imported/retained in the current connectivity edge space.`;
   } else {
-    const v = M[r] ? Number(M[r][c]) : NaN;
+    const v = cell.value;
     const parts = [`${labelA} × ${labelB}`, `edge ${e.name}`];
     if (pkg.mode === 'subject') {
-      const subjValue = connectivityQCMetricMatrix(pkg, 'subject_value');
-      const subjZ = connectivityQCMetricMatrix(pkg, 'subject_z');
-      const subjMissing = connectivityQCMetricMatrix(pkg, 'subject_missing');
-      const sv = subjValue[r] ? Number(subjValue[r][c]) : NaN;
-      const sz = subjZ[r] ? Number(subjZ[r][c]) : NaN;
-      const sm = subjMissing[r] ? Number(subjMissing[r][c]) : NaN;
+      const sv = pkg.subjectMatrix[r][c], sz = pkg.subjectZMatrix[r][c], sm = pkg.subjectMissingMatrix[r][c];
       parts.push(`subject value = ${formatCell(sv)}`);
       parts.push(`subject z = ${formatCell(sz)}`);
       parts.push(`subject missing = ${qcFormatValue(sm, 'percent')}`);
       parts.push(`group mean = ${formatCell(e.mean)}`);
       parts.push(`group SD = ${formatCell(e.sd)}`);
       parts.push(`group missing = ${qcFormatValue(e.missing, 'percent')}`);
-      if (metricKey && !['subject_value', 'subject_z', 'subject_abs_z', 'subject_missing'].includes(metricKey)) parts.push(`${connectivityQCMetricInfo(metricKey).label} = ${formatCell(v)}`);
     } else {
       parts.push(`${connectivityQCMetricInfo(metricKey).label} = ${formatCell(v)}`);
       parts.push(`group mean = ${formatCell(e.mean)}`);
@@ -6034,18 +5987,11 @@ function updateConnectivityQCHover(ev) {
  * It is a browser rendering helper: it updates DOM or SVG state from already retrieved NeuroMiner payloads and does not define new scientific results.
  * Side effects: updates DOM markup, CSS classes or control state for the active browser page.
  */
-function setConnectivityQCMetricOptions(mode) {
+function setConnectivityQCMetricOptions(mode, metricKey) {
   const sel = document.getElementById('cqMetric');
-  if (!sel) return;
-  const level = mode === 'subject' ? 'subject' : 'group';
-  const defs = connectivityQCMetricDefinitions().filter((d) => d.level === level);
-  const groups = [level];
-  sel.innerHTML = groups.map((g) => {
-    const items = defs.filter((d) => d.level === g);
-    if (!items.length) return '';
-    return `<optgroup label="${g === 'group' ? 'Group' : 'Subject'}">${items.map((d) => `<option value="${escapeHtml(d.key)}">${escapeHtml(d.label)}</option>`).join('')}</optgroup>`;
-  }).join('');
-  sel.value = mode === 'subject' ? 'subject_value' : 'group_mean';
+  const defs = connectivityQCMetricDefinitions().filter(d=>d.level === mode);
+  sel.innerHTML = `<optgroup label="${mode === 'group' ? 'Group' : 'Subject'}">${defs.map(d=>`<option value="${escapeHtml(d.key)}">${escapeHtml(d.label)}</option>`).join('')}</optgroup>`;
+  sel.value = metricKey;
 }
 /**
  * openConnectivityQCViewer  Open the connectivity qcviewer panel, dialog or linked UI target.
@@ -6066,14 +6012,14 @@ async function openConnectivityQCViewer(mode, rowIndex) {
     const res = await matlabService(op, {}, { materializationCacheKey: cacheKey, rowIndex: Number(rowIndex || CONNECTIVITY_QC_ROW_INDEX || 1), metricKey: metric, zThreshold: Number(val('cqZThreshold') || 3), reuseStaticMetadata, timeout: 600 });
     if (!res || res.ok === false) throw new Error(stripText(res, 'Connectivity QC viewer package could not be prepared.'));
     const incomingPackage = res.viewerPackage || {};
+    if (!isSubject) for (const field of ['groupMeanMatrix','groupSDMatrix','groupMissingRateMatrix'])
+      incomingPackage[field] = connectivityQCNumericMatrix(incomingPackage[field]);
     if (reuseStaticMetadata) Object.assign(CONNECTIVITY_QC_PACKAGE, incomingPackage);
     else { CONNECTIVITY_QC_PACKAGE = incomingPackage; CONNECTIVITY_QC_EDGE_CACHE = null; }
     hydrateConnectivityQCSubjectMatrices(CONNECTIVITY_QC_PACKAGE);
     CONNECTIVITY_QC_MODE = CONNECTIVITY_QC_PACKAGE.mode || (isSubject ? 'subject' : 'group');
     CONNECTIVITY_QC_ROW_INDEX = Number(CONNECTIVITY_QC_PACKAGE.rowIndex || rowIndex || 1);
-    setConnectivityQCMetricOptions(CONNECTIVITY_QC_MODE);
-    const sel = document.getElementById('cqMetric');
-    if (sel) sel.value = CONNECTIVITY_QC_MODE === 'subject' ? 'subject_value' : 'group_mean';
+    setConnectivityQCMetricOptions(CONNECTIVITY_QC_MODE,metric);
     updateConnectivityQCThresholdControl();
     const title = document.getElementById('cqTitle');
     if (title) title.textContent = CONNECTIVITY_QC_MODE === 'subject' ? 'Case QC viewer · Connectivity' : 'Group-level connectivity QC viewer';
@@ -6102,8 +6048,7 @@ function closeConnectivityQCViewer() {
  */
 function openGroupQCViewer() {
   if (isConnectivitySource()) { openConnectivityQCViewer('group', 1); return; }
-  if (imageViewerQCIsImageOverlay()) { openImageGroupQCViewer(); return; }
-  openSurfaceGroupQCViewer();
+  openSpatialGroupQCViewer(!imageViewerQCIsImageOverlay());
 }
 /**
  * connectivityQCStepSubject  Provide the connectivity qcstep subject helper used by DataIO browser page for import configuration, preview, QC and commit operations.
@@ -9486,7 +9431,6 @@ function updateManagementButtons() {
   const info = selectedInfo();
   const hasSelection = !!info;
   const hasRows = infos.length > 0;
-  const hasPresentModalities = infos.some((row) => row && !isIncompleteModality(row) && storageMode(row) !== 'unknown');
   const mode = storageMode(info);
   const canModify = canModifyTrainingModalities();
   const inOOCVMode = isOOCVManagerMode();
@@ -9506,7 +9450,7 @@ function updateManagementButtons() {
   setDisabled('deleteModality', !canModify || !hasSelection);
   setDisabled('deleteAllModalities', !canModify || !hasRows);
   setDisabled('manageCovariates', !canModify || covariateSummaryState().available !== true || arr(covariateSummaryState().names).length !== Number(covariateSummaryState().nCovariates));
-  setDisabled('finalizeTrainingImport', dataIOMode() !== 'training_import' || !hasPresentModalities);
+  setDisabled('finalizeTrainingImport', !STATE.permissions.canFinalizeTrainingImport);
   setDisabled('externalizeModality', !canExternalize);
   setDisabled('relinkModality', !canRelink);
   setDisabled('relinkResources', !canRelinkResources);
@@ -10479,14 +10423,11 @@ function resetImageViewerVolume() {
   }
   SURFACE_VIEWER_MESH = null;
   SURFACE_VIEWER_GL = null;
-  IMAGE_VIEWER_GROUP_QC_MODE = false;
   const canvas = document.getElementById('ivCanvas');
   const surfaceCanvas = document.getElementById('ivSurfaceCanvas');
   const img = document.getElementById('ivImage');
   const sliceFrame = document.getElementById('ivSliceFrame');
   const sliceViewport = document.getElementById('ivSliceViewport');
-  if (sliceFrame) sliceFrame.classList.add('hidden');
-  if (sliceViewport) sliceViewport.classList.add('hidden');
   if (canvas) {
     canvas.classList.add('hidden');
     canvas.width = 1;
@@ -10509,16 +10450,16 @@ function setImageViewerSurfaceModeControls(surfaceMode) {
   const title = document.getElementById('ivTitle');
   const sliceControls = document.querySelector('.imageSliceControls');
   const resetBtn = document.getElementById('ivSurfaceReset');
-  const qcBtn = document.getElementById('ivToggleQC');
-  const qcMetric = document.getElementById('ivQCMetric');
-  const qcThr = document.getElementById('ivQCThreshold');
-  const qcMode = document.getElementById('ivQCMode');
-  const qcOpacity = document.getElementById('ivQCOpacity');
   const qcColorbar = document.getElementById('ivQCColorbar');
   const surfaceColorbar = document.getElementById('ivSurfaceColorbar');
   const sliceFrame = document.getElementById('ivSliceFrame');
   const sliceViewport = document.getElementById('ivSliceViewport');
   const includeLabel = document.querySelector('.subjectIncludeViewerToggle');
+  const target = surfaceMode ? document.getElementById('ivSurfaceCanvas') : sliceFrame;
+  if(target) window.NMImageSliceViewer.mountMouseHelp(target,surfaceMode?'surface':'volume');
+  for(const anchor of document.querySelectorAll('.imageCanvasBox .nmMouseHelpAnchor')){
+    anchor.classList.toggle('hidden',!anchor.contains(target));
+  }
   if (title) title.textContent = imageViewerInGroupQCMode() ? (surfaceMode ? 'Group-level surface QC viewer' : 'Group-level imaging QC viewer') : (surfaceMode ? 'Case QC viewer · Surface' : 'Case QC viewer · Volumetric imaging');
   setElementVisible(includeLabel, !imageViewerInGroupQCMode() && previewImportSelectionEnabled(), 'inline-flex');
   setElementVisible(sliceControls, !surfaceMode, '');
@@ -10526,10 +10467,7 @@ function setImageViewerSurfaceModeControls(surfaceMode) {
   if (sliceFrame) sliceFrame.classList.toggle('hidden', !!surfaceMode);
   if (sliceViewport) sliceViewport.classList.toggle('hidden', !!surfaceMode);
   if (surfaceMode) {
-    IMAGE_VIEWER_QC_LOADING = false;
     if (qcColorbar) { qcColorbar.classList.add('hidden'); qcColorbar.setAttribute('aria-hidden', 'true'); }
-    updateImageViewerQCMetricOptions();
-    updateSurfaceViewerColorbar();
   } else if (surfaceColorbar) {
     surfaceColorbar.classList.add('hidden');
     surfaceColorbar.setAttribute('aria-hidden', 'true');
@@ -10720,36 +10658,19 @@ function imageViewerQCMetricIsGroupOutlierRate() {
   return imageViewerQCMetricKey() === 'feature_outlier_rate';
 }
 /**
- * imageViewerQCMetricUsesThreshold  Provide the image viewer qcmetric uses threshold helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function imageViewerQCMetricUsesThreshold() {
-  return imageViewerQCMetricIsSubjectZ() || imageViewerQCMetricIsGroupOutlierRate();
-}
-/**
  * imageViewerQCDynamicOutlierThresholdAvailable  Provide the image viewer qcdynamic outlier threshold available helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
 function imageViewerQCDynamicOutlierThresholdAvailable() {
   const cfg = imageViewerQCConfig();
-  if (!cfg) return false;
-  const v = cfg.dynamicOutlierThresholdAvailable;
-  if (typeof v === 'boolean') return v;
-  if (typeof v === 'number') return v !== 0;
-  if (typeof v === 'string') {
-    const t = v.trim().toLowerCase();
-    return t === 'true' || t === '1' || t === 'yes';
-  }
-  return false;
+  return cfg ? cfg.dynamicOutlierThresholdAvailable === true : false;
 }
 /**
  * imageViewerQCThresholdControlEnabled  Provide the image viewer qcthreshold control enabled helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
 function imageViewerQCThresholdControlEnabled() {
-  if (imageViewerQCMetricIsSubjectZ()) return true;
-  if (imageViewerQCMetricIsGroupOutlierRate()) return imageViewerQCDynamicOutlierThresholdAvailable();
-  return false;
+  return imageViewerQCMetricIsSubjectZ() || (imageViewerQCMetricIsGroupOutlierRate() && imageViewerQCDynamicOutlierThresholdAvailable());
 }
 /**
  * imageViewerQCCachedOutlierThreshold  Provide the image viewer qccached outlier threshold helper used by DataIO browser page for import configuration, preview, QC and commit operations.
@@ -10803,13 +10724,6 @@ function imageViewerQCIsImageOverlay() {
  */
 function imageViewerInGroupQCMode() {
   return !!IMAGE_VIEWER_GROUP_QC_MODE;
-}
-/**
- * imageViewerSelectedMetricIsGroupLevel  Provide the image viewer selected metric is group level helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function imageViewerSelectedMetricIsGroupLevel() {
-  return imageViewerQCMetricGroup(imageViewerQCMetricKey()) === 'Group QC maps';
 }
 /**
  * firstGroupQCMetricKey  Resolve the first group qcmetric key identifier used to connect UI state with NeuroMiner payload metadata.
@@ -10868,12 +10782,8 @@ function updateImageViewerQCMetricOptions() {
   const defs = allDefs.filter((d) => (d.group || imageViewerQCMetricGroup(d.key)) === activeGroup);
   const cur = String(sel.value || (imageViewerInGroupQCMode() ? firstGroupQCMetricKey() : 'subject_z'));
   sel.disabled = !cfg;
-  const groups = [activeGroup];
-  sel.innerHTML = groups.map((group) => {
-    const items = defs.filter((d) => (d.group || imageViewerQCMetricGroup(d.key)) === group);
-    if (!items.length) return '';
-    return `<optgroup label="${escapeHtml(group)}">${items.map((d) => `<option value="${escapeHtml(d.key)}" ${d.key === cur ? 'selected' : ''}>${escapeHtml(d.label)}</option>`).join('')}</optgroup>`;
-  }).join('\n');
+  const options = defs.map((d) => `<option value="${escapeHtml(d.key)}" ${d.key === cur ? 'selected' : ''}>${escapeHtml(d.label)}</option>`).join('');
+  sel.innerHTML = defs.length ? `<optgroup label="${escapeHtml(activeGroup)}">${options}</optgroup>` : '';
   if (!defs.some((d) => d.key === cur) && defs[0]) sel.value = defs[0].key;
 }
 
@@ -10921,7 +10831,7 @@ function updateSurfaceViewerColorbar() {
   const bipolar = SURFACE_VIEWER_MESH.baseOverlayKind === 'bipolar';
   if (loEl) loEl.textContent = formatSurfaceScalarValue(lo);
   if (hiEl) hiEl.textContent = formatSurfaceScalarValue(hi);
-  if (gradient) gradient.style.background = bipolar ? 'linear-gradient(90deg, #40a0ff 0%, #e5e7eb 50%, #ff5050 100%)' : '';
+  if (gradient) gradient.style.background = bipolar ? QC_BIPOLAR_GRADIENT : '';
   if (title) title.textContent = 'Surface scalar overlay';
   if (note) note.textContent = bipolar ? 'Vertex-wise scalar values span zero; the display range is symmetric about zero and uses a bipolar map.' : 'Vertex-wise scalar values use a unipolar map; NaN vertices are mapped to the lower display bound.';
 }
@@ -10939,62 +10849,47 @@ function updateImageViewerQCControls() {
   const op = document.getElementById('ivQCOpacity');
   const cfg = imageViewerQCConfig();
   const surfaceActive = !!(SURFACE_VIEWER_MESH || (document.getElementById('ivSurfaceCanvas') && !document.getElementById('ivSurfaceCanvas').classList.contains('hidden')));
-  if (surfaceActive) {
-    updateImageViewerQCMetricOptions();
-    const surfaceCfg = surfaceViewerQCAvailable();
-    if (btn) {
-      if (!cfg) {
-        btn.disabled = true;
-        btn.textContent = 'Show QC map (run Preview first)';
-      } else if (!imageViewerQCIsSurfaceOverlay()) {
-        btn.disabled = true;
-        btn.textContent = 'Surface QC map unavailable for this feature space';
-      } else if (!SURFACE_VIEWER_MESH) {
-        btn.disabled = true;
-        btn.textContent = 'Show QC map';
-      } else if (IMAGE_VIEWER_QC_LOADING) {
-        btn.disabled = true;
-        btn.textContent = 'Preparing QC map...';
-      } else {
-        btn.disabled = !surfaceCfg;
-        btn.textContent = imageViewerQCToggleLabel();
-      }
-    }
-    const metricUsesThreshold = cfg && imageViewerQCIsSurfaceOverlay() && imageViewerQCThresholdControlEnabled();
-    const subjectZ = imageViewerQCMetricIsSubjectZ();
-    if (metricSel) metricSel.disabled = !cfg || !imageViewerQCIsSurfaceOverlay();
-    if (thr) thr.disabled = !metricUsesThreshold;
-    if (mode) mode.disabled = !cfg || !subjectZ;
-    if (op) op.disabled = !cfg;
-    if (thr && cfg && (!thr.value || !Number.isFinite(Number(thr.value)))) thr.value = Number(cfg.thresholdDefault || 3);
-    if (mode && cfg && !mode.value) mode.value = cfg.modeDefault || 'signed';
-    if (op && (!op.value || !Number.isFinite(Number(op.value)))) op.value = '0.6';
-    updateImageViewerQCColorbar();
-    updateSurfaceViewerColorbar();
-    return;
-  }
   updateImageViewerQCMetricOptions();
+  const surfaceOverlay = !surfaceActive || imageViewerQCIsSurfaceOverlay();
   const subjectZ = imageViewerQCMetricIsSubjectZ();
   if (btn) {
     if (!cfg) {
-      btn.disabled = true;
       btn.textContent = 'Show QC map (run Preview first)';
+    } else if (!surfaceOverlay) {
+      btn.textContent = 'Surface QC map unavailable for this feature space';
+    } else if (surfaceActive && !SURFACE_VIEWER_MESH) {
+      btn.textContent = 'Show QC map';
     } else if (IMAGE_VIEWER_QC_LOADING) {
-      btn.disabled = true;
       btn.textContent = 'Preparing QC map...';
     } else {
-      btn.disabled = false;
       btn.textContent = imageViewerQCToggleLabel();
     }
+    btn.disabled = !cfg || !surfaceOverlay || (surfaceActive && !SURFACE_VIEWER_MESH) || IMAGE_VIEWER_QC_LOADING || (surfaceActive && !surfaceViewerQCAvailable());
   }
-  if (metricSel) metricSel.disabled = !cfg;
-  if (thr) thr.disabled = !cfg || !imageViewerQCThresholdControlEnabled();
+  if (metricSel) metricSel.disabled = !cfg || !surfaceOverlay;
+  if (thr) thr.disabled = !cfg || !surfaceOverlay || !imageViewerQCThresholdControlEnabled();
   if (mode) mode.disabled = !cfg || !subjectZ;
+  if (thr) thr.closest('label').classList.toggle('hidden', !imageViewerQCThresholdControlEnabled());
+  if (mode) mode.closest('label').classList.toggle('hidden', !subjectZ);
   if (op) op.disabled = !cfg;
   if (thr && cfg && (!thr.value || !Number.isFinite(Number(thr.value)))) thr.value = Number(cfg.thresholdDefault || 3);
   if (mode && cfg && !mode.value) mode.value = cfg.modeDefault || 'signed';
   if (op && (!op.value || !Number.isFinite(Number(op.value)))) op.value = '0.6';
   updateImageViewerQCColorbar();
+  if (surfaceActive) updateSurfaceViewerColorbar();
+}
+
+/** Maps the existing subject QC scores into the agreed linear–logarithmic colour progression. */
+function qcHybridPalette(z, threshold, window, absolute) {
+  const t = Math.max(threshold, 1e-6), magnitude = Math.abs(z);
+  const negative = z < 0 && !absolute;
+  const limit = Math.max(negative ? -window[0] : absolute ? Math.max(-window[0],window[1]) : window[1], 3*t);
+  const fraction = magnitude <= threshold ? 0 : magnitude <= 2*t
+    ? 0.5*(magnitude-threshold)/(2*t-threshold)
+    : Math.min(1,0.5+0.5*Math.log(magnitude/(2*t))/Math.log(limit/(2*t)));
+  const stops = negative ? QC_HYBRID_NEGATIVE_STOPS : QC_HYBRID_POSITIVE_STOPS;
+  const segment = fraction <= 0.5 ? 0 : 1, weight = fraction <= 0.5 ? 2*fraction : 2*fraction-1;
+  return { rgb: qcRgbInterpolate(stops, segment, weight), fraction };
 }
 
 /**
@@ -11004,65 +10899,50 @@ function updateImageViewerQCControls() {
  */
 function updateImageViewerQCColorbar() {
   const bar = document.getElementById('ivQCColorbar');
-  const signed = bar ? bar.querySelector('.qcLegendSigned') : null;
-  const absolute = bar ? bar.querySelector('.qcLegendAbsolute') : null;
-  const sequential = bar ? bar.querySelector('.qcLegendSequential') : null;
-  const title = bar ? bar.querySelector('.qcLegendTitle') : null;
-  const note = document.getElementById('ivQCColorbarNote');
-  const minEl = document.getElementById('ivQCColorbarMin');
-  const maxEl = document.getElementById('ivQCColorbarMax');
   if (!bar) return;
+  const note = document.getElementById('ivQCColorbarNote');
   const metric = imageViewerQCMetricInfo(imageViewerQCMetricKey());
   const mode = String(val('ivQCMode') || 'signed');
   const thr = Math.max(0, Number(val('ivQCThreshold') || 3));
-  const overlay = IMAGE_VIEWER_QC_OVERLAY && IMAGE_VIEWER_QC_OVERLAY.active ? IMAGE_VIEWER_QC_OVERLAY : null;
+  const qcOverlay = featureQCViewerFamily() === 'surface'
+    ? SURFACE_VIEWER_MESH && SURFACE_VIEWER_MESH.qcOverlay : IMAGE_VIEWER_QC_OVERLAY;
+  const overlay = IMAGE_VIEWER_QC_ACTIVE && qcOverlay && qcOverlay.active ? qcOverlay : null;
   const subjectZ = metric.key === 'subject_z';
   const bipolar = !!(overlay && overlay.overlayKind === 'bipolar');
   const show = !!(IMAGE_VIEWER_QC_ACTIVE && imageViewerQCConfig());
   bar.classList.toggle('hidden', !show);
   bar.setAttribute('aria-hidden', show ? 'false' : 'true');
-  if (signed) signed.classList.toggle('hidden', !subjectZ || mode !== 'signed');
-  if (absolute) absolute.classList.toggle('hidden', !subjectZ || mode === 'signed');
+  bar.querySelector('.qcLegendSigned').classList.toggle('hidden', !subjectZ || mode !== 'signed');
+  bar.querySelector('.qcLegendAbsolute').classList.toggle('hidden', !subjectZ || mode === 'signed');
+  const win = overlay && overlay.valueWindow ? overlay.valueWindow : [NaN, NaN];
   if (subjectZ) {
-    // The current subject payload owns the z-range; the signed legend uses a symmetric
-    // display extent, with its neutral interval positioned at exactly +/- threshold.
-    const window = overlay ? overlay.valueWindow : [-thr, thr];
-    const bound = Math.max(thr, Math.abs(Number(window[0])), Math.abs(Number(window[1])), Number.EPSILON);
-    const negEdge = 50 * (1 - thr / bound);
-    const posEdge = 100 - negEdge;
-    const fmt = (z) => formatSurfaceScalarValue(z);
-    const negMax = document.getElementById('ivQCNegMax');
-    const posMax = document.getElementById('ivQCPosMax');
-    const negThr = document.getElementById('ivQCNegThreshold');
-    const posThr = document.getElementById('ivQCPosThreshold');
-    const signedGradient = document.getElementById('ivQCSignedGradient');
-    const absGradient = document.getElementById('ivQCAbsoluteGradient');
-    const absThr = document.getElementById('ivQCAbsThreshold');
-    const absMax = document.getElementById('ivQCAbsMax');
-    if (negMax) negMax.textContent = fmt(-bound);
-    if (posMax) posMax.textContent = `+${fmt(bound)}`;
-    if (negThr) { negThr.textContent = fmt(-thr); negThr.style.left = `${negEdge}%`; }
-    if (posThr) { posThr.textContent = `+${fmt(thr)}`; posThr.style.left = `${posEdge}%`; }
-    if (signedGradient) signedGradient.style.background = `linear-gradient(90deg, #40a0ff 0%, #40a0ff ${negEdge}%, #cbd5e1 ${negEdge}%, #cbd5e1 ${posEdge}%, #ff5050 ${posEdge}%, #ff5050 100%)`;
-    const absEdge = 100 * thr / bound;
-    if (absGradient) absGradient.style.background = `linear-gradient(90deg, #cbd5e1 0%, #cbd5e1 ${absEdge}%, #ffc040 ${absEdge}%, #ff7a00 100%)`;
-    if (absThr) { absThr.textContent = fmt(thr); absThr.style.left = `${absEdge}%`; }
-    if (absMax) absMax.textContent = fmt(bound);
+    const lo = Number(win[0]), hi = Number(win[1]);
+    const valid = Number.isFinite(lo) && Number.isFinite(hi) && hi > lo;
+    const t = Math.max(thr, 1e-6);
+    const lower = valid ? Math.max(-lo,3*t) : 3*t;
+    const upper = valid ? Math.max(hi,3*t) : 3*t;
+    const bound = Math.max(lower,upper);
+    document.getElementById('ivQCNegMax').textContent = valid ? formatSurfaceScalarValue(-lower) : '−';
+    document.getElementById('ivQCPosMax').textContent = valid ? `+${formatSurfaceScalarValue(upper)}` : '+';
+    document.getElementById('ivQCNegThreshold').textContent = formatSurfaceScalarValue(-thr);
+    document.getElementById('ivQCPosThreshold').textContent = `+${formatSurfaceScalarValue(thr)}`;
+    document.getElementById('ivQCAbsThreshold').textContent = formatSurfaceScalarValue(thr);
+    document.getElementById('ivQCAbsMax').textContent = valid ? formatSurfaceScalarValue(bound) : '-';
   }
-  if (sequential) {
-    sequential.classList.toggle('hidden', subjectZ);
-    const gradient = sequential.querySelector('.qcGradientSequential');
-    if (gradient) gradient.style.background = bipolar ? 'linear-gradient(90deg, #40a0ff 0%, #e5e7eb 50%, #ff5050 100%)' : '';
-  }
-  if (title) title.textContent = subjectZ ? 'Subject QC z-score overlay' : `Group QC map: ${metric.label}`;
+  const sequential = bar.querySelector('.qcLegendSequential');
+  sequential.classList.toggle('hidden', subjectZ);
+  const groupTone = metric.key === 'feature_mean' || metric.key === 'feature_std';
+  sequential.querySelector('.qcGradientSequential').style.background = groupTone && overlay
+    ? qcGroupGradient(metric.key, win, overlay.overlayKind, '90deg')
+    : bipolar ? QC_BIPOLAR_GRADIENT : '';
+  bar.querySelector('.qcLegendTitle').textContent = subjectZ ? 'Subject QC z-score overlay' : `Group QC map: ${metric.label}`;
   if (!subjectZ) {
-    const win = overlay && overlay.valueWindow ? overlay.valueWindow : [NaN, NaN];
-    if (minEl) minEl.textContent = formatSurfaceScalarValue(win[0]);
-    if (maxEl) maxEl.textContent = formatSurfaceScalarValue(win[1]);
+    document.getElementById('ivQCColorbarMin').textContent = formatSurfaceScalarValue(win[0]);
+    document.getElementById('ivQCColorbarMax').textContent = formatSurfaceScalarValue(win[1]);
   }
   if (note) {
     if (subjectZ) {
-      note.textContent = '';
+      note.textContent = `Hybrid z scale: linear from ±${formatSurfaceScalarValue(thr)} to ±${formatSurfaceScalarValue(2*thr)}; logarithmic beyond. Outer limits: cohort P1/P99 (minimum ±${formatSurfaceScalarValue(3*thr)}).`;
     } else if (metric.key === 'feature_outlier_rate') {
       if (imageViewerQCDynamicOutlierThresholdAvailable()) {
         note.textContent = `${metric.label} is a group-level feature statistic recomputed at z-threshold ${thr}; finite voxels are displayed across the current map range.`;
@@ -11072,7 +10952,7 @@ function updateImageViewerQCColorbar() {
     } else if (bipolar) {
       note.textContent = `${metric.label} spans negative and positive values; the display range is symmetric about zero and uses a bipolar map.`;
     } else {
-      note.textContent = `${metric.label} is a group-level feature statistic displayed in voxel space. Finite voxels are shown across the current map range.`;
+      note.textContent = `${metric.label} uses a robust P99 display limit and a progressively opaque multihue scale; raw QC values are unchanged.`;
     }
   }
 }
@@ -11086,7 +10966,10 @@ function closeImageViewer() {
   const modal = document.getElementById('imageViewerModal');
   IMAGE_VIEWER_RENDER_SEQ += 1;
   if (IMAGE_VIEWER_RENDER_TIMER) { clearTimeout(IMAGE_VIEWER_RENDER_TIMER); IMAGE_VIEWER_RENDER_TIMER = null; }
+  IMAGE_VIEWER_GROUP_QC_MODE = false;
   resetImageViewerVolume();
+  resetSurfaceViewerState();
+  hideProgressModal();
   if (modal) { modal.classList.add('hidden'); modal.setAttribute('aria-hidden','true'); }
 }
 
@@ -11128,6 +11011,7 @@ async function openImageViewer(index, slice) {
   }
   IMAGE_VIEWER_INDEX = Math.max(0, Math.min(rows.length - 1, Number(index) || 0));
   IMAGE_VIEWER_SLICE = slice === undefined || slice === null ? null : Number(slice);
+  IMAGE_VIEWER_GROUP_QC_MODE = false;
   resetImageViewerVolume();
   const modal = document.getElementById('imageViewerModal');
   if (modal) { modal.classList.remove('hidden'); modal.setAttribute('aria-hidden','false'); }
@@ -11140,9 +11024,9 @@ async function openImageViewer(index, slice) {
     if (title) title.textContent = surfaceMode ? 'Case QC viewer · Surface ROI' : 'Case QC viewer · Volumetric ROI';
   }
   updateImageViewerQCControls();
-  if (surfaceMode) await prepareSurfaceViewerMesh();
+  if (surfaceMode) await prepareSurfaceViewerMesh().catch((err) => setMessage(err.message || String(err), 'danger'));
   else if (roiViewer) await prepareROISubjectVolume();
-  else await prepareImageViewerVolume();
+  else await prepareImageViewerVolume().catch((err) => setMessage(err.message || String(err), 'danger'));
 }
 
 
@@ -11247,7 +11131,7 @@ function ensureImageViewerSliceFrame() {
     frame.id = 'ivSliceFrame';
     frame.className = 'imageSliceFrame';
     viewport.appendChild(frame);
-  } else if (frame.parentElement !== viewport) {
+  } else if (!viewport.contains(frame)) {
     viewport.appendChild(frame);
   }
   if (canvas.parentElement !== frame) frame.appendChild(canvas);
@@ -11376,7 +11260,6 @@ function syncImageViewerSliceInteractor() {
     enableZoom: !isSurfaceSource(),
     minZoom: 1,
     maxZoom: 4,
-    zoomMode: 'fixed',
     zoom: IMAGE_VIEWER_ZOOM,
     zoomReservePx: 48,
     getDims: () => arr(IMAGE_VIEWER_VOLUME && IMAGE_VIEWER_VOLUME.dims).map((x) => Number(x)),
@@ -11435,9 +11318,7 @@ function updateImageViewerNavigation(rowIndex) {
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
 function resetSurfaceViewerState() {
-  SURFACE_VIEWER_STATE.rotX = -0.25;
-  SURFACE_VIEWER_STATE.rotZ = 0.0;
-  SURFACE_VIEWER_STATE.zoom = 1.0;
+  Object.assign(SURFACE_VIEWER_STATE,{rotX:-0.25,rotZ:0,zoom:1,panX:0,panY:0});
 }
 
 /**
@@ -11451,6 +11332,34 @@ function surfaceGeometryFileForViewer() {
   const sm = q.spatialMapping && typeof q.spatialMapping === 'object' ? q.spatialMapping : {};
   const cfg = imageViewerQCConfig() || {};
   return String(sm.surfaceGeometryFile || q.surfaceGeometryFile || cfg.surfaceGeometryFile || '').trim();
+}
+
+/** Read and validate one surface mesh transfer; subject, group and ROI viewers share the binary contract. */
+async function loadSurfaceViewerArrays(res, isStale, group) {
+  const nVertices = Number(res.nVertices);
+  const nFaces = Number(res.nFaces);
+  if (!Number.isFinite(nVertices) || nVertices < 1 || !Number.isFinite(nFaces) || nFaces < 1) {
+    throw new Error(group ? 'Group surface viewer response did not include valid vertex/face counts.' : 'Surface viewer response did not include valid vertex/face counts.');
+  }
+  const files = [
+    [res.verticesUrl, 'surface vertices', Float32Array],
+    [res.facesUrl, 'surface faces', Uint32Array],
+    [res.valuesUrl, group ? 'placeholder surface values' : 'surface scalar values', Float32Array]
+  ];
+  const arrays = [];
+  for (const [url, label, TypedArray] of files) {
+    const response = await fetch(dataIOAssetUrl(url), { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Could not fetch ${label}: HTTP ${response.status}`);
+    const buffer = await response.arrayBuffer();
+    if (isStale()) return null;
+    arrays.push(new TypedArray(buffer));
+  }
+  const [verticesRaw, faces, valuesRaw] = arrays;
+  if (verticesRaw.length !== nVertices * 3) throw new Error(`Surface viewer vertex-data size mismatch: expected ${nVertices * 3} values, received ${verticesRaw.length}. Run Preview again.`);
+  if (faces.length !== nFaces * 3) throw new Error(`Surface viewer face-data size mismatch: expected ${nFaces * 3} values, received ${faces.length}. Run Preview again.`);
+  if (valuesRaw.length !== nVertices) throw new Error(`Surface viewer ${group ? 'placeholder-data' : 'scalar-data'} size mismatch: expected ${nVertices} values, received ${valuesRaw.length}. Run Preview again.`);
+  const vertices = normalizeSurfaceVertices(verticesRaw);
+  return { nVertices, nFaces, vertices, faces, valuesRaw, normals: computeSurfaceVertexNormals(vertices, faces) };
 }
 
 /**
@@ -11469,6 +11378,7 @@ async function prepareSurfaceViewerMesh() {
   const roiQC = imageViewerUsesSpatialROIQC('surface');
   const groupMode = imageViewerInGroupQCMode();
   const directGroupROIQC = groupMode && roiQC;
+  const nativeGroupQC = groupMode && !roiQC;
   const overlayRowIndex = groupMode ? -1 : rowIndex;
   const status = document.getElementById('ivStatus');
   const msg = document.getElementById('ivMessage');
@@ -11476,8 +11386,11 @@ async function prepareSurfaceViewerMesh() {
   const img = document.getElementById('ivImage');
   const canvas = document.getElementById('ivCanvas');
   const surfaceCanvas = document.getElementById('ivSurfaceCanvas');
-  if (!row && !directGroupROIQC) return;
-  if (directGroupROIQC) {
+  if (!row && !groupMode) return;
+  if (nativeGroupQC) {
+    if (rowBox) rowBox.innerHTML = '<b>Group-level registered surface QC map</b><br><span class="muted">Rendered on the Surface display mesh. No individual subject morphology is implied.</span>';
+    updateImageViewerNavigation(0);
+  } else if (directGroupROIQC) {
     if (rowBox) rowBox.innerHTML = '<b>Group-level surface ROI QC map</b><br><span class="muted">ROI statistics mapped to the selected surface annotation and display mesh.</span>';
     updateImageViewerNavigation(0);
   } else {
@@ -11485,13 +11398,18 @@ async function prepareSurfaceViewerMesh() {
     updateImageViewerNavigation(rowIndex);
   }
   updateSubjectIncludeViewerControls();
-  setImageViewerSurfaceModeControls(true);
   if (canvas) canvas.classList.add('hidden');
   if (img) { img.classList.add('hidden'); img.removeAttribute('src'); }
   if (surfaceCanvas) surfaceCanvas.classList.remove('hidden');
-  if (status) status.textContent = directGroupROIQC ? 'Preparing group-level surface ROI QC...' : (roiViewer ? `Preparing surface ROI values for case ${row.caseId || '—'}...` : `Preparing surface mesh for case ${row.caseId || '—'}...`);
-  if (msg) msg.textContent = directGroupROIQC ? 'Mapping the selected group ROI metric to the surface viewer.' : (roiViewer ? 'Mapping the ROI values to the surface by hemisphere and annotation ID.' : 'Exporting cortical mesh and vertex scalar data for WebGL rendering.');
-  showProgressModal(directGroupROIQC ? 'Preparing surface ROI Feature-QC' : (roiViewer ? 'Preparing surface ROI subject viewer' : 'Preparing surface viewer'), directGroupROIQC ? `Placing ${imageViewerQCMetricInfo(imageViewerQCMetricKey()).label} on annotation-labelled surface vertices.` : (roiViewer ? 'Placing the ROI values on the labelled surface vertices.' : 'Exporting cortical mesh and vertex scalar data.'), (directGroupROIQC || roiViewer) ? 'NM2 uses the annotation labels and matching display mesh prepared during Preview and matches ROIs by hemisphere and annotation ID.' : 'The viewer transfers binary vertex, face, and scalar arrays and renders the surface locally with WebGL.');
+  if (status) status.textContent = nativeGroupQC ? 'Preparing group-level surface QC mesh...' : directGroupROIQC
+    ? 'Preparing group-level surface ROI QC...' : roiViewer ? `Preparing surface ROI values for case ${row.caseId || '—'}...` : `Preparing surface mesh for case ${row.caseId || '—'}...`;
+  if (msg) msg.textContent = nativeGroupQC ? 'Exporting the shared surface display mesh for group-level QC rendering.' : directGroupROIQC
+    ? 'Mapping the selected group ROI metric to the surface viewer.' : roiViewer ? 'Mapping the ROI values to the surface by hemisphere and annotation ID.' : 'Exporting cortical mesh and vertex scalar data for WebGL rendering.';
+  showProgressModal(nativeGroupQC ? 'Preparing group-level surface QC viewer' : directGroupROIQC ? 'Preparing surface ROI Feature-QC' : roiViewer ? 'Preparing surface ROI subject viewer' : 'Preparing surface viewer',
+    nativeGroupQC ? 'Exporting the shared surface display mesh.' : directGroupROIQC ? `Placing ${imageViewerQCMetricInfo(imageViewerQCMetricKey()).label} on annotation-labelled surface vertices.` : roiViewer ? 'Placing the ROI values on the labelled surface vertices.' : 'Exporting cortical mesh and vertex scalar data.',
+    nativeGroupQC ? 'The viewer renders group-level vertex QC maps on the display mesh specified in the surface mask field; it does not display individual subject morphology.'
+    : (directGroupROIQC || roiViewer) ? 'NM2 uses the annotation labels and matching display mesh prepared during Preview and matches ROIs by hemisphere and annotation ID.'
+    : 'The viewer transfers binary vertex, face, and scalar arrays and renders the surface locally with WebGL.');
   await allowProgressModalPaint();
   try {
     let res; let roiOverlay = null;
@@ -11506,51 +11424,37 @@ async function prepareSurfaceViewerMesh() {
       if (!raw || raw.ok === false || raw.representationFamily !== 'surface' || !raw.mesh) throw new Error(stripText(raw, 'The subject ROI values could not be prepared from the selected surface annotation and mesh.'));
       res = raw.mesh;
     } else {
-      const extra = { surfaceFile: row.file || '', geometryFile: surfaceGeometryFileForViewer(), rowIndex: rowIndex + 1, timeout: 600 };
+      const extra = nativeGroupQC
+        ? { surfaceFile: '', geometryFile: surfaceGeometryFileForViewer(), rowIndex: NaN, groupQCMode: 1, timeout: 600 }
+        : { surfaceFile: row.file, geometryFile: surfaceGeometryFileForViewer(), rowIndex: rowIndex + 1, timeout: 600 };
       res = await matlabService('dataio_surface_viewer_prepare_mesh', {}, extra);
     }
-    if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ || rowIndex !== IMAGE_VIEWER_INDEX) return;
+    if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ || rowIndex !== IMAGE_VIEWER_INDEX || (nativeGroupQC && !imageViewerInGroupQCMode())) return;
     if (!res || !res.ok || !res.verticesUrl || !res.facesUrl || !res.valuesUrl) {
-      const text = stripText(res, roiViewer || directGroupROIQC ? 'Surface ROI viewer mesh could not be prepared.' : 'Surface viewer mesh could not be prepared. Provide a display mesh that matches the selected scalar file, or use a scalar GIFTI that contains geometry.');
+      const text = stripText(res, nativeGroupQC ? 'Group-level surface QC mesh could not be prepared. Provide a valid Surface display mesh.' : roiViewer || directGroupROIQC
+        ? 'Surface ROI viewer mesh could not be prepared.' : 'Surface viewer mesh could not be prepared. Provide a display mesh that matches the selected scalar file, or use a scalar GIFTI that contains geometry.');
       throw new Error(text);
     }
-    const nVertices = Number(res.nVertices || 0);
-    const nFaces = Number(res.nFaces || 0);
-    if (!Number.isFinite(nVertices) || nVertices < 1 || !Number.isFinite(nFaces) || nFaces < 1) throw new Error('Surface viewer response did not include valid vertex/face counts.');
-    const verticesResp = await fetch(dataIOAssetUrl(res.verticesUrl), { cache: 'no-store' });
-    if (!verticesResp.ok) throw new Error(`Could not fetch surface vertices: HTTP ${verticesResp.status}`);
-    const verticesBuf = await verticesResp.arrayBuffer();
-    if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ || rowIndex !== IMAGE_VIEWER_INDEX) return;
-    const facesResp = await fetch(dataIOAssetUrl(res.facesUrl), { cache: 'no-store' });
-    if (!facesResp.ok) throw new Error(`Could not fetch surface faces: HTTP ${facesResp.status}`);
-    const facesBuf = await facesResp.arrayBuffer();
-    if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ || rowIndex !== IMAGE_VIEWER_INDEX) return;
-    const valuesResp = await fetch(dataIOAssetUrl(res.valuesUrl), { cache: 'no-store' });
-    if (!valuesResp.ok) throw new Error(`Could not fetch surface scalar values: HTTP ${valuesResp.status}`);
-    const valuesBuf = await valuesResp.arrayBuffer();
-    if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ || rowIndex !== IMAGE_VIEWER_INDEX) return;
-    const verticesRaw = new Float32Array(verticesBuf);
-    const faces = new Uint32Array(facesBuf);
-    const valuesRaw = new Float32Array(valuesBuf);
-    if (verticesRaw.length !== nVertices * 3) throw new Error(`Surface viewer vertex-data size mismatch: expected ${nVertices * 3} values, received ${verticesRaw.length}. Run Preview again.`);
-    if (faces.length !== nFaces * 3) throw new Error(`Surface viewer face-data size mismatch: expected ${nFaces * 3} values, received ${faces.length}. Run Preview again.`);
-    if (valuesRaw.length !== nVertices) throw new Error(`Surface viewer scalar-data size mismatch: expected ${nVertices} values, received ${valuesRaw.length}. Run Preview again.`);
+    const arrays = await loadSurfaceViewerArrays(res, () => requestSeq !== IMAGE_VIEWER_RENDER_SEQ || rowIndex !== IMAGE_VIEWER_INDEX || (nativeGroupQC && !imageViewerInGroupQCMode()), nativeGroupQC);
+    if (!arrays) return;
+    const { nVertices, nFaces, vertices, faces, valuesRaw, normals } = arrays;
     const win = arr(res.valueWindow).map((x) => Number(x));
-    let windowVals = (win.length >= 2 && Number.isFinite(win[0]) && Number.isFinite(win[1]) && win[1] > win[0]) ? win : finiteWindow(valuesRaw);
+    let windowVals = nativeGroupQC ? [0, 1]
+      : (win.length >= 2 && Number.isFinite(win[0]) && Number.isFinite(win[1]) && win[1] > win[0]) ? win : finiteWindow(valuesRaw);
     const requestedOverlayKind = directGroupROIQC ? String((roiOverlay && roiOverlay.overlayKind) || 'sequential') : 'sequential';
-    const display = qcDisplaySemantics(requestedOverlayKind, windowVals, valuesRaw);
+    const display = qcDisplaySemantics(requestedOverlayKind, windowVals, valuesRaw,
+      directGroupROIQC ? String(roiOverlay.metricKey || imageViewerQCMetricKey()) : '');
     windowVals = display.window;
-    const vertices = normalizeSurfaceVertices(verticesRaw);
-    const rawValues = cleanSurfaceValues(valuesRaw, display.kind === 'bipolar' ? 0 : windowVals[0]);
+    const rawValues = cleanSurfaceValues(valuesRaw, nativeGroupQC ? 0 : display.kind === 'bipolar' ? 0 : windowVals[0]);
     const baseValues = directGroupROIQC ? new Float32Array(nVertices) : rawValues;
     SURFACE_VIEWER_MESH = {
-      token: res.token || `surface_${Date.now()}`,
+      token: res.token || `${nativeGroupQC ? 'surface_group' : 'surface'}_${Date.now()}`,
       rowIndex: overlayRowIndex,
       row: groupMode ? null : row,
       nVertices,
       nFaces,
       vertices,
-      normals: computeSurfaceVertexNormals(vertices, faces),
+      normals,
       faces,
       values: directGroupROIQC ? rawValues : baseValues,
       baseValues,
@@ -11558,59 +11462,55 @@ async function prepareSurfaceViewerMesh() {
       baseValueWindow: directGroupROIQC ? [0, 1] : windowVals.slice(),
       baseOverlayKind: !directGroupROIQC ? display.kind : 'sequential',
       qcOverlay: directGroupROIQC ? { active:true, rowIndex:overlayRowIndex, metricKey:String((roiOverlay && roiOverlay.metricKey) || imageViewerQCMetricKey()), metricLabel:String((roiOverlay && roiOverlay.metricLabel) || imageViewerQCMetricInfo(imageViewerQCMetricKey()).label), overlayKind:display.kind, thresholdKey:'', thresholdApplied:Number((roiOverlay && roiOverlay.thresholdApplied) || imageViewerQCThresholdValue()), dynamicThreshold:false, valueWindow:windowVals, message:String((roiOverlay && roiOverlay.message) || 'Surface ROI group QC prepared.') } : null,
-      geometryFile: res.geometryFile || '',
-      scalarFile: (roiViewer || directGroupROIQC) ? '' : (res.scalarFile || row.file || ''),
-      message: res.message || (directGroupROIQC ? 'Surface ROI group QC prepared.' : (roiViewer ? 'Surface ROI subject values prepared.' : 'Surface mesh prepared.'))
+      geometryFile: res.geometryFile || (nativeGroupQC ? surfaceGeometryFileForViewer() : ''),
+      scalarFile: (roiViewer || groupMode) ? '' : res.scalarFile,
+      groupQCMode: nativeGroupQC,
+      message: res.message || (nativeGroupQC ? 'Group-level surface QC mesh prepared.' : directGroupROIQC ? 'Surface ROI group QC prepared.' : roiViewer ? 'Surface ROI subject values prepared.' : 'Surface mesh prepared.')
     };
     SURFACE_VIEWER_GL = null;
-    resetSurfaceViewerState();
-    updateSurfaceViewerColorbar();
+    if (nativeGroupQC) resetSurfaceViewerState();
     scheduleSurfaceViewerRender();
     if (status) status.textContent = SURFACE_VIEWER_MESH.message;
-    if (msg) msg.textContent = directGroupROIQC ? `${SURFACE_VIEWER_MESH.qcOverlay.metricLabel} group map active in the established WebGL surface viewer. Annotation membership is exact; drag rotates and mouse wheel zooms. Mesh: ${nVertices} vertices, ${nFaces} triangles.` : (roiViewer ? `Raw ROI values are displayed on the labelled surface by matching hemisphere and annotation ID. Use Show QC map after Feature QC has been computed. Mesh: ${nVertices} vertices, ${nFaces} triangles.` : `WebGL surface viewer active. Drag left/right rotates around anatomical Z; drag up/down pitches the surface; mouse wheel zooms. Mesh: ${nVertices} vertices, ${nFaces} triangles.`);
-    if (!directGroupROIQC && IMAGE_VIEWER_QC_ACTIVE && surfaceViewerQCAvailable()) {
+    if (msg) msg.textContent = nativeGroupQC ? `Group-level WebGL surface QC viewer active. Click centres; drag rotates, Shift+drag pans, wheel zooms, double-click resets. Mesh: ${nVertices} vertices, ${nFaces} triangles.`
+      : directGroupROIQC ? `${SURFACE_VIEWER_MESH.qcOverlay.metricLabel} group map active in the established WebGL surface viewer. Annotation membership is exact; click centres; drag rotates, Shift+drag pans, wheel zooms, double-click resets. Mesh: ${nVertices} vertices, ${nFaces} triangles.`
+      : roiViewer ? `Raw ROI values are displayed on the labelled surface by matching hemisphere and annotation ID. Use Show QC map after Feature QC has been computed. Mesh: ${nVertices} vertices, ${nFaces} triangles.`
+      : `WebGL surface viewer active. Click centres; drag rotates, Shift+drag pans, wheel zooms, double-click resets. Mesh: ${nVertices} vertices, ${nFaces} triangles.`;
+    if (nativeGroupQC || (!directGroupROIQC && IMAGE_VIEWER_QC_ACTIVE && surfaceViewerQCAvailable())) {
       await prepareSurfaceViewerQCOverlay();
     }
   } catch (err) {
-    SURFACE_VIEWER_MESH = null;
-    SURFACE_VIEWER_GL = null;
-    if (surfaceCanvas) surfaceCanvas.classList.remove('hidden');
-    if (status) status.textContent = `Surface viewer error: ${err.message || String(err)}`;
-    if (msg) msg.textContent = `Surface viewer error: ${err.message || String(err)}`;
+    if (requestSeq === IMAGE_VIEWER_RENDER_SEQ) {
+      SURFACE_VIEWER_MESH = null;
+      SURFACE_VIEWER_GL = null;
+      if (surfaceCanvas) surfaceCanvas.classList.remove('hidden');
+      if (status) status.textContent = `Surface viewer error: ${err.message || String(err)}`;
+      if (msg) msg.textContent = `Surface viewer error: ${err.message || String(err)}`;
+      if (groupMode) throw err;
+    }
   } finally {
-    hideProgressModal();
-    updateImageViewerQCControls();
+    if (requestSeq === IMAGE_VIEWER_RENDER_SEQ) hideProgressModal();
+    if (requestSeq === IMAGE_VIEWER_RENDER_SEQ) updateImageViewerQCControls();
   }
 }
 
 
-/**
- * openImageGroupQCViewer  Enter the shared volumetric group-QC viewer.
- * Authority and flow: native voxel QC uses its existing image/background path; volumetric ROI QC
- * uses the same modal but obtains group metrics from the resident ROI-QC sidecar and exact atlas-ID
- * expansion. ROI group viewing does not require an arbitrary Preview subject row.
- * Materialization and performance: opens UI state only; the subsequent overlay request consumes
- * resident QC materialization and performs no source/atlas reread. Canonical ROI group maps use
- * row sentinel -1 throughout viewer volume/overlay state so rendering cannot be rejected as a
- * subject-row mismatch.
- */
-async function openImageGroupQCViewer() {
+/** Open group image/surface QC with one selection and modal lifecycle. */
+async function openSpatialGroupQCViewer(surface) {
   const cfg = imageViewerQCConfig();
-  const rows = imageViewerRowsForNavigation();
-  const roiQC = imageViewerUsesSpatialROIQC('image');
-  const firstRowIndex = roiQC ? -1 : rows.findIndex((r) => !!(r && r.file));
-  if (!cfg || !cfg.available || !cfg.cacheToken || !imageViewerQCIsImageOverlay()) {
-    setMessage('Run Preview before opening the group-level volumetric QC viewer.', 'warn');
-    updateActionButtons();
-    return;
+  const roiQC = imageViewerUsesSpatialROIQC(surface ? 'surface' : 'image');
+  const firstRowIndex = roiQC || surface ? -1 : imageViewerRowsForNavigation().findIndex((r) => !!(r && r.file));
+  const available = surface ? imageViewerQCIsSurfaceOverlay() : imageViewerQCIsImageOverlay();
+  let warning = '';
+  if (!cfg || !cfg.available || !cfg.cacheToken || !available) {
+    warning = `Run Preview before opening the group-level ${surface ? 'surface' : 'volumetric'} QC viewer.`;
+  } else if (!roiQC && !(surface ? surfaceGeometryFileForViewer() : val('di_image_mask'))) {
+    warning = surface ? 'A Surface display mesh is required for the group-level surface QC viewer.'
+      : 'A brainmask or atlas image is required for the group-level imaging QC viewer.';
+  } else if (!surface && !roiQC && firstRowIndex < 0) {
+    warning = 'No preview image row is available for the group-level imaging QC viewer background.';
   }
-  if (!roiQC && !val('di_image_mask')) {
-    setMessage('A brainmask or atlas image is required for the group-level imaging QC viewer.', 'warn');
-    updateActionButtons();
-    return;
-  }
-  if (!roiQC && firstRowIndex < 0) {
-    setMessage('No preview image row is available for the group-level imaging QC viewer background.', 'warn');
+  if (warning) {
+    setMessage(warning, 'warn');
     updateActionButtons();
     return;
   }
@@ -11618,147 +11518,17 @@ async function openImageGroupQCViewer() {
   IMAGE_VIEWER_GROUP_QC_MODE = true;
   IMAGE_VIEWER_QC_ACTIVE = true;
   IMAGE_VIEWER_INDEX = firstRowIndex;
-  IMAGE_VIEWER_SLICE = null;
-  const modal = document.getElementById('imageViewerModal');
-  if (modal) { modal.classList.remove('hidden'); modal.setAttribute('aria-hidden','false'); }
-  updateImageViewerQCMetricOptions();
-  const metricSel = document.getElementById('ivQCMetric');
-  const groupMetric = firstGroupQCMetricKey();
-  if (metricSel && groupMetric) metricSel.value = groupMetric;
-  setImageViewerSurfaceModeControls(false);
-  updateImageViewerQCControls();
-  if (roiQC) await prepareImageViewerQCOverlay();
-  else await prepareImageViewerVolume();
-}
-
-/**
- * openSurfaceGroupQCViewer  Enter the shared native-surface group-QC viewer.
- * Authority and flow: registered vertex QC keeps its established geometry path; surface ROI QC
- * reuses the same WebGL viewer with resident annotation labels + validated mesh and exact
- * hemisphere/annotation-ID expansion. ROI group viewing is independent of Preview subject rows.
- * Materialization and performance: viewer activation only; no annotation, mesh, or subject-file read.
- * Group maps retain row sentinel -1 because no individual subject owns the displayed QC statistic.
- */
-async function openSurfaceGroupQCViewer() {
-  const cfg = imageViewerQCConfig();
-  const roiQC = imageViewerUsesSpatialROIQC('surface');
-  const geometryFile = surfaceGeometryFileForViewer();
-  if (!cfg || !cfg.available || !cfg.cacheToken || !imageViewerQCIsSurfaceOverlay()) {
-    setMessage('Run Preview before opening the group-level surface QC viewer.', 'warn');
-    updateActionButtons();
-    return;
-  }
-  if (!roiQC && !geometryFile) {
-    setMessage('A Surface display mesh is required for the group-level surface QC viewer.', 'warn');
-    updateActionButtons();
-    return;
-  }
-  resetImageViewerVolume();
-  IMAGE_VIEWER_GROUP_QC_MODE = true;
-  IMAGE_VIEWER_QC_ACTIVE = true;
-  IMAGE_VIEWER_INDEX = -1;
+  if (!surface) IMAGE_VIEWER_SLICE = null;
   const modal = document.getElementById('imageViewerModal');
   if (modal) { modal.classList.remove('hidden'); modal.setAttribute('aria-hidden','false'); }
   const metricSel = document.getElementById('ivQCMetric');
-  updateImageViewerQCMetricOptions();
   const groupMetric = firstGroupQCMetricKey();
   if (metricSel && groupMetric) metricSel.value = groupMetric;
-  setImageViewerSurfaceModeControls(true);
+  setImageViewerSurfaceModeControls(surface);
   updateImageViewerQCControls();
-  if (roiQC) await prepareSurfaceViewerMesh();
-  else await prepareSurfaceGroupQCViewerMesh();
-}
-
-/**
- * prepareSurfaceGroupQCViewerMesh  Provide the prepare surface group qcviewer mesh helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It belongs to the browser/MATLAB bridge path and must keep request payloads aligned with the MATLAB service contract.
- * Side effects: may send a request to the local MATLAB bridge and update browser-side UI state from the response.
- */
-async function prepareSurfaceGroupQCViewerMesh() {
-  const requestSeq = ++IMAGE_VIEWER_RENDER_SEQ;
-  const geometryFile = surfaceGeometryFileForViewer();
-  const status = document.getElementById('ivStatus');
-  const msg = document.getElementById('ivMessage');
-  const rowBox = document.getElementById('ivRowSummary');
-  const img = document.getElementById('ivImage');
-  const canvas = document.getElementById('ivCanvas');
-  const surfaceCanvas = document.getElementById('ivSurfaceCanvas');
-  if (rowBox) rowBox.innerHTML = '<b>Group-level registered surface QC map</b><br><span class="muted">Rendered on the Surface display mesh. No individual subject morphology is implied.</span>';
-  updateImageViewerNavigation(0);
-  updateSubjectIncludeViewerControls();
-  setImageViewerSurfaceModeControls(true);
-  if (canvas) canvas.classList.add('hidden');
-  if (img) { img.classList.add('hidden'); img.removeAttribute('src'); }
-  if (surfaceCanvas) surfaceCanvas.classList.remove('hidden');
-  if (status) status.textContent = 'Preparing group-level surface QC mesh...';
-  if (msg) msg.textContent = 'Exporting the shared surface display mesh for group-level QC rendering.';
-  showProgressModal('Preparing group-level surface QC viewer', 'Exporting the shared surface display mesh.', 'The viewer renders group-level vertex QC maps on the display mesh specified in the surface mask field; it does not display individual subject morphology.');
-  await allowProgressModalPaint();
-  try {
-    const extra = { surfaceFile: '', geometryFile, rowIndex: NaN, groupQCMode: 1, timeout: 600 };
-    const res = await matlabService('dataio_surface_viewer_prepare_mesh', {}, extra);
-    if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ || !imageViewerInGroupQCMode()) return;
-    if (!res || !res.ok || !res.verticesUrl || !res.facesUrl || !res.valuesUrl) {
-      throw new Error(stripText(res, 'Group-level surface QC mesh could not be prepared. Provide a valid Surface display mesh.'));
-    }
-    const nVertices = Number(res.nVertices || 0);
-    const nFaces = Number(res.nFaces || 0);
-    if (!Number.isFinite(nVertices) || nVertices < 1 || !Number.isFinite(nFaces) || nFaces < 1) throw new Error('Group surface viewer response did not include valid vertex/face counts.');
-    const verticesResp = await fetch(dataIOAssetUrl(res.verticesUrl), { cache: 'no-store' });
-    if (!verticesResp.ok) throw new Error(`Could not fetch surface vertices: HTTP ${verticesResp.status}`);
-    const verticesBuf = await verticesResp.arrayBuffer();
-    const facesResp = await fetch(dataIOAssetUrl(res.facesUrl), { cache: 'no-store' });
-    if (!facesResp.ok) throw new Error(`Could not fetch surface faces: HTTP ${facesResp.status}`);
-    const facesBuf = await facesResp.arrayBuffer();
-    const valuesResp = await fetch(dataIOAssetUrl(res.valuesUrl), { cache: 'no-store' });
-    if (!valuesResp.ok) throw new Error(`Could not fetch placeholder surface values: HTTP ${valuesResp.status}`);
-    const valuesBuf = await valuesResp.arrayBuffer();
-    if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ || !imageViewerInGroupQCMode()) return;
-    const verticesRaw = new Float32Array(verticesBuf);
-    const faces = new Uint32Array(facesBuf);
-    const valuesRaw = new Float32Array(valuesBuf);
-    if (verticesRaw.length !== nVertices * 3) throw new Error(`Surface viewer vertex-data size mismatch: expected ${nVertices * 3} values, received ${verticesRaw.length}. Run Preview again.`);
-    if (faces.length !== nFaces * 3) throw new Error(`Surface viewer face-data size mismatch: expected ${nFaces * 3} values, received ${faces.length}. Run Preview again.`);
-    if (valuesRaw.length !== nVertices) throw new Error(`Surface viewer placeholder-data size mismatch: expected ${nVertices} values, received ${valuesRaw.length}. Run Preview again.`);
-    const vertices = normalizeSurfaceVertices(verticesRaw);
-    const windowVals = [0, 1];
-    const baseValues = cleanSurfaceValues(valuesRaw, 0);
-    SURFACE_VIEWER_MESH = {
-      token: res.token || `surface_group_${Date.now()}`,
-      rowIndex: -1,
-      row: null,
-      nVertices,
-      nFaces,
-      vertices,
-      normals: computeSurfaceVertexNormals(vertices, faces),
-      faces,
-      values: baseValues,
-      baseValues,
-      valueWindow: windowVals,
-      baseValueWindow: windowVals.slice(),
-      qcOverlay: null,
-      geometryFile: res.geometryFile || geometryFile,
-      scalarFile: '',
-      groupQCMode: true,
-      message: res.message || 'Group-level surface QC mesh prepared.'
-    };
-    SURFACE_VIEWER_GL = null;
-    resetSurfaceViewerState();
-    updateSurfaceViewerColorbar();
-    scheduleSurfaceViewerRender();
-    if (status) status.textContent = SURFACE_VIEWER_MESH.message;
-    if (msg) msg.textContent = `Group-level WebGL surface QC viewer active. Drag left/right rotates around anatomical Z; drag up/down pitches the mesh; mouse wheel zooms. Mesh: ${nVertices} vertices, ${nFaces} triangles.`;
-    await prepareSurfaceViewerQCOverlay();
-  } catch (err) {
-    SURFACE_VIEWER_MESH = null;
-    SURFACE_VIEWER_GL = null;
-    if (surfaceCanvas) surfaceCanvas.classList.remove('hidden');
-    if (status) status.textContent = `Could not open the group surface QC viewer: ${err.message || String(err)}`;
-    if (msg) msg.textContent = `Could not open the group surface QC viewer: ${err.message || String(err)}`;
-  } finally {
-    hideProgressModal();
-    updateImageViewerQCControls();
-  }
+  if (surface) await prepareSurfaceViewerMesh().catch((err) => setMessage(err.message || String(err), 'danger'));
+  else if (roiQC) await prepareImageViewerQCOverlay();
+  else await prepareImageViewerVolume().catch((err) => setMessage(err.message || String(err), 'danger'));
 }
 
 /**
@@ -11887,6 +11657,14 @@ function surfaceViewerShader(gl, type, src) {
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
 function surfaceViewerProgram(gl) {
+  const sequential = QC_SEQUENTIAL_STOPS.map((rgb) => `vec3(${rgb.map((v) => `${v}.0`).join(', ')}) / 255.0`);
+  const zColor = (rgb) => `vec3(${rgb.map((v) => `${v}.0`).join(',')})/255.0`;
+  const negative = QC_HYBRID_NEGATIVE_STOPS.map(zColor);
+  const positive = QC_HYBRID_POSITIVE_STOPS.map(zColor);
+  const sdStops = window.NMImageSliceViewer.groupStops.sd.map(zColor);
+  const meanStops = window.NMImageSliceViewer.groupStops.mean.map(zColor);
+  const negStops = window.NMImageSliceViewer.groupStops.negative.map(zColor);
+  const posStops = window.NMImageSliceViewer.groupStops.positive.map(zColor);
   const vs = surfaceViewerShader(gl, gl.VERTEX_SHADER, `
     attribute vec3 aPosition;
     attribute vec3 aNormal;
@@ -11900,6 +11678,7 @@ function surfaceViewerProgram(gl) {
     uniform int uQCMode;
     varying vec3 vBaseColor;
     varying vec3 vNormal;
+    varying float vDisplayAlpha;
     vec3 surfaceScalarColor(float t) {
       vec3 c0 = vec3(0.06, 0.20, 0.72);
       vec3 c1 = vec3(0.05, 0.68, 0.82);
@@ -11912,19 +11691,46 @@ function surfaceViewerProgram(gl) {
     void main() {
       float den = max(uHi - uLo, 0.000001);
       float t = clamp((aValue - uLo) / den, 0.0, 1.0);
+      vDisplayAlpha = 1.0;
       if (uOverlayKind == 1) {
         float az = abs(aValue);
-        if (az < uThreshold) {
-          vBaseColor = vec3(0.42, 0.45, 0.50);
-        } else if (uQCMode == 0) {
-          vBaseColor = aValue >= 0.0 ? vec3(1.0, 0.22, 0.18) : vec3(0.15, 0.50, 1.0);
-        } else {
-          float tz = clamp((az - uThreshold) / max(uThreshold, 1.0), 0.0, 1.0);
-          vBaseColor = mix(vec3(1.0, 0.72, 0.20), vec3(0.90, 0.18, 0.05), tz);
-        }
+        float threshold = max(uThreshold,0.000001);
+        float bound = max(uQCMode == 1 ? max(-uLo,uHi) : (aValue < 0.0 ? -uLo : uHi),3.0*threshold);
+        float fraction = az <= uThreshold ? 0.0 : az <= 2.0*threshold
+          ? 0.5*(az-uThreshold)/(2.0*threshold-uThreshold)
+          : min(1.0,0.5+0.5*log(az/(2.0*threshold))/log(bound/(2.0*threshold)));
+        vec3 start = aValue < 0.0 && uQCMode == 0 ? ${negative[0]} : ${positive[0]};
+        vec3 middle = aValue < 0.0 && uQCMode == 0 ? ${negative[1]} : ${positive[1]};
+        vec3 extreme = aValue < 0.0 && uQCMode == 0 ? ${negative[2]} : ${positive[2]};
+        vBaseColor = az < uThreshold ? vec3(0.42,0.45,0.50)
+          : fraction <= 0.5 ? mix(start,middle,2.0*fraction) : mix(middle,extreme,2.0*fraction-1.0);
       } else if (uOverlayKind == 2) {
-        if (t < 0.5) vBaseColor = mix(vec3(248.0, 250.0, 252.0) / 255.0, vec3(255.0, 209.0, 102.0) / 255.0, t / 0.5);
-        else vBaseColor = mix(vec3(255.0, 209.0, 102.0) / 255.0, vec3(232.0, 93.0, 4.0) / 255.0, (t - 0.5) / 0.5);
+        if (t < 0.5) vBaseColor = mix(${sequential[0]}, ${sequential[1]}, t / 0.5);
+        else vBaseColor = mix(${sequential[1]}, ${sequential[2]}, (t - 0.5) / 0.5);
+      } else if (uOverlayKind >= 4) {
+        float bound = max(max(abs(uLo), abs(uHi)), 0.000001);
+        float magnitude = clamp(abs(aValue) / bound, 0.0, 1.0);
+        float pivot = max(0.000001, min(2.0, uHi));
+        float stage = uOverlayKind == 4 ? (aValue <= pivot ? max(0.0,aValue)/pivot
+          : aValue <= 3.0 ? 1.0+(aValue-pivot)/(3.0-pivot)
+          : 2.0+(aValue-3.0)/max(uHi-3.0,0.000001))
+          : uOverlayKind == 5 ? 3.0*t : magnitude;
+        if (uOverlayKind == 4) {
+          vBaseColor = stage <= 1.0 ? mix(${sdStops[0]},${sdStops[1]},stage)
+            : stage <= 2.0 ? mix(${sdStops[1]},${sdStops[2]},stage-1.0)
+            : mix(${sdStops[2]},${sdStops[3]},clamp(stage-2.0,0.0,1.0));
+          vDisplayAlpha = stage <= 1.0 ? 0.7*pow(stage,1.3)
+            : stage <= 2.0 ? 0.7+0.15*(stage-1.0) : 0.85+0.1*min(1.0,stage-2.0);
+        } else if (uOverlayKind == 5) {
+          vBaseColor = stage <= 1.0 ? mix(${meanStops[0]},${meanStops[1]},stage)
+            : stage <= 2.0 ? mix(${meanStops[1]},${meanStops[2]},stage-1.0)
+            : mix(${meanStops[2]},${meanStops[3]},stage-2.0);
+          vDisplayAlpha = 0.9*pow(t,1.3);
+        } else {
+          vBaseColor = aValue < 0.0 ? mix(${negStops[0]},${negStops[1]},stage)
+            : mix(${posStops[0]},${posStops[1]},stage);
+          vDisplayAlpha = 0.9*pow(magnitude,1.3);
+        }
       } else if (uOverlayKind == 3) {
         float bound = max(abs(uLo), abs(uHi));
         float s = clamp(aValue / max(bound, 0.000001), -1.0, 1.0);
@@ -11941,6 +11747,7 @@ function surfaceViewerProgram(gl) {
     precision mediump float;
     varying vec3 vBaseColor;
     varying vec3 vNormal;
+    varying float vDisplayAlpha;
     uniform float uOpacity;
     void main() {
       vec3 n = normalize(vNormal);
@@ -11949,7 +11756,7 @@ function surfaceViewerProgram(gl) {
       float diffuse = 0.55 * abs(dot(n, l1)) + 0.25 * abs(dot(n, l2));
       float hemi = 0.12 * (0.5 + 0.5 * n.z);
       vec3 neutral = vec3(0.55, 0.58, 0.62);
-      vec3 displayColor = mix(neutral, vBaseColor, clamp(uOpacity, 0.0, 1.0));
+      vec3 displayColor = mix(neutral, vBaseColor, clamp(uOpacity * vDisplayAlpha, 0.0, 1.0));
       vec3 color = displayColor * clamp(0.55 + diffuse + hemi, 0.0, 1.25);
       gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
     }
@@ -12039,12 +11846,12 @@ function mat4Perspective(fovy, aspect, near, far) {
   return out;
 }
 /**
- * mat4TranslateZ  Provide the mat4 translate z helper used by DataIO browser page for import configuration, preview, QC and commit operations.
+ * mat4Translation  Provide the mat4 translation helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
-function mat4TranslateZ(z) {
+function mat4Translation(x,y,z) {
   const out = new Float32Array(16);
-  out[0] = 1; out[5] = 1; out[10] = 1; out[15] = 1; out[14] = z;
+  out[0] = 1; out[5] = 1; out[10] = 1; out[15] = 1; out[12] = x; out[13] = y; out[14] = z;
   return out;
 }
 /**
@@ -12104,7 +11911,7 @@ function renderSurfaceViewer() {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ctx.idxBuf);
     const aspect = canvas.width / Math.max(1, canvas.height);
     const proj = mat4Perspective(Math.PI / 4, aspect, 0.05, 100.0);
-    const view = mat4TranslateZ(-3.2 * SURFACE_VIEWER_STATE.zoom);
+    const view = mat4Translation(-SURFACE_VIEWER_STATE.panX,-SURFACE_VIEWER_STATE.panY,-3.2*SURFACE_VIEWER_STATE.zoom);
     const rot = mat4Multiply(mat4RotateX(SURFACE_VIEWER_STATE.rotX), mat4RotateZ(SURFACE_VIEWER_STATE.rotZ));
     const mvp = mat4Multiply(proj, mat4Multiply(view, rot));
     gl.uniformMatrix4fv(ctx.uMVP, false, mvp);
@@ -12113,7 +11920,12 @@ function renderSurfaceViewer() {
     gl.uniform1f(ctx.uHi, mesh.valueWindow[1]);
     const surfaceOverlay = mesh.qcOverlay && mesh.qcOverlay.active ? mesh.qcOverlay : null;
     gl.uniform1f(ctx.uThreshold, imageViewerQCThresholdValue());
-    gl.uniform1i(ctx.uOverlayKind, surfaceOverlay ? (surfaceOverlay.overlayKind === 'subject_z' ? 1 : (surfaceOverlay.overlayKind === 'bipolar' ? 3 : 2)) : (mesh.baseOverlayKind === 'bipolar' ? 3 : 0));
+    const groupMetric = surfaceOverlay && surfaceOverlay.metricKey;
+    const overlayMode = groupMetric === 'feature_std' ? 4
+      : groupMetric === 'feature_mean' ? (surfaceOverlay.overlayKind === 'bipolar' ? 6 : 5)
+      : surfaceOverlay ? (surfaceOverlay.overlayKind === 'subject_z' ? 1 : (surfaceOverlay.overlayKind === 'bipolar' ? 3 : 2))
+      : mesh.baseOverlayKind === 'bipolar' ? 3 : 0;
+    gl.uniform1i(ctx.uOverlayKind, overlayMode);
     gl.uniform1i(ctx.uQCMode, String(val('ivQCMode') || 'signed') === 'signed' ? 0 : 1);
     const overlayOpacity = surfaceOverlay ? Math.min(1, Math.max(0, Number(val('ivQCOpacity') || 0.6))) : 1.0;
     gl.uniform1f(ctx.uOpacity, overlayOpacity);
@@ -12151,6 +11963,7 @@ function renderSurfaceViewer() {
  *   source-file read is performed here. Updates IMAGE_VIEWER_VOLUME and the axial slice control.
  */
 async function hydrateImageViewerVolumePayload(res, row, rowIndex) {
+  const requestSeq = IMAGE_VIEWER_RENDER_SEQ;
   if (!res || !res.ok || !res.imageVolumeUrl || !res.maskVolumeUrl) {
     throw new Error(stripText(res, 'The image viewer did not receive complete volume data.'));
   }
@@ -12194,8 +12007,9 @@ async function hydrateImageViewerVolumePayload(res, row, rowIndex) {
       if (lookupData.length !== nVox) throw new Error(`ROI lookup size mismatch: expected ${nVox} entries, received ${lookupData.length}.`);
     }
     staticVolume = {key: cacheKey, imageData, maskData, lookupData, maskSliceCounts: computeMaskSliceCounts(maskData, dims)};
-    if (retainROI) IMAGE_VIEWER_STATIC_VOLUME = staticVolume;
   }
+  if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ) return null;
+  if (retainROI && !reusedStatic) IMAGE_VIEWER_STATIC_VOLUME = staticVolume;
   const {imageData, maskData} = staticVolume;
   if (PARAMS.get('profile') === '1' || window.NM_UI_PROFILE === '1') console.info(`[nm-prof] ROI viewer anatomy/atlas hydrate: ${(performance.now()-tHydrate).toFixed(1)}ms (reused=${reusedStatic})`);
   const win = arr(res.window).map((x) => Number(x));
@@ -12238,6 +12052,17 @@ async function hydrateImageViewerVolumePayload(res, row, rowIndex) {
  *   Interactive-safe bridge request of ROI-column values; immutable anatomy, atlas and ROI
  *   lookup are transferred once per Preview identity. No per-payload voxel expansion/asset.
  */
+/** Install the same canonical atlas-label map for subject and group ROI QC. */
+function installImageViewerROILabels(raw) {
+  if (!IMAGE_VIEWER_VOLUME) return;
+  const ids = arr(raw.roiIDs).map(Number);
+  const names = arr(raw.roiNames).map(String);
+  IMAGE_VIEWER_VOLUME.roiLabels = {};
+  ids.forEach((id, i) => {
+    if (Number.isFinite(id) && id !== 0) IMAGE_VIEWER_VOLUME.roiLabels[`roi_${id}`] = names[i] || `ROI_${id}`;
+  });
+}
+
 async function prepareROISubjectVolume() {
   const requestSeq = ++IMAGE_VIEWER_RENDER_SEQ;
   const rows = imageViewerRowsForNavigation();
@@ -12248,7 +12073,6 @@ async function prepareROISubjectVolume() {
   const msg = document.getElementById('ivMessage');
   const rowBox = document.getElementById('ivRowSummary');
   if (!row || !ref || !ref.cacheToken) return false;
-  setImageViewerSurfaceModeControls(false);
   if (rowBox) rowBox.innerHTML = featureProfileRowHtml(row);
   updateImageViewerNavigation(rowIndex);
   updateSubjectIncludeViewerControls();
@@ -12269,14 +12093,7 @@ async function prepareROISubjectVolume() {
     }
     await hydrateImageViewerVolumePayload(Object.assign({}, raw.volume, { message: raw.message || raw.volume.message || '' }), row, rowIndex);
     if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ || rowIndex !== IMAGE_VIEWER_INDEX) return false;
-    if (IMAGE_VIEWER_VOLUME) {
-      const ids = arr(raw.roiIDs).map((x) => Number(x));
-      const names = arr(raw.roiNames).map((x) => String(x));
-      IMAGE_VIEWER_VOLUME.roiLabels = {};
-      ids.forEach((id, i) => {
-        if (Number.isFinite(id) && id !== 0) IMAGE_VIEWER_VOLUME.roiLabels[`roi_${id}`] = names[i] || `ROI_${id}`;
-      });
-    }
+    installImageViewerROILabels(raw);
     const dims = arr(raw.overlay.dims || raw.volume.dims).map((x) => Number(x));
     if (dims.join('x') !== IMAGE_VIEWER_VOLUME.dims.join('x')) throw new Error('ROI payload and static atlas dimensions differ.');
     const roiPayload = arr(raw.overlay.roiValues);
@@ -12324,10 +12141,8 @@ async function prepareImageViewerVolume() {
   const status = document.getElementById('ivStatus');
   const msg = document.getElementById('ivMessage');
   const rowBox = document.getElementById('ivRowSummary');
-  const sliceSlider = document.getElementById('ivSlice');
   if (!row) return;
   const groupMode = imageViewerInGroupQCMode();
-  setImageViewerSurfaceModeControls(false);
   if (rowBox) rowBox.innerHTML = groupMode
     ? '<b>Group-level volumetric QC map</b><br><span class="muted">The group mean structural image is the anatomical background; the selected group QC statistic is overlaid on it.</span>'
     : imageViewerRowHtml(row, rowIndex);
@@ -12347,14 +12162,8 @@ async function prepareImageViewerVolume() {
       atlasLabelNameColumn: val('di_image_atlas_name_column') || '' };
     const res = await matlabService('dataio_image_viewer_prepare_volume', {}, extra);
     if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ || rowIndex !== IMAGE_VIEWER_INDEX) return;
-    if (!res || !res.ok || !res.imageVolumeUrl || !res.maskVolumeUrl) {
-      const text = (res && res.message) ? res.message : 'Client-side viewer volume could not be prepared; falling back to per-slice MATLAB rendering.';
-      if (status) status.textContent = text;
-      if (msg) msg.textContent = text;
-      resetImageViewerVolume();
-      renderImageViewerNow();
-      return;
-    }
+    if (!res || !res.ok || !res.imageVolumeUrl || !res.maskVolumeUrl)
+      throw new Error(stripText(res, 'Viewer background volume is unavailable.'));
     await hydrateImageViewerVolumePayload(res, row, rowIndex);
     if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ || rowIndex !== IMAGE_VIEWER_INDEX) return;
     if (groupMode) {
@@ -12370,6 +12179,7 @@ async function prepareImageViewerVolume() {
       const meanResp = await fetch(dataIOAssetUrl(meanRes.overlayVolumeUrl), { cache: 'no-store' });
       if (!meanResp.ok) throw new Error(`Could not fetch group mean structural background: HTTP ${meanResp.status}`);
       const meanData = new Float32Array(await meanResp.arrayBuffer());
+      if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ) return;
       if (meanData.length !== IMAGE_VIEWER_VOLUME.imageData.length) throw new Error(`Group mean background size mismatch: expected ${IMAGE_VIEWER_VOLUME.imageData.length} Float32 values, received ${meanData.length}.`);
       IMAGE_VIEWER_VOLUME.imageData = meanData;
       const meanWindow = arr(meanRes.valueWindow).map((x) => Number(x));
@@ -12378,18 +12188,19 @@ async function prepareImageViewerVolume() {
       IMAGE_VIEWER_VOLUME.maskOverlayVisible = false;
     }
     renderImageViewerClientSlice();
-    updateImageViewerQCControls();
     if (IMAGE_VIEWER_QC_ACTIVE) {
       await prepareImageViewerQCOverlay();
     }
   } catch (err) {
-    if (requestSeq !== IMAGE_VIEWER_RENDER_SEQ || rowIndex !== IMAGE_VIEWER_INDEX) return;
-    resetImageViewerVolume();
-    if (status) status.textContent = `Client-side viewer preparation failed; using per-slice fallback. ${err.message || String(err)}`;
-    if (msg) msg.textContent = `Client-side viewer preparation failed; using per-slice fallback. ${err.message || String(err)}`;
-    renderImageViewerNow();
+    if (requestSeq === IMAGE_VIEWER_RENDER_SEQ && rowIndex === IMAGE_VIEWER_INDEX) {
+      resetImageViewerVolume();
+      if (status) status.textContent = `${groupMode ? 'Group QC unavailable' : 'Client-side viewer preparation failed; using per-slice fallback'}. ${err.message || String(err)}`;
+      if (msg) msg.textContent = `${groupMode ? 'Group QC unavailable' : 'Client-side viewer preparation failed; using per-slice fallback'}. ${err.message || String(err)}`;
+      if (!groupMode) renderImageViewerNow();
+      else throw err;
+    }
   } finally {
-    hideProgressModal();
+    if (requestSeq === IMAGE_VIEWER_RENDER_SEQ) hideProgressModal();
   }
 }
 
@@ -12413,6 +12224,17 @@ function restoreSurfaceViewerBaseValues() {
  * It belongs to the browser/MATLAB bridge path and must keep request payloads aligned with the MATLAB service contract.
  * Side effects: may send a request to the local MATLAB bridge and update browser-side UI state from the response.
  */
+/** Synchronize the producer-applied threshold on both surface and volume QC paths. */
+function syncImageViewerQCThreshold(res, metricKey, thresholdKey) {
+  const applied = Number(res.thresholdApplied);
+  const outlier = metricKey === 'feature_outlier_rate';
+  if (outlier && !imageViewerQCDynamicOutlierThresholdAvailable() && Number.isFinite(applied)) {
+    const input = document.getElementById('ivQCThreshold');
+    if (input) input.value = String(applied);
+  }
+  return [applied, outlier && Number.isFinite(applied) ? applied.toFixed(6) : thresholdKey];
+}
+
 async function prepareSurfaceViewerQCOverlay() {
   const cfg = imageViewerQCConfig();
   const roiQC = imageViewerUsesSpatialROIQC('surface');
@@ -12464,14 +12286,9 @@ async function prepareSurfaceViewerQCOverlay() {
     const win = arr(res.valueWindow).map((x) => Number(x));
     let windowVals = (win.length >= 2 && Number.isFinite(win[0]) && Number.isFinite(win[1]) && win[1] > win[0]) ? win : finiteWindow(valuesRaw);
     const responseOverlayKind = String(res.overlayKind || metricInfo.overlayKind || 'sequential');
-    const display = qcDisplaySemantics(responseOverlayKind, windowVals, valuesRaw);
+    const display = qcDisplaySemantics(responseOverlayKind, windowVals, valuesRaw, metricKey);
     windowVals = display.window;
-    const appliedThreshold = Number(res.thresholdApplied);
-    const responseThresholdKey = metricKey === 'feature_outlier_rate' && Number.isFinite(appliedThreshold) ? appliedThreshold.toFixed(6) : thresholdKey;
-    if (metricKey === 'feature_outlier_rate' && !imageViewerQCDynamicOutlierThresholdAvailable() && Number.isFinite(appliedThreshold)) {
-      const thrInput = document.getElementById('ivQCThreshold');
-      if (thrInput) thrInput.value = String(appliedThreshold);
-    }
+    const [appliedThreshold, responseThresholdKey] = syncImageViewerQCThreshold(res, metricKey, thresholdKey);
     mesh.values = cleanSurfaceValues(valuesRaw, display.kind === 'bipolar' ? 0 : windowVals[0]);
     mesh.valueWindow = windowVals;
     mesh.qcOverlay = {
@@ -12487,7 +12304,6 @@ async function prepareSurfaceViewerQCOverlay() {
       message: res.message || 'Surface QC map prepared.'
     };
     SURFACE_VIEWER_GL = null;
-    updateSurfaceViewerColorbar();
     scheduleSurfaceViewerRender();
     if (status) status.textContent = res.message || 'Surface QC map prepared.';
     if (msg) {
@@ -12581,14 +12397,7 @@ async function prepareImageViewerQCOverlay() {
       if (PARAMS.get('profile') === '1' || window.NM_UI_PROFILE === '1') console.info(`[nm-prof] ROI viewer QC MATLAB roundtrip: ${(performance.now()-tQCRequest).toFixed(1)}ms`);
       if (!raw || raw.ok === false || raw.representationFamily !== 'volume' || !raw.volume || !raw.overlay || !raw.overlay.roiValues) throw new Error(stripText(raw, 'Volumetric ROI QC map could not be prepared.'));
       await hydrateImageViewerVolumePayload(Object.assign({}, raw.volume, { message: raw.message || raw.volume.message || '' }), row || null, overlayRowIndex);
-      if (IMAGE_VIEWER_VOLUME) {
-        const ids = arr(raw.roiIDs).map((x) => Number(x));
-        const names = arr(raw.roiNames).map((x) => String(x));
-        IMAGE_VIEWER_VOLUME.roiLabels = {};
-        ids.forEach((id, i) => {
-          if (Number.isFinite(id) && id !== 0) IMAGE_VIEWER_VOLUME.roiLabels[`roi_${id}`] = names[i] || `ROI_${id}`;
-        });
-      }
+      installImageViewerROILabels(raw);
       res = Object.assign({}, raw.overlay, { dims: raw.overlay.dims || raw.volume.dims, message: raw.message || raw.overlay.message || '' });
     } else {
       const extra = { imageFile: row.file || '', maskFile: val('di_image_mask'), cacheToken: cfg.cacheToken || '', sliceIndex: IMAGE_VIEWER_SLICE, timeout: 600,
@@ -12616,15 +12425,10 @@ async function prepareImageViewerQCOverlay() {
       zData = new Float32Array(await overlayResp.arrayBuffer());
       if (zData.length !== nVox) throw new Error(`QC map size mismatch: expected ${nVox} Float32 values, received ${zData.length}.`);
     }
-    const appliedThreshold = Number(res.thresholdApplied);
-    const responseThresholdKey = metricKey === 'feature_outlier_rate' && Number.isFinite(appliedThreshold) ? appliedThreshold.toFixed(6) : thresholdKey;
-    if (metricKey === 'feature_outlier_rate' && !imageViewerQCDynamicOutlierThresholdAvailable() && Number.isFinite(appliedThreshold)) {
-      const thrInput = document.getElementById('ivQCThreshold');
-      if (thrInput) thrInput.value = String(appliedThreshold);
-    }
+    const [appliedThreshold, responseThresholdKey] = syncImageViewerQCThreshold(res, metricKey, thresholdKey);
     if (roiQC) IMAGE_VIEWER_QC_ACTIVE = true;
     const responseOverlayKind = String(res.overlayKind || metricInfo.overlayKind || 'sequential');
-    const display = qcDisplaySemantics(responseOverlayKind, res.valueWindow, roiQC ? roiValues : zData);
+    const display = qcDisplaySemantics(responseOverlayKind, res.valueWindow, roiQC ? roiValues : zData, metricKey);
     IMAGE_VIEWER_QC_OVERLAY = {
       active: true,
       rowIndex: overlayRowIndex,
@@ -12718,6 +12522,12 @@ function renderImageViewerClientSlice() {
   const scaleToByte = 255 / Math.max(Number.EPSILON, hi - lo);
   const sliceSize = h * w;
   const offset = (slice - 1) * sliceSize;
+  const overlayKind = overlay ? overlay.overlayKind || (overlay.metricKey === 'subject_z' ? 'subject_z' : 'sequential') : '';
+  const groupTone = !!overlay && (overlay.metricKey === 'feature_mean' || overlay.metricKey === 'feature_std');
+  const win = overlay ? overlay.valueWindow || [NaN, NaN] : [NaN, NaN];
+  const loMap = Number(win[0]);
+  const hiMap = Number(win[1]);
+  const denom = Number.isFinite(loMap) && Number.isFinite(hiMap) && hiMap > loMap ? hiMap - loMap : 1;
 
   let out = 0;
   for (let y = 0; y < h; y += 1) {
@@ -12744,42 +12554,36 @@ function renderImageViewerClientSlice() {
         }
       } else {
         const z = roiValues ? roiValues[lookup[idx]] : zData[idx];
-        const overlayKind = overlay.overlayKind || (overlay.metricKey === 'subject_z' ? 'subject_z' : 'sequential');
+        let color = null;
+        let alpha = 0;
         if (overlayKind === 'subject_z') {
           const az = Math.abs(z);
           if (Number.isFinite(az) && az >= thr) {
-            const strength = Math.max(0, Math.min(1, (az - thr) / Math.max(1, thr)));
-            const alpha = Math.min(1, opacityBase * (0.35 + 0.65 * strength));
-            let or = 255, og = 192, ob = 64;
-            if (mode === 'signed') {
-              if (z >= 0) { or = 255; og = 80; ob = 80; }
-              else { or = 64; og = 160; ob = 255; }
-            }
-            r = ((1 - alpha) * r + alpha * or) | 0;
-            gg = ((1 - alpha) * gg + alpha * og) | 0;
-            b = ((1 - alpha) * b + alpha * ob) | 0;
+            const tone = qcHybridPalette(z,thr,overlay.valueWindow,mode !== 'signed');
+            color = tone.rgb;
+            alpha = Math.min(1, opacityBase * (0.35 + 0.65 * tone.fraction));
           }
         } else if (Number.isFinite(z)) {
-          const win = overlay.valueWindow || [NaN, NaN];
-          const loMap = Number(win[0]);
-          const hiMap = Number(win[1]);
-          const denom = Number.isFinite(loMap) && Number.isFinite(hiMap) && hiMap > loMap ? hiMap - loMap : 1;
           const t = Math.max(0, Math.min(1, (z - loMap) / denom));
-          let c;
-          if (overlayKind === 'bipolar') {
+          const tone = groupTone ? qcGroupTone(z, overlay.metricKey, win, overlayKind) : null;
+          if (tone) {
+            color = tone.rgb;
+          } else if (overlayKind === 'bipolar') {
             const bound = Math.max(Math.abs(loMap), Math.abs(hiMap), Number.EPSILON);
             const s = Math.max(-1, Math.min(1, z / bound));
             const neutral = [229, 232, 235];
             const pole = s < 0 ? [64, 160, 255] : [255, 80, 80];
             const u = Math.abs(s);
-            c = neutral.map((v, i) => Math.round(v + u * (pole[i] - v)));
+            color = neutral.map((v, i) => Math.round(v + u * (pole[i] - v)));
           } else {
-            c = qcSequentialRgb(t);
+            color = qcSequentialRgb(t);
           }
-          const alpha = overlayKind === 'rate' ? opacityBase * t : opacityBase;
-          r = ((1 - alpha) * r + alpha * c[0]) | 0;
-          gg = ((1 - alpha) * gg + alpha * c[1]) | 0;
-          b = ((1 - alpha) * b + alpha * c[2]) | 0;
+          alpha = opacityBase * (tone ? tone.alpha : overlayKind === 'rate' ? t : 1);
+        }
+        if (color) {
+          r = ((1 - alpha) * r + alpha * color[0]) | 0;
+          gg = ((1 - alpha) * gg + alpha * color[1]) | 0;
+          b = ((1 - alpha) * b + alpha * color[2]) | 0;
         }
       }
       rgba[out] = r;
@@ -12797,8 +12601,7 @@ function renderImageViewerClientSlice() {
   if (img) { img.classList.add('hidden'); img.removeAttribute('src'); }
   if (status) status.textContent = overlay ? `${overlay.message || (overlay.metricKey === 'subject_raw' ? 'ROI value map active.' : 'QC map active.')} Local browser slice rendering active.` : `${v.message} Local browser slice rendering active.`;
   if (msg) msg.textContent = '';
-  const viewer = syncImageViewerSliceInteractor();
-  if (viewer) viewer.updateDefaultCrosshair();
+  syncImageViewerSliceInteractor();
   if (isROISource() && (PARAMS.get('profile') === '1' || window.NM_UI_PROFILE === '1')) console.info(`[nm-prof] ROI viewer browser slice render: ${(performance.now()-tSliceRender).toFixed(1)}ms (pixels=${h*w})`);
   return true;
 }
@@ -12809,7 +12612,7 @@ function renderImageViewerClientSlice() {
  * Side effects: may send a request to the local MATLAB bridge and update browser-side UI state from the response.
  */
 async function renderImageViewerNow() {
-  if (renderImageViewerClientSlice()) return;
+  if (imageViewerInGroupQCMode() || renderImageViewerClientSlice()) return;
   if (IMAGE_VIEWER_SERVER_RENDER_IN_FLIGHT) {
     IMAGE_VIEWER_SERVER_RENDER_PENDING = true;
     return;
@@ -15645,8 +15448,7 @@ async function applyItemSelector() {
  * Side effects: may send a request to the local MATLAB bridge and update browser-side UI state from the response.
  */
 async function finalizeTrainingImport() {
-  if (dataIOMode() !== 'training_import') { setMessage('Training data import has already been finalized.', 'warn'); return; }
-  if (!committedModalityCount()) { setMessage('No completed training modality exists. Import and Commit at least one modality before finalizing training data import.', 'warn'); return; }
+  if (!STATE.permissions.canFinalizeTrainingImport) { setMessage('Finalize training data only when the import stage is open and every modality has been committed.', 'warn'); return; }
   if (!confirm('Finalize training data import? After finalization, add/replace/delete/filter operations for training modalities are disabled. Storage maintenance and diagnostics remain available.')) return;
   try {
     const res = await matlabService('dataio_finalize_training_import', {}, { timeout: 120 });
@@ -15853,7 +15655,7 @@ async function cancelImportTask() {
     selectedIndex = null;
     selectedOOCVModalityIndex = null;
     formFromMatrixState();
-    invalidateMaterialization();
+    clearMaterialization(false);
     renderImportDiagnostics(null);
     render();
     switchTab('overview');
@@ -16103,12 +15905,16 @@ bind('pickSurfaceInflatedGeometryFile', 'click', pickSurfaceInflatedGeometryFile
 bind('ivClose', 'click', closeImageViewer);
 bind('ivCanvas', 'mousemove', updateAtlasHoverFromCanvas);
 bind('ivSurfaceReset', 'click', () => { resetSurfaceViewerState(); scheduleSurfaceViewerRender(); });
-bind('ivSurfaceCanvas', 'mousedown', (ev) => {
-  ev.preventDefault();
-  SURFACE_VIEWER_STATE.dragging = true;
-  SURFACE_VIEWER_STATE.lastX = ev.clientX;
-  SURFACE_VIEWER_STATE.lastY = ev.clientY;
-});
+// The DataIO shader uses normalized mesh units; the shared controller's distance and pan use those same units.
+window.NMWebGLMeshInteraction.bind(document.getElementById('ivSurfaceCanvas'),{
+  getCameraState:()=>({distanceMm:3.2*SURFACE_VIEWER_STATE.zoom,fovDeg:45}),
+  orbit:(dx,dy)=>{
+    SURFACE_VIEWER_STATE.rotZ -= dx;
+    SURFACE_VIEWER_STATE.rotX = Math.max(-1.45,Math.min(1.45,SURFACE_VIEWER_STATE.rotX+dy));
+  },
+  pan:(x,y)=>{SURFACE_VIEWER_STATE.panX+=x;SURFACE_VIEWER_STATE.panY+=y;},
+  zoom:factor=>{SURFACE_VIEWER_STATE.zoom=Math.max(0.35,Math.min(6,SURFACE_VIEWER_STATE.zoom*factor));}
+},{onChange:scheduleSurfaceViewerRender,focusOnPick:true,onReset:resetSurfaceViewerState});
 /**
  * scheduleImageViewerQCThresholdUpdate  Provide the schedule image viewer qcthreshold update helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It is a browser rendering helper: it updates DOM or SVG state from already retrieved NeuroMiner payloads and does not define new scientific results.
@@ -16142,25 +15948,6 @@ function scheduleImageViewerQCThresholdUpdate() {
   }, 300);
 }
 
-bind('ivSurfaceCanvas', 'mousemove', (ev) => {
-  if (!SURFACE_VIEWER_STATE.dragging) return;
-  ev.preventDefault();
-  const dx = ev.clientX - SURFACE_VIEWER_STATE.lastX;
-  const dy = ev.clientY - SURFACE_VIEWER_STATE.lastY;
-  SURFACE_VIEWER_STATE.lastX = ev.clientX;
-  SURFACE_VIEWER_STATE.lastY = ev.clientY;
-  SURFACE_VIEWER_STATE.rotZ += dx * 0.008;
-  SURFACE_VIEWER_STATE.rotX = Math.max(-1.45, Math.min(1.45, SURFACE_VIEWER_STATE.rotX + dy * 0.008));
-  scheduleSurfaceViewerRender();
-});
-bind('ivSurfaceCanvas', 'mouseleave', () => { SURFACE_VIEWER_STATE.dragging = false; });
-bind('ivSurfaceCanvas', 'wheel', (ev) => {
-  ev.preventDefault();
-  const factor = ev.deltaY > 0 ? 1.08 : 0.92;
-  SURFACE_VIEWER_STATE.zoom = Math.max(0.35, Math.min(6.0, SURFACE_VIEWER_STATE.zoom * factor));
-  scheduleSurfaceViewerRender();
-});
-document.addEventListener('mouseup', () => { SURFACE_VIEWER_STATE.dragging = false; });
 bind('fpClose', 'click', closeFeatureProfileViewer);
 bind('fpIncludeSubject', 'change', () => {
   const rows = MATRIX_PROFILE_ROWS || [];
@@ -16336,7 +16123,6 @@ bind('qcSubjectMetric', 'change', onQCMetricChanged);
 bind('cqClose', 'click', closeConnectivityQCViewer);
 bind('cqMetric', 'change', () => { updateConnectivityQCThresholdControl(); renderConnectivityQCMatrix(); });
 bind('cqZThreshold', 'input', () => { if (connectivityQCMetricUsesZThreshold(val('cqMetric'))) renderConnectivityQCMatrix(); });
-bind('cqMatrix', 'mousemove', updateConnectivityQCHover);
 bind('cqPrevSubject', 'click', () => connectivityQCStepSubject(-1, false));
 bind('cqNextSubject', 'click', () => connectivityQCStepSubject(1, false));
 bind('cqPrevFlagged', 'click', () => connectivityQCStepSubject(-1, true));

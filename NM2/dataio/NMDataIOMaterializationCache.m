@@ -10,48 +10,49 @@ classdef NMDataIOMaterializationCache
 %   late commit mask and is deliberately excluded from retained-materialization identity.
 
     methods (Static)
-        function [hit, entry, key] = get(family, state, requestedKey)
+        function [hit, entry, key] = get(family, state, requestedKey, varargin)
             family = lower(char(string(family)));
+            owner = '';
+            if ~isempty(varargin), owner = varargin{1}; end
             if nargin >= 3 && ~isempty(requestedKey) && (~isstruct(state) || isempty(fieldnames(state)))
                 requestedKey = char(string(requestedKey));
                 prefix = [family ':'];
                 if ~strncmp(requestedKey,prefix,numel(prefix))
                     hit = false; entry = []; key = requestedKey; return;
                 end
-                [hit,entry] = NMDataIOMaterializationCache.store('get', requestedKey, []);
+                [hit,entry] = NMDataIOMaterializationCache.store('get', NMDataIOMaterializationCache.address(requestedKey, owner), []);
                 key = requestedKey;
                 return;
             end
             key = NMDataIOMaterializationCache.keyForState(family, state);
-            if nargin >= 3 && ~isempty(requestedKey)
-                requestedKey = char(string(requestedKey)); prefix = [family ':'];
-                if strncmp(requestedKey,prefix,numel(prefix)) && strcmp(requestedKey,key)
-                    [hit,entry]=NMDataIOMaterializationCache.store('get',requestedKey,[]);
-                    if hit, key=requestedKey; return; end
-                end
-            end
-            [hit,entry] = NMDataIOMaterializationCache.store('get', key, []);
+            [hit,entry] = NMDataIOMaterializationCache.store('get', NMDataIOMaterializationCache.address(key, owner), []);
         end
 
-        function key = put(family, state, entry)
+        function key = put(family, state, entry, varargin)
+            owner = '';
+            if ~isempty(varargin), owner = varargin{1}; end
             key = NMDataIOMaterializationCache.keyForState(family, state);
-            NMDataIOMaterializationCache.store('put', key, entry);
+            NMDataIOMaterializationCache.store('put', NMDataIOMaterializationCache.address(key, owner), entry);
         end
 
         function clearFamily(family)
             NMDataIOMaterializationCache.store('clearFamily', lower(char(string(family))), []);
         end
 
+        function clearFamilyForOwner(family, owner)
+            NMDataIOMaterializationCache.store('clearFamily', family, struct('owner',owner));
+        end
+
+        function retireOwner(owner)
+            NMDataIOMaterializationCache.store('clearOwner', '', struct('owner',owner));
+        end
+
         function clearAll()
             NMDataIOMaterializationCache.store('clearAll', '', []);
         end
 
-        function state2 = withoutCaseSelection(state)
-            state2 = NMDataIOMaterializationCache.stripCaseSelection(state);
-        end
-
         function state2 = withoutMatrixItemSelection(state)
-            % WITHOUTMATRIXITEMSELECTION  Remove Matrix Inspector masks/transport metadata from matrix source materialization.
+            % WITHOUTMATRIXITEMSELECTION  Remove late transfer masks and selector metadata before materialization.
             state2 = NMDataIOMaterializationCache.stripMatrixItemSelection(state);
         end
 
@@ -68,7 +69,7 @@ classdef NMDataIOMaterializationCache
         end
 
         function key = keyForState(family, state)
-            projection = NMDataIOMaterializationCache.identityProjection(state, family);
+            projection = NMDataIOMaterializationCache.identityProjection(state);
             payload = jsonencode(projection);
             md = java.security.MessageDigest.getInstance('SHA-256');
             md.update(uint8(unicode2native(payload, 'UTF-8')));
@@ -79,28 +80,13 @@ classdef NMDataIOMaterializationCache
     end
 
     methods (Static, Access=private)
-        function projection = identityProjection(state, family)
-            projection = state;
-            if strcmpi(char(string(family)),'matrix')
-                projection = NMDataIOMaterializationCache.stripMatrixItemSelection(projection);
-            else
-                projection = NMDataIOMaterializationCache.stripCaseSelection(projection);
-            end
-            projection = NMDataIOMaterializationCache.stripTransient(projection);
+        function value = address(key, owner)
+            value = [key '#' num2str(numel(owner)) ':' owner];
         end
 
-        function x = stripCaseSelection(x)
-            if ~isstruct(x) || isempty(x), return; end
-            if numel(x) > 1
-                for k = 1:numel(x), x(k) = NMDataIOMaterializationCache.stripCaseSelection(x(k)); end
-                return;
-            end
-            if isfield(x,'selCases'), x = rmfield(x,'selCases'); end
-            fn = fieldnames(x);
-            for k = 1:numel(fn)
-                v = x.(fn{k});
-                if isstruct(v), x.(fn{k}) = NMDataIOMaterializationCache.stripCaseSelection(v); end
-            end
+        function projection = identityProjection(state)
+            projection = NMDataIOMaterializationCache.stripMatrixItemSelection(state);
+            projection = NMDataIOMaterializationCache.stripTransient(projection);
         end
 
         function x = stripMatrixItemSelection(x)
@@ -224,13 +210,15 @@ classdef NMDataIOMaterializationCache
                         old = order{1}; order(1) = [];
                         if isKey(cache,old), remove(cache,old); end
                     end
-                case 'clearFamily'
-                    prefix = [key ':'];
+                case {'clearFamily','clearOwner'}
                     keys = cache.keys;
+                    suffix = '';
+                    if ~isempty(value), suffix = NMDataIOMaterializationCache.address('',value.owner); end
                     for k = 1:numel(keys)
-                        if strncmp(keys{k},prefix,numel(prefix)), remove(cache,keys{k}); end
+                        familyMatch = strcmp(action,'clearOwner') || startsWith(keys{k},[key ':']);
+                        if familyMatch && (isempty(value) || endsWith(keys{k},suffix)), remove(cache,keys{k}); end
                     end
-                    order = order(~cellfun(@(s)strncmp(s,prefix,numel(prefix)),order));
+                    order = order(cellfun(@(s)isKey(cache,s),order));
                 case 'clearAll'
                     cache = containers.Map('KeyType','char','ValueType','any');
                     order = {};

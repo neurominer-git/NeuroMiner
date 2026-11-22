@@ -100,28 +100,17 @@ classdef NMDataIOImportTools
             identityState.materializationTargetContextKey = NMDataIOMaterializationCache.keyForState('target',context);
         end
 
-        function [entry, cacheHit, cacheKey] = materializeMatrixImport(NM, state, opts)
+        function [entry, cacheHit, cacheKey, owner] = materializeMatrixImport(NM, state, opts)
             % materializeMatrixImport  Resolve one canonical matrix/table/database payload and mandatory QC.
             if nargin < 3 || isempty(opts), opts = struct(); end
             progressTask = NMDataIOImportTools.fieldOr(opts, 'ProgressTask', NMProgressTools.emptyTaskForLocalUse()); cacheKeyHint = NMDataIOImportTools.asChar(NMDataIOImportTools.fieldOr(opts,'MaterializationCacheKey',''));
             requireRetained = logical(NMDataIOImportTools.fieldOr(opts,'RequireRetainedMaterialization',false));
+            owner = NMDataIOUI.sessionKey(NMDataIOImportTools.fieldOr(opts,'tmpDir',''));
             identityState = NMDataIOImportTools.materializationIdentityState(NM,state);
-            if requireRetained && isempty(cacheKeyHint)
-                error('NMDataIOImportTools:previewMaterializationUnavailable', ...
-                    'The data prepared by the current Preview are no longer available. Run Preview again before Commit.');
-            end
-            if requireRetained && ~strcmp(cacheKeyHint, NMDataIOMaterializationCache.keyForState('matrix', identityState))
-                error('NMDataIOImportTools:previewMaterializationChanged', ...
-                    'The import settings have changed since Preview. Run Preview again before Commit.');
-            end
-            [cacheHit, entry, cacheKey] = NMDataIOMaterializationCache.get('matrix', identityState, cacheKeyHint);
+            [cacheHit,entry,cacheKey] = NMDataIOImportTools.retainedMaterialization('matrix',identityState,cacheKeyHint,requireRetained,owner,'');
             if cacheHit
                 NMProgressTools.phase(progressTask, 'preview_cache_hit', 0, 92, 'Reusing the data, diagnostics and QC from the current Preview.');
                 return;
-            end
-            if requireRetained
-                error('NMDataIOImportTools:previewMaterializationUnavailable', ...
-                    'The data prepared by the current Preview are no longer available. Run Preview again before Commit.');
             end
             materialState = NMDataIOMaterializationCache.withoutMatrixItemSelection(state);
             doProfile = NMDataIOProfileTools.enabled([], [], opts);
@@ -156,35 +145,24 @@ classdef NMDataIOImportTools
             entry = struct('IO',IO,'messages',messages,'probe',probe,'qc',qc,'previewableBlocking',previewableBlocking);
             if ~NMDataIOMessageTools.hasFatal(messages) || previewableBlocking
                 NMProgressTools.phase(progressTask, 'preview_cache_store', 90, 92, 'Keeping the prepared Preview data, diagnostics and QC for Commit.');
-                cacheKey = NMDataIOMaterializationCache.put('matrix', identityState, entry);
+                cacheKey = NMDataIOMaterializationCache.put('matrix', identityState, entry, owner);
             end
         end
 
-        function [entry, cacheHit, cacheKey] = materializeROIImport(NM, state, opts)
+        function [entry, cacheHit, cacheKey, owner] = materializeROIImport(NM, state, opts)
             % materializeROIImport  Resolve one retained canonical ROI payload and mandatory QC.
             if nargin < 3 || isempty(opts), opts = struct(); end
             progressTask = NMDataIOImportTools.fieldOr(opts,'ProgressTask',NMProgressTools.emptyTaskForLocalUse());
             cacheKeyHint = NMDataIOImportTools.asChar(NMDataIOImportTools.fieldOr(opts,'MaterializationCacheKey',''));
             requireRetained = logical(NMDataIOImportTools.fieldOr(opts,'RequireRetainedMaterialization',false));
+            owner = NMDataIOUI.sessionKey(NMDataIOImportTools.fieldOr(opts,'tmpDir',''));
             identityState = NMDataIOImportTools.materializationIdentityState(NM,state);
-            if requireRetained && isempty(cacheKeyHint)
-                error('NMDataIOImportTools:previewMaterializationUnavailable', ...
-                    'The ROI data prepared by the current Preview are no longer available. Run Preview again before Commit.');
-            end
-            if requireRetained && ~strcmp(cacheKeyHint,NMDataIOMaterializationCache.keyForState('roi',identityState))
-                error('NMDataIOImportTools:previewMaterializationChanged', ...
-                    'The ROI import settings have changed since Preview. Run Preview again before Commit.');
-            end
-            [cacheHit,entry,cacheKey] = NMDataIOMaterializationCache.get('roi',identityState,cacheKeyHint);
+            [cacheHit,entry,cacheKey] = NMDataIOImportTools.retainedMaterialization('roi',identityState,cacheKeyHint,requireRetained,owner,'ROI ');
             if cacheHit
                 NMProgressTools.phase(progressTask,'roi_preview_cache_hit',0,98,'Reusing the ROI data, diagnostics and QC from the current Preview.');
                 return;
             end
-            if requireRetained
-                error('NMDataIOImportTools:previewMaterializationUnavailable', ...
-                    'The ROI data prepared by the current Preview are no longer available. Run Preview again before Commit.');
-            end
-            materialState = NMDataIOMaterializationCache.withoutCaseSelection(state);
+            materialState = NMDataIOMaterializationCache.withoutMatrixItemSelection(state);
             progressTask = NMProgressTools.phase(progressTask,'roi_preview_source_materialization',0,60,'Reading the selected ROI data.');
             resolveOpts = opts; resolveOpts.ProgressTask = progressTask;
             [roiOut,resolvedState,messages,roiSpec] = NMDataIOAPITools.prepareROIImportState(NM,materialState,resolveOpts);
@@ -218,35 +196,24 @@ classdef NMDataIOImportTools
             entry = struct('IO',IO,'statePatch',statePatch,'sourcePayload',roiCachePayload,'messages',messages,'probe',probe,'qc',qc,'viewerReference',viewerReference,'spec',roiSpec);
             if ~NMDataIOMessageTools.hasFatal(messages)
                 NMProgressTools.phase(progressTask,'roi_preview_cache_store',96,98,'Keeping the prepared ROI Preview data, diagnostics and QC for Commit.');
-                cacheKey = NMDataIOMaterializationCache.put('roi',identityState,entry);
+                cacheKey = NMDataIOMaterializationCache.put('roi',identityState,entry, owner);
             end
         end
 
-        function [entry, cacheHit, cacheKey] = materializeConnectivityImport(NM, state, opts)
+        function [entry, cacheHit, cacheKey, owner] = materializeConnectivityImport(NM, state, opts)
             % materializeConnectivityImport  Resolve one retained canonical connectivity payload and mandatory QC.
             if nargin < 3 || isempty(opts), opts = struct(); end
             progressTask = NMDataIOImportTools.fieldOr(opts,'ProgressTask',NMProgressTools.emptyTaskForLocalUse());
             cacheKeyHint = NMDataIOImportTools.asChar(NMDataIOImportTools.fieldOr(opts,'MaterializationCacheKey',''));
             requireRetained = logical(NMDataIOImportTools.fieldOr(opts,'RequireRetainedMaterialization',false));
+            owner = NMDataIOUI.sessionKey(NMDataIOImportTools.fieldOr(opts,'tmpDir',''));
             identityState = NMDataIOImportTools.materializationIdentityState(NM,state);
-            if requireRetained && isempty(cacheKeyHint)
-                error('NMDataIOImportTools:previewMaterializationUnavailable', ...
-                    'The connectivity data prepared by the current Preview are no longer available. Run Preview again before Commit.');
-            end
-            if requireRetained && ~strcmp(cacheKeyHint,NMDataIOMaterializationCache.keyForState('connectivity',identityState))
-                error('NMDataIOImportTools:previewMaterializationChanged', ...
-                    'The connectivity import settings have changed since Preview. Run Preview again before Commit.');
-            end
-            [cacheHit,entry,cacheKey] = NMDataIOMaterializationCache.get('connectivity',identityState,cacheKeyHint);
+            [cacheHit,entry,cacheKey] = NMDataIOImportTools.retainedMaterialization('connectivity',identityState,cacheKeyHint,requireRetained,owner,'connectivity ');
             if cacheHit
                 NMProgressTools.phase(progressTask,'connectivity_preview_cache_hit',0,98,'Reusing the connectivity data, diagnostics and QC from the current Preview.');
                 return;
             end
-            if requireRetained
-                error('NMDataIOImportTools:previewMaterializationUnavailable', ...
-                    'The connectivity data prepared by the current Preview are no longer available. Run Preview again before Commit.');
-            end
-            materialState = NMDataIOMaterializationCache.withoutCaseSelection(state);
+            materialState = NMDataIOMaterializationCache.withoutMatrixItemSelection(state);
             progressTask = NMProgressTools.phase(progressTask,'connectivity_preview_source_materialization',0,60,'Reading the selected connectivity data.');
             resolveOpts = opts; resolveOpts.ResolveWeighting = true; resolveOpts.ProgressTask = progressTask;
             [connOut,resolvedState,messages,spec,compatReport] = NMDataIOAPITools.prepareConnectivityImportState(NM,materialState,resolveOpts);
@@ -275,7 +242,7 @@ classdef NMDataIOImportTools
             entry = struct('IO',IO,'sourcePayload',connCachePayload,'messages',messages,'probe',probe,'qc',qc,'spec',spec,'compatibility',compatReport);
             if ~NMDataIOMessageTools.hasFatal(messages)
                 NMProgressTools.phase(progressTask,'connectivity_preview_cache_store',96,98,'Keeping the prepared connectivity Preview data, diagnostics and QC for Commit.');
-                cacheKey = NMDataIOMaterializationCache.put('connectivity',identityState,entry);
+                cacheKey = NMDataIOMaterializationCache.put('connectivity',identityState,entry, owner);
             end
         end
 
@@ -309,29 +276,18 @@ classdef NMDataIOImportTools
             end
         end
 
-        function [entry, cacheHit, cacheKey] = materializeImageImport(NM, state, opts)
+        function [entry, cacheHit, cacheKey, owner] = materializeImageImport(NM, state, opts)
             if nargin < 3 || isempty(opts), opts = struct(); end
             progressTask = NMDataIOImportTools.fieldOr(opts, 'ProgressTask', NMProgressTools.emptyTaskForLocalUse()); cacheKeyHint = NMDataIOImportTools.asChar(NMDataIOImportTools.fieldOr(opts,'MaterializationCacheKey',''));
             requireRetained = logical(NMDataIOImportTools.fieldOr(opts,'RequireRetainedMaterialization',false));
+            owner = NMDataIOUI.sessionKey(NMDataIOImportTools.fieldOr(opts,'tmpDir',''));
             identityState = NMDataIOImportTools.materializationIdentityState(NM,state);
-            if requireRetained && isempty(cacheKeyHint)
-                error('NMDataIOImportTools:previewMaterializationUnavailable', ...
-                    'The imaging data prepared by the current Preview are no longer available. Run Preview again before Commit.');
-            end
-            if requireRetained && ~strcmp(cacheKeyHint, NMDataIOMaterializationCache.keyForState('image', identityState))
-                error('NMDataIOImportTools:previewMaterializationChanged', ...
-                    'The imaging import settings have changed since Preview. Run Preview again before Commit.');
-            end
-            [cacheHit, entry, cacheKey] = NMDataIOMaterializationCache.get('image', identityState, cacheKeyHint);
+            [cacheHit,entry,cacheKey] = NMDataIOImportTools.retainedMaterialization('image',identityState,cacheKeyHint,requireRetained,owner,'imaging ');
             if cacheHit
                 NMProgressTools.phase(progressTask, 'image_preview_cache_hit', 0, 99, 'Reusing the imaging data, diagnostics and QC from the current Preview.');
                 return;
             end
-            if requireRetained
-                error('NMDataIOImportTools:previewMaterializationUnavailable', ...
-                    'The imaging data prepared by the current Preview are no longer available. Run Preview again before Commit.');
-            end
-            materialState = NMDataIOMaterializationCache.withoutCaseSelection(state);
+            materialState = NMDataIOMaterializationCache.withoutMatrixItemSelection(state);
             progressTask = NMProgressTools.phase(progressTask, 'image_preview_source_materialization', 0, 5, 'Reading the selected imaging source settings.');
             importTarget = NMDataIOImportTargetTools.normalize(NM, materialState);
             [NMlocal, importTarget, targetMessages] = NMDataIOImportTargetTools.ensureContainer(NM, importTarget);
@@ -438,7 +394,24 @@ classdef NMDataIOImportTools
                 messages = [messages; qcMessages];
             end
             entry = struct('IO',IO,'messages',messages,'probe',probe,'qc',qc);
-            if ~NMDataIOMessageTools.hasFatal(messages), cacheKey = NMDataIOMaterializationCache.put('image', identityState, entry); end
+            if ~NMDataIOMessageTools.hasFatal(messages), cacheKey = NMDataIOMaterializationCache.put('image', identityState, entry, owner); end
+        end
+
+        function [hit, entry, key] = retainedMaterialization(family, identityState, requestedKey, required, owner, descriptor)
+            % One scientific identity check for all retained Preview families; key is a locator only.
+            if required && isempty(requestedKey)
+                error('NMDataIOImportTools:previewMaterializationUnavailable', ...
+                    'The %sdata prepared by the current Preview are no longer available. Run Preview again before Commit.',descriptor);
+            end
+            if required && ~strcmp(requestedKey,NMDataIOMaterializationCache.keyForState(family,identityState))
+                error('NMDataIOImportTools:previewMaterializationChanged', ...
+                    'The %simport settings have changed since Preview. Run Preview again before Commit.',descriptor);
+            end
+            [hit,entry,key] = NMDataIOMaterializationCache.get(family,identityState,requestedKey,owner);
+            if required && ~hit
+                error('NMDataIOImportTools:previewMaterializationUnavailable', ...
+                    'The %sdata prepared by the current Preview are no longer available. Run Preview again before Commit.',descriptor);
+            end
         end
 
         function preview = imagePreviewFromIO(IO)
@@ -496,7 +469,7 @@ classdef NMDataIOImportTools
                 opts.RequireRetainedMaterialization = logical(NMDataIOImportTools.fieldOr(opts,'RequireRetainedMaterialization',~isempty(cacheKeyHint)));
                 progressTask = NMProgressTools.phase(progressTask, 'image_commit_materialize', 0, 65, ...
                     'Reusing the current Preview data, or reading the source if Preview was not run.');
-                [entry, cacheHit] = NMDataIOImportTools.materializeImageImport(NM, state, opts);
+                [entry, cacheHit, ~, owner] = NMDataIOImportTools.materializeImageImport(NM, state, opts);
                 messages = entry.messages;
                 if NMDataIOMessageTools.hasFatal(messages), out=NMDataIOImportTools.finishServiceOut(out,messages); NMProgressTools.finish(progressTask,out.message); return; end
                 IO = entry.IO;
@@ -555,7 +528,7 @@ classdef NMDataIOImportTools
                 messages=[messages;NMDataIOMessageTools.make('ok',false,'commitImageImport',txt,0,'green*')];
                 out=NMDataIOImportTools.finishServiceOut(out,messages); out.NM=NM2; out.varind=varind; out.importTarget=importTarget;
                 out.modalityInfo=nk_GetNMModalityInfo(targetContainer2,varind,struct('ScanInMemory',true,'MaxScanElements',1e7)); out.probe=entry.probe; out.qc=entry.qc; out.cacheHit=cacheHit;
-                NMDataIOMaterializationCache.clearFamily('image');
+                NMDataIOMaterializationCache.clearFamilyForOwner('image', owner);
                 NMProgressTools.finish(progressTask,out.message);
             catch ME
                 NMProgressTools.fail(progressTask,'commitImageImport',ME); out=NMDataIOImportTools.finishServiceOut(out,NMDataIOMessageTools.fromException(ME,'commitImageImport')); out.NM=NM;
@@ -575,7 +548,7 @@ classdef NMDataIOImportTools
                 NMDataIOImportTools.assertLegacyImportPath();
                 progressTask = NMProgressTools.phase(progressTask, 'commit_materialize', 0, 62, 'Reusing the current Preview data, or reading and checking the source if Preview was not run.');
                 opts.ProgressTask = progressTask;
-                [entry, cacheHit] = NMDataIOImportTools.materializeMatrixImport(NM, state, opts);
+                [entry, cacheHit, ~, owner] = NMDataIOImportTools.materializeMatrixImport(NM, state, opts);
                 messages = entry.messages;
                 out.audit = NMDataIOImportTools.dataIOAuditFromIO(entry.IO);
                 if NMDataIOMessageTools.hasFatal(messages)
@@ -598,7 +571,7 @@ classdef NMDataIOImportTools
                 out.audit = NMDataIOImportTools.dataIOAuditFromIO(IO);
                 out.cacheHit = cacheHit;
                 if out.ok
-                    NMDataIOMaterializationCache.clearFamily('matrix');
+                    NMDataIOMaterializationCache.clearFamilyForOwner('matrix', owner);
                 end
                 NMProgressTools.finish(progressTask, out.message);
             catch ME
@@ -2452,7 +2425,7 @@ classdef NMDataIOImportTools
                     uniquePlanBlocks = NMDataIOImportTools.uniqueCaseKeyPlanBlocks(allBlocks);
                     for i = 1:numel(uniquePlanBlocks)
                         block = uniquePlanBlocks{i};
-                        NMDataIOImportTools.assertBlockCaseKeysUniqueOnAxis(block, finalIDs);
+                        NMDataIOImportTools.assertBlockCaseKeysUniqueOnAxis(block, finalIDs, keyPlanDuplicateReports{block.keyPlanIndex});
                         opts = struct('idMappingMode','auto','mappingApproved',true);
                         [matched, loc, mapReport] = NMDataIOImportTools.resolveCaseRowMap(finalIDs, block.ids, opts);
                         keyPlanRowMaps{block.keyPlanIndex} = struct('matched',matched,'loc',loc,'report',mapReport);
@@ -2930,14 +2903,13 @@ classdef NMDataIOImportTools
             if ~isempty(fallback), policy = fallback; end
         end
 
-        function assertBlockCaseKeysUniqueOnAxis(block, finalIDs)
+        function assertBlockCaseKeysUniqueOnAxis(block, finalIDs, duplicateReport)
             % ASSERTBLOCKCASEKEYSUNIQUEONAXIS  Reject ambiguity only among source rows relevant to the final Case-ID axis.
+            if duplicateReport.nDuplicateTuples == 0, return; end
             ids = NMDataIOImportTools.caseKeyRows(NMDataIOImportTools.fieldOr(block,'ids',{}));
             finalIDs = NMDataIOImportTools.caseKeyRows(finalIDs);
-            if isempty(ids) || isempty(finalIDs), return; end
             opts = struct('idMappingMode','auto','mappingApproved',true);
             [relevant, ~] = NMDataIOImportTools.resolveCaseRowMap(ids, finalIDs, opts);
-            if ~any(relevant), return; end
             sourceRows = NMDataIOImportTools.fieldOr(block,'keySourceRows',[]);
             if ~isempty(sourceRows) && numel(sourceRows) == numel(ids), sourceRows = sourceRows(relevant); else, sourceRows = []; end
             keyRefs = NMDataIOImportTools.fieldOr(block,'keyRefs',{});

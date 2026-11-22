@@ -17,14 +17,14 @@ else
 end
 
 if isfield(estimators,'spline') && ~isempty(estimators.spline)
-    if opts.hasLabel
+    tmpopts = struct('spline',estimators.spline);
+    if estimators.spline.hasLabel
         mod_label   = mod(:, 1);
         mod_other   = mod(:, setdiff(1:size(mod,2), 1));
-        mod_other_exp = expand_splines(mod_other, opts);   
+        mod_other_exp = expand_splines(mod_other, tmpopts, estimators.spline);   
         mod = [mod_label, mod_other_exp];
     else
-        tmpopts = opts;
-        mod = expand_splines(mod, tmpopts);
+        mod = expand_splines(mod, tmpopts, estimators.spline);
     end
 end
 
@@ -140,7 +140,11 @@ if hasBatch
         end
     end
     
-    s_data = (dat - stand_mean) ./ (sqrt(var_pooled) * ones(1, n_array));
+    s_data = dat - stand_mean;
+    if ~isempty(estimators.cov_remove_idx)
+        s_data = s_data - (mod(:,estimators.cov_remove_idx)*B_hat(n_batch_train+estimators.cov_remove_idx,:))';
+    end
+    s_data = s_data ./ (sqrt(var_pooled) * ones(1, n_array));
     
     % --- adjust per batch
     if VERBOSE, fprintf('[combat] Adjusting the data\n'); end

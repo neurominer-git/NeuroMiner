@@ -56,7 +56,7 @@ classdef NMGraphMetricsModule < NMPreprocModule
             if nargin < 4, strict = true; end
             [cfg, report] = validateConfig@NMPreprocModule(obj, cfg, ctx, strict);
             if ~report.ok, return; end
-            if cfg.computeMetrics && isempty(cfg.selectedMetricIdx)
+            if strict && cfg.computeMetrics && isempty(cfg.selectedMetricIdx)
                 report.errors{end+1} = 'At least one graph metric must be selected.';
             end
             bad = intersect(cfg.selectedMetricIdx(:)', [11 13 14]);

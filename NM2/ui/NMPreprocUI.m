@@ -104,7 +104,7 @@ classdef NMPreprocUI
                     state = NMConfigTools.charifyStrings(req.state);
                     pp = NMPreprocOrchestrator(registry,ruleset,ctx);
                     pp.applyUIState(state,ctx);
-                    out = struct('ok',true,'ruleProjection',pp.ruleProjection());
+                    out = struct('ok',true,'ruleProjection',pp.ruleProjection(~isfield(req,'draft') || ~req.draft));
                 otherwise
                     return;
             end

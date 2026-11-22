@@ -110,12 +110,12 @@ if hasBatch
             if opts.hasLabel
                 mod_label   = mod(:, 1);
                 mod_other   = mod(:, setdiff(1:size(mod,2), 1));
-                [mod_other_exp, idx_map_other] = expand_splines(mod_other, opts);   
+                [mod_other_exp, idx_map_other, fittedSpline] = expand_splines(mod_other, opts);   
                 mod = [mod_label, mod_other_exp];
                 % Build a combined idx_map
                 idx_map = add_idx_offset(idx_map_other, 1);
             else
-                [mod, idx_map] = expand_splines(mod, opts);
+                [mod, idx_map, fittedSpline] = expand_splines(mod, opts);
             end
         else
             % no expansion: build a trivial mapping 1:1
@@ -215,7 +215,11 @@ if hasBatch
             tmp(:, n_batch + cov_keep_idx) = design(:, n_batch + cov_keep_idx);
             stand_mean = stand_mean + (tmp * B_hat)';  % add back kept covariates only
         end
-        s_data = (dat-stand_mean)./(sqrt(var_pooled)*ones(1,n_array));
+        s_data = dat - stand_mean;
+        if ~isempty(cov_remove_idx)
+            s_data = s_data - (design(:,n_batch+cov_remove_idx)*B_hat(n_batch+cov_remove_idx,:))';
+        end
+        s_data = s_data./(sqrt(var_pooled)*ones(1,n_array));
 
         % --- EB estimation (unchanged core) ---
         if VERBOSE, fprintf('[combat] Fitting L/S model and finding priors\n'); end
@@ -284,7 +288,8 @@ if hasBatch
         estimators.cov_remove_idx  = cov_remove_idx;
         % Save spline flags
         if isfield(opts,'spline') && ~isempty(opts.spline)
-            estimators.spline = opts.spline;
+            fittedSpline.hasLabel = opts.hasLabel;
+            estimators.spline = fittedSpline;
         else
             estimators.spline = [];
         end
@@ -324,13 +329,13 @@ else
             if opts.hasLabel
                 mod_label   = mod(:, 1);
                 mod_other   = mod(:, setdiff(1:size(mod,2), 1));
-                [mod_other_exp, idx_map_other] = expand_splines(mod_other, opts);   
+                [mod_other_exp, idx_map_other, fittedSpline] = expand_splines(mod_other, opts);   
                 mod = [mod_label, mod_other_exp];
                 % Build a combined idx_map
                 idx_map = add_idx_offset(idx_map_other, 1);
             else
                 tmpopts = opts;
-                [mod, idx_map] = expand_splines(mod, tmpopts);
+                [mod, idx_map, fittedSpline] = expand_splines(mod, tmpopts);
             end
         else
             % no expansion: build a trivial mapping 1:1
@@ -418,7 +423,8 @@ else
         estimators.B_remove         = B_remove;
         % after saving B_keep/B_remove etc.
         if isfield(opts,'spline') && ~isempty(opts.spline)
-            estimators.spline = opts.spline;
+            fittedSpline.hasLabel = opts.hasLabel;
+            estimators.spline = fittedSpline;
         else
             estimators.spline = [];
         end

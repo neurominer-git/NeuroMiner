@@ -3,16 +3,22 @@
  * Corpus role: documents the visual vocabulary and stable selector families used by the browser UI; selectors are presentation anchors, not MATLAB API entry points.
  */
 
-.nmSliceFrame {
+.nmSliceFrame,
+.nmMouseHelpAnchor {
   position: relative;
   display: inline-block;
   line-height: 0;
+}
+.nmSliceFrame {
   touch-action: none;
   cursor: crosshair;
-  overflow: visible;
+  overflow: hidden;
+  outline: 1px solid #cbd5e1;
 }
-.nmSliceCanvas {
+.nmSliceFrame .nmSliceCanvas {
   display: block;
+  transform-origin: center center;
+  border: 0;
 }
 .nmSliceCrosshair {
   position: absolute;
@@ -68,9 +74,17 @@
   z-index: 10;
   pointer-events: none;
 }
-.nmSliceZoomValue {
+.nmSliceZoomValue,
+.nmSliceZoomLabel {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+.nmSliceZoomValue {
   font-size: 10px;
   font-weight: 700;
   color: #334155;
@@ -81,11 +95,6 @@
   line-height: 1;
   height: 58px;
   flex: 0 0 58px;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  user-select: none;
 }
 .nmSliceZoomTrack {
   position: relative;
@@ -109,17 +118,51 @@
   cursor: pointer;
 }
 .nmSliceZoomLabel {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
   font-size: 9px;
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: .08em;
   height: 36px;
   flex: 0 0 36px;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  user-select: none;
 }
+
+/* Native click-to-open mouse guidance, shared by all QC viewers. */
+.connectivityQCCanvasPane,
+.rvSubjectImageQCViewport,
+.rvSubjectSurfaceQCViewport,
+.rvSubjectConnectivityQCViewport {
+  position: relative;
+}
+.nmMouseHelp {
+  position: absolute;
+  top: 0;
+  left: -36px;
+  z-index: 30;
+}
+.nmMouseHelp summary {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  list-style: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+}
+.nmMouseHelp summary::-webkit-details-marker {
+  display: none;
+}
+.nmMouseHelpBody {
+  line-height: 1.35;
+  position: absolute;
+  top: 34px;
+  left: 0;
+  width: max-content;
+  max-width: min(300px, 70vw);
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+}
+

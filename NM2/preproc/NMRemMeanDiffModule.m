@@ -58,7 +58,7 @@ classdef NMRemMeanDiffModule < NMPreprocModule
                         report.errors{end+1} = sprintf( ...
                             'Legacy %s used multiple covariate columns %s. Select one covariate to migrate this offset-correction step.', ...
                             lower(labels{i}), mat2str(cfg.(legacyFields{i}))); %#ok<AGROW>
-                    elseif ~isempty(nCovars) && nCovars > 0
+                    elseif strict && ~isempty(nCovars) && nCovars > 0
                         report.errors{end+1} = sprintf('%s must be selected when covariates are available.',labels{i}); %#ok<AGROW>
                     end
                     continue;

@@ -206,15 +206,8 @@ if isfield(TemplParam,'ACTPARAM')
                         end
                     
                         % Now that MCOVARLABEL is initialized, we can use it in VERBOSE blocks
-                        if VERBOSE 
-                            if isfield( InputParam.P{ac}, 'remove_idx')
-                                if isempty( InputParam.P{ac}.remove_idx) && ~isempty(TemplParam.ACTPARAM{ac}.MCOVAR)
-                                    fprintf('\n\t- Retain all covariates'' variance.')
-                                end
-                            end
-                            if InputParam.P{ac}.MCOVARLABEL == 1
-                                 fprintf('\n\t- Retain label variance.')
-                            end
+                        if VERBOSE && InputParam.P{ac}.MCOVARLABEL == 1
+                            fprintf('\n\t- Retain label variance.')
                         end
                     
                         % ------------------------------------------------------------------

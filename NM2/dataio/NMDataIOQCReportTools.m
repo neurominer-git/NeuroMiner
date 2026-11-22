@@ -237,15 +237,12 @@ classdef NMDataIOQCReportTools
         end
 
         function spatial = exportSpatialArtifacts(state, qc, tmpDir, qcMapDir, figDir, zThreshold)
-            spatial = struct('featureMetric','','featureMetricLabel','','mostAbnormalIndex',NaN,'mostAbnormalValue',NaN, ...
-                'qcMapFiles',{{}},'snapshotFiles',{{}},'messages',NMDataIOMessageTools.emptyMessages());
+            spatial = NMDataIOQCReportTools.emptySpatialResult();
             fsName = lower(NMDataIOQCReportTools.asChar(NMDataIOQCReportTools.fieldOr(qc, 'featureSpace', '')));
             if strcmp(fsName, 'image_voxel')
-                img = NMDataIOQCReportTools.exportVoxelQCMaps(state, qc, tmpDir, qcMapDir, figDir, zThreshold);
-                spatial = img;
+                spatial = NMDataIOQCReportTools.exportVoxelQCMaps(state, qc, tmpDir, qcMapDir, figDir, zThreshold);
             elseif strcmp(fsName, 'surface_vertex_registered')
-                surf = NMDataIOQCReportTools.exportSurfaceQCMaps(state, qc, tmpDir, qcMapDir, figDir, zThreshold);
-                spatial = surf;
+                spatial = NMDataIOQCReportTools.exportSurfaceQCMaps(state, qc, tmpDir, qcMapDir, figDir, zThreshold);
             end
         end
 
@@ -262,6 +259,7 @@ classdef NMDataIOQCReportTools
                 metrics = {'feature_missing_rate','feature_mean','feature_std','feature_zero_rate','feature_outlier_rate'};
                 names = {'qc_missing_rate','qc_mean','qc_sd','qc_zero_rate', ['qc_outlier_rate_z' NMDataIOQCReportTools.zTag(zThreshold)]};
                 vecs = struct();
+                exported = [];
                 for i = 1:numel(metrics)
                     [vec, ~, ~, err] = NMDataIOFeatureQCTools.cachedImageQCMetricVector(S, metrics{i}, zThreshold);
                     if ~isempty(err)
@@ -269,10 +267,7 @@ classdef NMDataIOQCReportTools
                         continue;
                     end
                     vecs.(metrics{i}) = vec;
-                    fbase = fullfile(qcMapDir, names{i});
-                    mapFile = NMDataIOQCReportTools.writeVoxelVector(vec, fbase, maskFile, state);
-                    spatial.qcMapFiles{end+1} = mapFile;
-                    spatial.messages = [spatial.messages; NMDataIOMessageTools.make('ok', false, 'qcReport.voxel.map', sprintf('Wrote voxel QC map: %s', mapFile), 0, 'green*')];
+                    exported(end+1) = i;
                 end
                 [metric, vec] = NMDataIOQCReportTools.chooseSpatialFeatureVector(vecs);
                 spatial.featureMetric = metric;
@@ -289,6 +284,11 @@ classdef NMDataIOQCReportTools
                     else
                         spatial.messages = [spatial.messages; NMDataIOMessageTools.make('warn', false, 'qcReport.voxel.snapshot', pngMsg, 2, 'orange')];
                     end
+                end
+                for i = exported
+                    mapFile = NMDataIOQCReportTools.writeVoxelVector(vecs.(metrics{i}), fullfile(qcMapDir, names{i}), maskFile, state);
+                    spatial.qcMapFiles{end+1} = mapFile;
+                    spatial.messages = [spatial.messages; NMDataIOMessageTools.make('ok', false, 'qcReport.voxel.map', sprintf('Wrote voxel QC map: %s', mapFile), 0, 'green*')];
                 end
             catch ME
                 spatial.messages = [spatial.messages; NMDataIOMessageTools.fromException(ME, 'qcReport.voxel')];
@@ -377,23 +377,23 @@ classdef NMDataIOQCReportTools
             %
             % Failure semantics:
             %   An unreadable or unresolvable mask fails explicitly before output materialization.
-            if exist('nk_WriteVol','file') ~= 2 && isempty(which('nk_WriteVol'))
-                error('NMDataIOQCReportTools:MissingWriteVol', 'nk_WriteVol.m is required to write voxel QC maps.');
-            end
             vec = double(vec(:)');
             spaceType = lower(NMDataIOQCReportTools.asChar(NMDataIOQCReportTools.fieldOr(state, 'spaceDefType', NMDataIOQCReportTools.fieldOr(state, 'imageSpaceType', 'brainmask'))));
-            if strcmp(spaceType,'atlas')
-                label = 0; labelop = 'gt';
-            else
-                label = 0.5; labelop = 'gt';
-            end
+            label = 0.5 * ~strcmp(spaceType,'atlas');
             [maskFileSPM, maskMessages] = NMDataIOImageFileTools.resolveNiftiFileForSPM(maskFile, 'qcReport.writeVoxelVector.maskFile', true);
             if ~NMDataIOImageFileTools.existsForSPM(maskFileSPM)
                 detail = NMDataIOMessageTools.highestPriorityStrip(maskMessages, 'Could not resolve QC mask for SPM.');
                 error('NMDataIOQCReportTools:UnreadableMask', '%s', detail.text);
             end
-            nk_WriteVol(vec, fnameNoExt, 1, maskFileSPM, [], label, labelop, [], false, false);
+            writeBase = fnameNoExt;
+            if any(double(fnameNoExt) > 127)
+                writeBase = tempname;
+            end
+            nk_WriteVol(vec, writeBase, 1, maskFileSPM, [], label, 'gt', [], false, false);
             mapFile = [fnameNoExt '.nii'];
+            if ~strcmp(writeBase, fnameNoExt)
+                assert(movefile([writeBase '.nii'], mapFile), 'QC map could not be moved to the report directory.');
+            end
         end
 
         function [ok, msg] = writeVoxelSnapshot(vec, idx, maskFile, state, pngFile, metricLabel)

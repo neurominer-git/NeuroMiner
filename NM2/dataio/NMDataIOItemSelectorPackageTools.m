@@ -23,6 +23,8 @@ classdef NMDataIOItemSelectorPackageTools
             % opts.ProfileLabel: names the profiling segment so nested timing diagnostics can be traced to the caller.
             if nargin < 1 || isempty(NM), NM = struct(); end
             if nargin < 2 || isempty(state), state = struct(); end
+            owner = '';
+            if nargin >= 3 && ~isempty(tmpDir), owner = NMDataIOUI.sessionKey(tmpDir); end
             if nargin < 3 || isempty(tmpDir), tmpDir = tempdir; end
             if nargin < 4 || isempty(opts), opts = struct(); end
 
@@ -40,7 +42,7 @@ classdef NMDataIOItemSelectorPackageTools
                 'messages',NMDataIOMessageTools.emptyMessages(), 'manifest',struct());
 
             try
-                materializationOpts = struct('ProfileEnabled',doProfile,'ProfileLabel',[profileLabel '.materializeMatrixImport']);
+                materializationOpts = struct('ProfileEnabled',doProfile,'ProfileLabel',[profileLabel '.materializeMatrixImport'],'tmpDir',owner);
                 cacheKeyHint = char(string(NMDataIOItemSelectorPackageTools.opt(opts,'MaterializationCacheKey','')));
                 if ~isempty(cacheKeyHint)
                     materializationOpts.MaterializationCacheKey = cacheKeyHint;

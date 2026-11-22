@@ -1,4 +1,4 @@
-function Yout = nk_WaveletSpatialReconstruct(Y, SPATIAL, level)
+function Yout = nk_WaveletSpatialReconstruct(Y, SPATIAL, level, varargin)
 % nk_WaveletSpatialReconstruct - Image-preserving 3-D undecimated wavelet reconstruction.
 %
 % Syntax:
@@ -112,6 +112,7 @@ for st = 1:batchSize:nSub
     R2 = reshape(R, prodDims, nb);
     Yout(st:en,:) = cast(R2(indvol,:).', class(Yout));
     fprintf('.')
+    if ~isempty(varargin), varargin{1}(en,nb); end
 end
 end
 

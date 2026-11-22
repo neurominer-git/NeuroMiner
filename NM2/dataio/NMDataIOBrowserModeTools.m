@@ -390,11 +390,15 @@ classdef NMDataIOBrowserModeTools
             % Consumes NM; returns NM, messages.
             % It controls which DataIO browser actions are legal after training import finalization or inside OOCV management.
             % Callers must use the returned NM value as the authoritative mutated container; diagnostics are returned as structured messages for explicit UI/API handling.
-            if nargin < 1 || isempty(NM), NM = struct(); end
             messages = NMDataIOMessageTools.emptyMessages();
-            if NMDataIOBrowserModeTools.committedModalityCount(NM) < 1
-                messages = [messages; NMDataIOMessageTools.make('danger', true, 'finalizeTrainingImport', ...
-                    'Training data import cannot be finalized because no training modality has been completed. Import and Commit at least one modality first.', 1, 'red*')];
+            [ready, unfinished] = NMDataIOBrowserModeTools.trainingImportReady(NM);
+            if ~ready
+                if isempty(unfinished)
+                    reason = 'Training data import cannot be finalized because no training modality has been completed. Import and Commit at least one modality first.';
+                else
+                    reason = sprintf('Modality %d is unfinished. Complete or delete its import before finalizing training data.', unfinished);
+                end
+                messages = [messages; NMDataIOMessageTools.make('danger', true, 'finalizeTrainingImport', reason, 1, 'red*')];
                 return;
             end
             if ~isfield(NM,'defs') || ~isstruct(NM.defs), NM.defs = struct(); end
@@ -403,24 +407,13 @@ classdef NMDataIOBrowserModeTools
                     'Training data import is already finalized. Existing NM.id and locked training modalities were preserved.', 0, 'green*')];
                 return;
             end
-            if exist('genID','file') ~= 2
-                messages = [messages; NMDataIOMessageTools.make('danger', true, 'finalizeTrainingImport', ...
-                    'Cannot finalize training data import because genID.m is not available on the MATLAB path.', 1, 'red*')];
-                return;
-            end
             try
-                nmID = genID;
+                NM.id = genID;
             catch ME
                 messages = [messages; NMDataIOMessageTools.make('danger', true, 'finalizeTrainingImport', ...
                     sprintf('Cannot finalize training data import because genID failed: %s: %s', ME.identifier, ME.message), 1, 'red*')];
                 return;
             end
-            if ~(ischar(nmID) || (isstring(nmID) && isscalar(nmID))) || strlength(string(nmID)) == 0
-                messages = [messages; NMDataIOMessageTools.make('danger', true, 'finalizeTrainingImport', ...
-                    'Cannot finalize training data import because genID returned an empty or non-scalar identifier.', 1, 'red*')];
-                return;
-            end
-            NM.id = char(string(nmID));
             NM.defs.import_finished = true;
             if ~isfield(NM.defs,'analyses_locked') || isempty(NM.defs.analyses_locked)
                 NM.defs.analyses_locked = false;
@@ -1083,6 +1076,20 @@ classdef NMDataIOBrowserModeTools
             state.oocvScientificPolicy = policy;
         end
 
+        function [ready, unfinished] = trainingImportReady(NM)
+            % One scientific finalization admission rule shared by DataIO and workbench.
+            ready = NMDataIOBrowserModeTools.committedModalityCount(NM) > 0;
+            unfinished = [];
+            for varind = 1:NMModalityInfoTools.numModalities(NM)
+                if NMDataIOModalityMutationTools.isUncommittedDraftModality(NM,varind) || ...
+                        NMDataIOModalityMutationTools.requiresRecommit(NM,varind)
+                    unfinished = varind;
+                    ready = false;
+                    return;
+                end
+            end
+        end
+
         function n = committedModalityCount(NM)
             % committedModalityCount  Count committed training modalities available for browser/OOCV operations.
             %
@@ -1091,7 +1098,7 @@ classdef NMDataIOBrowserModeTools
             % Read-only count derived from NM.Y; it does not inspect payload matrices or mutate NM.
             n = 0;
             if isstruct(NM) && isfield(NM,'Y') && iscell(NM.Y)
-                n = numel(NM.Y);
+                n = nnz(~cellfun(@isempty, NM.Y));
             end
         end
 

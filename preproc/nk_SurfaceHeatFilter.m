@@ -1,4 +1,4 @@
-function Yout = nk_SurfaceHeatFilter(Y, op, fwhm)
+function Yout = nk_SurfaceHeatFilter(Y, op, fwhm, varargin)
 % nk_SurfaceHeatFilter  Apply e^(-t Delta) on a native cortical mesh.
 % Symmetric lumped-mass FEM Laplace-Beltrami operator. FWHM is in mm.
 % Scaled modified Bessel coefficients implement a Chebyshev heat expansion.
@@ -17,6 +17,7 @@ if ~isscalar(fwhm) || ~isfinite(fwhm) || fwhm < 0
 end
 if fwhm == 0
     Yout = Y;
+    if ~isempty(varargin), varargin{1}(size(Y,1),size(Y,1)); end
     return
 end
 % The 2-D surface heat kernel locally has variance 2t per tangential axis.
@@ -56,5 +57,6 @@ for st = 1:8:size(Y,1)
     end
     Yout(rows,:) = cast(bsxfun(@times,Z,op.inverseSqrtMass).',class(Y));
     Yout(rows,~op.vertexMask) = NaN;
+    if ~isempty(varargin), varargin{1}(rows(end),numel(rows)); end
 end
 end

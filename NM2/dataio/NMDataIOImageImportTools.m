@@ -198,7 +198,7 @@ classdef NMDataIOImageImportTools
             messages = [messages; fileMessages];
             if NMDataIOMessageTools.hasFatal(messages), return; end
 
-            if ~NMDataIOImportTools.hasReferenceCases(targetContainer)
+            if ~NMDataIOImportTools.hasReferenceCases(NMDataIOImportTools.alignmentReferenceContainer(trainingNM, targetContainer, importTarget))
                 [IO, groupLabelMessages] = NMDataIOImageImportTools.resolveLegacyGroupLabels(IO);
                 messages = [messages; groupLabelMessages];
                 if NMDataIOMessageTools.hasFatal(messages), return; end
@@ -207,7 +207,7 @@ classdef NMDataIOImageImportTools
             [IO, roleMessages] = NMDataIOImportTools.materializeConfiguredGlobalRole(IO, IO.ID);
             messages = [messages; roleMessages];
             if NMDataIOMessageTools.hasFatal(messages), return; end
-            if ~NMDataIOImportTools.hasReferenceCases(targetContainer) && IO.labels_known && ...
+            if ~NMDataIOImportTools.hasReferenceCases(NMDataIOImportTools.alignmentReferenceContainer(trainingNM, targetContainer, importTarget)) && IO.labels_known && ...
                     (~isfield(IO,'label') || isempty(IO.label)) && ~NMDataIOImportTools.hasExplicitLabelAssignment(IO,'?')
                 messages = [messages; NMDataIOMessageTools.make('danger', true, 'imageLabels', ...
                     'First imaging modality import requires labels when labels_known=true. For classification, use sequential image-group labels or assign a label role in Auxiliary Variables; for regression, assign a label role in Auxiliary Variables. Set labelsKnown=false only for unlabeled OOCV/application data.', 1, 'red*')];
@@ -532,7 +532,7 @@ classdef NMDataIOImageImportTools
                     importTargetProbe = NMDataIOImportTargetTools.normalize(NM, state);
                     [probeTargetContainer, probeTargetMessages] = NMDataIOImportTargetTools.getContainer(NM, importTargetProbe);
                     messages = [messages; probeTargetMessages];
-                    if NMDataIOImportTools.hasReferenceCases(probeTargetContainer)
+                    if NMDataIOImportTools.hasReferenceCases(NMDataIOImportTools.alignmentReferenceContainer(NM, probeTargetContainer, importTargetProbe))
                         optsAlign = NMDataIOImageImportTools.imageReferenceAlignmentOptions(IO, [], probeTargetContainer, importTargetProbe);
                         optsAlign.referenceLabel = NMDataIOImportTargetTools.caseReferenceLabel(importTargetProbe);
                         [alignedIncomingRows, alignmentReport, alignMessages] = NMDataIOImportTools.alignRowsToReferenceCases((1:numel(ids))', ids, probeTargetContainer.cases, optsAlign, 'probe');
@@ -815,7 +815,7 @@ classdef NMDataIOImageImportTools
                 importTargetProbe = NMDataIOImportTargetTools.normalize(NM, state);
                 [probeTargetContainer, probeTargetMessages] = NMDataIOImportTargetTools.getContainer(NM, importTargetProbe);
                 messages = [messages; probeTargetMessages];
-                if NMDataIOImportTools.hasReferenceCases(probeTargetContainer)
+                if NMDataIOImportTools.hasReferenceCases(NMDataIOImportTools.alignmentReferenceContainer(NM, probeTargetContainer, importTargetProbe))
                     optsAlign = NMDataIOImageImportTools.imageReferenceAlignmentOptions(IO, [], probeTargetContainer, importTargetProbe);
                     optsAlign.referenceLabel = NMDataIOImportTargetTools.caseReferenceLabel(importTargetProbe);
                     [~, alignmentReport, alignMessages] = NMDataIOImportTools.alignRowsToReferenceCases((1:numel(ids))', ids, probeTargetContainer.cases, optsAlign, 'probe');

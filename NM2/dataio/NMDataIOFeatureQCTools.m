@@ -112,7 +112,7 @@ classdef NMDataIOFeatureQCTools
                 'nodeIDs',double(NMDataIOFeatureQCTools.fieldOr(prov, 'nodeIDs', 1:nNodes)), 'edgeIndex',edgeIndex, ...
                 'edgeNames',{edgeNames}, 'matrixType',NMDataIOFeatureQCTools.asChar(NMDataIOFeatureQCTools.fieldOr(prov, 'matrixType', 'undirected')), ...
                 'includeDiagonal',logical(NMDataIOFeatureQCTools.fieldOr(prov, 'includeDiagonal', false)), ...
-                'edgeMean',cstats.edgeMean,'edgeSD',cstats.edgeSD,'edgeMissingRate',cstats.edgeMissingRate, ...
+                'edgeMean',cstats.edgeMean,'edgeSD',cstats.edgeSD,'edgeValidN',cstats.edgeValidN,'edgeMissingRate',cstats.edgeMissingRate, ...
                 'rawMatrixQC',rawQC,'edgeSpaceQC',cstats.edgeSpaceQC);
             qc.viewerOverlay = struct('available',true,'cacheToken','','method','connectivity_matrix_qc', ...
                 'thresholdDefault',double(qc.outlierZThreshold),'modeDefault','signed', ...
@@ -159,6 +159,7 @@ classdef NMDataIOFeatureQCTools
                     'surfaceGeometryContract',NMDataIOFeatureQCTools.fieldOr(IO,'surfaceGeometryContract',struct()));
                 tmpDir = NMDataIOFeatureQCTools.asChar(NMDataIOFeatureQCTools.fieldOr(opts,'tmpDir',''));
                 if ~isempty(tmpDir)
+                    opts.cohortZWindow = qc.cohortZWindow;
                     [qc.viewerOverlay, overlayMessages] = NMDataIOFeatureQCTools.exportSurfaceViewerOverlayCache(double(IO.Y), tmpDir, opts);
                     messages = [messages; overlayMessages];
                 end
@@ -217,7 +218,7 @@ classdef NMDataIOFeatureQCTools
                 extraCache = struct('zeroCount',zeroCount(:),'minVec',minVec(:),'maxVec',maxVec(:),'outlierCount',outlierCount(:), ...
                     'nSubjects',double(nSubjects),'featureSpace','image_voxel','outlierZThreshold',double(zThreshold), ...
                     'zeroTolerance',double(zeroTol),'dynamicOutlierThresholdAvailable',logical(storeAbsZCache), ...
-                    'viewerAbsZCacheMaxElements',double(absZCacheLimit));
+                    'viewerAbsZCacheMaxElements',double(absZCacheLimit),'cohortZWindow',qc.cohortZWindow);
                 if storeAbsZCache, extraCache.absZMatrix = absZMatrix; end
                 [qc.viewerOverlay, overlayMessages] = NMDataIOFeatureQCTools.exportViewerOverlayCache(meanVec, m2Vec, countVec, qc.maskFile, tmpDir, extraCache);
                 messages = [messages; overlayMessages];
@@ -774,7 +775,7 @@ classdef NMDataIOFeatureQCTools
             messages = NMDataIOMessageTools.emptyMessages();
             try
                 identityState = NMDataIOImportTools.materializationIdentityState(NM,state);
-                [cacheHit, entry] = NMDataIOMaterializationCache.get('matrix', identityState);
+                [cacheHit, entry] = NMDataIOMaterializationCache.get('matrix', identityState, '', NMDataIOUI.sessionKey(NMDataIOFeatureQCTools.fieldOr(opts,'tmpDir','')));
                 if ~cacheHit || ~isstruct(entry) || ~isfield(entry,'IO') || ~isstruct(entry.IO)
                     messages = NMDataIOMessageTools.make('danger', true, 'featureQC.profile.matrix', ...
                         'Run Preview before opening tabular feature QC.', 1, 'red*');
@@ -1021,6 +1022,7 @@ classdef NMDataIOFeatureQCTools
                 else
                     metricLabel = NMDataIOFeatureQCTools.asChar(NMDataIOFeatureQCTools.fieldOr(opts,'metricLabel','Subject ROI z-score'));
                     overlayKind = NMDataIOFeatureQCTools.asChar(NMDataIOFeatureQCTools.fieldOr(opts,'overlayKind','subject_z'));
+                    valueWindow = resident.cohortZWindow;
                 end
             else
                 % ROI group maps use the same resident moment/count schema as voxel QC. The
@@ -1230,6 +1232,7 @@ classdef NMDataIOFeatureQCTools
                 zThreshold = NMDataIOFeatureQCTools.qcOptionNumber(opts, 'OutlierZThreshold', 3);
             end
             referenceMode = lower(strtrim(NMDataIOFeatureQCTools.asChar(NMDataIOFeatureQCTools.fieldOr(opts, 'ReferenceMode', 'leave_one_out'))));
+            if any(strcmp(referenceMode, {'fixed','training_reference','reference'})), referenceMode = 'fixed_reference'; end
             if isempty(referenceMode), referenceMode = 'leave_one_out'; end
             out = struct('ok',false,'message','QC overlay not prepared.', ...
                 'overlayVolumeUrl','','dataType','float32','dims',[],'sliceIndex',NaN, ...
@@ -1325,11 +1328,8 @@ classdef NMDataIOFeatureQCTools
                     Vi = spm_vol(spmImageFiles{1});
                     if numel(Vi) > 1, Vi = Vi(1); end
                     x = NMDataIOFeatureQCTools.sampleImageInMaskSpace(Vi, Vm, mask);
-                    referenceMode = lower(strtrim(NMDataIOFeatureQCTools.asChar(NMDataIOFeatureQCTools.fieldOr(opts, 'ReferenceMode', 'leave_one_out'))));
-                    if any(strcmp(referenceMode, {'fixed','training_reference','reference'})), referenceMode = 'fixed_reference'; end
-                    if isempty(referenceMode), referenceMode = 'leave_one_out'; end
                     [overlayVec, validCount] = NMDataIOFeatureQCTools.computeSubjectZVector(x, meanVec, m2Vec, countVec, referenceMode);
-                    valueWindow = [-double(zThreshold) double(zThreshold)];
+                    valueWindow = S.cohortZWindow;
                     out.thresholdApplied = double(zThreshold);
                     out.dynamicOutlierThresholdAvailable = isfield(S,'absZMatrix');
                 else
@@ -1465,7 +1465,7 @@ classdef NMDataIOFeatureQCTools
                         return;
                     end
                     [values, validCount] = NMDataIOFeatureQCTools.computeSubjectZVector(x, meanVec, double(S.m2Vec(:)'), countVec, referenceMode);
-                    valueWindow = [-double(zThreshold) double(zThreshold)];
+                    valueWindow = S.cohortZWindow;
                     out.thresholdApplied = double(zThreshold);
                     out.dynamicOutlierThresholdAvailable = isfield(S,'absZMatrix');
                 else
@@ -1581,12 +1581,16 @@ classdef NMDataIOFeatureQCTools
             end
         end
 
-        function [vec, validCount, valueWindow, err, appliedThreshold, warning] = cachedImageQCMetricVector(S, metricKey, zThreshold)
-            % cachedImageQCMetricVector  Read one image QC metric vector from the cached overlay store with threshold/window metadata.
-            %
-            % Consumes S, metricKey, zThreshold; returns vec, validCount, valueWindow, err, appliedThreshold, warning.
-            % It links import artifacts to QC viewers/reports while keeping heavy overlay arrays outside lightweight UI state.
-            % Cache contents are an acceleration/rehydration artifact, not a new source of truth.
+        function [vec, validCount, valueWindow, err, appliedThreshold, warning] = cachedImageQCMetricVector(S, metricKey, varargin)
+            % Resolve group voxel QC from the canonical cached moments.
+            zThreshold = [];
+            if ~isempty(varargin), zThreshold = varargin{1}; end
+            [vec, validCount, valueWindow, err, appliedThreshold, warning] = ...
+                NMDataIOFeatureQCTools.cachedGroupQCMetricVector(S, metricKey, zThreshold, false);
+        end
+
+        function [vec, validCount, valueWindow, err, appliedThreshold, warning] = cachedGroupQCMetricVector(S, metricKey, zThreshold, surface)
+            % Shared image/surface/ROI group metric evaluation. Cache moments are produced by Preview.
             err = '';
             warning = '';
             metricKey = NMDataIOFeatureQCTools.normalizeImageQCMetricKey(metricKey);
@@ -1597,15 +1601,25 @@ classdef NMDataIOFeatureQCTools
             appliedThreshold = double(zThreshold);
             countVec = double(S.countVec(:)');
             meanVec = double(S.meanVec(:)');
-            m2Vec = double(S.m2Vec(:)');
+            if surface
+                sdVec = double(S.sdVec(:)');
+            else
+                m2Vec = double(S.m2Vec(:)');
+            end
             validCount = 0;
             valueWindow = [NaN NaN];
             vec = nan(size(meanVec));
             nFeatures = numel(meanVec);
+            family = 'imaging';
+            featureName = 'voxel-feature';
+            if surface
+                family = 'surface';
+                featureName = 'vertex';
+            end
             switch metricKey
                 case 'feature_missing_rate'
                     if ~isfield(S,'nSubjects') || ~isfinite(double(S.nSubjects)) || double(S.nSubjects) < 1
-                        err = 'The imaging missing-rate map requires the number of cases, which is unavailable in the current QC data. Run Preview again.';
+                        err = sprintf('The %s missing-rate map requires the number of cases, which is unavailable in the current QC data. Run Preview again.', family);
                         return;
                     end
                     nSubjects = double(S.nSubjects);
@@ -1614,14 +1628,24 @@ classdef NMDataIOFeatureQCTools
                 case 'feature_mean'
                     vec = meanVec;
                 case 'feature_std'
-                    vec = sqrt(m2Vec ./ max(1, countVec - 1));
+                    if surface
+                        vec = sdVec;
+                    else
+                        vec = sqrt(m2Vec ./ max(1, countVec - 1));
+                    end
                     vec(countVec < 2) = NaN;
                 case 'feature_zero_rate'
                     if ~isfield(S,'zeroCount')
-                        err = 'The imaging zero-rate map requires zero counts, which are unavailable in the current QC data. Run Preview again.';
+                        err = sprintf('The %s zero-rate map requires zero counts, which are unavailable in the current QC data. Run Preview again.', family);
                         return;
                     end
                     zc = double(S.zeroCount(:)');
+                    if surface
+                        if numel(zc) ~= nFeatures
+                            err = 'The surface zero-rate QC data do not match the current vertex count. Run Preview again.';
+                            return;
+                        end
+                    end
                     vec = zc ./ max(1, countVec);
                     vec(countVec < 1) = NaN;
                     valueWindow = [0 1];
@@ -1629,23 +1653,23 @@ classdef NMDataIOFeatureQCTools
                     if isfield(S,'absZMatrix')
                         absZ = double(S.absZMatrix);
                         if size(absZ,2) ~= nFeatures
-                            err = 'The imaging outlier-rate QC data do not match the current voxel-feature count. Run Preview again.';
+                            err = sprintf('The %s outlier-rate QC data do not match the current %s count. Run Preview again.', family, featureName);
                             return;
                         end
                         oc = sum(isfinite(absZ) & absZ >= zThreshold, 1);
                     else
                         if ~isfield(S,'outlierCount')
-                            err = 'The imaging outlier-rate map requires outlier counts, which are unavailable in the current QC data. Run Preview again.';
+                            err = sprintf('The %s outlier-rate map requires outlier counts, which are unavailable in the current QC data. Run Preview again.', family);
                             return;
                         end
                         cachedThreshold = NMDataIOFeatureQCTools.qcOptionNumber(S, 'outlierZThreshold', 3);
                         if abs(double(cachedThreshold) - zThreshold) > 1e-9
-                            warning = sprintf('The outlier-rate threshold cannot be changed for this large imaging dataset; using the Preview z-threshold %.6g.', double(cachedThreshold));
+                            warning = sprintf('The outlier-rate threshold cannot be changed for this large %s dataset; using the Preview z-threshold %.6g.', family, double(cachedThreshold));
                             appliedThreshold = double(cachedThreshold);
                         end
                         oc = double(S.outlierCount(:)');
                         if numel(oc) ~= nFeatures
-                            err = 'The imaging outlier-rate QC data do not match the current voxel-feature count. Run Preview again.';
+                            err = sprintf('The %s outlier-rate QC data do not match the current %s count. Run Preview again.', family, featureName);
                             return;
                         end
                     end
@@ -1653,12 +1677,18 @@ classdef NMDataIOFeatureQCTools
                     vec(countVec < 1) = NaN;
                     valueWindow = NMDataIOFeatureQCTools.finiteValueWindow(vec);
                 otherwise
-                    err = sprintf('This imaging QC metric is not available: %s.', metricKey);
+                    if surface
+                        err = sprintf('Unsupported surface QC metric: %s.', metricKey);
+                    else
+                        err = sprintf('This imaging QC metric is not available: %s.', metricKey);
+                    end
                     return;
             end
             finite = isfinite(vec);
             validCount = nnz(finite);
-            if validCount > 0 && any(isnan(valueWindow))
+            if surface && any(strcmp(metricKey, {'feature_mean','feature_std'}))
+                valueWindow = NMDataIOFeatureQCTools.finiteValueWindow(vec);
+            elseif validCount > 0 && any(isnan(valueWindow))
                 valueWindow = [min(vec(finite)) max(vec(finite))];
                 if valueWindow(1) == valueWindow(2)
                     pad = max(1e-6, abs(valueWindow(1)) * 0.05);
@@ -1828,83 +1858,9 @@ classdef NMDataIOFeatureQCTools
         end
 
         function [vec, validCount, valueWindow, err, appliedThreshold, warning] = cachedSurfaceQCMetricVector(S, metricKey, zThreshold)
-            err = '';
-            warning = '';
-            metricKey = NMDataIOFeatureQCTools.normalizeImageQCMetricKey(metricKey);
-            if nargin < 3 || isempty(zThreshold) || ~isfinite(double(zThreshold)) || double(zThreshold) < 0
-                zThreshold = NMDataIOFeatureQCTools.qcOptionNumber(S, 'outlierZThreshold', 3);
-            end
-            zThreshold = double(zThreshold);
-            appliedThreshold = double(zThreshold);
-            meanVec = double(S.meanVec(:)');
-            sdVec = double(S.sdVec(:)');
-            countVec = double(S.countVec(:)');
-            nFeatures = numel(meanVec);
-            validCount = 0;
-            valueWindow = [NaN NaN];
-            vec = nan(1, nFeatures);
-            switch metricKey
-                case 'feature_missing_rate'
-                    if ~isfield(S,'nSubjects') || ~isfinite(double(S.nSubjects)) || double(S.nSubjects) < 1
-                        err = 'The surface missing-rate map requires the number of cases, which is unavailable in the current QC data. Run Preview again.';
-                        return;
-                    end
-                    nSubjects = double(S.nSubjects);
-                    vec = (nSubjects - countVec) ./ max(1, nSubjects);
-                    valueWindow = [0 1];
-                case 'feature_mean'
-                    vec = meanVec;
-                case 'feature_std'
-                    vec = sdVec;
-                    vec(countVec < 2) = NaN;
-                case 'feature_zero_rate'
-                    if ~isfield(S,'zeroCount')
-                        err = 'The surface zero-rate map requires zero counts, which are unavailable in the current QC data. Run Preview again.';
-                        return;
-                    end
-                    zeroCount = double(S.zeroCount(:)');
-                    if numel(zeroCount) ~= nFeatures
-                        err = 'The surface zero-rate QC data do not match the current vertex count. Run Preview again.';
-                        return;
-                    end
-                    vec = zeroCount ./ max(1, countVec);
-                    vec(countVec < 1) = NaN;
-                    valueWindow = [0 1];
-                case 'feature_outlier_rate'
-                    if isfield(S,'absZMatrix')
-                        absZ = double(S.absZMatrix);
-                        if size(absZ,2) ~= nFeatures
-                            err = 'The surface outlier-rate QC data do not match the current vertex count. Run Preview again.';
-                            return;
-                        end
-                        outlierCount = sum(isfinite(absZ) & absZ >= zThreshold, 1);
-                    else
-                        if ~isfield(S,'outlierCount')
-                            err = 'The surface outlier-rate map requires outlier counts, which are unavailable in the current QC data. Run Preview again.';
-                            return;
-                        end
-                        cachedThreshold = NMDataIOFeatureQCTools.qcOptionNumber(S, 'outlierZThreshold', 3);
-                        if abs(double(cachedThreshold) - zThreshold) > 1e-9
-                            warning = sprintf('The outlier-rate threshold cannot be changed for this large surface dataset; using the Preview z-threshold %.6g.', double(cachedThreshold));
-                            appliedThreshold = double(cachedThreshold);
-                        end
-                        outlierCount = double(S.outlierCount(:)');
-                        if numel(outlierCount) ~= nFeatures
-                            err = 'The surface outlier-rate QC data do not match the current vertex count. Run Preview again.';
-                            return;
-                        end
-                    end
-                    vec = outlierCount ./ max(1, countVec);
-                    vec(countVec < 1) = NaN;
-                    valueWindow = NMDataIOFeatureQCTools.finiteValueWindow(vec);
-                otherwise
-                    err = sprintf('Unsupported surface QC metric: %s.', metricKey);
-                    return;
-            end
-            validCount = nnz(isfinite(vec));
-            if any(strcmp(metricKey, {'feature_mean','feature_std'}))
-                valueWindow = NMDataIOFeatureQCTools.finiteValueWindow(vec);
-            end
+            % Surface vertices consume the upstream SD vector and percentile display window.
+            [vec, validCount, valueWindow, err, appliedThreshold, warning] = ...
+                NMDataIOFeatureQCTools.cachedGroupQCMetricVector(S, metricKey, zThreshold, true);
         end
 
         function [qc, messages] = computeScoresFromMatrix(M, caseIds, sourceLabel, opts)
@@ -2004,6 +1960,18 @@ classdef NMDataIOFeatureQCTools
             zeroN = sum(finiteMask & abs(M) <= zeroTol, 1);
             minVec = minWithNaN(M, 1);
             maxVec = maxWithNaN(M, 1);
+            m2Vec = (sdVec .^ 2) .* max(0, validN - 1);
+            % Bounded, deterministic sampling of actual leave-one-out scores; no score is clipped.
+            nSample = min(250000, numel(M));
+            k = 0:nSample-1;
+            sampleIdx = 1 + mod(floor(k .* (numel(M) / nSample)) + (nSample < numel(M)) .* mod(k,nSubjects),numel(M));
+            sampleColumns = floor((sampleIdx - 1) ./ nSubjects) + 1;
+            zSample = NMDataIOFeatureQCTools.computeSubjectZVector(M(sampleIdx),meanVec(sampleColumns),m2Vec(sampleColumns),validN(sampleColumns));
+            zSample = zSample(isfinite(zSample));
+            qc.cohortZWindow = [NaN NaN];
+            if ~isempty(zSample)
+                qc.cohortZWindow = prctile(zSample,[1 99]);
+            end
             qc.featureStats = NMDataIOFeatureQCTools.buildFeatureStatsStruct(featureNames, validN, missingN, zeroN, ...
                 meanVec, sdVec, medianVec, madVec, minVec, maxVec, outlierCount, nSubjects, featureSpace, opts, robustAvailability);
             qc.featureSpace = featureSpace;
@@ -2014,7 +1982,7 @@ classdef NMDataIOFeatureQCTools
                 qc.spatialMapping = struct('type','roi_field','spatialReferenceKinds',{spatialKinds}, ...
                     'materialization','exact_roi_parcel_expansion');
                 roiQCStats = struct('meanVec',meanVec,'sdVec',sdVec,'countVec',validN, ...
-                    'zeroCount',zeroN,'outlierCount',outlierCount,'nSubjects',nSubjects);
+                    'zeroCount',zeroN,'outlierCount',outlierCount,'nSubjects',nSubjects,'cohortZWindow',qc.cohortZWindow);
                 [viewerOverlay, overlayMessages] = NMDataIOFeatureQCTools.exportROIViewerReferenceCache( ...
                     M, qc.caseIds, featureNames, NMDataIOFeatureQCTools.fieldOr(opts,'roiLabels',[]), ...
                     roiProvenance, opts, roiQCStats);
@@ -2549,7 +2517,7 @@ classdef NMDataIOFeatureQCTools
                 'nSubjects',0,'nDataBearingSubjects',0,'nFiniteScoreSubjects',0,'nAllNaNSubjects',0, ...
                 'nFeatures',0,'nValidFeatures',0,'rowIndex',[], ...
                 'caseIds',{{}},'score',[],'rmsZ',[],'meanAbsZ',[],'meanZ',[], ...
-                'sdZ',[],'maxAbsZ',[],'nValidFeaturesBySubject',[], 'nFiniteFeaturesBySubject',[], ...
+                'sdZ',[],'maxAbsZ',[],'cohortZWindow',[NaN NaN],'nValidFeaturesBySubject',[], 'nFiniteFeaturesBySubject',[], ...
                 'nMissingFeaturesBySubject',[],'missingFeatureRateBySubject',[], ...
                 'nZeroFeaturesBySubject',[],'zeroFeatureRateBySubject',[], ...
                 'nOutlierFeaturesBySubject',[],'outlierFeatureRateBySubject',[], ...
@@ -2559,18 +2527,7 @@ classdef NMDataIOFeatureQCTools
         end
 
         function fs = buildFeatureStatsStruct(featureNames, validN, missingN, zeroN, meanVec, sdVec, medianVec, madVec, minVec, maxVec, outlierN, nSubjects, featureSpace, opts, availability)
-            if nargin < 15 || isempty(availability), availability = struct(); end
-            if nargin < 14 || isempty(opts), opts = struct(); end
             nFeatures = numel(validN);
-            featureNames = NMDataIOFeatureQCTools.asCellstr(featureNames, 'F', nFeatures);
-            validN = double(validN(:)');
-            missingN = double(missingN(:)');
-            zeroN = double(zeroN(:)');
-            meanVec = double(meanVec(:)');
-            sdVec = double(sdVec(:)');
-            minVec = double(minVec(:)');
-            maxVec = double(maxVec(:)');
-            outlierN = double(outlierN(:)');
             if isempty(medianVec), medianVec = nan(1,nFeatures); else, medianVec = double(medianVec(:)'); end
             if isempty(madVec), madVec = nan(1,nFeatures); else, madVec = double(madVec(:)'); end
             missingRate = missingN ./ max(1, double(nSubjects));
@@ -3042,6 +2999,7 @@ classdef NMDataIOFeatureQCTools
                 cache.zeroCount = uint32(double(qcStats.zeroCount(:)));
                 cache.outlierCount = uint32(double(qcStats.outlierCount(:)));
                 cache.nSubjects = double(qcStats.nSubjects);
+                cache.cohortZWindow = qcStats.cohortZWindow;
             end
             cache.nROIs = double(size(roiValues,2));
             cache.featureSpace = 'roi_field';
@@ -3281,6 +3239,7 @@ classdef NMDataIOFeatureQCTools
                 cache.countVec = uint32(countVec(:));
                 cache.zeroCount = uint32(zeroCount(:));
                 cache.outlierCount = uint32(outlierCount(:));
+                cache.cohortZWindow = opts.cohortZWindow;
                 if storeAbsZCache
                     cache.absZMatrix = absZMatrix;
                 end

@@ -415,7 +415,7 @@ classdef NMDataIOProbeTools
                 % Tier 1: Preview already owns a materialization of this exact scientific state.
                 raws = {};
                 identityState = NMDataIOImportTools.materializationIdentityState(NM,state);
-                [cacheHit, cacheEntry] = NMDataIOMaterializationCache.get('matrix', identityState, '');
+                [cacheHit, cacheEntry] = NMDataIOMaterializationCache.get('matrix', identityState, '', NMDataIOUI.sessionKey(NMDataIOProbeTools.fieldOr(opts,'tmpDir','')));
                 if cacheHit && isstruct(cacheEntry) && isfield(cacheEntry,'IO') && isstruct(cacheEntry.IO)
                     cachedIO = cacheEntry.IO;
                     if strcmp(mode,'classification')

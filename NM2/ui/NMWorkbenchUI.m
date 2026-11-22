@@ -96,7 +96,7 @@ classdef NMWorkbenchUI
             state.modeflag = NMWorkbenchUI.safeModeFlag(NM);
             state.exportState = NMWorkbenchUI.exportState(NM);
             state.cwd = pwd;
-            state.committedModalityCount = NMWorkbenchUI.committedModalityCount(NM);
+            state.committedModalityCount = NMDataIOBrowserModeTools.committedModalityCount(NM);
             state.analysisCount = NMWorkbenchUI.analysisCount(NM);
             state.completedAnalysisCount = NMWorkbenchUI.completedAnalysisCount(NM, workflow);
             state.hasCompletedAnalysis = state.completedAnalysisCount > 0;
@@ -277,13 +277,6 @@ classdef NMWorkbenchUI
             end
         end
 
-        function n = committedModalityCount(NM)
-            n = 0;
-            if isstruct(NM) && isfield(NM,'Y') && iscell(NM.Y)
-                n = sum(~cellfun(@isempty, NM.Y));
-            end
-        end
-
         function n = analysisCount(NM)
             n = 0;
             if isstruct(NM) && isfield(NM,'analysis') && iscell(NM.analysis)
@@ -342,10 +335,10 @@ classdef NMWorkbenchUI
                 'data_manager', dataKind, NMWorkbenchUI.statusLabel(defs.import_finished, 'finalized', 'active'), ...
                 NMWorkbenchUI.statusTone(defs.import_finished, 'ok', 'active'));
 
-            canLockTrainingData = ~defs.import_finished && state.committedModalityCount > 0;
+            canLockTrainingData = ~defs.import_finished && NMDataIOBrowserModeTools.trainingImportReady(NM);
             lockTrainingDataReason = NMWorkbenchUI.reason( ...
-                ~defs.import_finished && state.committedModalityCount < 1, ...
-                'Import and commit at least one training modality before locking training data.');
+                ~defs.import_finished && ~canLockTrainingData, ...
+                'Complete and commit all training modalities before locking training data.');
             modules{2} = NMWorkbenchUI.module('lock_data', 'Lock training data', ...
                 'Finalize the discovery dataset before analysis initialization. Structural training-data edits are locked after this gate.', ...
                 'training_data', canLockTrainingData, lockTrainingDataReason, 'Lock training data', 'lock_data', ...

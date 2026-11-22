@@ -72,9 +72,10 @@
   const SUBJECT_PANEL_KINDS = ['subjectdist','subjectqc','subjectfeature'];
   const SUBJECT_ACTIVE = {caseIndex:0, caseId:'', metricKey:'rmsZ'};
   const SUBJECT_FEATURE_CACHE = new Map();
-  const SUBJECT_FEATURE_VIEW = {opacity:0.65, threshold:null, metricKey:'subject_z', sliceByKey:new Map(), zoom:1.0};
+  const SUBJECT_FEATURE_VIEW = {opacity:0.65, threshold:null, metricKey:'subject_z', sliceByKey:new Map(), zoom:1.0, viewport:{x:0.5,y:0.5,selected:null,pending:false}};
+  const SUBJECT_CONNECTIVITY_VIEW = {x:0.5,y:0.5,selected:null,pending:false,zoom:1};
   const SUBJECT_FEATURE_DEFAULT_Z_THRESHOLD = 2;
-  const SUBJECT_SURFACE_VIEW = {rotX:-0.25, rotZ:0, zoom:1, dragging:false, lastX:0, lastY:0, raf:0, gl:null, meshKey:'', fitDistance:NaN};
+  const SUBJECT_SURFACE_VIEW = {camera:null,home:null,interaction:null,raf:0,gl:null,payload:null};
   let SUBJECT_PANEL_RENDER_RAF = 0;
   let SUBJECT_CLICK_TIMER = 0;
   const SUBJECT_DOUBLE_CLICK_DELAY_MS = 240;
@@ -2455,7 +2456,7 @@
     const api = window.NMImageSliceViewer;
     const canvas = el('subjectFeatureImageCanvas');
     const frame = el('subjectFeatureImageFrame');
-    if(!api || !canvas || !frame || !payload) return null;
+    if(!canvas || !frame || !payload) return null;
     const key = subjectFeatureViewKey(activeSubjectContext());
     return api.getOrCreate('results-subject-feature', {
       frame,
@@ -2466,7 +2467,7 @@
       enableZoom: true,
       minZoom: 0,
       maxZoom: 4,
-      zoomMode: 'fixed',
+      view: SUBJECT_FEATURE_VIEW.viewport,
       zoom: SUBJECT_FEATURE_VIEW.zoom,
       zoomReservePx: 42,
       getDims: () => payload && (payload._dims || arr(payload.volume && payload.volume.dims).map(Number)),
@@ -2486,31 +2487,6 @@
     });
   }
   /**
-   * fitSubjectImageQCCanvas  Provide the fit subject image qccanvas helper used by Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection.
-   * It supports Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
-   * payload._dims: browser-side field consumed from payload while translating UI state to MATLAB-service requests.
-   * payload.volume: browser-side field consumed from payload while translating UI state to MATLAB-service requests.
-   */
-  function fitSubjectImageQCCanvas(payload){
-    const viewer = subjectFeatureSliceViewer(payload);
-    if(viewer){ viewer.fit(); return; }
-    const canvas = el('subjectFeatureImageCanvas');
-    const vp = canvas && canvas.closest ? canvas.closest('.rvSubjectImageQCViewport') : null;
-    const frame = el('subjectFeatureImageFrame');
-    const dims = payload && (payload._dims || arr(payload.volume && payload.volume.dims).map(Number));
-    if(!canvas || !vp || !dims || !Number.isFinite(Number(dims[0])) || !Number.isFinite(Number(dims[1]))) return;
-    const h = Math.max(1, Number(dims[0]));
-    const w = Math.max(1, Number(dims[1]));
-    const availW = Math.max(1, vp.clientWidth);
-    const availH = Math.max(1, vp.clientHeight);
-    const scale = Math.min(availW / w, availH / h);
-    const cssW = `${Math.max(1, Math.floor(w * scale))}px`;
-    const cssH = `${Math.max(1, Math.floor(h * scale))}px`;
-    canvas.style.width = cssW;
-    canvas.style.height = cssH;
-    if(frame){ frame.style.width = cssW; frame.style.height = cssH; }
-  }
-  /**
    * subjectFeatureImageSlice  Provide the subject feature image slice helper used by Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection.
    * It supports Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
    * payload._dims: browser-side field consumed from payload while translating UI state to MATLAB-service requests.
@@ -2522,14 +2498,6 @@
     const nSlices = Math.max(1, Math.round(Number(dims && dims[2] || payload && payload.overlay && payload.overlay.nSlices || 1)));
     const sliceCtl = el('subjectFeatureSlice');
     return Math.max(1, Math.min(nSlices, Math.round(Number(sliceCtl && sliceCtl.value || subjectFeatureInitialSlice(payload, activeSubjectContext())))));
-  }
-  /**
-   * updateSubjectImageQCCrosshairDefault  Update subject image qccrosshair default state or markup after user interaction or bridge refresh.
-   * It supports Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
-   */
-  function updateSubjectImageQCCrosshairDefault(payload){
-    const viewer = subjectFeatureSliceViewer(payload);
-    if(viewer) viewer.updateDefaultCrosshair();
   }
   /**
    * renderSubjectImageQCPixels  Render the subject image qcpixels UI region from current browser state.
@@ -2614,8 +2582,7 @@
       }
     }
     ctx.putImageData(img, 0, 0);
-    fitSubjectImageQCCanvas(payload);
-    updateSubjectImageQCCrosshairDefault(payload);
+    subjectFeatureSliceViewer(payload);
   }
   /**
    * bindSubjectImageQCControls  Register event handlers for the subject image qccontrols controls.
@@ -2656,8 +2623,6 @@
       opCtl.addEventListener('input', update);
       opCtl.addEventListener('change', update);
     }
-    const viewer = subjectFeatureSliceViewer(payload);
-    if(viewer) viewer.updateDefaultCrosshair();
     const c = el('subjectFeatureImageCanvas');
     if(c) c.__rvSubjectImagePayload = payload;
     updateSubjectFeatureSliceLabel();
@@ -2684,7 +2649,7 @@
     const roiTable = String(payload.featureSpace || '').toLowerCase() === 'roi_field' && arr(payload.rows).length
       ? `<div class="rvSubjectROINumeric">${tableHtml(arr(payload.rows), arr(payload.columns), 'No ROI-level QC values returned.', 'rvCompactTable')}</div>` : '';
     setTimeout(() => { bindSubjectFeatureMetricSelect(payload); bindSubjectImageQCControls(payload); }, 0);
-    return `<div class="rvSubjectPanelHeader">${subjectFeatureCaseIdHtml(ctx, payload)}${subjectFeatureMetricSelectHtml(payload)}</div>${subjectFeatureReferenceWarning(payload)}<div class="rvSubjectImageQC"><div class="rvSubjectImageQCControls"><label class="rvSubjectSliceControl"><span>Slice</span><span class="rvSubjectSliderWrap"><input id="subjectFeatureSlice" type="range" min="1" max="${esc(nSlices)}" value="${esc(slice)}"><span id="subjectFeatureSliceValue" class="rvSubjectSliceValue">${esc(slice)}/${esc(nSlices)}</span></span></label><label class="rvSubjectOpacityControl"><span>Opacity</span><input id="subjectFeatureOpacity" type="range" min="0" max="1" step="0.05" value="${esc(opacity)}"></label>${zControl}</div><div class="rvSubjectImageQCViewport"><div id="subjectFeatureImageFrame" class="rvSubjectImageQCFrame"><canvas id="subjectFeatureImageCanvas" class="rvSubjectImageQCCanvas" width="${esc(dims[1] || 256)}" height="${esc(dims[0] || 256)}"></canvas></div></div></div>${roiTable}`;
+    return `<div class="rvSubjectPanelHeader">${subjectFeatureCaseIdHtml(ctx, payload)}${subjectFeatureMetricSelectHtml(payload)}</div>${subjectFeatureReferenceWarning(payload)}<div class="rvSubjectImageQC"><div class="rvSubjectImageQCControls"><label class="rvSubjectSliceControl"><span>Slice</span><span class="rvSubjectSliderWrap"><input id="subjectFeatureSlice" type="range" min="1" max="${esc(nSlices)}" value="${esc(slice)}"><span id="subjectFeatureSliceValue" class="rvSubjectSliceValue">${esc(slice)}/${esc(nSlices)}</span></span></label><label class="rvSubjectOpacityControl"><span>Opacity</span><input id="subjectFeatureOpacity" type="range" min="0" max="1" step="0.05" value="${esc(opacity)}"></label>${zControl}</div><div class="rvSubjectImageQCViewport"><div class="nmMouseHelpAnchor">${window.NMImageSliceViewer.mouseHelpHtml('volume')}<div id="subjectFeatureImageFrame" class="rvSubjectImageQCFrame"><canvas id="subjectFeatureImageCanvas" class="rvSubjectImageQCCanvas" width="${esc(dims[1] || 256)}" height="${esc(dims[0] || 256)}"></canvas></div></div></div></div>${roiTable}`;
   }
   /**
    * finiteWindow  Provide the finite window helper used by Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection.
@@ -2747,21 +2712,6 @@
     }
     return normals;
   }
-  /**
-   * subjectSurfaceOrientationQuaternion  Translate legacy drag state into the shared renderer camera contract.
-   */
-  /**
-   * subjectSurfaceOrientationQuaternion  Translate the legacy subject-surface drag state
-   * into the shared mesh renderer camera contract.
-   */
-  function subjectSurfaceOrientationQuaternion(){
-    if(!window.NMWebGLMeshRenderer) throw new Error('The shared WebGL mesh-renderer authority is unavailable for subject-surface orientation.');
-    const math=window.NMWebGLMeshRenderer.math;
-    const qx=math.quatAxisAngle([1,0,0],SUBJECT_SURFACE_VIEW.rotX);
-    const qz=math.quatAxisAngle([0,0,1],SUBJECT_SURFACE_VIEW.rotZ);
-    return math.quatMultiply(qx,qz);
-  }
-
   function subjectSurfaceOverlayKind(payload){
     const ov = payload && payload.overlay || {};
     const key = String(ov.metricKey || payload.metricKey || subjectFeatureMetricKey(payload)).toLowerCase();
@@ -2802,10 +2752,15 @@
    */
   function subjectSurfaceGLContext(canvas, payload){
     const key = `${payload._surfaceNVertices}|${payload._surfaceNFaces}|${payload.metricKey || ''}|${payload.overlay && payload.overlay.metricKey || ''}`;
-    if(SUBJECT_SURFACE_VIEW.gl && SUBJECT_SURFACE_VIEW.meshKey === key && SUBJECT_SURFACE_VIEW.gl.canvas === canvas) return SUBJECT_SURFACE_VIEW.gl;
+    if(SUBJECT_SURFACE_VIEW.gl && SUBJECT_SURFACE_VIEW.payload === payload && SUBJECT_SURFACE_VIEW.gl.canvas === canvas) return SUBJECT_SURFACE_VIEW.gl;
     if(!window.NMWebGLMeshRenderer) throw new Error('Shared mesh renderer asset NMWebGLMeshRenderer.js is unavailable.');
     if(!window.NMResultsViewerCommonMeshAdapter) throw new Error('Common mesh adapter asset NMResultsViewerCommonMeshAdapter.js is unavailable.');
-    if(SUBJECT_SURFACE_VIEW.gl && typeof SUBJECT_SURFACE_VIEW.gl.dispose === 'function') SUBJECT_SURFACE_VIEW.gl.dispose();
+    if(SUBJECT_SURFACE_VIEW.gl){
+      SUBJECT_SURFACE_VIEW.interaction.dispose();
+      SUBJECT_SURFACE_VIEW.gl.dispose();
+      SUBJECT_SURFACE_VIEW.gl=null;
+      SUBJECT_SURFACE_VIEW.interaction=null;
+    }
     const renderer=window.NMWebGLMeshRenderer.create(canvas,{requireSpecializedMeshPrograms:true,onContextLost:()=>{const box=el('subjectFeatureSurfaceStatus');if(box)box.textContent='Surface renderer context was lost.';}});
     const mesh={
       vertices:payload._surfaceVertices,
@@ -2820,9 +2775,27 @@
       throw error;
     }
     const fitted=renderer.fit();
-    SUBJECT_SURFACE_VIEW.fitDistance=fitted.distanceMm;
+    const home={projection:'perspective',targetWorldMm:renderer.sceneBounds.center,orientationQuaternion:window.NMWebGLMeshRenderer.math.quatAxisAngle([1,0,0],-0.25),distanceMm:fitted.distanceMm,panMm:[0,0],fovDeg:45};
+    const previous=SUBJECT_SURFACE_VIEW.home;
+    const sameSpace=previous && previous.targetWorldMm.every((v,i)=>v===home.targetWorldMm[i]) && previous.distanceMm===home.distanceMm;
+    const {azimuthDeg,elevationDeg,...initialCamera}=renderer.setCameraState(sameSpace && SUBJECT_SURFACE_VIEW.camera ? SUBJECT_SURFACE_VIEW.camera : home);
+    SUBJECT_SURFACE_VIEW.camera=initialCamera;
+    SUBJECT_SURFACE_VIEW.home=home;
     SUBJECT_SURFACE_VIEW.gl=renderer;
-    SUBJECT_SURFACE_VIEW.meshKey=key;
+    SUBJECT_SURFACE_VIEW.payload=payload;
+    const change=()=>{
+      const {azimuthDeg,elevationDeg,...camera}=renderer.getCameraState();
+      SUBJECT_SURFACE_VIEW.camera=camera;
+      scheduleSubjectSurfaceRender();
+    };
+    SUBJECT_SURFACE_VIEW.interaction=window.NMWebGLMeshInteraction.bind(canvas,renderer,{
+      onChange:change,
+      onPick:event=>{
+        const hit=renderer.intersectMesh('subject',event.clientX,event.clientY);
+        if(hit){renderer.setCameraState({...SUBJECT_SURFACE_VIEW.camera,targetWorldMm:hit.point,panMm:[0,0]});change();}
+      },
+      onReset:()=>renderer.setCameraState(home)
+    });
     return renderer;
   }
   /**
@@ -2846,7 +2819,6 @@
       const opacity = Math.max(0, Math.min(1, Number(opCtl && opCtl.value || SUBJECT_FEATURE_VIEW.opacity || 0.65)));
       const kind=subjectSurfaceOverlayKind(payload);
       renderer.updateStyle('subject',{colorMode:kind===1?'subject_z':(kind===2?'rate':'sequential'),valueRange:[lo,hi],threshold,scalarOpacity:opacity,objectOpacity:1});
-      renderer.setCameraState({projection:'perspective',targetWorldMm:renderer.sceneBounds.center,orientationQuaternion:subjectSurfaceOrientationQuaternion(),distanceMm:Math.max(0.001,(SUBJECT_SURFACE_VIEW.fitDistance||renderer.sceneBounds.radius*3.5)*SUBJECT_SURFACE_VIEW.zoom),panMm:[0,0],fovDeg:45});
       renderer.render();
     }catch(err){
       const box = el('subjectFeatureSurfaceStatus'); if(box) box.textContent = `ERROR in surface renderer: ${err.message || String(err)}`;
@@ -2856,9 +2828,13 @@
    * scheduleSubjectSurfaceRender  Provide the schedule subject surface render helper used by Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection.
    * It supports Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
    */
-  function scheduleSubjectSurfaceRender(payload){
+  function scheduleSubjectSurfaceRender(){
     if(SUBJECT_SURFACE_VIEW.raf) return;
-    SUBJECT_SURFACE_VIEW.raf = requestAnimationFrame(() => { SUBJECT_SURFACE_VIEW.raf = 0; renderSubjectSurfaceQCCanvas(payload); });
+    SUBJECT_SURFACE_VIEW.raf = requestAnimationFrame(() => {
+      SUBJECT_SURFACE_VIEW.raf = 0;
+      const canvas=el('subjectFeatureSurfaceCanvas');
+      if(canvas && canvas.__rvSubjectSurfacePayload) renderSubjectSurfaceQCCanvas(canvas.__rvSubjectSurfacePayload);
+    });
   }
   /**
    * bindSubjectSurfaceQCControls  Register event handlers for the subject surface qccontrols controls.
@@ -2868,28 +2844,13 @@
     const canvas = el('subjectFeatureSurfaceCanvas');
     const thrCtl = el('subjectFeatureSurfaceThreshold');
     const opCtl = el('subjectFeatureSurfaceOpacity');
-    if(canvas && !canvas.dataset.bound){
-      canvas.dataset.bound = '1';
-      canvas.addEventListener('mousedown', (ev) => { SUBJECT_SURFACE_VIEW.dragging = true; SUBJECT_SURFACE_VIEW.lastX = ev.clientX; SUBJECT_SURFACE_VIEW.lastY = ev.clientY; });
-      canvas.addEventListener('mousemove', (ev) => {
-        if(!SUBJECT_SURFACE_VIEW.dragging) return;
-        const dx = ev.clientX - SUBJECT_SURFACE_VIEW.lastX;
-        const dy = ev.clientY - SUBJECT_SURFACE_VIEW.lastY;
-        SUBJECT_SURFACE_VIEW.lastX = ev.clientX; SUBJECT_SURFACE_VIEW.lastY = ev.clientY;
-        SUBJECT_SURFACE_VIEW.rotZ += dx * 0.008;
-        SUBJECT_SURFACE_VIEW.rotX = Math.max(-1.45, Math.min(1.45, SUBJECT_SURFACE_VIEW.rotX + dy * 0.008));
-        scheduleSubjectSurfaceRender(payload);
-      });
-      canvas.addEventListener('mouseleave', () => { SUBJECT_SURFACE_VIEW.dragging = false; });
-      canvas.addEventListener('wheel', (ev) => { ev.preventDefault(); const factor = ev.deltaY > 0 ? 1.08 : 0.92; SUBJECT_SURFACE_VIEW.zoom = Math.max(0.35, Math.min(6, SUBJECT_SURFACE_VIEW.zoom * factor)); scheduleSubjectSurfaceRender(payload); }, {passive:false});
-    }
     if(thrCtl && !thrCtl.dataset.bound){
       thrCtl.dataset.bound = '1';
       /**
        * update  Update update state or markup after user interaction or bridge refresh.
        * It supports Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
        */
-      const update = () => { SUBJECT_FEATURE_VIEW.threshold = Number(thrCtl.value); scheduleSubjectSurfaceRender(payload); };
+      const update = () => { SUBJECT_FEATURE_VIEW.threshold = Number(thrCtl.value); scheduleSubjectSurfaceRender(); };
       thrCtl.addEventListener('input', update); thrCtl.addEventListener('change', update);
     }
     if(opCtl && !opCtl.dataset.bound){
@@ -2898,13 +2859,12 @@
        * update  Update update state or markup after user interaction or bridge refresh.
        * It supports Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
        */
-      const update = () => { SUBJECT_FEATURE_VIEW.opacity = Number(opCtl.value); scheduleSubjectSurfaceRender(payload); };
+      const update = () => { SUBJECT_FEATURE_VIEW.opacity = Number(opCtl.value); scheduleSubjectSurfaceRender(); };
       opCtl.addEventListener('input', update); opCtl.addEventListener('change', update);
     }
     if(!window.__rvSubjectSurfaceQCResizeBound){
       window.__rvSubjectSurfaceQCResizeBound = '1';
-      window.addEventListener('resize', () => { const c = el('subjectFeatureSurfaceCanvas'); if(c && c.__rvSubjectSurfacePayload) scheduleSubjectSurfaceRender(c.__rvSubjectSurfacePayload); });
-      document.addEventListener('mouseup', () => { SUBJECT_SURFACE_VIEW.dragging = false; });
+      window.addEventListener('resize', scheduleSubjectSurfaceRender);
     }
     if(canvas) canvas.__rvSubjectSurfacePayload = payload;
     renderSubjectSurfaceQCCanvas(payload);
@@ -2925,7 +2885,7 @@
     const roiTable = String(payload.featureSpace || '').toLowerCase() === 'roi_field' && arr(payload.rows).length
       ? `<div class="rvSubjectROINumeric">${tableHtml(arr(payload.rows), arr(payload.columns), 'No ROI-level QC values returned.', 'rvCompactTable')}</div>` : '';
     setTimeout(() => { bindSubjectFeatureMetricSelect(payload); bindSubjectSurfaceQCControls(payload); }, 0);
-    return `<div class="rvSubjectPanelHeader">${subjectFeatureCaseIdHtml(ctx, payload)}${subjectFeatureMetricSelectHtml(payload)}<span id="subjectFeatureSurfaceStatus" class="rvSubjectTag">${esc(payload._surfaceNVertices || 0)} vertices</span></div>${subjectFeatureReferenceWarning(payload)}<div class="rvSubjectSurfaceQC"><div class="rvSubjectImageQCControls"><label class="rvSubjectOpacityControl"><span>Opacity</span><input id="subjectFeatureSurfaceOpacity" type="range" min="0" max="1" step="0.05" value="${esc(opacity)}"></label>${zControl}<span class="rvSubjectTag rvSubjectTagMuted">drag rotates · wheel zooms</span></div><div class="rvSubjectSurfaceQCViewport"><canvas id="subjectFeatureSurfaceCanvas" class="rvSubjectSurfaceQCCanvas"></canvas></div></div>${roiTable}`;
+    return `<div class="rvSubjectPanelHeader">${subjectFeatureCaseIdHtml(ctx, payload)}${subjectFeatureMetricSelectHtml(payload)}<span id="subjectFeatureSurfaceStatus" class="rvSubjectTag">${esc(payload._surfaceNVertices || 0)} vertices</span></div>${subjectFeatureReferenceWarning(payload)}<div class="rvSubjectSurfaceQC"><div class="rvSubjectImageQCControls"><label class="rvSubjectOpacityControl"><span>Opacity</span><input id="subjectFeatureSurfaceOpacity" type="range" min="0" max="1" step="0.05" value="${esc(opacity)}"></label>${zControl}</div><div class="rvSubjectSurfaceQCViewport"><div class="nmMouseHelpAnchor">${window.NMImageSliceViewer.mouseHelpHtml('surface')}<canvas id="subjectFeatureSurfaceCanvas" class="rvSubjectSurfaceQCCanvas"></canvas></div></div></div>${roiTable}`;
   }
   /**
    * nestedMatrix  Provide the nested matrix helper used by Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection.
@@ -2960,11 +2920,6 @@
     return 'signed';
   }
   /**
-   * rgbCss  Provide the rgb css helper used by Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection.
-   * It supports Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
-   */
-  function rgbCss(rgb){ return `rgb(${rgb[0]|0},${rgb[1]|0},${rgb[2]|0})`; }
-  /**
    * qcRgb  Provide the qc rgb helper used by Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection.
    * It supports Results Viewer browser page for classification, regression, OOCV, QC and subject-level result inspection at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
    */
@@ -2996,38 +2951,29 @@
     const M = connectivityPayloadMatrix(payload, key);
     const n = M.length;
     if(n < 1) return;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const side = Math.max(220, Math.floor(Math.min(rect.width || 420, rect.height || 420) * dpr));
-    canvas.width = side; canvas.height = side;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0,0,side,side);
     const scale = connectivityMetricScale(key);
     const thrCtl = el('subjectFeatureConnectivityThreshold');
     const threshold = Math.max(0, Number(thrCtl && thrCtl.value || subjectFeatureThresholdValue()));
-    let limit = 1;
-    if(scale === 'signed'){
-      limit = 0;
-      for(let i=0;i<n;i+=1) for(let j=0;j<arr(M[i]).length;j+=1){ const v=Number(M[i][j]); if(Number.isFinite(v)) limit = Math.max(limit, Math.abs(v)); }
-      if(key === 'subject_z') limit = Math.max(limit, threshold);
-    }else if(scale === 'sequential'){
-      limit = 0;
-      for(let i=0;i<n;i+=1) for(let j=0;j<arr(M[i]).length;j+=1){ const v=Number(M[i][j]); if(Number.isFinite(v)) limit = Math.max(limit, v); }
-      if(key === 'subject_abs_z') limit = Math.max(limit, threshold);
-    }
-    const cell = side / n;
-    for(let i=0;i<n;i+=1){
-      for(let j=0;j<n;j+=1){
-        let v = Number(M[i] && M[i][j]);
-        let below = false;
-        if((key === 'subject_z' && Number.isFinite(v) && Math.abs(v) < threshold) || (key === 'subject_abs_z' && Number.isFinite(v) && v < threshold)) below = true;
-        ctx.fillStyle = below ? 'rgb(226,232,240)' : rgbCss(qcRgb(v, scale, limit));
-        ctx.fillRect(j*cell, i*cell, Math.ceil(cell), Math.ceil(cell));
-      }
-    }
-    ctx.strokeStyle = 'rgba(15,23,42,.35)'; ctx.lineWidth = Math.max(1, dpr);
-    ctx.strokeRect(0,0,side,side);
-    canvas.__rvConnPayload = payload; canvas.__rvConnMatrix = M; canvas.__rvConnMetric = key;
+    let limit = scale === 'rate' ? 1 : 0;
+    if(scale !== 'rate') for(const row of M) for(const v of row) if(Number.isFinite(v))
+      limit = Math.max(limit,scale === 'signed' ? Math.abs(v) : v);
+    const zMetric = key === 'subject_z' || key === 'subject_abs_z';
+    if(zMetric) limit = Math.max(limit,threshold);
+    const api = window.NMImageSliceViewer;
+    const group = key === 'group_mean' || key === 'group_sd';
+    const groupValues = group ? M.flat().filter(Number.isFinite) : [];
+    const signed = key === 'group_mean' && groupValues.some(v => v < 0);
+    const magnitudes = groupValues.map(Math.abs).sort((a,b) => a-b);
+    if(magnitudes.length) limit = magnitudes[Math.floor(0.99 * (magnitudes.length - 1))];
+    const display = {kind:signed ? 'bipolar' : 'sequential',window:signed ? [-limit,limit] : [0,limit]};
+    api.drawMatrix(canvas,M,v=>group && Number.isFinite(v) ? api.groupMatrixRgb(v,key,display)
+      : zMetric && Number.isFinite(v) && Math.abs(v)<threshold ? [226,232,240] : qcRgb(v,scale,limit));
+    const labels = arr(payload.connectivity.nodeLabels);
+    const describe = cell=>`${labels[cell.y] || `ROI ${cell.y+1}`} ↔ ${labels[cell.x] || `ROI ${cell.x+1}`}: ${Number.isFinite(cell.value) ? formatTableCell(cell.value) : 'NaN'}`;
+    api.getOrCreate('results-connectivity',{canvas,frame:canvas.parentElement,viewport:canvas.parentElement.parentElement,
+      view:SUBJECT_CONNECTIVITY_VIEW,zoom:SUBJECT_CONNECTIVITY_VIEW.zoom,onZoom:z=>{SUBJECT_CONNECTIVITY_VIEW.zoom=z;},
+      dims:[n,n,1],minZoom:1,maxZoom:Math.max(4,n/100),valueAt:(x,y)=>M[y][x],tooltipText:describe,
+      onHover:cell=>{el('subjectFeatureConnectivityHover').textContent=describe(cell);}});
   }
   /**
    * bindSubjectConnectivityQCControls  Register event handlers for the subject connectivity qccontrols controls.
@@ -3035,7 +2981,6 @@
    */
   function bindSubjectConnectivityQCControls(payload){
     const thrCtl = el('subjectFeatureConnectivityThreshold');
-    const canvas = el('subjectFeatureConnectivityCanvas');
     if(thrCtl && !thrCtl.dataset.bound){
       thrCtl.dataset.bound = '1';
       /**
@@ -3044,27 +2989,6 @@
        */
       const update = () => { SUBJECT_FEATURE_VIEW.threshold = Number(thrCtl.value); renderSubjectConnectivityMatrix(payload); };
       thrCtl.addEventListener('input', update); thrCtl.addEventListener('change', update);
-    }
-    if(canvas && !canvas.dataset.bound){
-      canvas.dataset.bound = '1';
-      canvas.addEventListener('mousemove', (ev) => {
-        const p = canvas.__rvConnPayload, M = canvas.__rvConnMatrix;
-        const hover = el('subjectFeatureConnectivityHover');
-        if(!p || !M || !hover) return;
-        const rect = canvas.getBoundingClientRect();
-        const n = M.length;
-        const col = Math.max(0, Math.min(n-1, Math.floor((ev.clientX - rect.left) / Math.max(1, rect.width) * n)));
-        const row = Math.max(0, Math.min(n-1, Math.floor((ev.clientY - rect.top) / Math.max(1, rect.height) * n)));
-        const labels = arr(p.connectivity && p.connectivity.nodeLabels);
-        const a = labels[row] || `ROI ${row+1}`;
-        const b = labels[col] || `ROI ${col+1}`;
-        const v = Number(M[row] && M[row][col]);
-        hover.textContent = `${a} ↔ ${b}: ${Number.isFinite(v) ? formatTableCell(v) : 'NaN'}`;
-      });
-    }
-    if(!window.__rvSubjectConnectivityQCResizeBound){
-      window.__rvSubjectConnectivityQCResizeBound = '1';
-      window.addEventListener('resize', () => { const c = el('subjectFeatureConnectivityCanvas'); if(c && c.__rvConnPayload) renderSubjectConnectivityMatrix(c.__rvConnPayload); });
     }
     setTimeout(() => renderSubjectConnectivityMatrix(payload), 0);
   }
@@ -3081,7 +3005,7 @@
     const zControl = showZ ? `<label class="rvSubjectZControl"><span>z-thr</span><input id="subjectFeatureConnectivityThreshold" type="number" min="0" step="0.25" value="${esc(thr)}"></label>` : '';
     const c = payload.connectivity || {};
     setTimeout(() => { bindSubjectFeatureMetricSelect(payload); bindSubjectConnectivityQCControls(payload); }, 0);
-    return `<div class="rvSubjectPanelHeader">${subjectFeatureCaseIdHtml(ctx, payload)}${subjectFeatureMetricSelectHtml(payload)}<span class="rvSubjectTag">${esc(c.nNodes || 0)} nodes / ${esc(c.nEdges || 0)} edges</span></div>${subjectFeatureReferenceWarning(payload)}<div class="rvSubjectConnectivityQC"><div class="rvSubjectImageQCControls">${zControl}<span class="rvSubjectTag rvSubjectTagMuted">hover matrix cells to inspect edges</span></div><div class="rvSubjectConnectivityQCViewport"><canvas id="subjectFeatureConnectivityCanvas" class="rvSubjectConnectivityQCCanvas"></canvas></div><div id="subjectFeatureConnectivityHover" class="rvSubjectConnectivityHover">Hover over an ROI-by-ROI edge.</div></div>`;
+    return `<div class="rvSubjectPanelHeader">${subjectFeatureCaseIdHtml(ctx, payload)}${subjectFeatureMetricSelectHtml(payload)}<span class="rvSubjectTag">${esc(c.nNodes || 0)} nodes / ${esc(c.nEdges || 0)} edges</span></div>${subjectFeatureReferenceWarning(payload)}<div class="rvSubjectConnectivityQC"><div class="rvSubjectImageQCControls">${zControl}</div><div class="rvSubjectConnectivityQCViewport"><div class="nmMouseHelpAnchor">${window.NMImageSliceViewer.mouseHelpHtml('connectivity')}<div class="nmSliceFrame"><canvas id="subjectFeatureConnectivityCanvas" class="rvSubjectConnectivityQCCanvas"></canvas></div></div></div><div id="subjectFeatureConnectivityHover" class="rvSubjectConnectivityHover">Hover over an ROI-by-ROI edge.</div></div>`;
   }
 
   /**

@@ -811,14 +811,14 @@ nav a{display:inline-block;margin:2px 12px 2px 0;color:#1358a6;text-decoration:n
 <section class="topic" id="preproc-correctnuis-combat-subgroupworkspacevar"><h3>Workspace subgroup vector</h3>
 <div class="context">Algorithm: combat</div>
 <p>Logical/numeric vector with one row per subject/case.</p></section>
-<section class="topic" id="preproc-correctnuis-combat-categoricalcovariates"><h3>Categorical covariates</h3>
-<div class="context">Algorithm: combat</div>
+<section class="topic" id="preproc-correctnuis-dir-categoricalcovariates"><h3>Categorical covariates</h3>
+<div class="context">Algorithm: dir</div>
 <p>For Disparate Impact Removal, select categorical attributes whose groups should have more similar feature distributions after correction, such as a protected demographic attribute. A group code denotes a category, not a numeric dose. The adjustment may affect predictive information; inspect both group-wise distributions and model performance.</p></section>
-<section class="topic" id="preproc-correctnuis-combat-distribution"><h3>Target distribution statistic</h3>
-<div class="context">Algorithm: combat</div>
+<section class="topic" id="preproc-correctnuis-dir-distribution"><h3>Target distribution statistic</h3>
+<div class="context">Algorithm: dir</div>
 <p>DIR aligns distributions using either the median or the mean as its reference statistic. median is less affected by extreme observations, whereas mean reflects the average of all values. A change alters what counts as a group disparity and may be important for skewed biological features.</p></section>
-<section class="topic" id="preproc-correctnuis-combat-lambda"><h3>Correction strength / optimization grid</h3>
-<div class="context">Algorithm: combat</div>
+<section class="topic" id="preproc-correctnuis-dir-lambda"><h3>Correction strength / optimization grid</h3>
+<div class="context">Algorithm: dir</div>
 <p>DIR correction strength ranges from 0 to 1, with lower and higher values selecting different degrees of distribution alignment under the inherited procedure. Use a scalar for a fixed choice or several values as optimization candidates. Strong correction may reduce differences between groups but can also remove signal useful for prediction; assess the scientific trade-off rather than maximizing correction alone.</p></section>
 <section class="topic" id="preproc-correctnuis-dir-subgroupsource"><h3>Training subgroup for DIR distributions</h3>
 <div class="context">Algorithm: dir</div>

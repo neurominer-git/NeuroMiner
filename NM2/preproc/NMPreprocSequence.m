@@ -206,7 +206,7 @@ classdef NMPreprocSequence < handle
             end
         end
 
-        function report = validateSoft(obj, ctx)
+        function report = validateSoft(obj, ctx, varargin)
             % validateSoft  Validate the sequence without throwing.
             %   Aggregates module-level config reports, ruleset sequence diagnostics, and UI issue
             %   annotations so callers can display problems before deciding whether to export.
@@ -217,6 +217,7 @@ classdef NMPreprocSequence < handle
             % now-inapplicable legacy step can be shown and removed instead of
             % preventing the configurator from opening.
             if nargin < 2 || isempty(ctx), ctx = obj.Context; end
+            strict = isempty(varargin) || varargin{1};
             report = struct('ok',true,'errors',{{}},'warnings',{{}});
             ids = cell(1,numel(obj.Steps));
             for i = 1:numel(obj.Steps)
@@ -231,13 +232,10 @@ classdef NMPreprocSequence < handle
                 st = obj.Steps{i};
                 try
                     module = obj.Registry.get(st.moduleId);
-                    [cfg, vr] = module.validateConfig(st.config, ctx, true);
+                    [cfg, vr] = module.validateConfig(st.config, ctx, strict);
                     obj.Steps{i}.config = cfg;
-                    if isstruct(vr) && isfield(vr,'ok') && ~vr.ok
-                        errs = {};
-                        if isfield(vr,'errors'), errs = vr.errors; end
-                        if isempty(errs), errs = {'Configuration did not pass validation.'}; end
-                        report.errors = [report.errors, cellfun(@(x) sprintf('Step %d/%s: %s', i, st.moduleId, x), errs, 'UniformOutput', false)]; %#ok<AGROW>
+                    if ~vr.ok
+                        report.errors = [report.errors, cellfun(@(x) sprintf('Step %d/%s: %s', i, st.moduleId, x), vr.errors, 'UniformOutput', false)]; %#ok<AGROW>
                     end
                     mi = module.info(); seq = mi.sequence;
                     if isfield(seq,'allowMultiple') && ~seq.allowMultiple && sum(strcmp(obj.Registry.canonicalId(module.Id), ids)) > 1
@@ -262,51 +260,19 @@ classdef NMPreprocSequence < handle
 
 
         function issue = uiIssueForStep(obj, idx)
-            % uiIssueForStep  Return the most relevant validation issue for one UI step card.
-            %   Looks up cached validation errors/warnings and converts them to a severity/message
-            %   struct used by browser previews.
-
+            % uiIssueForStep  Show the highest-severity diagnostic for one step.
             issue = struct('hasIssue',false,'severity','','message','');
-            try
-                if idx < 1 || idx > numel(obj.Steps), return; end
-                rep = obj.ValidationReport;
-                errMsgs = obj.messagesForStep(rep, idx, 'errors');
-                warnMsgs = obj.messagesForStep(rep, idx, 'warnings');
-                if ~isempty(errMsgs)
+            rep = obj.ValidationReport;
+            prefix = sprintf('Step %d/', idx);
+            for group = {'errors','warnings'}
+                src = rep.(group{1});
+                msgs = src(startsWith(src, prefix));
+                if ~isempty(msgs)
                     issue.hasIssue = true;
-                    issue.severity = 'error';
-                    issue.message = strjoin(errMsgs, newline);
-                elseif ~isempty(warnMsgs)
-                    issue.hasIssue = true;
-                    issue.severity = 'warning';
-                    issue.message = strjoin(warnMsgs, newline);
+                    issue.severity = group{1}(1:end-1);
+                    issue.message = strjoin(msgs, newline);
+                    break;
                 end
-            catch
-                issue = struct('hasIssue',false,'severity','','message','');
-            end
-        end
-
-        function msgs = messagesForStep(obj, rep, idx, fieldName) %#ok<INUSL>
-            % messagesForStep  Extract validation messages that refer to one step.
-            %   Filters report errors or warnings by step index so UI cards and diagnostics can
-            %   localize sequence problems.
-
-            msgs = {};
-            try
-                if ~isstruct(rep) || ~isfield(rep, fieldName), return; end
-                src = rep.(fieldName);
-                if ischar(src) || isstring(src), src = cellstr(src); end
-                if isempty(src), return; end
-                if ~iscell(src), src = num2cell(src); end
-                pat = sprintf('Step %d/', round(double(idx)));
-                for jj = 1:numel(src)
-                    msg = char(string(src{jj}));
-                    if startsWith(strtrim(msg), pat)
-                        msgs{end+1} = msg; %#ok<AGROW>
-                    end
-                end
-            catch
-                msgs = {};
             end
         end
 
@@ -404,14 +370,13 @@ classdef NMPreprocSequence < handle
                 st = steps{i};
                 if ~isfield(st,'moduleId') || ~obj.Registry.has(st.moduleId), continue; end
                 module = obj.Registry.get(st.moduleId);
-                parseCtx = struct('nm2PreprocContext', ctx);
-                cfg = module.parseConfig(parseCtx, st.config);
+                [cfg, ~] = module.validateConfig(st.config, ctx, false);
                 if ~isfield(st,'uid') || isempty(st.uid), st.uid = obj.makeUid(module.Id); end
                 if ~isfield(st,'enabled'), st.enabled = true; end
                 st.moduleId = module.Id; st.config = cfg;
-                obj.Steps{end+1} = st; 
+                obj.Steps{end+1} = st;
             end
-            obj.validateSoft(ctx);
+            obj.validateSoft(ctx, false);
         end
 
         function spec = toUISpec(obj, ctx)

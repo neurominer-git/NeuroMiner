@@ -127,7 +127,7 @@ classdef NMWaveletSpatialModule < NMPreprocModule
             if ~report.ok, return; end
             cfg.levels = unique(round(double(cfg.levels(:)')));
             cfg.levels = cfg.levels(cfg.levels >= 1);
-            if isempty(cfg.levels)
+            if strict && isempty(cfg.levels)
                 report.errors{end+1} = 'At least one positive integer wavelet decomposition level is required.';
             end
             if isfield(cfg,'detailLevels') && ~isempty(cfg.detailLevels)

@@ -72,7 +72,7 @@ classdef NMCorrectNuisModule < NMPreprocModule
             cfg.method = NMNuisanceSubconfigLibrary.canonMethod(cfg.method);
             cfg.methodConfig = obj.normalizeMethodConfig(cfg.method, cfg.methodConfig, ctx);
             try
-                obj.validateMethodConfig(cfg.method, cfg.methodConfig, ctx);
+                obj.validateMethodConfig(cfg.method, cfg.methodConfig, ctx, strict);
             catch ME
                 report.errors{end+1} = ME.message;
             end
@@ -266,15 +266,15 @@ classdef NMCorrectNuisModule < NMPreprocModule
             end
         end
 
-        function validateMethodConfig(obj, method, cfg, ctx) %#ok<INUSD>
+        function validateMethodConfig(obj, method, cfg, ctx, strict) %#ok<INUSD>
             switch NMNuisanceSubconfigLibrary.canonMethod(method)
                 case 'partial'
                     obj.assertNumericVector(cfg.covariates, 'partial covariates', false);
-                    if cfg.useExternalBeta && strcmpi(cfg.externalBetaSource,'workspace') && isempty(cfg.externalBetaWorkspaceVar)
+                    if strict && cfg.useExternalBeta && strcmpi(cfg.externalBetaSource,'workspace') && isempty(cfg.externalBetaWorkspaceVar)
                         error('NMCorrectNuisModule:missingBeta','External beta source is workspace but no workspace variable is selected.');
                     end
                 case 'combat'
-                    if cfg.useBatch && isempty(cfg.batchCovariate)
+                    if strict && cfg.useBatch && isempty(cfg.batchCovariate)
                         error('NMCorrectNuisModule:missingBatch','ComBat batch correction is enabled but no batch covariate is selected.');
                     end
                     if cfg.includeCovariates
@@ -293,8 +293,8 @@ classdef NMCorrectNuisModule < NMPreprocModule
                         end
                     end
                 case 'dir'
-                    obj.assertNumericVector(cfg.categoricalCovariates, 'DIR categorical covariates', false);
-                    obj.assertNumericVector(cfg.lambda, 'DIR lambda', false);
+                    obj.assertNumericVector(cfg.categoricalCovariates, 'DIR categorical covariates', ~strict);
+                    obj.assertNumericVector(cfg.lambda, 'DIR lambda', ~strict);
                     if any(cfg.lambda(:) < 0) || any(cfg.lambda(:) > 1)
                         error('NMCorrectNuisModule:badLambda','DIR lambda must be a scalar or vector within [0,1].');
                     end

@@ -83,6 +83,53 @@ fprintf('Median |corr(feature, label)|   pre: %.3f   post: %.3f\n', ...
 fprintf('Median |corr(feature, nuisance)| pre: %.3f   post: %.3f\n', ...
     median(abs(r_nuis_pre)), median(abs(r_nuis_post)));
 
+% Batch-adjusted regression tests removal directly, without marginal correlations.
+X2 = [dummyvar(batch2) mod2];
+B2_pre  = X2 \ dat2';
+B2_post = X2 \ dat2_cb';
+nuis_pre2  = median(abs(B2_pre(end,:)));
+nuis_post2 = median(abs(B2_post(end,:)));
+label_pre2  = median(abs(B2_pre(end-1,:)));
+label_post2 = median(abs(B2_post(end-1,:)));
+fprintf('Median |batch-adjusted nuisance coefficient| pre: %.4f   post: %.4f\n', nuis_pre2, nuis_post2);
+fprintf('Median |batch-adjusted label coefficient| pre: %.4f   post: %.4f\n', label_pre2, label_post2);
+assert(nuis_post2 < 0.1*nuis_pre2, 'ComBat failed to remove nuisance variance in training.');
+assert(abs(label_post2-label_pre2) < 0.1*label_pre2, 'ComBat failed to retain label effect in training.');
+
+% Applying the estimators must use the nuisance covariate, never the unknown label.
+mod2_blind = mod2;
+mod2_blind(:,1) = 0;
+opts2_apply = struct('covars_idx',2);
+dat2_apply = combat_new(dat2, batch2, mod2_blind, est2, opts2_apply);
+mod2_blind(:,1) = 1;
+assert(isequal(dat2_apply, combat_new(dat2, batch2, mod2_blind, est2, opts2_apply)), ...
+    'ComBat application must not depend on the unknown test label.');
+B2_apply = X2 \ dat2_apply';
+assert(median(abs(B2_apply(end,:))) < 0.1*nuis_pre2, ...
+    'ComBat application failed to remove nuisance variance.');
+
+% Training-fitted natural spline, with label outside the spline map.
+opts2s = opts2;
+opts2s.hasLabel = true;
+opts2s.spline.df_map = containers.Map('KeyType','double','ValueType','double');
+opts2s.spline.df_map(1) = 2;  % first non-label column is age/nuisance
+[~, est2s] = combat_new(dat2, batch2, mod2, [], opts2s);
+assert(est2s.spline.hasLabel, 'Spline must preserve training label-column identity.');
+assert(numel(est2s.spline.basis) == 1, 'Spline basis must cover the age column.');
+assert(est2s.spline.basis{1}.df == 2, 'Training spline parameters must be persisted.');
+mod2_spline_test = [zeros(nT,1) cov_nuis2];
+opts2s_apply = struct('covars_idx',2, 'hasLabel',true);
+y0 = combat_new(dat2, batch2, mod2_spline_test, est2s, opts2s_apply);
+mod2_spline_test(:,1) = 1;
+y1 = combat_new(dat2, batch2, mod2_spline_test, est2s, opts2s_apply);
+assert(isequal(y0,y1), 'Test-time spline removal must not use the unknown label.');
+% A new batch must expand the same non-label columns using frozen knots.
+new_batch = 999*ones(25,1);
+mod2_spline_test(:,1) = 0;  % label unavailable in new cohort
+opts2s_cal = struct('mode','no_shrink', 'selector',1:25);
+est2s_new = combat_update_newbatch_auto(dat2(:,1:25),new_batch,mod2_spline_test(1:25,:),est2s,opts2s_cal);
+assert(est2s_new.levels(end) == 999, 'Unseen-batch spline calibration failed.');
+
 figure('Name','Test 2: Correlations with covariates','Color','w');
 subplot(1,2,1);
 scatter(abs(r_lab_pre), abs(r_nuis_pre), '.'); axis square;
@@ -109,8 +156,9 @@ mod_nb = [label_nb age_nb]; % col1=label, col2=age
 opts3 = struct();
 % define spline: say 5 df on column 2 (age)
 df_map = containers.Map('KeyType','double','ValueType','double');
-df_map(2) = 5;              % spline on age only
+df_map(1) = 5;              % spline on age (after label column)
 opts3.spline.df_map = df_map;
+opts3.hasLabel = true;
 opts3.keep_idx      = 1;  % model both label & age
 opts3.remove_idx    = 2;    % remove age contribution
 
@@ -118,6 +166,26 @@ opts3.remove_idx    = 2;    % remove age contribution
 batch_nb = ones(nT,1);
 
 [dat_nb_cb, est3] = combat_new(dat_nb, batch_nb, mod_nb, [], opts3);
+% Same subject must have identical spline coordinates regardless of test cohort.
+Btrain3 = expand_splines(mod_nb(:,2:end), opts3);
+Btest3 = expand_splines(mod_nb([end 1 2],2:end), opts3, est3.spline);
+err3 = Btrain3([end 1 2],:) - Btest3;
+assert(max(abs(err3(:))) < 1e-12, ...
+    'Test spline coordinates must use the training-derived model.');
+err3 = Btrain3 - expand_splines(mod_nb(:,2:end), opts3, est3.spline);
+assert(max(abs(err3(:))) < 1e-12, ...
+    'Spline apply must reproduce the training design exactly.');
+% df=2 must contain genuine curvature, with natural linear tails.
+[~, curve2] = ns_basis(age_nb, 2);
+edge2 = curve2.center + curve2.scale*curve2.knots([1 end]);
+span2 = diff(edge2);
+N2 = ns_basis([edge2(1)-[3 2 1]*span2, edge2(2)+[1 2 3]*span2]', 2, curve2);
+assert(abs(diff(N2(1:3,2),2)) < 1e-10 && abs(diff(N2(4:6,2),2)) < 1e-10, ...
+    'Natural spline boundary tails must be linear.');
+mid2 = median(age_nb);
+assert(abs(diff(ns_basis(mid2+[-1 0 1]'*0.1*span2,2,curve2),2)) > 1e-8, ...
+    'Natural spline df=2 must contain curvature within its boundaries.');
+
 
 % Check nonlinearity wrt age in one illustrative feature
 feat = 1;
@@ -241,8 +309,9 @@ mod5 = [label5, cov_lin5, age5];
 %   col3 = age      (remove, with spline)
 opts5 = struct();
 df_map = containers.Map('KeyType','double','ValueType','double');
-df_map(3) = 5;                       % spline-expand age (column 3)
+df_map(2) = 5;                       % spline-expand age (second non-label column)
 opts5.spline.df_map = df_map;
+opts5.hasLabel = true;
 
 opts5.keep_idx   = [1 2];            % label + linear cov
 opts5.remove_idx = 3;                % age only

@@ -1,9 +1,10 @@
-function [mod_exp, idx_map] = expand_splines(mod, opts)
+function [mod_exp, idx_map, fitted] = expand_splines(mod, opts, varargin)
 % Returns expanded mod and a mapping from original columns to new columns.
 % idx_map is a cell array; idx_map{i} lists the new column indices in mod_exp
 % corresponding to original column i (length 1 if unchanged).
 mod_exp = [];
 idx_map = cell(1, size(mod,2));
+fitted = [];
 cur = 0;
 
 if ~isfield(opts,'spline') || ...
@@ -16,6 +17,12 @@ if ~isfield(opts,'spline') || ...
     return
 end
 
+if isempty(varargin)
+    fitted = opts.spline;
+    fitted.basis = cell(1,size(mod,2));
+else
+    fitted = varargin{1};
+end
 % normalize spec to a map from original col -> df
 df_map = containers.Map('KeyType','double','ValueType','double');
 if isfield(opts.spline,'df_map')
@@ -29,7 +36,11 @@ end
 for i = 1:size(mod,2)
     if isKey(df_map, i)
         df = df_map(i);
-        B  = ns_basis(mod(:,i), df);  
+        if isempty(varargin)
+            [B, fitted.basis{i}] = ns_basis(mod(:,i), df);
+        else
+            B = ns_basis(mod(:,i), df, fitted.basis{i});
+        end
         mod_exp = [mod_exp, B];       
         idx_map{i} = cur + (1:df);
         cur = cur + df;

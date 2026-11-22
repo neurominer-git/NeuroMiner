@@ -1,9 +1,8 @@
-function [ fY, C ]= nk_SpatFilt(Y, SPATIAL)
+function [ fY, C ]= nk_SpatFilt(Y, SPATIAL, varargin)
 
+n_opt = 1;
 if isfield(SPATIAL,'PX') && numel(SPATIAL.PX.opt)>1
     n_opt = numel(SPATIAL.PX.opt);
-else
-    n_opt=1;
 end
 fY = cell(n_opt,1); 
 
@@ -39,10 +38,15 @@ for i=1:n_opt
             fprintf('\nWavelet spatial reconstruction, level %g\n', level(1));
     end 
 
-    if ~ismember(SPATIAL.cubetype, [5 7 8])
-        
+    if SPATIAL.cubetype == 9
+        if isempty(varargin)
+            C = nk_WaveletSpatialReconstruct(tY, SPATIAL, level(1));
+        else
+            C = nk_WaveletSpatialReconstruct(tY, SPATIAL, level(1), ...
+                @(done,batchSize) varargin{1}(done,batchSize,i));
+        end
+    elseif ~ismember(SPATIAL.cubetype, [5 7 8])
         C = zeros(size(tY));
-        
         for j=1:size(Y,1)
 
             switch SPATIAL.cubetype
@@ -87,7 +91,8 @@ for i=1:n_opt
                     else
                         T = V;
                     end
-                    C(j,:) = T(SPATIAL.indvol);  
+                    C(j,:) = T(SPATIAL.indvol);
+                    if ~isempty(varargin), varargin{1}(j,1,i); end
     
                 case 6
                     
@@ -104,13 +109,6 @@ for i=1:n_opt
                     end
                     C(j,:) = T;
 
-                case 9
-                    % Vectorized across subjects: perform the wavelet
-                    % reconstruction once for the current level and leave the
-                    % per-subject loop. The helper returns an nSubject x nVoxel
-                    % matrix in the same image space.
-                    C = nk_WaveletSpatialReconstruct(tY, SPATIAL, level(1));
-                    break;
             end
             fprintf('.');
         end

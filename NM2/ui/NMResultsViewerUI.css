@@ -1254,17 +1254,17 @@ polygon.rvCobwebRandom{fill:#94a3b8;fill-opacity:.05;}
 .rvSubjectImageQCControls input[type="range"]{width:100%;min-width:0;}
 .rvSubjectImageQCControls input[type="number"]{width:4.2em;border:1px solid #cbd5e1;border-radius:6px;padding:3px 4px;font:inherit;}
 .rvSubjectSliceValue{position:absolute;left:clamp(18px, calc(var(--rv-slice-pct, .5) * 100%), calc(100% - 18px));bottom:100%;transform:translateX(-50%);margin-bottom:2px;padding:1px 4px;border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-size:10px;line-height:1.25;pointer-events:none;white-space:nowrap;z-index:1;}
-.rvSubjectImageQCViewport{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff;border-radius:8px;}
+.rvSubjectImageQCViewport{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;overflow:visible;background:#fff;border-radius:8px;}
 .rvSubjectImageQCFrame{position:relative;display:inline-block;line-height:0;touch-action:none;cursor:crosshair;}
 .rvSubjectImageQCCanvas{display:block;image-rendering:auto;border:1px solid #cbd5e1;border-radius:8px;background:#020617;box-shadow:0 1px 3px rgba(15,23,42,.12);}
 
 .rvSubjectSurfaceQC,
 .rvSubjectConnectivityQC{display:flex;flex-direction:column;gap:6px;min-height:0;height:100%;}
 .rvSubjectSurfaceQCViewport,
-.rvSubjectConnectivityQCViewport{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff;border-radius:8px;}
+.rvSubjectConnectivityQCViewport{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;overflow:visible;background:#fff;border-radius:8px;}
 .rvSubjectSurfaceQCCanvas{display:block;width:100%;height:100%;min-height:220px;border:1px solid #cbd5e1;border-radius:8px;background:#111827;box-shadow:0 1px 3px rgba(15,23,42,.12);cursor:grab;}
 .rvSubjectSurfaceQCCanvas:active{cursor:grabbing;}
-.rvSubjectConnectivityQCCanvas{display:block;max-width:100%;max-height:100%;width:min(100%, 52vh);height:min(100%, 52vh);aspect-ratio:1/1;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.12);}
+.rvSubjectConnectivityQCCanvas{display:block;image-rendering:pixelated;background:#fff;}
 .rvSubjectConnectivityHover{font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:5px 7px;min-height:20px;}
 .rvLegacyPlotToolbar .rvVectorSelect{flex:1 1 190px;min-width:150px;}
 .rvLegacyPlotToolbar .rvVectorCustom{flex:1 1 220px;min-width:170px;}

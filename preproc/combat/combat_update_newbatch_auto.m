@@ -122,7 +122,11 @@ end
 % --------- expand mod_all like training, if needed ----------
 if isfield(estimators,'spline') && ~isempty(estimators.spline) && ~isempty(mod_all)
     tmpopts = struct('spline', estimators.spline);
-    [mod_all_exp, ~] = expand_splines(mod_all, tmpopts);
+    if estimators.spline.hasLabel
+        mod_all_exp = [mod_all(:,1), expand_splines(mod_all(:,2:end), tmpopts, estimators.spline)];
+    else
+        mod_all_exp = expand_splines(mod_all, tmpopts, estimators.spline);
+    end
 else
     mod_all_exp = mod_all;
 end
@@ -181,7 +185,11 @@ for L = new_levels
         stand_mean = stand_mean + (cov_cal * B_cov)';      % p x m
     end
 
-    s_data = (X_all(:,calib_idx) - stand_mean) ./ (sqrt(var_pooled) * ones(1,m)); % p x m
+    s_data = X_all(:,calib_idx) - stand_mean;
+    if ~isempty(estimators.cov_remove_idx)
+        s_data = s_data - (mod_all_exp(calib_idx,estimators.cov_remove_idx)*B_hat(n_batch_train+estimators.cov_remove_idx,:))';
+    end
+    s_data = s_data ./ (sqrt(var_pooled) * ones(1,m)); % p x m
 
     % EB priors (pooled across training batches)
     gamma_bar_global = mean(estimators.gamma_bar);

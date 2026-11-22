@@ -459,14 +459,15 @@ classdef NMPreprocOrchestrator < handle
             end
         end
 
-        function projection = ruleProjection(obj)
+        function projection = ruleProjection(obj, varargin)
             % ruleProjection  Resolve browser/API preprocessing legality from MATLAB authorities.
             %   Returns derived RuleSet facts, spatial insertion gates, and soft validation
             %   diagnostics for the current subject/CV state. Nothing in this projection is
             %   persisted as scientific state.
             obj.refreshStageContexts();
-            srep = obj.SubjectSequence.validateSoft(obj.SubjectSequence.Context);
-            crep = obj.CVSequence.validateSoft(obj.CVSequence.Context);
+            strict = isempty(varargin) || varargin{1};
+            srep = obj.SubjectSequence.validateSoft(obj.SubjectSequence.Context, strict);
+            crep = obj.CVSequence.validateSoft(obj.CVSequence.Context, strict);
             errors = [srep.errors crep.errors obj.crossStageErrors()];
             warnings = [srep.warnings crep.warnings obj.crossStageWarnings()];
             sfacts = obj.RuleSet.resolveSequenceFacts(obj.SubjectSequence,true);

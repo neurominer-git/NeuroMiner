@@ -133,7 +133,7 @@ classdef NMDataIOUI
             state = NMModalityInfoTools.sanitizeStateForUI(state);
             state.sourceTypeCatalogue = NMDataIOStateTools.sourceTypeCatalogue();
             state.covariateSummary = NMDataIOUI.covariateSummaryFromNM(NM);
-            state.committedModalityCount = NMDataIOUI.committedModalityCount(NM);
+            state.committedModalityCount = NMDataIOBrowserModeTools.committedModalityCount(NM);
             state.defs = NMDataIOBrowserModeTools.defsState(NM);
             state.dataIOMode = NMDataIOBrowserModeTools.dataIOModeFromDefs(state.defs);
             if isstruct(ctx) && isfield(ctx,'NMAppDataIOScope') && ~isempty(ctx.NMAppDataIOScope)
@@ -155,6 +155,8 @@ classdef NMDataIOUI
                 end
             end
             state.permissions = NMDataIOBrowserModeTools.permissionsFromMode(state.dataIOMode, state.defs);
+            state.permissions.canFinalizeTrainingImport = state.permissions.canFinalizeTrainingImport && ...
+                NMDataIOBrowserModeTools.trainingImportReady(NM);
             try
                 state.workspaceCatalog = NMWorkspaceTools.catalog('base', ctx);
             catch
@@ -344,6 +346,7 @@ classdef NMDataIOUI
                     handled = true;
                     try
                         importState = NMDataIOModalityMutationTools.prepareAddState(sessionNM);
+                        NMDataIOMaterializationCache.retireOwner(NMDataIOUI.sessionKey(tmpDir));
                         out = struct('ok', true, 'message', sprintf('Prepared import target for new modality %g.', double(importState.varind)), ...
                             'matrixImport', importState, 'statePatch', importState, 'operation', op);
                     catch ME % nm2-allow: NMUIErrorTools report supplements structured NMDataIOMessageTools diagnostics
@@ -375,6 +378,7 @@ classdef NMDataIOUI
                             end
                         end
                         importState = NMDataIOUI.attachPersistedInspectionToImportState(sessionNM, importState, varind, tmpDir);
+                        if ~NMDataIOMessageTools.hasFatal(messages), NMDataIOMaterializationCache.retireOwner(NMDataIOUI.sessionKey(tmpDir)); end
                         strip = NMDataIOMessageTools.highestPriorityStrip(messages, fallback);
                         out = struct('ok', ~NMDataIOMessageTools.hasFatal(messages), 'blocking', NMDataIOMessageTools.hasFatal(messages), ...
                             'message', strip.text, 'strip', strip, 'messages', messages, 'matrixImport', importState, ...
@@ -555,6 +559,7 @@ classdef NMDataIOUI
                         strip = NMDataIOMessageTools.highestPriorityStrip(messages, sprintf('Deleted modality %g.', double(varind)));
                         if ~NMDataIOMessageTools.hasFatal(messages)
                             NMDataIOUI.saveSessionNM(NM2, tmpDir);
+                            NMDataIOMaterializationCache.retireOwner(NMDataIOUI.sessionKey(tmpDir));
                             state = NMDataIOUI.stateFromNM(NM2, ctx);
                             out = struct('ok', true, 'message', strip.text, 'strip', strip, 'messages', messages, 'state', state, 'operation', op);
                         else
@@ -575,6 +580,7 @@ classdef NMDataIOUI
                         [NM2, messages] = NMDataIOModalityMutationTools.deleteAll(sessionNM);
                         strip = NMDataIOMessageTools.highestPriorityStrip(messages, 'Deleted all modalities.');
                         NMDataIOUI.saveSessionNM(NM2, tmpDir);
+                        NMDataIOMaterializationCache.retireOwner(NMDataIOUI.sessionKey(tmpDir));
                         state = NMDataIOUI.stateFromNM(NM2, ctx);
                         out = struct('ok', true, 'message', strip.text, 'strip', strip, 'messages', messages, 'state', state, 'operation', op);
                     catch ME % nm2-allow: NMUIErrorTools report supplements structured NMDataIOMessageTools diagnostics
@@ -614,6 +620,7 @@ classdef NMDataIOUI
                         state = NMDataIOUI.stateFromNM(sessionNM, ctx);
                         state.matrixImport = NMDataIOStateTools.defaultMatrixState(sessionNM, []);
                         state.matrixImport.draftDirty = false;
+                        NMDataIOMaterializationCache.retireOwner(NMDataIOUI.sessionKey(tmpDir));
                         out = struct('ok', true, 'message', 'Import task cancelled. No imported data were changed.', ...
                             'state', state, 'matrixImport', state.matrixImport, 'statePatch', state.matrixImport, 'operation', op);
                     catch ME % nm2-allow: NMUIErrorTools report supplements structured NMDataIOMessageTools diagnostics
@@ -656,6 +663,7 @@ classdef NMDataIOUI
                         strip = NMDataIOMessageTools.highestPriorityStrip(messages, sprintf('Deleted OOCV/application dataset %g.', double(containerIndex)));
                         if ~NMDataIOMessageTools.hasFatal(messages)
                             NMDataIOUI.saveSessionNM(NM2, tmpDir);
+                            NMDataIOMaterializationCache.retireOwner(NMDataIOUI.sessionKey(tmpDir));
                             state = NMDataIOUI.stateFromNM(NM2, ctx);
                             out = struct('ok', true, 'message', strip.text, 'strip', strip, 'messages', messages, 'state', state, 'operation', op);
                         else
@@ -751,6 +759,7 @@ classdef NMDataIOUI
                         containerIndex = NMDataIOUI.requestContainerIndex(req);
                         varind = NMDataIOUI.requestModalityIndex(req);
                         [importState, messages] = NMDataIOBrowserModeTools.prepareOOCVImportState(sessionNM, containerIndex, varind, reqState);
+                        if ~NMDataIOMessageTools.hasFatal(messages), NMDataIOMaterializationCache.retireOwner(NMDataIOUI.sessionKey(tmpDir)); end
                         strip = NMDataIOMessageTools.highestPriorityStrip(messages, sprintf('Prepared OOCV/application import target for dataset %g modality %g.', double(containerIndex), double(varind)));
                         out = struct('ok', ~NMDataIOMessageTools.hasFatal(messages), 'blocking', NMDataIOMessageTools.hasFatal(messages), ...
                             'message', strip.text, 'strip', strip, 'messages', messages, 'matrixImport', importState, ...
@@ -932,7 +941,7 @@ classdef NMDataIOUI
                         if isempty(fieldnames(labelState))
                             labelState = NMDataIOStateTools.defaultMatrixState(sessionNM, []);
                         end
-                        out = NMDataIOProbeTools.labelDefinitionProbe(sessionNM, labelState);
+                        out = NMDataIOProbeTools.labelDefinitionProbe(sessionNM, labelState, struct('tmpDir',tmpDir));
                         out.operation = op;
                     catch ME % nm2-allow: NMUIErrorTools report supplements structured NMDataIOMessageTools diagnostics
                         messages = NMDataIOMessageTools.fromException(ME, 'NMDataIOUI.labelDefinitionProbe');
@@ -947,15 +956,9 @@ classdef NMDataIOUI
                 case {'dataio_refresh_table_cache','dataio_clear_table_cache'}
                     handled = true;
                     try
-                        if exist('NMDataIOTableReadTools','class') == 8 || exist('NMDataIOTableReadTools','file') == 2
-                            NMDataIOTableReadTools.clearCache();
-                        end
-                        if exist('NMDataIOImportTools','class') == 8 || exist('NMDataIOImportTools','file') == 2
-                            NMDataIOImportTools.clearPreparedTableCache();
-                        end
-                        if exist('NMDataIOMaterializationCache','class') == 8 || exist('NMDataIOMaterializationCache','file') == 2
-                            NMDataIOMaterializationCache.clearFamily('matrix');
-                        end
+                        NMDataIOTableReadTools.clearCache();
+                        NMDataIOImportTools.clearPreparedTableCache();
+                        NMDataIOMaterializationCache.retireOwner(NMDataIOUI.sessionKey(tmpDir));
                         messages = NMDataIOMessageTools.make('ok', false, 'dataio_refresh_table_cache', ...
                             'Previously read table data and the retained matrix Preview were cleared. Run Preview again to read the source again.', 0, 'green*');
                         strip = NMDataIOMessageTools.highestPriorityStrip(messages, 'Table data reloaded.');
@@ -1161,6 +1164,7 @@ classdef NMDataIOUI
                         opts.metricKey = NMDataIOUI.requestString(req, 'metricKey', 'group_mean');
                         opts.zThreshold = NMDataIOUI.requestNumber(req, 'zThreshold', 3);
                         opts.MaterializationCacheKey = NMDataIOUI.requestString(req, 'materializationCacheKey', '');
+                        opts.tmpDir = tmpDir;
                         out = NMDataIOUI.connectivityQCGroupViewer(sessionNM, viewerState, opts);
                         out.operation = op;
                     catch ME % nm2-allow: NMUIErrorTools report supplements structured NMDataIOMessageTools diagnostics
@@ -1182,6 +1186,7 @@ classdef NMDataIOUI
                         opts.rowIndex = NMDataIOUI.requestNumber(req, 'rowIndex', 1);
                         opts.zThreshold = NMDataIOUI.requestNumber(req, 'zThreshold', 3);
                         opts.MaterializationCacheKey = NMDataIOUI.requestString(req, 'materializationCacheKey', '');
+                        opts.tmpDir = tmpDir;
                         opts.reuseStaticMetadata = logical(NMDataIOUI.requestNumber(req, 'reuseStaticMetadata', 0));
                         out = NMDataIOUI.connectivityQCSubjectViewer(sessionNM, viewerState, opts);
                         out.operation = op;
@@ -1458,6 +1463,7 @@ classdef NMDataIOUI
                         opts.featureZMin = NMDataIOUI.requestNumber(req, 'featureZMin', NaN);
                         opts.featureZMax = NMDataIOUI.requestNumber(req, 'featureZMax', NaN);
                         opts.maxFeatureResults = NMDataIOUI.requestNumber(req, 'maxFeatureResults', 20);
+                        opts.tmpDir = tmpDir;
                         out = NMDataIOFeatureQCTools.prepareMatrixFeatureProfile(sessionNM, profileState, rowIndex, opts);
                         out.operation = op;
                     catch ME % nm2-allow: NMUIErrorTools report supplements structured NMDataIOMessageTools diagnostics
@@ -2028,8 +2034,9 @@ classdef NMDataIOUI
             if nargin < 3 || isempty(opts), opts = struct(); end
             out = NMDataIOImportTools.emptyServiceOut('connectivityQCGroupViewer');
             cacheKey = NMDataIOUI.localAsChar(NMDataIOUI.localFieldOr(opts, 'MaterializationCacheKey', ''));
-            identityState = NMDataIOImportTools.materializationIdentityState(NM,state);
-            [cacheHit, entry] = NMDataIOMaterializationCache.get('connectivity', identityState, cacheKey);
+            identityState = state;
+            if ~isempty(fieldnames(state)), identityState = NMDataIOImportTools.materializationIdentityState(NM,state); end
+            [cacheHit, entry] = NMDataIOMaterializationCache.get('connectivity', identityState, cacheKey, NMDataIOUI.sessionKey(NMDataIOUI.localFieldOr(opts,'tmpDir','')));
             if ~cacheHit || ~isstruct(entry) || ~isfield(entry,'IO') || ~isstruct(entry.IO)
                 messages = NMDataIOMessageTools.make('danger', true, 'NMDataIOUI.connectivityQCGroupViewer', ...
                     'Run Preview before opening connectivity QC.', 1, 'red*');
@@ -2056,8 +2063,9 @@ classdef NMDataIOUI
             if nargin < 3 || isempty(opts), opts = struct(); end
             out = NMDataIOImportTools.emptyServiceOut('connectivityQCSubjectViewer');
             cacheKey = NMDataIOUI.localAsChar(NMDataIOUI.localFieldOr(opts, 'MaterializationCacheKey', ''));
-            identityState = NMDataIOImportTools.materializationIdentityState(NM,state);
-            [cacheHit, entry] = NMDataIOMaterializationCache.get('connectivity', identityState, cacheKey);
+            identityState = state;
+            if ~isempty(fieldnames(state)), identityState = NMDataIOImportTools.materializationIdentityState(NM,state); end
+            [cacheHit, entry] = NMDataIOMaterializationCache.get('connectivity', identityState, cacheKey, NMDataIOUI.sessionKey(NMDataIOUI.localFieldOr(opts,'tmpDir','')));
             if ~cacheHit || ~isstruct(entry) || ~isfield(entry,'IO') || ~isstruct(entry.IO)
                 messages = NMDataIOMessageTools.make('danger', true, 'NMDataIOUI.connectivityQCSubjectViewer', ...
                     'Run Preview before opening connectivity QC.', 1, 'red*');
@@ -2157,6 +2165,7 @@ classdef NMDataIOUI
                 pkg.edgeSD = sdVec(:)';
                 pkg.edgeMissingRate = missingVec(:)';
                 pkg.edgeSpaceQC = connQC.edgeSpaceQC;
+                pkg.cohortZWindow = qc.cohortZWindow;
             end
             matrixOpts = struct('matrixType',matrixType);
             if isempty(rowIndex)
@@ -2177,17 +2186,12 @@ classdef NMDataIOUI
             pkg.rowIndex = double(rowIndex);
             pkg.caseId = caseIds{rowIndex};
             pkg.subjectEdgeValues = x(:)';
-            rmsZ = qc.rmsZ;
-            meanAbsZ = qc.meanAbsZ;
-            maxAbsZ = qc.maxAbsZ;
-            missingRate = qc.missingFeatureRateBySubject;
-            nFinite = qc.nFiniteFeaturesBySubject;
-            pkg.subjectQC = struct('rmsZ',NaN,'meanAbsZ',NaN,'maxAbsZ',NaN,'missingEdgeRate',NaN,'nValidEdges',NaN);
-            if numel(rmsZ) >= rowIndex, pkg.subjectQC.rmsZ = rmsZ(rowIndex); end
-            if numel(meanAbsZ) >= rowIndex, pkg.subjectQC.meanAbsZ = meanAbsZ(rowIndex); end
-            if numel(maxAbsZ) >= rowIndex, pkg.subjectQC.maxAbsZ = maxAbsZ(rowIndex); end
-            if numel(missingRate) >= rowIndex, pkg.subjectQC.missingEdgeRate = missingRate(rowIndex); end
-            if numel(nFinite) >= rowIndex, pkg.subjectQC.nValidEdges = nFinite(rowIndex); end
+            counts = connQC.edgeValidN;
+            m2 = (sdVec(:)' .^ 2) .* max(0,counts(:)' - 1);
+            pkg.subjectEdgeZ = NMDataIOFeatureQCTools.computeSubjectZVector(x,meanVec,m2,counts,'leave_one_out');
+            pkg.subjectQC = struct('rmsZ',qc.rmsZ(rowIndex),'meanAbsZ',qc.meanAbsZ(rowIndex), ...
+                'maxAbsZ',qc.maxAbsZ(rowIndex),'missingEdgeRate',qc.missingFeatureRateBySubject(rowIndex), ...
+                'nValidEdges',qc.nFiniteFeaturesBySubject(rowIndex));
         end
 
         function metrics = connectivityViewerMetricList()
@@ -2210,7 +2214,7 @@ classdef NMDataIOUI
             progressTask=NMProgressTools.fromOptions(opts,'Committing ROI import','Checking the current ROI Preview data.'); opts.ProgressTask=progressTask;
             cacheKeyHint=NMDataIOUI.localAsChar(NMDataIOUI.localFieldOr(opts,'MaterializationCacheKey',''));
             opts.RequireRetainedMaterialization=logical(NMDataIOUI.localFieldOr(opts,'RequireRetainedMaterialization',~isempty(cacheKeyHint)));
-            [entry,cacheHit]=NMDataIOImportTools.materializeROIImport(NM,state,opts);
+            [entry,cacheHit,~,owner]=NMDataIOImportTools.materializeROIImport(NM,state,opts);
             if NMDataIOMessageTools.hasFatal(entry.messages)
                 result=NMDataIOImportTools.emptyServiceOut('commitROIImport'); result=NMDataIOImportTools.finishServiceOut(result,entry.messages); result.NM=NM; return;
             end
@@ -2227,7 +2231,7 @@ classdef NMDataIOUI
                 end
             end
             result.qc=entry.qc; result.cacheHit=cacheHit;
-            if result.ok, NMDataIOMaterializationCache.clearFamily('roi'); end
+            if result.ok, NMDataIOMaterializationCache.clearFamilyForOwner('roi', owner); end
             NMProgressTools.finish(progressTask,result.message);
         end
 
@@ -2236,7 +2240,7 @@ classdef NMDataIOUI
             progressTask=NMProgressTools.fromOptions(opts,'Committing connectivity import','Checking the current connectivity Preview data.'); opts.ProgressTask=progressTask;
             cacheKeyHint=NMDataIOUI.localAsChar(NMDataIOUI.localFieldOr(opts,'MaterializationCacheKey',''));
             opts.RequireRetainedMaterialization=logical(NMDataIOUI.localFieldOr(opts,'RequireRetainedMaterialization',~isempty(cacheKeyHint)));
-            [entry,cacheHit]=NMDataIOImportTools.materializeConnectivityImport(NM,state,opts);
+            [entry,cacheHit,~,owner]=NMDataIOImportTools.materializeConnectivityImport(NM,state,opts);
             if NMDataIOMessageTools.hasFatal(entry.messages)
                 result=NMDataIOImportTools.emptyServiceOut('commitConnectivityImport'); result=NMDataIOImportTools.finishServiceOut(result,entry.messages); result.NM=NM; return;
             end
@@ -2248,7 +2252,7 @@ classdef NMDataIOUI
                 if isstruct(entry.compatibility) && ~isempty(fieldnames(entry.compatibility)), result.connectivityCompatibility=entry.compatibility; end
             end
             result.qc=entry.qc; result.cacheHit=cacheHit;
-            if result.ok, NMDataIOMaterializationCache.clearFamily('connectivity'); end
+            if result.ok, NMDataIOMaterializationCache.clearFamilyForOwner('connectivity', owner); end
             NMProgressTools.finish(progressTask,result.message);
         end
 
@@ -3654,17 +3658,6 @@ classdef NMDataIOUI
             tf = isfinite(v) && v >= 1 && any(strcmpi(char(string(tgt.mode)), {'add','replace','resume'}));
         end
 
-        function n = committedModalityCount(NM)
-            % COMMITTEDMODALITYCOUNT  Count committed modality slots in NM.Y.
-            %
-            %   n = NMDataIOUI.committedModalityCount(NM) returns numel(NM.Y) for struct NM
-            %   containers with cell-array feature data, otherwise zero.
-            n = 0;
-            if isstruct(NM) && isfield(NM,'Y') && iscell(NM.Y)
-                n = numel(NM.Y);
-            end
-        end
-
         function state = readSessionState(tmpDir)
             % READSESSIONSTATE  Read persisted semantic DataIO input from the session-wide NM2 STATE file.
             %
@@ -3813,7 +3806,7 @@ classdef NMDataIOUI
             %   UI source directory. Public compatibility is retained for existing export code;
             %   this batch does not centralize asset-copy logic.
             srcDir = fileparts(mfilename('fullpath'));
-            assets = {'NMDataIOUI_main.js','NMDataIOUI.css','NMResultsViewerPrimitives.js','NMImageSliceViewer.js','NMImageSliceViewer.css','NMModuleIconSet.js','NMModuleNavigationRail.js','NMModuleNavigationRail.css','NMModal.js','NMModal.css','NMRuntimeProgressViewer.js','NMRuntimeProgressViewer.css'};
+            assets = {'NMDataIOUI_main.js','NMDataIOUI.css','NMResultsViewerPrimitives.js','NMImageSliceViewer.js','NMImageSliceViewer.css','NMMouseControlsIcon.png','NMWebGLMeshInteraction.js','NMModuleIconSet.js','NMModuleNavigationRail.js','NMModuleNavigationRail.css','NMModal.js','NMModal.css','NMRuntimeProgressViewer.js','NMRuntimeProgressViewer.css'};
             for i = 1:numel(assets)
                 src = fullfile(srcDir, assets{i});
                 if exist(src,'file') == 2
@@ -3924,9 +3917,9 @@ classdef NMDataIOUI
 '<section class="panel taskModalBox"><div class="panelHead taskModalHead"><div><div class="panelTitleRow"><h1 id="diagnosticsTitle">Diagnostics &amp; QC</h1><button class="panelHelpButton" type="button" data-help-scope="common" data-help-topic="diagnostics" aria-label="Help: Diagnostics and QC" title="Help: Diagnostics and QC">?</button></div><p class="muted" id="diagnosticsSubtitle">Review what NM2 will import, data completeness, QC findings, row filtering, Case-ID matching and any problems that need attention.</p></div><div class="buttonRow panelActionRow"><button id="returnToImportTask" type="button">Return to import task</button><button id="returnToOverviewFromDiagnostics" type="button">Return to overview</button></div></div><div id="probeDiagnostics" class="details muted">No diagnostics selected.</div></section>'
 '</section>'
 '<div id="oocvGroupsModal" class="selectorOverlay hidden" aria-hidden="true"><div class="tabularFilterModalBox oocvGroupsModalBox"><div class="selectorHead"><div><b>OOCV study groups</b><div class="muted">Assign one study-group label to every case in the selected OOCV dataset. NM2 matches the group labels to the dataset Case IDs and stores one group definition for the whole dataset.</div></div><button id="closeOOCVGroupsModal" type="button">Close</button></div><div class="formGrid"><label>Source<select id="oocv_group_source"><option value="none">None</option><option value="workspace">MATLAB workspace</option><option value="tablefile">CSV / spreadsheet</option></select></label><label id="oocvGroupAlignmentField">Alignment<select id="oocv_group_alignment"><option value="case_id">Case-ID matching</option><option value="row_order">Explicit row order</option></select></label></div><div id="oocvGroupWorkspacePanel" class="formGrid"><label>Group-label variable<select id="oocv_group_workspace_variable"></select></label><label id="oocvGroupWorkspaceCaseField">Case-ID variable<select id="oocv_group_workspace_case"></select></label></div><div id="oocvGroupFilePanel"><div class="formGrid"><label class="wideField">CSV / spreadsheet file<input id="oocv_group_file" readonly></label><div class="buttonRow"><button id="pickOOCVGroupFile" type="button">Browse...</button><button id="readOOCVGroupColumns" type="button">Read columns</button></div><label>Table / sheet<select id="oocv_group_object"></select></label><label>Group-label column<select id="oocv_group_column"></select></label><label id="oocvGroupFileCaseField">Case-ID column(s)<select id="oocv_group_case_columns" multiple size="4"></select></label></div></div><div id="oocvGroupNamesPanel" class="hidden oocvGroupNamesPanel"><h3>Group labels</h3><p class="muted">NM2 converts the source group labels to numeric group IDs 1..K for analysis. Edit the displayed name for each group and optionally select a reference group.</p><div id="oocvGroupNames" class="oocvGroupNameGrid"></div><div class="oocvGroupReferenceRow"><label>Reference group<select id="oocv_group_ref"><option value="">None</option></select></label></div></div><div class="buttonRow"><button id="previewOOCVGroups" type="button">Preview group labels</button><button id="applyOOCVGroups" class="primary" type="button">Apply</button><button id="removeOOCVGroups" type="button">Remove group labels</button></div><div id="oocvGroupStatus" class="details muted">Select a source and preview the aligned group labels.</div></div></div>'
-'<div id="imageViewerModal" class="selectorOverlay hidden" aria-hidden="true"><div class="imageViewerBox"><div class="selectorHead"><div><span class="panelTitleRow"><b id="ivTitle">Case QC viewer</b><button class="panelHelpButton" type="button" data-help-scope="common" data-help-topic="case-qc-viewer" aria-label="Help: Case QC viewer" title="Help: Case QC viewer">?</button></span><div id="ivStatus" class="muted">Select View in the preview table or Inspect in Diagnostics &amp; QC.</div></div><button id="ivClose" type="button">Close</button></div><div id="ivRowSummary" class="imageViewerRowSummary muted">No case selected.</div><div class="imageViewerGrid"><div id="ivPrevNavRail" class="caseQCNavRail"><button id="ivPrevFlagged" class="caseQCFlaggedButton" type="button">Previous QC-flagged</button><button id="ivPrevSubject" class="imageNavButton" type="button" title="Previous case" aria-label="Previous case">&#9664;</button></div><div class="imageCanvasBox caseQCCenter"><canvas id="ivCanvas" class="hidden" width="1" height="1" aria-label="Axial image with overlay"></canvas><canvas id="ivSurfaceCanvas" class="hidden surfaceCanvas" width="900" height="700" aria-label="Rotatable cortical surface mesh with vertexwise scalar overlay"></canvas><img id="ivImage" alt="Axial image with brainmask overlay"><div class="imageSliceControls"><label>Axial slice<input id="ivSlice" type="range" min="1" max="1" value="1"></label><span id="ivSliceLabel" class="muted">Slice -/-</span></div><div id="ivMessage" class="muted imageViewerMessage">No image or surface rendered.</div><div class="imageViewerToolbar"><label class="subjectIncludeViewerToggle"><input id="ivIncludeSubject" type="checkbox" checked> Include this case in the import</label><button id="ivSurfaceReset" type="button">Reset 3D view</button><button id="ivToggleQC" type="button">Show QC map</button><label>QC map<select id="ivQCMetric"><optgroup label="Subject maps"><option value="subject_z">Subject z-score</option></optgroup><optgroup label="Group QC maps"><option value="feature_missing_rate">Group missing-rate</option><option value="feature_mean">Group mean</option><option value="feature_std">Group SD</option><option value="feature_zero_rate">Group zero-rate</option><option value="feature_outlier_rate">Group outlier-rate</option></optgroup></select></label><label>Z-threshold<input id="ivQCThreshold" type="number" min="0" step="0.1" value="3"></label><label>Mode<select id="ivQCMode"><option value="signed">signed z</option><option value="absolute">absolute z</option></select></label><label>Opacity<input id="ivQCOpacity" type="range" min="0" max="1" step="0.05" value="0.6"></label></div><div id="ivQCColorbar" class="imageViewerQCColorbar hidden" aria-hidden="true"><div class="qcLegendTitle">QC z-score overlay</div><div class="qcLegendSigned"><span id="ivQCNegMax" class="qcLegendBound">−</span><div class="qcThresholdScale"><div id="ivQCSignedGradient" class="qcGradient qcGradientSigned"></div><span id="ivQCNegThreshold" class="qcThresholdMark qcThresholdNegative">−</span><span id="ivQCPosThreshold" class="qcThresholdMark qcThresholdPositive">+</span></div><span id="ivQCPosMax" class="qcLegendBound">+</span></div><div class="qcLegendAbsolute hidden"><span class="qcLegendBound">0</span><div class="qcThresholdScale"><div id="ivQCAbsoluteGradient" class="qcGradient qcGradientAbsolute"></div><span id="ivQCAbsThreshold" class="qcThresholdMark qcThresholdAbsolute">threshold</span></div><span id="ivQCAbsMax" class="qcLegendBound">max |z|</span></div><div class="qcLegendSequential hidden"><span id="ivQCColorbarMin">-</span><div class="qcGradient qcGradientSequential"></div><span id="ivQCColorbarMax">-</span></div><div id="ivQCColorbarNote" class="qcLegendNote">Only voxels at or above the selected threshold are overlaid.</div></div><div id="ivSurfaceColorbar" class="imageViewerSurfaceColorbar hidden" aria-hidden="true"><div class="surfaceLegendTitle">Surface scalar overlay</div><div class="surfaceLegendRow"><span id="ivSurfaceColorbarMin">-</span><div class="surfaceGradient"></div><span id="ivSurfaceColorbarMax">-</span></div><div id="ivSurfaceColorbarNote" class="surfaceLegendNote">Vertex-wise scalar values for the selected surface file.</div></div></div><div id="ivNextNavRail" class="caseQCNavRail"><button id="ivNextFlagged" class="caseQCFlaggedButton" type="button">Next QC-flagged</button><button id="ivNextSubject" class="imageNavButton" type="button" title="Next case" aria-label="Next case">&#9654;</button></div></div></div></div>'
+'<div id="imageViewerModal" class="selectorOverlay hidden" aria-hidden="true"><div class="imageViewerBox"><div class="selectorHead"><div><span class="panelTitleRow"><b id="ivTitle">Case QC viewer</b><button class="panelHelpButton" type="button" data-help-scope="common" data-help-topic="case-qc-viewer" aria-label="Help: Case QC viewer" title="Help: Case QC viewer">?</button></span><div id="ivStatus" class="muted">Select View in the preview table or Inspect in Diagnostics &amp; QC.</div></div><button id="ivClose" type="button">Close</button></div><div id="ivRowSummary" class="imageViewerRowSummary muted">No case selected.</div><div class="imageViewerGrid"><div id="ivPrevNavRail" class="caseQCNavRail"><button id="ivPrevFlagged" class="caseQCFlaggedButton" type="button">Previous QC-flagged</button><button id="ivPrevSubject" class="imageNavButton" type="button" title="Previous case" aria-label="Previous case">&#9664;</button></div><div class="imageCanvasBox caseQCCenter"><canvas id="ivCanvas" class="hidden" width="1" height="1" aria-label="Axial image with overlay"></canvas><canvas id="ivSurfaceCanvas" class="hidden surfaceCanvas" width="900" height="700" aria-label="Rotatable cortical surface mesh with vertexwise scalar overlay"></canvas><img id="ivImage" alt="Axial image with brainmask overlay"><div class="imageSliceControls"><label>Axial slice<input id="ivSlice" type="range" min="1" max="1" value="1"></label><span id="ivSliceLabel" class="muted">Slice -/-</span></div><div id="ivMessage" class="muted imageViewerMessage">No image or surface rendered.</div><div class="imageViewerToolbar"><label class="subjectIncludeViewerToggle"><input id="ivIncludeSubject" type="checkbox" checked> Include this case in the import</label><button id="ivSurfaceReset" type="button">Reset 3D view</button><button id="ivToggleQC" type="button">Show QC map</button><label>QC map<select id="ivQCMetric"><optgroup label="Subject maps"><option value="subject_z">Subject z-score</option></optgroup><optgroup label="Group QC maps"><option value="feature_missing_rate">Group missing-rate</option><option value="feature_mean">Group mean</option><option value="feature_std">Group SD</option><option value="feature_zero_rate">Group zero-rate</option><option value="feature_outlier_rate">Group outlier-rate</option></optgroup></select></label><label>Z-threshold<input id="ivQCThreshold" type="number" min="0" step="0.1" value="3"></label><label>Mode<select id="ivQCMode"><option value="signed">signed z</option><option value="absolute">absolute z</option></select></label><label>Opacity<input id="ivQCOpacity" type="range" min="0" max="1" step="0.05" value="0.6"></label></div><div id="ivQCColorbar" class="imageViewerQCColorbar hidden" aria-hidden="true"><div class="qcLegendTitle">QC z-score overlay</div><div class="qcLegendSigned"><div class="qcThresholdScale"><div id="ivQCSignedGradient" class="qcGradient qcGradientSigned"></div><span id="ivQCNegThreshold" class="qcThresholdMark qcThresholdNegative">−</span><span id="ivQCPosThreshold" class="qcThresholdMark qcThresholdPositive">+</span></div><div class="qcLegendEndpoints"><span id="ivQCNegMax" class="qcLegendBound">−</span><span id="ivQCPosMax" class="qcLegendBound">+</span></div></div><div class="qcLegendAbsolute hidden"><div class="qcThresholdScale"><div id="ivQCAbsoluteGradient" class="qcGradient qcGradientAbsolute"></div><span id="ivQCAbsThreshold" class="qcThresholdMark qcThresholdAbsolute">threshold</span></div><div class="qcLegendEndpoints"><span class="qcLegendBound">0</span><span id="ivQCAbsMax" class="qcLegendBound">max |z|</span></div></div><div class="qcLegendSequential hidden"><div class="qcGradient qcGradientSequential"></div><div class="qcLegendEndpoints"><span id="ivQCColorbarMin" class="qcLegendBound">-</span><span id="ivQCColorbarMax" class="qcLegendBound">-</span></div></div><div id="ivQCColorbarNote" class="qcLegendNote">Only voxels at or above the selected threshold are overlaid.</div></div><div id="ivSurfaceColorbar" class="imageViewerSurfaceColorbar hidden" aria-hidden="true"><div class="surfaceLegendTitle">Surface scalar overlay</div><div class="surfaceLegendRow"><span id="ivSurfaceColorbarMin">-</span><div class="surfaceGradient"></div><span id="ivSurfaceColorbarMax">-</span></div><div id="ivSurfaceColorbarNote" class="surfaceLegendNote">Vertex-wise scalar values for the selected surface file.</div></div></div><div id="ivNextNavRail" class="caseQCNavRail"><button id="ivNextFlagged" class="caseQCFlaggedButton" type="button">Next QC-flagged</button><button id="ivNextSubject" class="imageNavButton" type="button" title="Next case" aria-label="Next case">&#9654;</button></div></div></div></div>'
 '<div id="featureProfileModal" class="selectorOverlay hidden" aria-hidden="true"><div class="featureProfileBox"><div class="selectorHead"><div><span class="panelTitleRow"><b>Case QC viewer · Tabular non-imaging data</b><button class="panelHelpButton" type="button" data-help-scope="common" data-help-topic="case-qc-viewer" aria-label="Help: Case QC viewer" title="Help: Case QC viewer">?</button></span><div id="fpStatus" class="muted">Select Plot in the preview table or Inspect in Diagnostics &amp; QC.</div></div><button id="fpClose" type="button">Close</button></div><div id="fpRowSummary" class="imageViewerRowSummary muted">No case selected.</div><div class="featureProfileControls"><label>View<select id="fpPlotMode"><option value="profile">Feature profile</option><option value="histogram">Distribution histogram</option><option value="ordered">Ordered feature overview</option></select></label><label>Flag feature when |z| &ge;<input id="fpZThreshold" type="number" min="0" step="0.1" value="3"></label><label id="fpYLimitLabel">Vertical scale &plusmn;<input id="fpYLimit" type="number" min="1" step="0.5" value="6"></label></div><div id="fpCaseMetrics" class="featureProfileMetrics" aria-label="Case QC summary"></div><div class="caseQCViewerGrid"><div class="caseQCNavRail"><button id="fpPrevFlagged" class="caseQCFlaggedButton" type="button">Previous QC-flagged</button><button id="fpPrevSubject" class="imageNavButton" type="button" title="Previous case" aria-label="Previous case">&#9664;</button></div><div class="caseQCCenter"><canvas id="fpCanvas" width="1100" height="480" aria-label="Tabular feature quality-control plot"></canvas><div id="fpHover" class="featureProfileHover muted">Move the pointer over the plot to inspect its contents.</div><div id="fpMessage" class="muted featureProfileMessage">No feature-QC plot rendered.</div></div><div class="caseQCNavRail"><button id="fpNextFlagged" class="caseQCFlaggedButton" type="button">Next QC-flagged</button><button id="fpNextSubject" class="imageNavButton" type="button" title="Next case" aria-label="Next case">&#9654;</button></div></div><div class="featureProfileDetailGrid"><section class="featureProfilePanel"><h3>Most unusual features</h3><p class="muted">Largest absolute case-level z-scores. Select a feature to mark it in the ordered/profile view.</p><div id="fpTopFeatures"></div></section><section class="featureProfilePanel"><h3>Selected histogram bin</h3><p class="muted">Select a histogram bar to list up to 20 exact features from that z-score interval.</p><div id="fpHistogramDetails" class="muted">No histogram bin selected.</div></section><section class="featureProfilePanel"><h3>Find feature</h3><div class="featureProfileSearch"><input id="fpFeatureSearch" type="search" placeholder="Feature name contains..." aria-label="Feature name search"><button id="fpFeatureSearchBtn" type="button">Find</button></div><div id="fpFeatureSearchResults" class="muted">Enter part of a feature name. Results are bounded.</div></section></div><div class="featureProfileDecision"><div><b>QC decision</b><div class="muted">Plot settings and QC review do not change the imported scientific data.</div></div><label class="subjectIncludeViewerToggle"><input id="fpIncludeSubject" type="checkbox" checked> Include this case in the import</label></div></div></div>'
-'<div id="connectivityQCModal" class="selectorOverlay hidden" aria-hidden="true"><div class="connectivityQCBox"><div class="selectorHead"><div><span class="panelTitleRow"><b id="cqTitle">Connectivity QC viewer</b><button class="panelHelpButton" type="button" data-help-scope="common" data-help-topic="case-qc-viewer" aria-label="Help: Case QC viewer" title="Help: Case QC viewer">?</button></span><div id="cqStatus" class="muted">Run Preview to compute mandatory QC, then open the group viewer or inspect a case.</div></div><button id="cqClose" type="button">Close</button></div><div id="cqSubjectSummary" class="imageViewerRowSummary muted">Group-level matrix.</div><div class="imageViewerToolbar connectivityQCToolbar"><label>Metric<select id="cqMetric"><optgroup label="Group"><option value="group_mean">Group mean connectivity</option><option value="group_sd">Group SD</option><option value="group_missing_rate">Group missing-rate</option></optgroup><optgroup label="Subject"><option value="subject_value">Subject connectivity</option><option value="subject_z">Subject z-score vs group</option><option value="subject_abs_z">Subject |z| vs group</option><option value="subject_missing">Subject missing-edge mask</option></optgroup></select></label><label>Z-threshold<input id="cqZThreshold" type="number" min="0" step="0.1" value="3"></label></div><div class="caseQCViewerGrid connectivityQCViewerGrid"><div id="cqPrevNavRail" class="caseQCNavRail"><button id="cqPrevFlagged" class="caseQCFlaggedButton" type="button">Previous QC-flagged</button><button id="cqPrevSubject" class="imageNavButton" type="button" title="Previous case" aria-label="Previous case">&#9664;</button></div><div class="caseQCCenter"><div class="connectivityQCFigure"><div class="connectivityQCCanvasPane"><canvas id="cqMatrix" width="900" height="640" aria-label="Connectivity QC ROI-by-ROI matrix"></canvas></div><div id="cqColorbar" class="connectivityQCColorbar" aria-hidden="false"><div id="cqColorbarTitle" class="connectivityQCColorbarTitle">Connectivity</div><div class="connectivityQCColorbarScale"><span id="cqColorbarMax">+</span><div id="cqColorbarGradient" class="connectivityQCColorbarGradient signed"></div><span id="cqColorbarMid">0</span><span id="cqColorbarMin">-</span></div><div id="cqColorbarNote" class="connectivityQCColorbarNote">Blue = negative, white = zero, red = positive.</div></div></div><div id="cqHover" class="connSelectorHover">Hover over the matrix to inspect an ROI-by-ROI edge.</div><div id="cqSummary" class="muted connectivityQCSummary">No connectivity QC matrix rendered.</div></div><div id="cqNextNavRail" class="caseQCNavRail"><button id="cqNextFlagged" class="caseQCFlaggedButton" type="button">Next QC-flagged</button><button id="cqNextSubject" class="imageNavButton" type="button" title="Next case" aria-label="Next case">&#9654;</button></div></div></div></div>'
+'<div id="connectivityQCModal" class="selectorOverlay hidden" aria-hidden="true"><div class="connectivityQCBox"><div class="selectorHead"><div><span class="panelTitleRow"><b id="cqTitle">Connectivity QC viewer</b><button class="panelHelpButton" type="button" data-help-scope="common" data-help-topic="case-qc-viewer" aria-label="Help: Case QC viewer" title="Help: Case QC viewer">?</button></span><div id="cqStatus" class="muted">Run Preview to compute mandatory QC, then open the group viewer or inspect a case.</div></div><button id="cqClose" type="button">Close</button></div><div id="cqSubjectSummary" class="imageViewerRowSummary muted">Group-level matrix.</div><div class="imageViewerToolbar connectivityQCToolbar"><label>Metric<select id="cqMetric"><optgroup label="Group"><option value="group_mean">Group mean connectivity</option><option value="group_sd">Group SD</option><option value="group_missing_rate">Group missing-rate</option></optgroup><optgroup label="Subject"><option value="subject_value">Subject connectivity</option><option value="subject_z">Subject z-score vs group</option><option value="subject_abs_z">Subject |z| vs group</option><option value="subject_missing">Subject missing-edge mask</option></optgroup></select></label><label>Z-threshold<input id="cqZThreshold" type="number" min="0" step="0.1" value="3"></label></div><div class="caseQCViewerGrid connectivityQCViewerGrid"><div id="cqPrevNavRail" class="caseQCNavRail"><button id="cqPrevFlagged" class="caseQCFlaggedButton" type="button">Previous QC-flagged</button><button id="cqPrevSubject" class="imageNavButton" type="button" title="Previous case" aria-label="Previous case">&#9664;</button></div><div class="caseQCCenter"><div class="connectivityQCFigure"><div class="connectivityQCCanvasPane"><div class="nmSliceFrame"><canvas id="cqMatrix" width="900" height="640" aria-label="Connectivity QC ROI-by-ROI matrix; click to focus, drag to pan, wheel to zoom, double-click to reset"></canvas></div></div><div id="cqColorbar" class="connectivityQCColorbar" aria-hidden="false"><div id="cqColorbarTitle" class="connectivityQCColorbarTitle">Connectivity</div><div class="connectivityQCColorbarScale"><span id="cqColorbarMax">+</span><div id="cqColorbarGradient" class="connectivityQCColorbarGradient signed"></div><span id="cqColorbarMid">0</span><span id="cqColorbarMin">-</span></div><div id="cqColorbarNote" class="connectivityQCColorbarNote">Blue = negative, white = zero, red = positive.</div></div></div><div id="cqHover" class="connSelectorHover">Hover over the matrix to inspect an ROI-by-ROI edge.</div><div id="cqSummary" class="muted connectivityQCSummary">No connectivity QC matrix rendered.</div></div><div id="cqNextNavRail" class="caseQCNavRail"><button id="cqNextFlagged" class="caseQCFlaggedButton" type="button">Next QC-flagged</button><button id="cqNextSubject" class="imageNavButton" type="button" title="Next case" aria-label="Next case">&#9654;</button></div></div></div></div>'
 
 '<div id="covariateManagementModal" class="selectorOverlay hidden" aria-hidden="true"><div class="tabularFilterModalBox covariateManagementModalBox" role="dialog" aria-modal="true" aria-label="Manage covariates"><div class="selectorHead"><div><b>Manage covariates</b><div class="muted">Delete selected global covariate columns. Available only before training data import is finalized.</div></div><button id="closeCovariateManagement" type="button">Close</button></div><div class="covariateManagementToolbar"><button id="selectAllCovariates" type="button">Select all</button><span id="covariateSelectionStatus" class="muted"></span></div><div id="covariateManagementRows" class="covariateManagementRows"></div><div class="buttonRow"><button id="deleteSelectedCovariates" type="button" disabled>Delete selected</button><button id="deleteAllCovariates" type="button">Delete all</button></div></div></div>'
 '<div id="resourceRelinkModal" class="selectorOverlay hidden" aria-hidden="true"><div class="tabularFilterModalBox resourceRelinkModalBox"><div class="selectorHead"><div><b>Modality resources</b><div class="muted">Inspect persisted file-backed resources for the selected modality. External feature storage is managed separately by Reconnect external file.</div></div><button id="closeResourceRelinkModal" type="button">Close</button></div><div id="resourceRelinkSummary" class="resourceRelinkSummary muted">No modality resources loaded.</div><div class="tableWrap resourceRelinkTableWrap"><table id="resourceRelinkTable"><thead><tr><th>Select</th><th>Resource</th><th>Category</th><th>File path</th><th>Status</th><th>Relinking</th></tr></thead><tbody></tbody></table></div><div id="resourceRelinkDetails" class="details muted">Select one or more resources to relink.</div><div class="buttonRow"><button id="resourceRelinkSelectMissing" type="button">Select missing that can be relinked</button><button id="resourceRelinkSelectAll" type="button">Select all that can be relinked</button><button id="resourceRelinkSelected" type="button" disabled>Relink one file...</button><button id="resourceRelinkRoot" class="primary" type="button" disabled>Relink selected from folder...</button><button id="refreshResourceRelink" type="button">Refresh status</button></div></div></div>'
@@ -3945,6 +3938,7 @@ classdef NMDataIOUI
 '<script src="NMModuleNavigationRail.js"></script>'
 '<script src="NMResultsViewerPrimitives.js"></script>'
 '<script src="NMImageSliceViewer.js"></script>'
+'<script src="NMWebGLMeshInteraction.js"></script>'
 '<script src="NMDataIOUI_main.js"></script>'
 '</body></html>'};
             txt = strjoin(L, nl);

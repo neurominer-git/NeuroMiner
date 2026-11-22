@@ -109,8 +109,7 @@ classdef NMAppUI
                 error('NMAppUI:invalidApplicationStartup','applicationStartup must be a scalar logical.');
             end
             initialPage = 'landing';
-            recovered = false;
-            recoveryModuleKey = '';
+            sessionOptions = struct();
             if ~isstruct(ctx), ctx = struct(); end
             isShared = isfield(ctx,'NMAppSharedSession') && ~isempty(ctx.NMAppSharedSession) && logical(ctx.NMAppSharedSession);
             if applicationStartup && ~isShared
@@ -122,6 +121,9 @@ classdef NMAppUI
                     NMUIStateTools.remove(recoveryCandidate.tmpDir);
                 elseif strcmp(recoveryAction,'recover')
                     NMUIStateTools.quiesce(recoveryCandidate, true);
+                    [NM, sessionFound] = NMDataIOUI.loadSessionNM(NM, recoveryCandidate.tmpDir);
+                    assert(sessionFound, ...
+                        'The recovered UI session has no scientific NM checkpoint. UI state alone cannot restore analyses.');
                     NMUIStateTools.refreshContext(recoveryCandidate.tmpDir, NM);
                     ctx.NMAppSharedSession = true;
                     ctx.NMAppWebDir = recoveryCandidate.webDir;
@@ -130,8 +132,10 @@ classdef NMAppUI
                     ctx.showStartupSplash = false;
                     initialPage = NMUIStateTools.recoveryPage(recoveryCandidate.state, initialPage);
                     recoveryModuleKey = NMUIStateTools.recoveryModuleKey(recoveryCandidate.state);
-                    recoveryReturnToWorkbench = NMUIStateTools.recoveryReturnToWorkbench(recoveryCandidate.state);
-                    if recoveryReturnToWorkbench || ~strcmp(initialPage,'landing')
+                    if ~isempty(recoveryModuleKey)
+                        sessionOptions.InitialQuery = struct('moduleKey',recoveryModuleKey);
+                    end
+                    if NMUIStateTools.recoveryReturnToWorkbench(recoveryCandidate.state) || ~strcmp(initialPage,'landing')
                         ctx.NMAppCaller = 'workbench';
                         ctx.NMAppReturnPage = NMUIStateTools.recoveryReturnPage(recoveryCandidate.state);
                         ctx.NMAppChildPage = char(string(initialPage));
@@ -145,13 +149,7 @@ classdef NMAppUI
                         state = NMWorkbenchUI.stateFromNM(NM, ctx);
                         NMWorkbenchUI.writeShell(state, recoveryCandidate.webDir, recoveryCandidate.tmpDir);
                     end
-                    recovered = true;
                 end
-            end
-
-            sessionOptions = struct();
-            if recovered && ~isempty(recoveryModuleKey)
-                sessionOptions.InitialQuery = struct('moduleKey',recoveryModuleKey);
             end
             NM = NMAppUI.open(NM, outDir, ctx, port, initialPage, sessionOptions, applicationStartup);
         end
@@ -419,9 +417,6 @@ classdef NMAppUI
                 pageCtx = NMAppUI.pageServiceContext(app, ctx, tmpDir, 'dataio');
                 if ~isempty(dataIOScope), pageCtx.NMAppDataIOScope = dataIOScope; end
                 [handled, out] = NMDataIOUI.handleMatlabService(app.NM, req, tmpDir, pageCtx);
-                if handled && isstruct(out) && isfield(out,'state') && isstruct(out.state) && ~isempty(dataIOScope)
-                    out.state = NMAppUI.projectDataIOState(out.state, dataIOScope);
-                end
                 return;
             end
 
@@ -644,6 +639,7 @@ classdef NMAppUI
                         end
                         NM = NMDataIOFeatureQCTools.normalizePersistedNMQC(S.NM);
                         NMDataIOUI.saveSessionNM(NM, tmpDir);
+                        NMDataIOMaterializationCache.retireOwner(NMDataIOUI.sessionKey(tmpDir));
                         app.NM = NM;
                         app.TrainTemplateOrch = [];
                         priorUIState = NMUIStateTools.read(tmpDir);
@@ -1011,51 +1007,6 @@ classdef NMAppUI
                     v = char(string(req.(field)));
                 catch
                     v = default;
-                end
-            end
-        end
-
-        function state = projectDataIOState(state, scope)
-            % projectDataIOState  Project an explicit Workbench DataIO view without mutating NM state.
-            %
-            % Training-data inspection remains the finalized/locked training manager even when the
-            % global workbench is in Application/OOCV mode. The OOCV DataIO card continues to select
-            % the OOCV manager. Only serialized UI mode/permissions/messages are projected here.
-
-            scope = lower(strtrim(char(string(scope))));
-            if isempty(scope), return; end
-            if ~isstruct(state) || ~isfield(state,'defs') || ~isstruct(state.defs)
-                error('NMAppUI:invalidDataIOState', ...
-                    'Explicit DataIO routing requires a state payload with defs.');
-            end
-            oldMode = '';
-            if isfield(state,'dataIOMode') && ~isempty(state.dataIOMode)
-                oldMode = char(string(state.dataIOMode));
-            end
-            switch scope
-                case 'training'
-                    if isfield(state.defs,'import_finished') && logical(state.defs.import_finished)
-                        mode = 'training_data_manager';
-                    else
-                        mode = 'training_import';
-                    end
-                case 'oocv'
-                    if ~isfield(state.defs,'analyses_locked') || ~logical(state.defs.analyses_locked)
-                        error('NMAppUI:oocvDataIOBeforeApplicationMode', ...
-                            'OOCV DataIO is not available before Application/OOCV mode is activated.');
-                    end
-                    mode = 'oocv_data_manager';
-                otherwise
-                    error('NMAppUI:invalidDataIOScope', 'Unsupported DataIO scope: %s', scope);
-            end
-            state.dataIOMode = mode;
-            state.permissions = NMDataIOBrowserModeTools.permissionsFromMode(mode, state.defs);
-            if ~isempty(oldMode) && ~strcmp(oldMode, mode) && ...
-                    isfield(state,'messages') && iscell(state.messages) && ~isempty(state.messages) && ...
-                    (ischar(state.messages{1}) || (isstring(state.messages{1}) && isscalar(state.messages{1})))
-                oldMsg = NMDataIOBrowserModeTools.modeMessage(oldMode);
-                if strcmp(char(string(state.messages{1})), oldMsg)
-                    state.messages{1} = NMDataIOBrowserModeTools.modeMessage(mode);
                 end
             end
         end

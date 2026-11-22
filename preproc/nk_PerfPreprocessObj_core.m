@@ -950,7 +950,9 @@ switch IN.METHOD
         % method 2: COMBAT HARMONIZATION.
         if VERBOSE
             fprintf('\tComBat harmonization ...');
-            if IN.MCOVARUSE == 1; fprintf(' retaining variance from %d variables...', size(IN.TrMod, 2)); end
+            if IN.MCOVARUSE == 1
+                fprintf(' retaining %d, removing %d model column(s)...', numel(IN.keep_idx), numel(IN.remove_idx));
+            end
             if IN.MCOVARLABEL == 1; fprintf(' including label...'); end
         end
            
