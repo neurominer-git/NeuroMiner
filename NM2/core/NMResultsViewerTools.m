@@ -673,13 +673,7 @@ classdef NMResultsViewerTools
                     NMResultsViewerTools.modelFeatureInspectionFractionatedAvailable( ...
                     A,selectedContexts,resultTargetIndex,payload.classifierIndex);
                 payload.componentAnalysis = metadataComponentAnalysis;
-                if isempty(metadataComponentDiagnostics)
-                    payload.diagnostics = metadataDiagnostics;
-                elseif isempty(metadataDiagnostics)
-                    payload.diagnostics = metadataComponentDiagnostics;
-                else
-                    payload.diagnostics = [metadataDiagnostics metadataComponentDiagnostics];
-                end
+                payload.diagnostics = [metadataDiagnostics metadataComponentDiagnostics];
                 payload.ok = ~isempty(payload.contexts) && ...
                     (~isempty(payload.measures) || any([payload.spatialMaps.enabled]) || ...
                     payload.componentAnalysis.ok);
@@ -10144,7 +10138,8 @@ classdef NMResultsViewerTools
                 end
             end
             if isempty(requestedContextId)
-                hit = find([catalogue.isCombined] & [catalogue.enabled],1,'first');
+                hit = find([catalogue.isCombined] & [catalogue.enabled] & ...
+                    ~strcmp({catalogue.sourceFamily},'native_mixed_overview'),1,'first');
                 if ~isempty(hit)
                     contextSelector = 'defaultCombinedContext';
                 else
@@ -10363,16 +10358,12 @@ classdef NMResultsViewerTools
             if numel(physical) < 2 || ~ismember(fusionMode, {'early','intermediate'}), return; end % nm2-allow: combined contexts require at least two physical fusion members
             enabled = physical([physical.enabled]);
             if numel(enabled) ~= numel(physical), return; end
-            % Bound the complete combined axis, not only each member's displayed rows.
-            % Voxel and vertex fields remain available through their physical sources.
-            if sum([enabled.nFeatures]) > 5000 || ...
-                    any(ismember({enabled.featureKind},{'voxel','surface_vertex'}))
-                return;
-            end
-
+            % High-dimensional or spatial mixtures use native member renderers, never a concatenated feature axis.
+            summaryOnly = sum([enabled.nFeatures]) > 5000 || ...
+                    any(ismember({enabled.featureKind},{'voxel','surface_vertex'}));
             allTabular = all(strcmp({enabled.featureKind}, 'tabular')) && ...
                 all(strcmp({enabled.rendererFamily}, 'tabular'));
-            if allTabular && strcmp(fusionMode,'early')
+            if ~summaryOnly && allTabular && strcmp(fusionMode,'early')
                 for ii = 1:numel(enabled)
                     if ~NMResultsViewerFeatureVectorAuthority.isTabularDescriptor(NM, enabled(ii).varind)
                         return;
@@ -10385,8 +10376,12 @@ classdef NMResultsViewerTools
                 combined.rendererFamily = 'tabular';
                 combined.combinedGroupId = sprintf('a%d_t%d_r%d_tabular_concat', analysisIndex, targetIndex, resultTargetIndex);
             else
-                [relation,members,relationDiagnostic] = ...
-                    NMResultsViewerTools.modelFeatureInspectionCombinedRelationContract(A,enabled,'');
+                relation = [];
+                relationDiagnostic = [];
+                if ~summaryOnly
+                    [relation,members,relationDiagnostic] = ...
+                        NMResultsViewerTools.modelFeatureInspectionCombinedRelationContract(A,enabled,'');
+                end
                 if isempty(relation) || ~relation.available
                     if ~isempty(relationDiagnostic)
                         diagnostic = relationDiagnostic;
@@ -10394,25 +10389,28 @@ classdef NMResultsViewerTools
                     end
                     % Native member feature measures need no combined correlation matrix.
                     members = enabled;
-                    sourceKind = 'visdata_combined';
+                    combined.sourceKind = 'visdata_combined';
                     sourceFamily = sprintf('%s_native_features',fusionMode);
                 else
                     if numel(members) ~= numel(enabled) || ... % nm2-allow: persisted CombinedRelation must cover the complete selected fusion-member axis
                             ~all(ismember({enabled.contextId},{members.contextId}))
                         return;
                     end
-                    sourceKind = 'visdata_combined_relation';
+                    combined.sourceKind = 'visdata_combined_relation';
                     sourceFamily = sprintf('%s_native_relation',fusionMode);
                 end
-                combined.sourceKind = sourceKind;
                 combined.sourceFamily = sourceFamily;
                 combined.featureKind = 'mixed_native';
                 combined.rendererFamily = 'relation';
                 combined.combinedGroupId = sprintf('a%d_t%d_r%d_native_relation', analysisIndex, targetIndex, resultTargetIndex);
             end
 
-            combined.modalityLabel = 'Combined feature view';
             combined.selectionLabel = 'Combined feature view';
+            if summaryOnly
+                combined.selectionLabel = 'Native mixed';
+                combined.sourceFamily = 'native_mixed_overview';
+            end
+            combined.modalityLabel = combined.selectionLabel;
             combined.analysisIndex = analysisIndex;
             combined.targetIndex = targetIndex;
             combined.resultTargetIndex = resultTargetIndex;
@@ -10428,7 +10426,6 @@ classdef NMResultsViewerTools
             combined.memberContextIds = {members.contextId};
             combined.contextId = sprintf('a%d_t%d_r%d_combined_c%d', analysisIndex, targetIndex, resultTargetIndex, classIndex);
             combined.enabled = true;
-            combined.disabledReason = '';
             ok = true;
         end
 

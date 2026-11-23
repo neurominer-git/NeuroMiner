@@ -830,7 +830,6 @@ classdef NMDataIOAPITools
             spec.headerAutoDetect = NMDataIOAPITools.getLogical(spec, {'headerAutoDetect','headerRowAutoDetect'}, isempty(spec.headerRow));
             spec.uniquelim = NMDataIOAPITools.getNumber(spec, {'uniquelim','dummyCodingUniqueLimit'}, 15);
             spec.covmanage_edit = NMDataIOAPITools.getNumber(spec, {'covmanage_edit','covariateHandling'}, 1);
-            spec.compatibilityMode = NMDataIOAPITools.getChar(spec, {'compatibilityMode'}, 'legacy');
             spec.nanMapper = NMDataIOAPITools.getAny(spec, {'nanMapper'}, struct());
             spec.caseAlignment = NMDataIOAPITools.getAny(spec, {'caseAlignment','caseAlignmentOptions'}, struct());
             if ~isstruct(spec.caseAlignment), error('NMDataIOAPITools:badCaseAlignment', 'caseAlignment must be a struct when supplied.'); end
@@ -1098,7 +1097,6 @@ classdef NMDataIOAPITools
             state.matrix.headerAutoDetect = spec.headerAutoDetect;
             state.matrix.uniquelim = spec.uniquelim;
             state.covmanage_edit = spec.covmanage_edit;
-            state.matrix.compatibilityMode = spec.compatibilityMode;
             state.matrix.nanMapper = spec.nanMapper;
             state.matrix.caseAlignment = spec.caseAlignment;
             state.caseAlignment = spec.caseAlignment;

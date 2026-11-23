@@ -926,9 +926,8 @@ classdef NMAppUI
         function out = returnFromChildPage(app, req, tmpDir, ctx)
             % returnFromChildPage  Re-import state after returning from a child page.
             %
-            % Calls the appropriate child UI import method, writes the resulting NM back to the app
-            % session and returns refreshed workbench state. This closes the loop for child pages that
-            % can update configuration or runtime state.
+            % Reloads the authoritative session NM before returning. DataIO retains its
+            % draft-import reconciliation; runner services have already saved their NM.
 
             doProfile = NMAppUI.profileEnabled();
             tTotal = tic;
@@ -941,7 +940,6 @@ classdef NMAppUI
             if ok, app.NM = sessionNM; end
             t = tic;
             childCtx = NMUISessionTools.childContext(ctx, fileparts(tmpDir), tmpDir, source);
-            childCtx.materializeTemplateOnClose = true;
             childCtx.NMAppKeepSessionAfterImport = true;
             childCtx.NMProfileId = profileId;
             childCtx.profile = doProfile;
@@ -964,24 +962,13 @@ classdef NMAppUI
                         % authoritative session NM. The load at function entry
                         % rehydrates app.NM; do not immediately save the same
                         % large object again.
-                    case {'preprocess_runner','preprocess','preprocessing'}
-                        app.NM = NMPreprocessRunnerUI.importUpdated(app.NM, struct('tmpDir', tmpDir), childCtx);
-                        NMDataIOUI.saveSessionNM(app.NM, tmpDir);
-                    case {'ml_train_runner','mltrain','ml_training','ml_optimizer'}
-                        app.NM = NMMLOptimizerRunnerUI.importUpdated(app.NM, struct('tmpDir', tmpDir), childCtx);
-                        NMDataIOUI.saveSessionNM(app.NM, tmpDir);
-                    case {'vis_runner','visualization','vis','model_visualization'}
-                        app.NM = NMVisRunnerUI.importUpdated(app.NM, struct('tmpDir', tmpDir), childCtx);
-                        NMDataIOUI.saveSessionNM(app.NM, tmpDir);
-                    case {'mli_runner','mli','ml_interpretation','ml_interpreter'}
-                        app.NM = NMMLIRunnerUI.importUpdated(app.NM, struct('tmpDir', tmpDir), childCtx);
-                        NMDataIOUI.saveSessionNM(app.NM, tmpDir);
-                    case {'model_export_runner','model_export','export','export_models'}
-                        app.NM = NMModelExportRunnerUI.importUpdated(app.NM, struct('tmpDir', tmpDir), childCtx);
-                        NMDataIOUI.saveSessionNM(app.NM, tmpDir);
-                    case {'oocv_runner','oocv','oocv_application'}
-                        app.NM = NMOOCVRunnerUI.importUpdated(app.NM, struct('tmpDir', tmpDir), childCtx);
-                        NMDataIOUI.saveSessionNM(app.NM, tmpDir);
+                    case {'preprocess_runner','preprocess','preprocessing', ...
+                            'ml_train_runner','mltrain','ml_training','ml_optimizer', ...
+                            'vis_runner','visualization','vis','model_visualization', ...
+                            'mli_runner','mli','ml_interpretation','ml_interpreter', ...
+                            'model_export_runner','model_export','export','export_models', ...
+                            'oocv_runner','oocv','oocv_application'}
+                        % Runner services already stored the authoritative NM. No return replay.
                     otherwise
                         if ok, NMDataIOUI.saveSessionNM(app.NM, tmpDir); end
                 end

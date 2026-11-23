@@ -6071,11 +6071,11 @@ classdef NMResultsViewerReportTools
             selectedId = payload.selectedFeatureContextId;
             switch scope
                 case 'combined'
-                    mask = [contexts.isCombined];
+                    mask = [contexts.isCombined] & ~strcmp({contexts.sourceFamily},'native_mixed_overview');
                 case 'all_physical'
                     mask = ~[contexts.isCombined];
                 case 'combined_and_all'
-                    mask = true(1,numel(contexts));
+                    mask = ~strcmp({contexts.sourceFamily},'native_mixed_overview');
                 case 'selected'
                     requested = plan.SelectedFeatureContextIds;
                     availableIds = {contexts.contextId};
@@ -6098,7 +6098,7 @@ classdef NMResultsViewerReportTools
                     end
                     mask = physical & ismember(available,requested);
                     if plan.IncludeCombinedFeatureContext
-                        mask = mask | ~physical;
+                        mask = mask | (~physical & ~strcmp({contexts.sourceFamily},'native_mixed_overview'));
                     end
                 case 'current'
                     mask = strcmp({contexts.contextId},selectedId);

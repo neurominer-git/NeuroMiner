@@ -1553,7 +1553,6 @@ classdef NMDataIOImportTools
                 inputSettings.uniquelim = NMDataIOImportTools.fieldOr(IO,'uniquelim',15);
                 inputSettings.requireFeatureNames = logical(NMDataIOImportTools.fieldOr(IO,'requireFeatureNames',false));
                 inputSettings.requireCovariateNames = logical(NMDataIOImportTools.fieldOr(IO,'requireCovariateNames',false));
-                inputSettings.compatibilityMode = NMDataIOImportTools.asChar(NMDataIOImportTools.fieldOr(IO,'compatibilityMode','legacy'));
                 if isfield(IO,'nanMapper') && isstruct(IO.nanMapper), inputSettings.nanMapper = IO.nanMapper; end
                 if isfield(IO,'tableColumnRoles') && isstruct(IO.tableColumnRoles), inputSettings.tableColumnRoles = IO.tableColumnRoles; end
                 if isfield(IO,'selFeats') && ~isempty(IO.selFeats), inputSettings.selFeats = IO.selFeats; end

@@ -72,7 +72,6 @@ details.advanced{margin-top:12px;border-top:1px solid #dde4ee;padding-top:9px}de
 <div class="warn"><b>Your responsibility:</b> class names do not change the source labels. Make sure that the name you assign to each class describes the correct group.</div>
 <details class="advanced"><summary>Advanced details</summary><p>Training classification data define the canonical class mapping. Label names are attached to those training-defined classes. Labelled OOCV data reuse the same training mapping.</p></details></section><section id="import-options"><h2>Matrix/table import options</h2><p>These settings control how matrix and table imports are interpreted.</p>
 <ul><li><b>Covariate handling</b> — choose whether newly imported covariates are added to the existing covariates or replace them.</li>
-<li><b>Validation mode</b> — use the standard mode for normal imports; use enhanced diagnostics when you specifically need the additional checks.</li>
 <li><b>Map text tokens to missing values</b> — enable this when values such as <code>NA</code>, <code>N/A</code> or <code>missing</code> in the source mean “no value”.</li></ul>
 <p>After changing an import option, run Preview again.</p>
 <div class="warn"><b>Your responsibility:</b> when you map a text token to missing data, make sure that the token is never used as a genuine scientific value in that column.</div>

@@ -76,7 +76,6 @@ classdef NMDataIOStateTools
             state.matrix.ignore_edit = {};
             state.matrix.feature_edit = {};
             state.covmanage_edit = 1;
-            state.matrix.compatibilityMode = 'legacy';
             state.matrix.nanMapper = struct();
             state.matrix.nanMapper.enabled = false;
             state.matrix.nanMapper.tokens = {'NA','N/A','n/a','na','.','-','','missing','Missing','MISSING'};
@@ -257,7 +256,6 @@ classdef NMDataIOStateTools
             IO.ignore_edit = NMDataIOStateTools.pick2(state, m, {'ignore_edit','ignoreColumns','ignoredColumns'}, IO.ignore_edit);
             IO.feature_edit = NMDataIOStateTools.pick2(state, m, {'feature_edit','featureColumns','features','selectedFeatureColumns'}, IO.feature_edit);
             IO.covmanage_edit = NMDataIOStateTools.pick(state, {'covmanage_edit'}, NMDataIOStateTools.pick(m, {'covmanage_edit','covariateMode'}, NMDataIOStateTools.fieldOr(IO,'covmanage_edit',1)));
-            IO.compatibilityMode = NMDataIOStateTools.toChar(NMDataIOStateTools.pick2(state, m, {'compatibilityMode'}, 'legacy'));
             IO.requireFeatureNames = logical(NMDataIOStateTools.pick2(state, m, {'requireFeatureNames'}, ismember(IO.groupmode, [1 2])));
             IO.requireCovariateNames = logical(NMDataIOStateTools.pick2(state, m, {'requireCovariateNames'}, ismember(IO.groupmode, [1 2]) && ~isempty(IO.covar_edit)));
             IO.nanMapper = NMDataIOStateTools.pick2(state, m, {'nanMapper'}, struct());
@@ -839,7 +837,6 @@ classdef NMDataIOStateTools
             IO.feature_edit = {};
             IO.covmanage_edit = 1;
             IO.nanMapper = NMDataIOStateTools.defaultNaNMapper();
-            IO.compatibilityMode = 'legacy';
             IO.completed = false;
             IO.modeflag = NMDataIOStateTools.inferModeflag(NM);
             IO.labels_known = true;

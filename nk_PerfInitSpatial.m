@@ -59,11 +59,10 @@ kbin = inp.nclass;
 nM = numel(inp.PREPROC);
 inp.isSpatialPreprocessed = false(1,nM);
 inp.spatial_branch_table = cell(1,nM);
+inp.X = clear_materialized_fields(inp.X);
 
 for n = 1:nM
     [PREPROC, Xn] = modality_state(inp, n, nM);
-    Xn = clear_materialized_fields(Xn);
-    inp.X(n) = Xn;
     if ~nk_HasSpatialSteps(PREPROC)
         continue
     end

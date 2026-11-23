@@ -1773,7 +1773,6 @@ function clearProvenanceInputDefinitions(nextSource, hadDefinitions) {
     matrix: {
       sourceType: nextSource,
       metadataAlignmentMode: 'case_id',
-      compatibilityMode: val('di_compatibility') || priorMatrix.compatibilityMode || 'legacy',
       nanMapper: priorMatrix.nanMapper && typeof priorMatrix.nanMapper === 'object' ? JSON.parse(JSON.stringify(priorMatrix.nanMapper)) : {}
     }
   };
@@ -3794,7 +3793,6 @@ function matrixStateFromForm(markDirty, persistState) {
   matrixState.matrix.headerRow = autoHeaderRow ? [] : Number(hr);
   matrixState.matrix.headerAutoDetect = autoHeaderRow;
   matrixState.matrix.uniquelim = Number(val('di_uniquelim') || 15);
-  matrixState.matrix.compatibilityMode = val('di_compatibility') || 'legacy';
   matrixState.matrix.nanMapper = { enabled: checked('di_nan_enabled'), tokens: commaList(val('di_nan_tokens')), applyToFeatures: true, applyToCovariates: true, applyToLabels: false, applyToCaseIds: false, caseInsensitive: true, trimWhitespace: true };
   matrixState.selection = matrixState.selection || {};
   if (markDirty !== false && FORM_READY) {
@@ -4052,7 +4050,6 @@ function formFromMatrixState() {
   HEADER_ROW_AUTO = m.headerAutoDetect === true || !m.headerRow;
   setVal('di_uniquelim', m.uniquelim || 15);
   setVal('di_covmanage', st.covmanage_edit || m.covmanage_edit || defaultCovariateHandling());
-  setVal('di_compatibility', m.compatibilityMode || 'legacy');
   const nm = m.nanMapper || {};
   const cb = document.getElementById('di_nan_enabled'); if (cb) cb.checked = nm.enabled === true;
   setVal('di_nan_tokens', listText(nm.tokens || ['NA','N/A','n/a','na','.','-','','missing']));
@@ -6219,10 +6216,8 @@ function updateImportOptionsVisibility() {
   } else {
     explicitCovariates = arr(currentVariableRoles().covariates).length > 0;
   }
-  const showCovariateHandling = explicitCovariates;
-  setVisible('importOptionsPanel', matrixLike || showCovariateHandling);
-  setInputFieldVisible('di_covmanage', showCovariateHandling);
-  setInputFieldVisible('di_compatibility', matrixLike);
+  setVisible('importOptionsPanel', matrixLike || explicitCovariates);
+  setInputFieldVisible('di_covmanage', matrixLike || explicitCovariates);
   setInputFieldVisible('di_nan_enabled', matrixLike && tableLike);
   setInputFieldVisible('di_nan_tokens', matrixLike && tableLike && checked('di_nan_enabled'));
 }
@@ -13123,7 +13118,7 @@ function previewValue(values, i, j, nRows, nCols) {
 /**
  * formatPreviewCell  Format one Preview-table cell without changing scientific values.
  * Paths are reduced to the filename for display while the full path remains available in the cell title.
- * Numeric values use magnitude-dependent rounding: 3 decimals below 10, 2 below 100, and 1 otherwise.
+ * Numeric values use four significant digits below 10, then two or one decimal place.
  */
 function formatPreviewCell(value, kind = 'auto') {
   if (value === null || value === undefined) return '';
@@ -13136,8 +13131,7 @@ function formatPreviewCell(value, kind = 'auto') {
     const number = Number(raw);
     if (!Number.isFinite(number)) return String(raw);
     const magnitude = Math.abs(number);
-    const decimals = magnitude < 10 ? 3 : (magnitude < 100 ? 2 : 1);
-    return number.toFixed(decimals).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    return Number(magnitude > 0 && magnitude < 10 ? number.toPrecision(4) : number.toFixed(magnitude < 100 ? 2 : 1)).toString();
   };
   if (typeof value === 'number') return formatNumber(value);
   if (Array.isArray(value)) return value.map((item) => formatPreviewCell(item)).join(', ');
@@ -16223,7 +16217,7 @@ bind('di_db_schema', 'change', () => {
   if (val('di_db_schema')) setTimeout(() => listDatabaseTables(), 0);
 });
 bind('di_desc', 'change', () => { matrixStateFromForm(); updateActionButtons(); });
-['di_db_file','di_db_url','di_db_user','di_db_pass','di_db_use_query','di_db_query','di_modeflag','di_covmanage','di_compatibility','di_nan_enabled','di_nan_tokens','di_delimit','di_table_file','di_medit'].forEach((id) => bind(id, 'change', () => {
+['di_db_file','di_db_url','di_db_user','di_db_pass','di_db_use_query','di_db_query','di_modeflag','di_covmanage','di_nan_enabled','di_nan_tokens','di_delimit','di_table_file','di_medit'].forEach((id) => bind(id, 'change', () => {
   if (['di_db_file','di_db_url'].includes(id) && sourceType() === 'database') {
     resetDatabaseNamespaceDiscovery();
     setSelectOptions('di_db_database', [], []); setSelectOptions('di_db_schema', [], []);

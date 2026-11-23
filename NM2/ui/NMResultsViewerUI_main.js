@@ -6615,9 +6615,9 @@ Score: ${Number(p.y).toFixed(4)}`;
     const contexts = arr(catalogue.FeatureContexts || catalogue.featureContexts).filter(c => c && c.enabled !== false);
     const source = modal && modal.querySelector('#rvReportFeatureSourceScope');
     const scope = String(source && source.value || 'current');
-    if(scope === 'combined') return contexts.filter(c => !!c.isCombined);
+    if(scope === 'combined') return contexts.filter(c => !!c.isCombined&&c.sourceFamily!=='native_mixed_overview');
     if(scope === 'all_physical') return contexts.filter(c => !c.isCombined);
-    if(scope === 'combined_and_all') return contexts;
+    if(scope === 'combined_and_all') return contexts.filter(c=>c.sourceFamily!=='native_mixed_overview');
     if(scope === 'selected'){
       const selected = modal && modal.querySelector('#rvReportSelectedFeatureContexts');
       const ids = new Set(selected ? Array.from(selected.selectedOptions).map(opt => String(opt.value || '')).filter(Boolean) : []);
@@ -6767,7 +6767,7 @@ Score: ${Number(p.y).toFixed(4)}`;
   function reportBuilderConfigurePlanControls(state, modal){
     const catalogue = state && state.featurePlanCatalogue || {};
     const contexts = arr(catalogue.FeatureContexts || catalogue.featureContexts).filter(c => c && c.enabled !== false);
-    const combinedN = contexts.filter(c => !!c.isCombined).length;
+    const combinedN = contexts.filter(c => !!c.isCombined&&c.sourceFamily!=='native_mixed_overview').length;
     const physicalN = contexts.filter(c => !c.isCombined).length;
     const source = modal && modal.querySelector('#rvReportFeatureSourceScope');
     if(source){
@@ -10767,12 +10767,12 @@ Score: ${Number(p.y).toFixed(4)}`;
   /** Resolve the browser-only presentation of ordinary payloads for one heterogeneous combined source. */
   function featureInspectionCombinedPresentationMode(){
     if(!featureInspectionHeterogeneousCombinedContext())return 'combined_tabular';
-    return String(FEATURE_INSPECTION_STATE.combinedPresentationMode)==='combined_tabular'?'combined_tabular':'native_mixed';
+    return String(FEATURE_INSPECTION_STATE.combinedPresentationMode)==='combined_tabular'&&PAYLOAD.selectedFeatureContext.sourceFamily!=='native_mixed_overview'?'combined_tabular':'native_mixed';
   }
 
   /** Render the deterministic presentation selector for heterogeneous combined payloads. */
   function featureInspectionCombinedPresentationToolbarHtml(){
-    if(!featureInspectionHeterogeneousCombinedContext())return '';
+    if(!featureInspectionHeterogeneousCombinedContext()||PAYLOAD.selectedFeatureContext.sourceFamily==='native_mixed_overview')return '';
     const mode=featureInspectionCombinedPresentationMode();
     return `<label class="rvFeatureCombinedPresentation">Payload presentation <select data-feature-combined-presentation><option value="native_mixed"${mode==='native_mixed'?' selected':''}>Native mixed</option><option value="combined_tabular"${mode==='combined_tabular'?' selected':''}>Combined tabular</option></select></label>`;
   }
@@ -10940,7 +10940,7 @@ Score: ${Number(p.y).toFixed(4)}`;
     const selected = PAYLOAD && PAYLOAD.selectedFeatureContext || {};
     const renderer = String(selected.rendererFamily || '').toLowerCase();
     const tabularContext = renderer === 'tabular' || String(selected.featureKind || '').toLowerCase() === 'tabular';
-    const relationContext = renderer === 'relation' || featureInspectionHeterogeneousCombinedContext();
+    const relationContext = selected.sourceFamily!=='native_mixed_overview' && (renderer === 'relation' || featureInspectionHeterogeneousCombinedContext());
     if(!options.length && !tabularContext && !relationContext) return null;
     const metadataPending = relationContext && featureInspectionPayloadScope()==='metadata' && !options.length;
     const enabled = metadataPending || options.some(x => x && x.available !== false && x.relationServiceAvailable !== false);
@@ -11490,13 +11490,12 @@ Score: ${Number(p.y).toFixed(4)}`;
       if(st.panelType === 'relationMatrix' || st.panelType === 'relationGraph') featureRelationResolveMatrixSelection(st);
       featureInspectionEnsureColourSemantics(st);
       if(!panelEnabled) st.visible = false;
-      syncFeatureInspectionNestedState(st);
     });
 
     const hasKnownPanelForCurrentContext = panelIds.some(id => knownPanelIds.has(id));
     const hasVisibleCurrentPanel = panelIds.some(id => FEATURE_INSPECTION_STATE.panels[id] && FEATURE_INSPECTION_STATE.panels[id].visible);
     if(panelIds.length && !hasVisibleCurrentPanel &&
-        (!FEATURE_INSPECTION_STATE.initialized || !hasKnownPanelForCurrentContext)){
+        (!FEATURE_INSPECTION_STATE.initialized || !hasKnownPanelForCurrentContext || (contentChanged && !savedContext))){
       FEATURE_INSPECTION_STATE.panels[defaultId].visible = true;
     }
 
