@@ -741,10 +741,10 @@ classdef NMRuntimeActionTools
         function [mask, nComplete] = cvCellCoverageMaskFromFiles(files, key, nStreams, gridSize)
             nComplete = 0;
             mask = [];
-            if isempty(files), return; end
             if nargin < 4 || isempty(gridSize), gridSize = [NaN NaN]; end
             useMask = NMRuntimeActionTools.validGridSize(gridSize);
             if useMask, mask = false(gridSize(1), gridSize(2)); end
+            if isempty(files), return; end
             coords = zeros(numel(files),2);
             n = 0;
             for ii = 1:numel(files)

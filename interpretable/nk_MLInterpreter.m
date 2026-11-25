@@ -455,6 +455,10 @@ Sstr = ''; if isfield(inp,'isSpatialPreprocessed') && inp.isSpatialPreprocessed,
 OCVstr = 'Y'; if isfield(inp,'oocvflag') && inp.oocvflag, OCVstr = 'Yocv'; end
 OCVstr = [Sstr OCVstr];
 TRstr = [Sstr 'Y'];
+Yocvstr = [Sstr 'Yocv'];
+if oocvflag
+    Yocvstr = [Yocvstr '2'];
+end
 
 % =========================================================================
 for f=1:ix % Loop through CV2 permutations
@@ -845,28 +849,6 @@ for f=1:ix % Loop through CV2 permutations
                                     [ inp, ~, ~, ~, ~, ~, ~, ~, mapYocv] = nk_ApplyTrainedPreproc(analysis, inp, paramfl, Param);
                                 end
                             case 'shapley'
-                                if inp.oocvflag
-                                    if isfield(inp,'isSpatialPreprocessed') && inp.isSpatialPreprocessed
-                                        Yocvstr = 'sYocv2';
-                                    else
-                                        Yocvstr = 'Yocv2';
-                                    end
-                                else
-                                    if isfield(inp,'isSpatialPreprocessed') && inp.isSpatialPreprocessed
-                                    % here we would need to potentially
-                                    % account for multiple binary
-                                    % classifier-related optimizations of 
-                                    % smoothing kernels in multi-class learning:
-                                    % M{classifier}{smoothing kernel}. At
-                                    % the moment this will only work for
-                                    % simple binary classification and
-                                    % regression
-                                        Yocvstr = 'sYocv';
-                                    else
-                                        Yocvstr = 'Yocv';
-                                    end
-                                end
-
                                 M = inp.X.(Yocvstr);
                                 
                                 % M can be a cell array if smoothing has
@@ -892,7 +874,6 @@ for f=1:ix % Loop through CV2 permutations
                                         [ inp, ~, ~, ~, ~, ~, ~, ~, mapYocv] = nk_ApplyTrainedPreproc(analysis, inp, paramfl, Param);
                                         mapYocv_all.(['mapYocv' num2str(i)]) = mapYocv;
                                     end
-                                    inp.X.(Yocvstr) = M;
                                 else
                                     for i=1:size(inp.X.(Yocvstr),3)
                                         inp.X.(Yocvstr) = M(:,:,i);
@@ -900,11 +881,14 @@ for f=1:ix % Loop through CV2 permutations
                                         [ inp, ~, ~, ~, ~, ~, ~, ~, mapYocv] = nk_ApplyTrainedPreproc(analysis, inp, paramfl, Param);
                                         mapYocv_all.(['mapYocv' num2str(i)]) = mapYocv;
                                     end
-                                    inp.X.(Yocvstr) = M;
                                 end
                                 % store number of data instances for later
                                 n_all = length(fieldnames(mapYocv_all));
-                        end 
+                        end
+                        % Artificial data and replicated covariates are no longer needed
+                        % once their preprocessed shelves have been materialized.
+                        inp.X = rmfield(inp.X, intersect(fieldnames(inp.X), {Yocvstr}));
+                        inp = rmfield(inp, intersect(fieldnames(inp), {'covars_rep'}));
                         if any(inp.NanModality)
                             idxNan = find(any(inp.NanModality));
                             if numel(idxNan)>1
@@ -1135,13 +1119,6 @@ for f=1:ix % Loop through CV2 permutations
                                     end
                                 end
                             end
-                        end
-                       
-                        % Remove artificial data from inp structure
-                        % otherwise nk_ApplyTrainedPreproc may not work
-                        % properly
-                        if exist("Yocvstr","var") && isfield(inp,'Yocvstr')
-                            inp.X = rmfield(inp.X, Yocvstr );
                         end
                     end
                 end

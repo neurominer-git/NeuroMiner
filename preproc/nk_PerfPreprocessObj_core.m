@@ -656,17 +656,17 @@ end
 % =========================================================================
 function [SrcParam, InputParam, TrParami, actparam ] = act_remmeandiff(SrcParam, InputParam, ~, TrParami, actparam)
 global VERBOSE CALIB
-trfl    = actparam.trfl;
 tsfl    = actparam.tsfl;
 paramfl = actparam.paramfl;
 i       = actparam.i;
-tsproc  = false;
+tsproc  = tsfl;
 
 if VERBOSE; fprintf('\tCorrect groups for offsets from global mean(s) ...'); end
 
 if paramfl && tsfl && isfield(TrParami,'meanY') && isfield(TrParami,'meanG')
-    tsproc = true;
-elseif trfl
+    TrParami.sTsInd = InputParam.P{i}.sTsInd;
+    TrParami.dTsInd = InputParam.P{i}.dTsInd;
+elseif actparam.trfl
      if actparam.synthfl&& isfield(InputParam.P{i},'sTrInd') && ~isempty(InputParam.P{i}.sTrInd)
         if iscell(SrcParam.covarsSyn)
             InputParam.P{i}.sTrInd = [InputParam.P{i}.sTrInd; SrcParam.covarsSyn{actparam.j}(:,InputParam.P{i}.sIND)]; 
@@ -675,8 +675,8 @@ elseif trfl
         end
      end
     [InputParam.Tr, TrParami] = nk_PerfRemMeanDiffObj(InputParam.Tr, InputParam.P{i}); 
-    if tsfl, tsproc = true; end 
 else
+    tsproc = false;
     if VERBOSE;fprintf(' not performed.'); end
 end
 if tsproc, InputParam.Ts = nk_PerfRemMeanDiffObj(InputParam.Ts, TrParami); end
