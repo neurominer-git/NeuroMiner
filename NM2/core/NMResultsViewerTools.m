@@ -7899,18 +7899,6 @@ classdef NMResultsViewerTools
             if isstruct(dd) && isfield(dd,'QC') && isstruct(dd.QC) && ...
                     isfield(dd.QC,'payload') && isstruct(dd.QC.payload) % nm2-allow: NMDataIOUI persists QC.payload only when a QC run was saved; report-only QC is valid.
                 qc = dd.QC.payload;
-                if strcmp(qc.sourceType, 'connectivity')
-                    % A browser-only reference is not a materialized scientific QC array.
-                    c = qc.connectivity;
-                    if NMConfigTools.isArrayRef(c.edgeIndex) || ...
-                            NMConfigTools.isArrayRef(c.edgeMean) || ...
-                            NMConfigTools.isArrayRef(c.edgeSD) || ...
-                            NMConfigTools.isArrayRef(c.edgeMissingRate)
-                        error('NMResultsViewerTools:UnmaterializedConnectivityQC', ...
-                            ['Saved connectivity QC contains browser-only array references rather than numeric edge data. ' ...
-                             'Recompute and save connectivity QC with the corrected DataIO persistence path.']);
-                    end
-                end
             end
         end
 
@@ -8336,13 +8324,22 @@ classdef NMResultsViewerTools
                 out.message = 'Connectivity feature-level QC cannot be shown because the persisted QC payload does not contain connectivity edge metadata.';
                 return;
             end
+            conn = qc.connectivity;
+            % Edge arrays are required only by the subject-level connectivity calculation.
+            if NMConfigTools.isArrayRef(conn.edgeIndex) || ...
+                    NMConfigTools.isArrayRef(conn.edgeMean) || ...
+                    NMConfigTools.isArrayRef(conn.edgeSD) || ...
+                    NMConfigTools.isArrayRef(conn.edgeMissingRate)
+                error('NMResultsViewerTools:UnmaterializedConnectivityQC', ...
+                    ['Saved connectivity QC contains browser-only array references rather than numeric edge data. ' ...
+                     'Recompute and save connectivity QC with the corrected DataIO persistence path.']);
+            end
             Y = NMResultsViewerTools.modalityMatrix(NM, modIdx);
             rowIdx = round(double(rowIdx));
             if isempty(Y) || ~isnumeric(Y) || rowIdx < 1 || rowIdx > size(Y,1)
                 out.message = sprintf('Could not resolve the selected subject row %g in NM.Y{%d} for connectivity QC.', rowIdx, modIdx);
                 return;
             end
-            conn = qc.connectivity;
             edgeIndex = conn.edgeIndex;
             nNodes = conn.nNodes;
             if isempty(edgeIndex) || size(edgeIndex,2) ~= 2 || nNodes < 1
