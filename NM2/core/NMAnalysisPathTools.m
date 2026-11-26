@@ -27,11 +27,60 @@ classdef NMAnalysisPathTools
                     isempty(NM.analysis{analind})
                 error('NMAnalysisPathTools:badAnalysisIndex', 'Analysis %d does not exist.', analind);
             end
+            selectedDir = NMAnalysisPathTools.validateRelinkDirectory(selectedDir);
+            [NM, out] = NMAnalysisPathTools.relinkOne(NM,analind,selectedDir,selectionKind,false);
+        end
+
+        function [NM, out] = relinkAnalysisRoots(NM, indices, selectedDir)
+            % Strict common-parent relinking; only recorded basenames may match.
+            list = NMAnalysisManagerTools.listAnalyses(NM);
+            validateattributes(indices, {'numeric'}, {'vector','nonempty','real','finite','integer','positive','<=',list.count});
+            indices = unique(indices(:)','stable');
+            selectedDir = NMAnalysisPathTools.validateRelinkDirectory(selectedDir);
+            listing = dir(selectedDir);
+            names = {listing([listing.isdir] & ~ismember({listing.name},{'.','..'})).name};
+            [found, pos] = ismember(cellfun(@NMAnalysisPathTools.pathBasename,list.rootdirs(indices),'UniformOutput',false), names);
+            targets = repmat({''},size(indices));
+            targets(found) = cellfun(@(name) fullfile(selectedDir,name),names(pos(found)),'UniformOutput',false);
+            canonical = @(path) char(java.io.File(path).getCanonicalPath());
+            keys = targets;
+            keys(found) = cellfun(canonical,targets(found),'UniformOutput',false);
+            owners = cellfun(canonical,list.rootdirs(list.rootExists),'UniformOutput',false);
+            if ispc
+                keys = cellfun(@lower,keys,'UniformOutput',false);
+                owners = cellfun(@lower,owners,'UniformOutput',false);
+            end
+            reasons = repmat({'No child directory matches the stored analysis name.'},size(indices));
+            reasons(found) = {''};
+            for k = find(found)
+                if nnz(strcmp(keys,keys{k})) > 1 || any(strcmp(owners,keys{k}) & (list.indices(list.rootExists) ~= indices(k)))
+                    reasons{k} = 'Destination is shared with another retained analysis.';
+                end
+            end
+            for k = find(cellfun(@isempty,reasons))
+                i = indices(k);
+                [NM, result] = NMAnalysisPathTools.relinkOne(NM,i,targets{k},'root',true);
+                if ~result.ok
+                    reasons{k} = result.message;
+                end
+            end
+            success = cellfun(@isempty,reasons);
+            out = struct('ok',true,'succeededIndices',indices(success),'failedIndices',indices(~success), ...
+                'failedMessages',{reasons(~success)},'newRootDirs',{targets(success)}, ...
+                'message',sprintf('Relinked %d of %d selected analyses.',nnz(success),numel(indices)));
+        end
+    end
+
+    methods (Static, Access=private)
+        function selectedDir = validateRelinkDirectory(selectedDir)
             selectedDir = NMAnalysisPathTools.trimTrailingSeparators(char(string(selectedDir)));
             if isempty(selectedDir) || exist(selectedDir,'dir') ~= 7
                 error('NMAnalysisManagerTools:badRelinkDirectory', ...
                     'Selected relink directory does not exist: %s', selectedDir);
             end
+        end
+
+        function [NM, out] = relinkOne(NM, analind, selectedDir, selectionKind, bulk)
             selectionKind = lower(strtrim(char(string(selectionKind))));
             if isempty(selectionKind), selectionKind = 'auto'; end
             if ~any(strcmp(selectionKind, {'auto','root','parent'}))
@@ -51,46 +100,52 @@ classdef NMAnalysisPathTools
                     NMAnalysisPathTools.fieldOr(NM,'id',''), analind, ...
                     NMAnalysisPathTools.fieldOr(A,'id',sprintf('Analysis_%d',analind)));
             end
-            resolution = NMAnalysisPathTools.resolveRelinkTarget(A, analind, selectedDir, oldAnalysisDir, selectionKind);
+            if bulk
+                resolution = NMAnalysisPathTools.makeRelinkResolution(selectedDir,'exact_root','matched stored directory name');
+            else
+                resolution = NMAnalysisPathTools.resolveRelinkTarget(A, analind, selectedDir, oldAnalysisDir, selectionKind);
+            end
             resolvedRootDir = resolution.rootdir;
             resolvedParentDir = resolution.parentdir;
 
-            updaterNM = NM;
-            updaterNM.analysis{analind}.rootdir = resolvedRootDir;
-            updaterNM.analysis{analind}.parentdir = resolvedParentDir;
+            NM.analysis{analind}.rootdir = resolvedRootDir;
             oldParamFile = char(string(NMAnalysisPathTools.fieldOr(A,'paramfile','')));
             if ~isempty(oldParamFile)
                 [paramBase, paramExt] = NMAnalysisPathTools.portableFileNameParts(oldParamFile);
-                updaterNM.analysis{analind}.paramfile = fullfile(resolvedRootDir,'params',[paramBase paramExt]);
+                NM.analysis{analind}.paramfile = fullfile(resolvedRootDir,'params',[paramBase paramExt]);
             end
-            [updatedNM, pathReport] = nk_UpdateRootPaths(updaterNM, analind, resolvedParentDir, struct('showDialog',false));
-            if ~isstruct(pathReport) || ~isfield(pathReport,'ok') || ~logical(pathReport.ok)
-                msg = 'Legacy root-path updater did not report success.';
-                if isstruct(pathReport) && isfield(pathReport,'message') && ~isempty(pathReport.message)
-                    msg = char(string(pathReport.message));
+            [NM, pathReport] = nk_UpdateRootPaths(NM, analind, resolvedParentDir, struct('showDialog',false));
+            if bulk && pathReport.ok && ~strcmp(NM.analysis{analind}.rootdir,resolvedRootDir)
+                pathReport.ok = false;
+                pathReport.message = 'Backend resolved a different analysis directory.';
+            end
+            if ~pathReport.ok
+                if bulk
+                    NM.analysis{analind} = A;
+                    out = pathReport;
+                    return;
                 end
-                error('NMAnalysisManagerTools:rootRelinkFailed', '%s', msg);
+                error('NMAnalysisManagerTools:rootRelinkFailed', '%s', pathReport.message);
             end
 
-            updatedA = updatedNM.analysis{analind};
+            updatedA = NM.analysis{analind};
             if ~isempty(oldRoot)
                 updatedA = NMAnalysisPathTools.rebaseStoredPaths(updatedA, oldRoot, resolvedRootDir);
             end
             updatedA.parentdir = resolvedParentDir;
             updatedA.rootdir = resolvedRootDir;
-            updatedNM.analysis{analind} = updatedA;
-            newAnalysisDir = char(string(NMAnalysisPathTools.fieldOr(updatedA,'rootdir','')));
-            if ~NMAnalysisPathTools.pathsEquivalent(newAnalysisDir, resolvedRootDir)
-                error('NMAnalysisManagerTools:rootRelinkMismatch', ...
-                    ['Root-path updater resolved a different analysis directory.\n' ...
-                     'Selected: %s\nResolved: %s'], resolvedRootDir, newAnalysisDir);
-            end
+            NM.analysis{analind} = updatedA;
+            newAnalysisDir = resolvedRootDir;
             if exist(newAnalysisDir,'dir') ~= 7
+                if bulk
+                    NM.analysis{analind} = A;
+                    out = struct('ok',false,'message','Resolved directory disappeared during relinking.');
+                    return;
+                end
                 error('NMAnalysisManagerTools:missingRelinkAnalysisDir', ...
                     'Resolved analysis directory does not exist after relinking: %s', newAnalysisDir);
             end
 
-            NM = updatedNM;
             out = struct('ok',true, ...
                 'message',sprintf('Analysis %d root path relinked to %s (%s).', ...
                     analind, newAnalysisDir, resolution.userDescription), ...
@@ -103,14 +158,15 @@ classdef NMAnalysisPathTools
                 'parentdir',resolvedParentDir, ...
                 'pathReport',pathReport);
         end
-    end
 
-    methods (Static, Access=private)
         function resolution = resolveRelinkTarget(A, analind, selectedDir, oldAnalysisDir, selectionKind)
             % resolveRelinkTarget  Resolve an exact analysis root from a root/parent selection.
+            if strcmp(selectionKind,'parent')
+                childInfos = NMAnalysisPathTools.analysisRootChildCandidates(A, analind, selectedDir, oldAnalysisDir);
+                resolution = NMAnalysisPathTools.resolveParentSelection(childInfos, selectedDir, oldAnalysisDir);
+                return;
+            end
             exactInfo = NMAnalysisPathTools.analysisRootCandidateInfo(A, analind, selectedDir, oldAnalysisDir);
-            childInfos = NMAnalysisPathTools.analysisRootChildCandidates(A, analind, selectedDir, oldAnalysisDir);
-            selectedBase = NMAnalysisPathTools.pathBasename(selectedDir);
 
             if strcmp(selectionKind,'root')
                 if ~exactInfo.valid
@@ -122,16 +178,13 @@ classdef NMAnalysisPathTools
                     sprintf('exact analysis root; markers: %s', NMAnalysisPathTools.markerText(exactInfo.markers)));
                 return;
             end
-            if strcmp(selectionKind,'parent')
-                resolution = NMAnalysisPathTools.resolveParentSelection(childInfos, selectedDir, oldAnalysisDir);
-                return;
-            end
 
-            if exactInfo.valid && strcmp(selectedBase, oldAnalysisDir)
+            if exactInfo.valid && strcmp(exactInfo.basename, oldAnalysisDir)
                 resolution = NMAnalysisPathTools.makeRelinkResolution(selectedDir, 'exact_root', ...
                     'selected directory basename matches the stored analysis directory');
                 return;
             end
+            childInfos = NMAnalysisPathTools.analysisRootChildCandidates(A, analind, selectedDir, oldAnalysisDir);
             if exactInfo.valid && isempty(childInfos)
                 resolution = NMAnalysisPathTools.makeRelinkResolution(selectedDir, 'exact_root', ...
                     sprintf('selected directory contains analysis-root markers: %s', NMAnalysisPathTools.markerText(exactInfo.markers)));
@@ -206,22 +259,13 @@ classdef NMAnalysisPathTools
         function infos = analysisRootChildCandidates(A, analind, parentDir, oldAnalysisDir)
             % analysisRootChildCandidates  Return validated direct child analysis roots.
             listing = dir(parentDir);
-            isCandidate = false(1,numel(listing));
-            candidatePaths = cell(1,numel(listing));
+            infos = repmat(NMAnalysisPathTools.analysisRootCandidateTemplate(), 1, numel(listing));
             for i = 1:numel(listing)
                 if ~listing(i).isdir || any(strcmp(listing(i).name,{'.','..'})), continue; end
                 candidatePath = fullfile(parentDir, listing(i).name);
-                info = NMAnalysisPathTools.analysisRootCandidateInfo(A, analind, candidatePath, oldAnalysisDir);
-                if info.valid
-                    isCandidate(i) = true;
-                    candidatePaths{i} = candidatePath;
-                end
+                infos(i) = NMAnalysisPathTools.analysisRootCandidateInfo(A, analind, candidatePath, oldAnalysisDir);
             end
-            candidatePaths = candidatePaths(isCandidate);
-            infos = repmat(NMAnalysisPathTools.analysisRootCandidateTemplate(), 1, numel(candidatePaths));
-            for i = 1:numel(candidatePaths)
-                infos(i) = NMAnalysisPathTools.analysisRootCandidateInfo(A, analind, candidatePaths{i}, oldAnalysisDir);
-            end
+            infos = infos([infos.valid]);
         end
 
         function info = analysisRootCandidateInfo(A, analind, candidateDir, oldAnalysisDir)
@@ -232,16 +276,11 @@ classdef NMAnalysisPathTools
             info.exists = exist(candidateDir,'dir') == 7;
             if ~info.exists, return; end
 
-            markers = cell(1,7);
-            nMarkers = 0;
             exactOldName = strcmp(info.basename, oldAnalysisDir);
-            if exactOldName, nMarkers=nMarkers+1; markers{nMarkers}='stored directory name'; end
             namingPattern = ~isempty(regexp(info.basename, '^NM_ID.*_A[0-9]+_', 'once'));
-            if namingPattern, nMarkers=nMarkers+1; markers{nMarkers}='NeuroMiner analysis-directory pattern'; end
 
             paramsDir = fullfile(candidateDir,'params');
             hasParamsDir = exist(paramsDir,'dir') == 7;
-            if hasParamsDir, nMarkers=nMarkers+1; markers{nMarkers}='params directory'; end
 
             hasParamFile = false;
             oldParamFile = char(string(NMAnalysisPathTools.fieldOr(A,'paramfile','')));
@@ -253,7 +292,6 @@ classdef NMAnalysisPathTools
                 paramListing = dir(fullfile(paramsDir,'*.mat'));
                 hasParamFile = ~isempty(paramListing);
             end
-            if hasParamFile, nMarkers=nMarkers+1; markers{nMarkers}='parameter MAT-file'; end
 
             algorithm = '';
             if isstruct(A) && isfield(A,'params') && isstruct(A.params) && ...
@@ -262,7 +300,6 @@ classdef NMAnalysisPathTools
                 algorithm = char(string(NMAnalysisPathTools.fieldOr(A.params.TrainParam.SVM,'prog','')));
             end
             hasAlgorithmDir = ~isempty(algorithm) && exist(fullfile(candidateDir,algorithm),'dir') == 7;
-            if hasAlgorithmDir, nMarkers=nMarkers+1; markers{nMarkers}='algorithm results directory'; end
 
             hasLogFile = false;
             oldLog = char(string(NMAnalysisPathTools.fieldOr(A,'logfile','')));
@@ -274,12 +311,14 @@ classdef NMAnalysisPathTools
                 logListing = dir(fullfile(candidateDir,'NM_Analysis*.log'));
                 hasLogFile = ~isempty(logListing);
             end
-            if hasLogFile, nMarkers=nMarkers+1; markers{nMarkers}='analysis log'; end
 
             analysisToken = sprintf('A%d_', analind);
             indexToken = contains(info.basename, analysisToken);
-            if indexToken, nMarkers=nMarkers+1; markers{nMarkers}='analysis index token'; end
-            info.markers = markers(1:nMarkers);
+            markers = {'stored directory name', 'NeuroMiner analysis-directory pattern', ...
+                'params directory', 'parameter MAT-file', 'algorithm results directory', ...
+                'analysis log', 'analysis index token'};
+            info.markers = markers([exactOldName, namingPattern, hasParamsDir, ...
+                hasParamFile, hasAlgorithmDir, hasLogFile, indexToken]);
             info.valid = exactOldName || hasParamFile || ...
                 (hasParamsDir && (hasAlgorithmDir || hasLogFile || namingPattern || indexToken)) || ...
                 (hasAlgorithmDir && (hasLogFile || namingPattern || indexToken)) || ...
@@ -333,17 +372,6 @@ classdef NMAnalysisPathTools
             suffix = txt(n+1:end);
             suffix(suffix == '/' | suffix == '\') = filesep;
             txt = [newRoot suffix];
-        end
-
-        function tf = pathsEquivalent(a, b)
-            % pathsEquivalent  Compare existing paths without shell quoting assumptions.
-            a = NMAnalysisPathTools.trimTrailingSeparators(char(string(a)));
-            b = NMAnalysisPathTools.trimTrailingSeparators(char(string(b)));
-            if ispc
-                tf = strcmpi(strrep(a,'/','\'), strrep(b,'/','\'));
-            else
-                tf = strcmp(a,b);
-            end
         end
 
         function txt = trimTrailingSeparators(txt)

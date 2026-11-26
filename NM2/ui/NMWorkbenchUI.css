@@ -10,12 +10,9 @@ body{background:radial-gradient(circle at top left,#e8f6f0 0,#f7faf9 36%,#f4f7f6
 /* Full-width compact workbench header. */
 .wbShell{width:100%;max-width:none;margin:0;box-sizing:border-box;padding:18px 20px 150px;display:grid;grid-template-columns:minmax(200px,1fr) 150px minmax(200px,2fr) 150px minmax(200px,1fr);grid-template-areas:"hero hero hero hero hero" "stage1 gate1 stage2 gate2 stage3" "bottom bottom bottom bottom bottom";gap:14px;align-items:start;}
 .wbShell.wbActiveStage1{grid-template-columns:minmax(200px,2fr) 150px minmax(200px,1fr) 150px minmax(200px,1fr);}
-.wbShell.wbActiveStage2{grid-template-columns:minmax(200px,1fr) 150px minmax(200px,2fr) 150px minmax(200px,1fr);}
 .wbShell.wbActiveStage3{grid-template-columns:minmax(200px,1fr) 150px minmax(200px,1fr) 150px minmax(200px,2fr);}
 .wbHero{grid-area:hero;display:flex;align-items:center;justify-content:space-between;gap:18px;width:100%!important;max-width:none!important;box-sizing:border-box;padding:14px 16px;border:1px solid rgba(21,122,91,.18);border-radius:16px;background:linear-gradient(135deg,#fff 0,#f2fbf7 100%);}
 .wbHeroText h1{margin:0;font-size:28px;line-height:1;letter-spacing:-.035em;white-space:nowrap;}
-.wbHeroLead,#workbenchMessage{display:none;}
-.wbEyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.16em;color:var(--wb-accent);font-weight:800;}
 .wbStatusGrid{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;}
 .wbStatusCard{min-width:0;padding:7px 10px;border:1px solid var(--wb-border);border-radius:10px;background:rgba(255,255,255,.82);box-shadow:none;}
 .wbStatusLabel{font-size:9px;line-height:1;text-transform:uppercase;letter-spacing:.1em;color:var(--wb-muted);font-weight:800;white-space:nowrap;}
@@ -28,7 +25,6 @@ body{background:radial-gradient(circle at top left,#e8f6f0 0,#f7faf9 36%,#f4f7f6
 .wbWorkflowSection:has(#trainingAnalysisModules){grid-area:stage2;}
 .wbGateSection:not(.wbTrainingGateSection){grid-area:gate2;}
 .wbWorkflowSection:has(#applicationModules){grid-area:stage3;}
-.wbWorkflowDivider{display:none!important;}
 
 :is(.wbWorkflowSection:has(#trainingDataModules),.wbWorkflowSection:has(#trainingAnalysisModules),.wbWorkflowSection:has(#applicationModules)){--card-min:54px;--card-pad:10px;--card-desc:none;--card-reason:none;--stage-cols:1fr;padding:13px;border:1px solid var(--wb-future-border);border-radius:16px;background:var(--wb-future-bg);box-shadow:0 8px 22px rgba(23,37,34,.04);}
 .wbStage-active{--card-min:104px!important;--card-pad:12px!important;--card-desc:block!important;--card-reason:block!important;border-color:var(--wb-active-border)!important;background:var(--wb-active-bg)!important;}
@@ -79,13 +75,11 @@ body{background:radial-gradient(circle at top left,#e8f6f0 0,#f7faf9 36%,#f4f7f6
 .wbModuleCard.disabled .wbDisabledReason{border-color:#d8dde0;background:#f4f6f7;color:#8d969c;opacity:.82;}
 .wbStage-future .wbModuleCard{transition:none;transform:none!important;box-shadow:none!important;}
 .wbStatusPill{flex:none;display:inline-flex;align-items:center;justify-content:center;padding:2px 5px;border:1px solid var(--wb-border);border-radius:999px;background:#f4f7f6;color:var(--wb-muted);font-size:8px;font-weight:800;line-height:1;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}
-#resultsModules .wbStatusPill{display:none!important;}
 .wbStatus-ok{background:#e8f7ef;border-color:#a7d9bd;color:#11623e;}.wbStatus-active{background:#e8f1ff;border-color:#afc9ff;color:#174ea6;}.wbStatus-warn{background:#fff8dc;border-color:#ead994;color:#7a5a00;}.wbStatus-danger{background:#fbeaea;border-color:#e7a8a8;color:#8b1e1e;}
 .wbModuleKind-inspection .wbModuleIcon{background:#eef4ff;color:#285ab8;}.wbModuleKind-utility .wbModuleIcon{background:#f4efff;color:#5c3bb8;}.wbModuleKind-locked .wbModuleIcon,.wbModuleKind-lockedAvailable .wbModuleIcon,.wbModuleKind-strong .wbModuleIcon{background:#ffe8c2;color:var(--wb-lock-dark);}.wbModuleKind-danger .wbModuleIcon{background:#fde2e2;color:#8b1e1e;}
 
 /* Two identical compact checkpoint columns sit between the three stages. */
 .wbGateSection{align-self:start;min-width:0;padding:9px;border:1px solid var(--wb-gate-border);border-radius:15px;background:var(--wb-gate-bg);box-shadow:0 8px 22px rgba(76,52,98,.06);}
-.wbGateSection .wbSectionHead{min-height:28px;justify-content:space-between;align-items:center;}
 .wbGateSection .wbSectionHead h2{font-size:0;color:var(--wb-gate-ink);}
 .wbTrainingGateSection .wbSectionHead h2::before{content:"Training data gate";font-size:10px;line-height:1.15;letter-spacing:.03em;text-transform:uppercase;}
 .wbGateSection:not(.wbTrainingGateSection) .wbSectionHead h2::before{content:"Model application gate";font-size:10px;line-height:1.15;letter-spacing:.03em;text-transform:uppercase;}
@@ -115,20 +109,16 @@ body{background:radial-gradient(circle at top left,#e8f6f0 0,#f7faf9 36%,#f4f7f6
 /* Fixed bottom toolbar for inspection and utilities. */
 .wbBottomToolbar{grid-area:bottom;position:fixed;left:var(--nmNavRailCollapsed,56px);right:0;bottom:0;z-index:30;display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:9px 20px 11px;box-sizing:border-box;border-top:1px solid #cad06f;background:rgba(242,243,210,.97);box-shadow:0 -8px 24px rgba(76,82,18,.08);backdrop-filter:blur(8px);}
 body.nmNavRailRolled .wbBottomToolbar{left:0;}
-.wbBottomToolbar .wbWorkflowSection{padding:0;}
-.wbBottomToolbar .wbSectionHead{min-height:28px;}
-.wbBottomToolbar .wbSectionHead h2{font-size:16px;line-height:1.15;letter-spacing:-.015em;}
-#resultsModules{grid-template-columns:1fr;max-width:none;}
-#utilityModules{grid-template-columns:1fr;max-width:none;}
+#utilityModules{grid-template-columns:repeat(2,minmax(0,1fr));max-width:none;}
+.wbBottomToolbar .wbModuleGrid{flex:1;}
 .wbBottomToolbar .wbModuleCard{min-height:58px;padding:8px;border-color:#b8c04f;background:rgba(222,226,154,.94);}
 .wbBottomToolbar .wbModuleCard p{display:block;font-size:12px;line-height:1.35;}
 .wbBottomToolbar .wbDisabledReason{display:none;}
 .wbBottomToolbar .wbModuleIcon{width:26px;height:26px;border-radius:8px;}
-.wbBottomToolbar .wbModuleTitleRow h3{font-size:13px;}
 .wbBottomToolbar .wbModuleCard.disabled{border-color:#c1c5a0;background:rgba(218,220,203,.96);}
 .wbBottomToolbar .wbModuleCard.disabled .wbModuleTop{opacity:.52;filter:grayscale(.18);}
 
-.wbWorkflowSection[hidden],.wbSectionHead[hidden],.wbModuleGrid[hidden],.wbWorkflowDivider[hidden]{display:none!important;}
+.wbWorkflowSection[hidden],.wbSectionHead[hidden],.wbModuleGrid[hidden]{display:none!important;}
 
 /* Narrow displays preserve the same stage/gate order vertically. */
 @media(max-width:1050px){
@@ -136,7 +126,6 @@ body.nmNavRailRolled .wbBottomToolbar{left:0;}
   :is(.wbStage-active:has(#trainingAnalysisModules),.wbStage-active:has(#applicationModules)){--stage-cols:repeat(3,minmax(0,1fr));}
   .wbGateSection{width:100%;box-sizing:border-box;}
   .wbGateSection .wbSectionHead{justify-content:flex-start;gap:10px;}
-  .wbStageGrid.gate{grid-template-columns:1fr;}
 }
 @media(max-width:760px){
   .wbShell{padding:12px 12px 16px;gap:10px;}
@@ -186,7 +175,6 @@ html.nmStartupSplash body.nmHasNavRail:not(.nmNavReady)::before{animation:nm2Das
 .wbBrandTwo{color:var(--nm-brand-two);}
 .wbBrandWork{color:var(--wb-ink);}
 html[data-nm-theme] .wbBrandWork{color:var(--nm-text);}
-.wbHeroText h1{font-size:28px;line-height:1;}
 .wbHeroText h1 .wbBrandNM,.wbHeroText h1 .wbBrandTwo{font-weight:900;letter-spacing:-.055em;}
 .wbHeroText h1 .wbBrandWork{font-weight:800;letter-spacing:-.02em;}
 
@@ -218,15 +206,13 @@ html[data-nm-theme] body .wbModuleCard:has(>button:not(:disabled)):hover{backgro
 
 @keyframes nm2BrainStartup{
   0%{left:calc(var(--nm-brand-center) + var(--nm-brand-start-brain-x));width:clamp(240px,24vw,320px);opacity:0;transform:translate(-50%,-50%) rotate(0deg) scale(.96);z-index:60;}
-  10%{left:calc(var(--nm-brand-center) + var(--nm-brand-start-brain-x));width:clamp(240px,24vw,320px);opacity:1;transform:translate(-50%,-50%) rotate(0deg) scale(1);z-index:60;}
-  38%{left:calc(var(--nm-brand-center) + var(--nm-brand-start-brain-x));width:clamp(240px,24vw,320px);opacity:1;transform:translate(-50%,-50%) rotate(0deg) scale(1);z-index:60;}
+  10%,38%{left:calc(var(--nm-brand-center) + var(--nm-brand-start-brain-x));width:clamp(240px,24vw,320px);opacity:1;transform:translate(-50%,-50%) rotate(0deg) scale(1);z-index:60;}
   76%{left:var(--nm-brand-center);width:var(--nm-brand-final-width);opacity:.05;transform:translate(-50%,-50%) rotate(90deg) scale(var(--nm-brand-final-scale-live));z-index:60;}
   77%,100%{left:var(--nm-brand-center);width:var(--nm-brand-final-width);opacity:.05;transform:translate(-50%,-50%) rotate(90deg) scale(var(--nm-brand-final-scale-live));z-index:-1;}
 }
 @keyframes nm2WordmarkStartup{
   0%{opacity:0;transform:translate(-50%,calc(-50% + 8px)) scale(.98);}
-  10%{opacity:1;transform:translate(-50%,-50%) scale(1);}
-  38%{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  10%,38%{opacity:1;transform:translate(-50%,-50%) scale(1);}
   70%,100%{opacity:0;transform:translate(-50%,calc(-50% - 5px)) scale(1);}
 }
 @keyframes nm2DashboardReveal{
@@ -239,11 +225,9 @@ body.nmNavRailRolled{--nm-brand-center:50%;}
   :root{--nm-brand-center:50%;--nm-brand-final-width:220px;--nm-brand-final-scale:3.0;--nm-brand-final-scale-live:var(--nm-brand-final-scale);}
   .wbShell::before{top:50%;width:var(--nm-brand-final-width);transform:translate(-50%,-50%) rotate(90deg) scale(var(--nm-brand-final-scale-live));}
   .wbStartupWordmark{left:50%;top:76%;font-size:clamp(58px,18vw,84px);}
-  .wbHeroText h1{font-size:25px;}
   @keyframes nm2BrainStartup{
     0%{left:50%;top:42%;width:min(62vw,300px);opacity:0;transform:translate(-50%,-50%) rotate(0deg) scale(.96);z-index:60;}
-    10%{left:50%;top:42%;width:min(62vw,300px);opacity:1;transform:translate(-50%,-50%) rotate(0deg) scale(1);z-index:60;}
-    38%{left:50%;top:42%;width:min(62vw,300px);opacity:1;transform:translate(-50%,-50%) rotate(0deg) scale(1);z-index:60;}
+    10%,38%{left:50%;top:42%;width:min(62vw,300px);opacity:1;transform:translate(-50%,-50%) rotate(0deg) scale(1);z-index:60;}
     76%{left:50%;top:50%;width:var(--nm-brand-final-width);opacity:.05;transform:translate(-50%,-50%) rotate(90deg) scale(var(--nm-brand-final-scale-live));z-index:60;}
     77%,100%{left:50%;top:50%;width:var(--nm-brand-final-width);opacity:.05;transform:translate(-50%,-50%) rotate(90deg) scale(var(--nm-brand-final-scale-live));z-index:-1;}
   }
@@ -272,3 +256,9 @@ body.nmNavRailRolled{--nm-brand-center:50%;}
 .wbLicenseDialog .nmModalBody{padding:0;}
 .wbLicenseText{margin:0;padding:22px 26px;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 Consolas,monospace;user-select:text;}
 @media(max-width:520px){.wbCreditsBrain{width:74px;height:95px;}.wbCreditsWordmark{font-size:60px;}.wbCreditsNames{font-size:16px;}}
+
+.wbRelinkControls{border:0;margin:0;padding:0;min-width:0;}
+.wbRelinkRow{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--wb-border);}
+.wbRelinkRow>div{flex:1;min-width:0;overflow-wrap:anywhere;}
+.wbRelinkControls button{display:inline-flex;align-items:center;gap:6px;flex:none;}
+.wbRelinkReport{white-space:pre-wrap;overflow-wrap:anywhere;}

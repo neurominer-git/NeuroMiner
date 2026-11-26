@@ -79,7 +79,7 @@ classdef NMWorkbenchUI
             workflow = NMStatusGuardTools.workflowStatus(NM);
             defs = struct('import_finished',logical(workflow.import_finished), ...
                 'analyses_locked',logical(workflow.analyses_locked), ...
-                'data_scrambled',logical(NMWorkbenchUI.dataScrambledFlag(NM, workflow)));
+                'data_scrambled',logical(workflow.data_scrambled));
             state = struct();
             state.page = 'workbench';
             state.title = 'NM2 workbench';
@@ -91,14 +91,14 @@ classdef NMWorkbenchUI
             end
             state.defs = defs;
             state.workflowStatus = workflow;
-            state.mode = NMWorkbenchUI.modeKey(NM, workflow);
+            state.mode = NMWorkbenchUI.modeKey(defs);
             state.modeLabel = NMWorkbenchUI.modeLabel(state.mode);
             state.modeflag = NMWorkbenchUI.safeModeFlag(NM);
             state.exportState = NMWorkbenchUI.exportState(NM);
             state.cwd = pwd;
             state.committedModalityCount = NMDataIOBrowserModeTools.committedModalityCount(NM);
-            state.analysisCount = NMWorkbenchUI.analysisCount(NM);
-            state.completedAnalysisCount = NMWorkbenchUI.completedAnalysisCount(NM, workflow);
+            state.analysisCount = numel(workflow.status_analyses);
+            state.completedAnalysisCount = nnz(workflow.completed_analyses);
             state.hasCompletedAnalysis = state.completedAnalysisCount > 0;
             state.modules = NMWorkbenchUI.modulesState(NM, state, workflow);
             state.summary = NMWorkbenchUI.summaryState(state);
@@ -131,7 +131,7 @@ classdef NMWorkbenchUI
 '<main class="wbShell">'
 '  <div class="wbStartupWordmark" aria-hidden="true"><span class="wbBrandNM">NM</span><span class="wbBrandTwo">2</span></div>'
 '  <section class="wbHero panel">'
-'    <div class="wbHeroText"><h1><span class="wbBrandNM">NM</span><span class="wbBrandTwo">2</span><span class="wbBrandWork"> workbench</span></h1><p class="wbHeroLead">Build, train, inspect and apply NeuroMiner workflows from one workbench.</p><p id="workbenchMessage" class="muted">Loading workbench state...</p></div>'
+'    <div class="wbHeroText"><h1><span class="wbBrandNM">NM</span><span class="wbBrandTwo">2</span><span class="wbBrandWork"> workbench</span></h1></div>'
 '    <div class="wbStatusGrid" id="statusGrid"></div>'
 '  </section>'
 '  <section class="wbSection wbWorkflowSection">'
@@ -139,7 +139,6 @@ classdef NMWorkbenchUI
 '    <div class="wbModuleGrid wbStageGrid" id="trainingDataModules"></div>'
 '  </section>'
 '  <section class="wbSection wbWorkflowSection wbGateSection wbTrainingGateSection" id="trainingLockSection"><div class="wbSectionHead"><h2>Training data gate</h2><span class="wbGateStateIcon" aria-hidden="true"></span></div><div class="wbModuleGrid wbStageGrid gate" id="trainingLockModules"></div></section>'
-'  <div class="wbWorkflowDivider wbImportDivider" id="importFinalizedDivider" hidden><span>Training data finalized</span></div>'
 '  <section class="wbSection wbWorkflowSection">'
 '    <div class="wbSectionHead"><h2>Stage 2 — Training and model analysis</h2><span class="wbStageStateIcon" aria-hidden="true"></span></div>'
 '    <div class="wbModuleGrid wbStageGrid" id="trainingAnalysisModules"></div>'
@@ -149,7 +148,6 @@ classdef NMWorkbenchUI
 '    <div class="wbSectionHead"><h2>Model Application Gate — Lock models / activate OOCV mode</h2><span class="wbGateStateIcon" aria-hidden="true"></span></div>'
 '    <div class="wbModuleGrid wbStageGrid gate" id="modelLockModules"></div>'
 '  </section>'
-'  <div class="wbWorkflowDivider wbApplicationDivider" id="applicationStageDivider" hidden><span>OOCV Mode Activated</span></div>'
 '  <section class="wbSection wbWorkflowSection">'
 '    <div class="wbSectionHead"><h2>Stage 3 — External validation and application</h2><span class="wbStageStateIcon" aria-hidden="true"></span></div>'
 '    <div class="wbModuleGrid wbStageGrid" id="applicationModules"></div>'
@@ -218,24 +216,11 @@ classdef NMWorkbenchUI
         end
 
 
-        function tf = dataScrambledFlag(NM, workflow)
-            tf = false;
-            if isstruct(workflow) && isfield(workflow,'data_scrambled') && ~isempty(workflow.data_scrambled)
-                tf = logical(workflow.data_scrambled);
-                return;
-            end
-            if isstruct(NM) && isfield(NM,'defs') && isstruct(NM.defs) && ...
-                    isfield(NM.defs,'data_scrambled') && ~isempty(NM.defs.data_scrambled)
-                tf = logical(NM.defs.data_scrambled);
-            end
-        end
-
-        function key = modeKey(NM, defs)
+        function key = modeKey(defs)
             if ~defs.import_finished
                 key = 'data_input';
             elseif defs.analyses_locked
-                if isstruct(NM) && isfield(NM,'defs') && isstruct(NM.defs) && ...
-                        isfield(NM.defs,'data_scrambled') && logical(NM.defs.data_scrambled)
+                if defs.data_scrambled
                     key = 'model_export';
                 else
                     key = 'application';
@@ -277,44 +262,15 @@ classdef NMWorkbenchUI
             end
         end
 
-        function n = analysisCount(NM)
-            n = 0;
-            if isstruct(NM) && isfield(NM,'analysis') && iscell(NM.analysis)
-                n = numel(NM.analysis);
-            end
-        end
-
-        function n = completedAnalysisCount(NM, workflow)
-            n = 0;
-            if nargin >= 2 && isstruct(workflow) && isfield(workflow,'completed_analyses') && ~isempty(workflow.completed_analyses)
-                n = sum(logical(workflow.completed_analyses(:)));
-                return;
-            end
-            if exist('NMStatusGuardTools','class') == 8
-                v = NMStatusGuardTools.analysisStatusVector(NM);
-                n = sum(isfinite(v(:)) & v(:) >= 1);
-                return;
-            end
-            if ~isstruct(NM) || ~isfield(NM,'analysis') || ~iscell(NM.analysis), return; end
-            for i = 1:numel(NM.analysis)
-                A = NM.analysis{i};
-                if isstruct(A) && isfield(A,'status') && ~isempty(A.status) && any(double(A.status(:)) >= 1)
-                    n = n + 1;
-                end
-            end
-        end
-
-        function modules = modulesState(NM, state, workflow) %#ok<INUSD>
+        function modules = modulesState(NM, state, workflow)
             % modulesState mirrors the stage-wise NM workflow: training data
             % setup -> locked discovery/model-analysis runtime -> model lock
             % -> external validation/application -> utilities.  Cards may be
             % visible before their implementation is complete, but unavailable
             % cards must report a concrete blocker.
-            modules = cell(1,16);
-            defs = struct('import_finished',logical(workflow.import_finished), ...
-                'analyses_locked',logical(workflow.analyses_locked), ...
-                'data_scrambled',logical(NMWorkbenchUI.dataScrambledFlag(NM, workflow)));
-            analysesExist = logical(workflow.analyses_exist) || NMWorkbenchUI.analysisCount(NM) > 0;
+            modules = cell(1,17);
+            defs = state.defs;
+            analysesExist = logical(workflow.analyses_exist) || state.analysisCount > 0;
             trainedOK = logical(workflow.analyses_ready) || any(logical(workflow.completed_analyses));
             mdltypestr = NMWorkbenchUI.modelTypeText(NM);
             % nm2-allow: Only NMSimulationTools.createSyntheticTemplate creates this optional domain.
@@ -332,8 +288,8 @@ classdef NMWorkbenchUI
                 'training_data', ~placeholder, ...
                 NMWorkbenchUI.reason(placeholder,'SYNTH input is locked.'), ...
                 'Open Data Manager', 'dataio', ...
-                'data_manager', dataKind, NMWorkbenchUI.statusLabel(defs.import_finished, 'finalized', 'active'), ...
-                NMWorkbenchUI.statusTone(defs.import_finished, 'ok', 'active'));
+                'data_manager', dataKind, NMWorkbenchUI.conditionalText(defs.import_finished, 'finalized', 'active'), ...
+                NMWorkbenchUI.conditionalText(defs.import_finished, 'ok', 'active'));
 
             canLockTrainingData = ~defs.import_finished && NMDataIOBrowserModeTools.trainingImportReady(NM);
             lockTrainingDataReason = NMWorkbenchUI.reason( ...
@@ -400,8 +356,9 @@ classdef NMWorkbenchUI
                 'ml_training', discoveryKind, '', 'neutral');
 
             visBackendOK = exist('NMVisRunnerUI','class') == 8;
-            visOK = trainedOK && ~defs.analyses_locked && visBackendOK;
-            visReason = NMWorkbenchUI.reason(~trainedOK, ...
+            visOK = defs.import_finished && trainedOK && ~defs.analyses_locked && visBackendOK;
+            visReason = NMWorkbenchUI.reason(~defs.import_finished, 'Finalize training data import before opening model visualization.', ...
+                ~trainedOK, ...
                 'Train at least one CV2 partition successfully before opening model visualization.', ...
                 defs.analyses_locked, 'Model visualization is a discovery-stage module and is disabled in application/OOCV mode.', ...
                 ~visBackendOK, 'Visualization runner workbench has not yet been implemented.');
@@ -412,8 +369,9 @@ classdef NMWorkbenchUI
 
             mliBackendOK = exist('NMMLIRunnerUI','class') == 8 && exist('NMRunTools','class') == 8 && ...
                 any(strcmp(NMRunTools.availableRunners(), 'interpretModels'));
-            mliOK = trainedOK && ~defs.analyses_locked && mliBackendOK;
-            mliReason = NMWorkbenchUI.reason(~trainedOK, ...
+            mliOK = defs.import_finished && trainedOK && ~defs.analyses_locked && mliBackendOK;
+            mliReason = NMWorkbenchUI.reason(~defs.import_finished, 'Finalize training data import before opening ML interpretation.', ...
+                ~trainedOK, ...
                 'Train at least one CV2 partition successfully before opening ML interpretation.', ...
                 defs.analyses_locked, 'ML interpretation is a discovery-stage module and is disabled in application/OOCV mode.', ...
                 ~mliBackendOK, 'MLI runner/workbench API has not yet been implemented and validated.');
@@ -424,10 +382,10 @@ classdef NMWorkbenchUI
 
             exportBackendOK = exist('NMModelExportRunnerUI','class') == 8 && exist('NMRunTools','class') == 8 && ...
                 any(strcmp(NMRunTools.availableRunners(), 'exportModels'));
-            exportFinished = isstruct(state) && isfield(state,'exportState') && isstruct(state.exportState) && ...
-                isfield(state.exportState,'export_finished') && logical(state.exportState.export_finished);
-            exportOK = trainedOK && exportBackendOK && ~defs.data_scrambled;
-            exportReason = NMWorkbenchUI.reason(~trainedOK, 'Train at least one CV2 partition successfully before exporting model parameters.', ...
+            exportFinished = state.exportState.export_finished;
+            exportOK = defs.import_finished && trainedOK && exportBackendOK && ~defs.data_scrambled;
+            exportReason = NMWorkbenchUI.reason(~defs.import_finished, 'Finalize training data import before exporting model parameters.', ...
+                ~trainedOK, 'Train at least one CV2 partition successfully before exporting model parameters.', ...
                 defs.data_scrambled, 'Training data have been scrambled for sharing. Model export is disabled in this workspace.', ...
                 ~exportBackendOK, 'Model-export browser runner is not yet implemented and validated.');
             exportKind = 'module';
@@ -437,8 +395,8 @@ classdef NMWorkbenchUI
             modules{9} = NMWorkbenchUI.module('model_export', 'Model export', ...
                 'Save optimized ML model containers and optimized preprocessing parameters before application-mode transition or model sharing.', ...
                 'model_export', exportOK, exportReason, 'Open model export', 'model_export', ...
-                'model_export', exportKind, NMWorkbenchUI.statusLabel(exportFinished, 'exported', 'optional'), ...
-                NMWorkbenchUI.statusTone(exportFinished, 'ok', 'neutral'));
+                'model_export', exportKind, NMWorkbenchUI.conditionalText(exportFinished, 'exported', 'optional'), ...
+                NMWorkbenchUI.conditionalText(exportFinished, 'ok', 'neutral'));
 
             resultsAlphaBackendOK = exist('NMResultsViewerUI','class') == 8 && exist('NMResultsViewerTools','class') == 8;
             resultsAlphaOK = trainedOK && resultsAlphaBackendOK;
@@ -484,12 +442,19 @@ classdef NMWorkbenchUI
                 'application', oocvDataOK, oocvDataReason, 'Open OOCV Data Manager', 'dataio', ...
                 'oocv_dataio', 'module', '', 'neutral');
 
+            accessibleTrained = false;
+            if defs.analyses_locked && trainedOK
+                list = NMAnalysisManagerTools.listAnalyses(NM);
+                accessibleTrained = any(NMAnalysisManagerTools.trainedRootMask(list));
+            end
+            rootReason = 'No completed analysis has an accessible root directory. Relink analysis root paths before continuing.';
             hasReadyOOCVData = NMDataIOOOCVReadinessTools.anyReadyContainer(NM);
             oocvRunnerBackendOK = exist('NMOOCVRunnerUI','class') == 8 && exist('NMRunTools','class') == 8 && ...
                 exist('NMDataIOBrowserModeTools','class') == 8 && exist('nk_OOCVPrep','file') == 2 && exist('nk_OOCV','file') == 2;
-            oocvRunnerOK = defs.analyses_locked && trainedOK && hasReadyOOCVData && oocvRunnerBackendOK;
+            oocvRunnerOK = defs.analyses_locked && trainedOK && accessibleTrained && hasReadyOOCVData && oocvRunnerBackendOK;
             oocvRunnerReason = NMWorkbenchUI.reason(~defs.analyses_locked, 'Activate application/OOCV mode before applying models to independent data.', ...
                 ~trainedOK, 'Complete at least one analysis before applying models to OOCV data.', ...
+                ~accessibleTrained, rootReason, ...
                 ~hasReadyOOCVData, 'Complete at least one OOCV/application dataset in DataIO before applying trained models.', ...
                 ~oocvRunnerBackendOK, 'The browser OOCV runner, DataIO readiness authority or legacy OOCV backend is not available on the MATLAB path.');
             modules{13} = NMWorkbenchUI.module('oocv', 'Model application to OOCV data', ...
@@ -497,12 +462,13 @@ classdef NMWorkbenchUI
                 'application', oocvRunnerOK, oocvRunnerReason, 'Open OOCV application', 'oocv_runner', ...
                 'oocv_model_application', 'module', '', 'neutral');
 
-            oocvMliOK = defs.analyses_locked && trainedOK && hasReadyOOCVData && mliBackendOK;
+            oocvMliOK = defs.analyses_locked && trainedOK && accessibleTrained && hasReadyOOCVData && mliBackendOK;
             modules{14} = NMWorkbenchUI.module('oocv_mli', 'OOCV ML interpretation', ...
                 'Interpret model predictions and explanation outputs in independent application data.', ...
                 'application', oocvMliOK, ...
                 NMWorkbenchUI.reason(~defs.analyses_locked, 'Activate application/OOCV mode before running OOCV ML interpretation.', ...
                 ~trainedOK, 'Complete at least one trained analysis before interpreting external data.', ...
+                ~accessibleTrained, rootReason, ...
                 ~hasReadyOOCVData, 'Import a ready OOCV dataset in DataIO first.', ...
                 ~mliBackendOK, 'MLI runner or legacy interpretation backend is unavailable.'), 'Open OOCV MLI', 'mli', ...
                 'mli', 'module', '', 'neutral');
@@ -517,13 +483,14 @@ classdef NMWorkbenchUI
                 'Simulate predictive performance across sample sizes for cohort-size planning, using existing or fully synthetic data with the current NM parameter template.', ...
                 'utilities', synthOK, synthReason, 'Open SYNTH coordinator', 'synth_coordinator', ...
                 'synth_coordinator', 'utility', '', 'neutral');
+            modules{17} = NMWorkbenchUI.module('analysis_root_updater', 'Analysis root directory updater', ...
+                'Inspect and recover relocated analysis roots.', 'utilities', defs.import_finished && state.analysisCount > 0, ...
+                NMWorkbenchUI.reason(~defs.import_finished, 'Finalize training data import first.', ...
+                state.analysisCount == 0, 'No retained analyses to relink.'), ...
+                'Open analysis root directory updater', 'analysis_root_updater', 'refresh', 'utility', '', 'neutral');
         end
 
         function m = module(key, title, description, group, enabled, disabledReason, buttonLabel, page, icon, kind, statusLabel, statusTone, hidden)
-            if nargin < 9, icon = ''; end
-            if nargin < 10 || isempty(kind), kind = 'module'; end
-            if nargin < 11, statusLabel = ''; end
-            if nargin < 12 || isempty(statusTone), statusTone = 'neutral'; end
             if nargin < 13 || isempty(hidden), hidden = false; end
             m = struct('key', key, 'title', title, 'description', description, ...
                 'group', group, 'enabled', logical(enabled), 'hidden', logical(hidden), ...
@@ -531,27 +498,11 @@ classdef NMWorkbenchUI
                 'icon', icon, 'kind', kind, 'statusLabel', statusLabel, 'statusTone', statusTone);
         end
 
-        function txt = statusLabel(condition, trueText, falseText)
+        function txt = conditionalText(condition, trueText, falseText)
             if logical(condition)
                 txt = trueText;
             else
                 txt = falseText;
-            end
-        end
-
-        function txt = statusTone(condition, trueText, falseText)
-            if logical(condition)
-                txt = trueText;
-            else
-                txt = falseText;
-            end
-        end
-
-
-        function v = fieldOr(s, field, default)
-            v = default;
-            if isstruct(s) && isfield(s, field) && ~isempty(s.(field))
-                v = s.(field);
             end
         end
 
@@ -571,7 +522,7 @@ classdef NMWorkbenchUI
             s{2} = struct('label','Modalities', 'value', sprintf('%d committed', double(state.committedModalityCount)));
             s{3} = struct('label','Analyses', 'value', sprintf('%d configured', double(state.analysisCount)));
             s{4} = struct('label','Completed', 'value', sprintf('%d finished', double(state.completedAnalysisCount)));
-            if isfield(state,'exportState') && isstruct(state.exportState) && isfield(state.exportState,'export_finished') && logical(state.exportState.export_finished)
+            if state.exportState.export_finished
                 exportValue = 'complete';
             else
                 exportValue = 'pending';
@@ -580,16 +531,15 @@ classdef NMWorkbenchUI
         end
 
         function msg = statusMessage(state)
-            if isfield(state,'workflowStatus') && isstruct(state.workflowStatus) && ...
-                    isfield(state.workflowStatus,'ok') && ~logical(state.workflowStatus.ok)
-                msg = char(string(state.workflowStatus.message));
+            if ~state.workflowStatus.ok
+                msg = state.workflowStatus.message;
                 return;
             end
             switch state.mode
                 case 'data_input'
                     msg = 'Import and finalize the training dataset before model discovery starts.';
                 case 'model_discovery'
-                    if isfield(state,'workflowStatus') && isstruct(state.workflowStatus) && ~logical(state.workflowStatus.setup_ok)
+                    if ~state.workflowStatus.setup_ok
                         msg = 'Training data are locked. Complete the model configuration before initializing analyses.';
                     elseif state.hasCompletedAnalysis
                         msg = 'Completed analyses are available for inspection and post-training processing.';

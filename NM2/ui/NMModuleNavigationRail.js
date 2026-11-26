@@ -533,6 +533,7 @@ html[data-nm-theme] .message,html[data-nm-theme] .pill,html[data-nm-theme] .role
 html[data-nm-theme] .message.ok,html[data-nm-theme] .pill.ok{background:var(--nm-success-soft);border-color:var(--nm-success-border);color:var(--nm-success);}
 html[data-nm-theme] .message.danger,html[data-nm-theme] .pill.danger{background:var(--nm-danger-soft);border-color:var(--nm-danger-border);color:var(--nm-danger);}
 html[data-nm-theme] .pill.info,html[data-nm-theme] .tab{background:var(--nm-accent-soft);border-color:var(--nm-border);color:var(--nm-accent);}
+html[data-nm-theme] .pill.oocvPotential{display:inline-block;white-space:nowrap;border-radius:999px;padding:2px 8px;font-size:12px;border:1px solid #D4B544;background:#FFF2A6;color:#624C00;}
 html[data-nm-theme] tr.modalityRow:hover{background:var(--nm-accent-soft);}
 html[data-nm-theme] tr.oocvRow:hover{background:var(--nm-success-soft);}
 html[data-nm-theme] tr.modalityRow.selected{background:var(--nm-accent-soft);box-shadow:inset 4px 0 0 var(--nm-accent);}

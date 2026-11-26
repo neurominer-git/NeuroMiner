@@ -1188,50 +1188,6 @@ function workspaceVarNumel(w) {
   return sz.reduce((a,b) => a * Number(b || 0), 1);
 }
 /**
- * workspaceVarUniqueCount  Provide the workspace var unique count helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function workspaceVarUniqueCount(w) {
-  if (!w) return NaN;
-  const v = w.nUniqueNonMissing;
-  return Number.isFinite(Number(v)) ? Number(v) : NaN;
-}
-/**
- * workspaceVarLikelyImageCaseIDs  Provide the workspace var likely image case ids helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function workspaceVarLikelyImageCaseIDs(w, n) {
-  const name = workspaceVarName(w).toLowerCase();
-  const cls = workspaceVarClass(w).toLowerCase();
-  const nu = workspaceVarUniqueCount(w);
-  const nElem = workspaceVarNumel(w);
-  const nRows = workspaceVarNRows(w);
-  const haveN = Number.isFinite(Number(n)) && Number(n) > 0;
-  const nameCaseLike = /(^|[_\W])(case|caseid|case_id|cases|id|ids|subject|subjects|subj|participant|participants|patient|patients)([_\W]|$)/.test(name);
-  const nameLabelLike = /(^|[_\W])(label|labels|class|classes|group|groups|diagnosis|diagnoses|dx|target|targets|outcome|outcomes|phenotype|phenotypes)([_\W]|$)/.test(name);
-  const textLike = ['cell','string','char','categorical'].includes(cls);
-  const uniqueLikeIDs = Number.isFinite(nu) && haveN && nu >= Math.max(10, Math.floor(0.80 * Number(n)));
-  const sizedLikeIDs = haveN && (nElem === Number(n) || nRows === Number(n));
-  return sizedLikeIDs && (nameCaseLike || (textLike && uniqueLikeIDs)) && !nameLabelLike;
-}
-/**
- * workspaceVarLikelyClassificationLabels  Provide the workspace var likely classification labels helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function workspaceVarLikelyClassificationLabels(w, n) {
-  const name = workspaceVarName(w).toLowerCase();
-  const cls = workspaceVarClass(w).toLowerCase();
-  const nu = workspaceVarUniqueCount(w);
-  const nElem = workspaceVarNumel(w);
-  const nRows = workspaceVarNRows(w);
-  const haveN = Number.isFinite(Number(n)) && Number(n) > 0;
-  const nameLabelLike = /(^|[_\W])(label|labels|class|classes|group|groups|diagnosis|diagnoses|dx|target|targets|outcome|outcomes|phenotype|phenotypes)([_\W]|$)/.test(name);
-  const sizedLikeLabels = !haveN || nElem === Number(n) || nRows === Number(n);
-  const categoricalClass = ['logical','categorical','string','cell'].includes(cls);
-  const fewUnique = Number.isFinite(nu) && (!haveN || nu <= Math.max(20, Math.ceil(0.05 * Number(n))));
-  return sizedLikeLabels && (nameLabelLike || categoricalClass || fewUnique);
-}
-/**
  * imageCaseCountForMetadata  Provide the image case count for metadata helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
@@ -1733,11 +1689,6 @@ function setElementControlsDisabled(el, tf) { if (!el) return; el.querySelectorA
  */
 function setInputFieldVisible(id, tf) { const el = document.getElementById(id); const box = el ? el.closest('label') : null; if (box) box.style.display = tf ? '' : 'none'; }
 /**
- * setInputFieldDisabled  Provide the set input field disabled helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function setInputFieldDisabled(id, tf) { const el = document.getElementById(id); if (el) el.disabled = !!tf; }
-/**
  * sourceType  Provide the source type helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
@@ -1864,17 +1815,6 @@ function canManageOOCV() {
   const p = permissions();
   if (p.canManageOOCV !== undefined) return !!p.canManageOOCV;
   return !!(defs().import_finished && defs().analyses_locked);
-}
-/**
- * modeMessage  Provide the mode message helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function modeMessage() {
-  const mode = dataIOMode();
-  if (mode === 'training_import') return 'Training-data import stage. Add/replace/delete/filter actions remain available until finalization.';
-  if (mode === 'training_data_manager') return 'Training data are finalized and cannot be changed. You can still inspect diagnostics or manage externally stored modality data.';
-  if (mode === 'oocv_data_manager') return 'Application mode. Training data cannot be changed; DataIO manages OOCV/application datasets.';
-  return 'DataIO state is unknown.';
 }
 /**
  * isFirstModality  Return whether the is first modality condition holds for the current UI state.
@@ -2012,20 +1952,10 @@ function selectedQCArtifact() {
   return qcArtifactForModalityIndex(Number(info.modalityIndex || selectedIndex + 1));
 }
 /**
- * artifactHasQC  Provide the artifact has qc helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function artifactHasQC(artifact) { return !!(artifact && artifact.hasQC === true); }
-/**
  * artifactHasQCViewerCache  Provide the artifact has qcviewer cache helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
 function artifactHasQCViewerCache(artifact) { return !!(artifact && artifact.hasQCViewerCache === true); }
-/**
- * anyQCArtifactsAvailable  Provide the any qcartifacts available helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function anyQCArtifactsAvailable() { return arr(STATE.inspectionArtifacts).some((row) => artifactHasQC(row)); }
 /**
  * anyQCViewerCachesAvailable  Provide the any qcviewer caches available helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
@@ -2041,13 +1971,6 @@ function qcSidecarStatusText(artifact) {
   if (artifact.hasQCSidecar === true) return `QC data: ${artifact.qcCacheDurability === 'user_selected' ? 'saved in selected folder' : artifact.qcCacheDurability === 'session_temp' ? 'available for this session' : 'available'}`;
   const status = String(artifact.qcCacheStatus || '').trim();
   return status ? `QC data: ${status}` : 'QC data not exported';
-}
-/**
- * qcPayloadNeedsSidecarRoot  Provide the qc payload needs sidecar root helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function qcPayloadNeedsSidecarRoot(qc) {
-  return !!(qc && typeof qc === 'object' && qc.viewerOverlay && typeof qc.viewerOverlay === 'object' && qc.viewerOverlay.available === true && qc.viewerOverlay.cacheToken);
 }
 /**
  * trainingModalityInfoForImportTarget  Provide the training modality info for import target helper used by DataIO browser page for import configuration, preview, QC and commit operations.
@@ -6387,13 +6310,6 @@ function taskFrameworkEditable() {
   return committedModalityCount() === 0;
 }
 /**
- * imageTaskEditable  Provide the image task editable helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function imageTaskEditable() {
-  return taskFrameworkEditable();
-}
-/**
  * imageIsFirstModalityTarget  Provide the image is first modality target helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
@@ -7194,16 +7110,6 @@ function updateImagingImportVisibility() {
   updateImportOptionsVisibility();
   applyOOCVScientificPolicy();
 }
-/**
- * updateImageExplicitCaseIdControls  Update image explicit case id controls state or markup after user interaction or bridge refresh.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function updateImageExplicitCaseIdControls() { updateImagingImportVisibility(); }
-/**
- * updateImageMetadataControls  Update image metadata controls state or markup after user interaction or bridge refresh.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function updateImageMetadataControls() { updateImagingImportVisibility(); }
 /**
  * requiredRolesAssigned  Provide the required roles assigned helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
@@ -8179,13 +8085,6 @@ function comparePreviewSortValues(av, bv) {
   return String(av || '').localeCompare(String(bv || ''), undefined, { numeric: true, sensitivity: 'base' });
 }
 /**
- * comparePreviewValues  Provide the compare preview values helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function comparePreviewValues(a, b, key) {
-  return comparePreviewSortValues(previewSortValue(a, key), previewSortValue(b, key));
-}
-/**
  * previewSortValue  Provide the preview sort value helper used by DataIO browser page for import configuration, preview, QC and commit operations.
  * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
  */
@@ -9105,14 +9004,14 @@ function renderSummary() {
     const c = selectedOOCVContainer();
     const desc = c ? `#${c.index} ${c.description || 'OOCV/application dataset'}` : 'none selected';
     const labels = c ? (c.labelsKnown === true ? 'available' : 'prediction only') : '—';
-    const present = c ? (arr(c.presentModalities).join(', ') || '—') : '—';
-    const ready = c ? (c.ready === true ? 'ready' : 'incomplete') : '—';
+    const present = c ? (c.wholeContainerLink ? 'unverified' : arr(c.presentModalities).join(', ')) : '';
+    const ready = c ? (c.ready === true ? (c.wholeContainerLink ? 'potentially compatible' : 'ready') : 'incomplete') : '—';
     cards = [
       ['DataIO mode', 'OOCV data manager'],
       ['Selected dataset', desc],
       ['Cases', c ? fmtNumber(c.nCases) : '—'],
       ['Labels', labels],
-      ['Data modalities', present],
+      ['Data modalities', present === '' ? '—' : present],
       ['Total features', c ? fmtNumber(c.nFeatures) : '—'],
       ['Externalized', c ? fmtNumber(c.nExternalized) : '—'],
       ['Readiness', ready]
@@ -9200,9 +9099,9 @@ function oocvModalityDiagnosticsHtml(row) {
   const detailRows = [
     ['Modality', row.title || `Modality ${row.index}`], ['Modality index', row.index], ['Status', row.status], ['Storage', row.storageMode],
     ['Cases', fmtNumber(row.nCases)], ['Features', fmtNumber(row.nFeatures)],
-    ['Cases added with missing values', row.missingCasesFilledWithNaN ? `${fmtNumber(row.nMissingCasesFilledWithNaN)} filled` : 'no'],
-    ['Needs early-fusion imputation', row.requiresEarlyFusionImputation ? 'required' : 'not flagged'],
-    ['Link', row.storageMode === 'external' ? (row.externalBasename || 'external') : '—'],
+    ['Cases added with missing values', row.storageMode === 'whole-container' ? 'unverified' : (row.missingCasesFilledWithNaN ? `${fmtNumber(row.nMissingCasesFilledWithNaN)} filled` : 'no')],
+    ['Needs early-fusion imputation', row.storageMode === 'whole-container' ? 'unverified' : (row.requiresEarlyFusionImputation ? 'required' : 'not flagged')],
+    ['Link', row.storageMode === 'whole-container' ? row.externalBasename : (row.storageMode === 'external' ? (row.externalBasename ? row.externalBasename : 'external') : '—')],
     ['Message', row.message || '—']
   ];
   const overview = `<section class="diagnosticSection"><h2>Modality summary</h2>${diagnosticMetricGridHtml(detailRows)}</section>`;
@@ -9549,7 +9448,7 @@ function updateOOCVContextMenuItems() {
   const mutable = !!(current && current.canModify === true);
   const rules = {
     rename: enabled && hasCurrent,
-    import: enabled && hasCurrent && mutable && nTrain > 0,
+    import: enabled && hasCurrent && mutable && !current.wholeContainerLink && nTrain > 0,
     delete: enabled && hasCurrent && current.canDelete === true
   };
   menu.querySelectorAll('button[data-action]').forEach((btn) => {
@@ -9909,8 +9808,8 @@ function renderOOCVManager() {
     } else {
       body.innerHTML = containers.map((c) => {
         const idx = Number(c.index || 0);
-        const ready = c.ready === true ? 'ready' : 'incomplete';
-        return `<tr class="oocvRow ${Number(selectedOOCVIndex) === idx ? 'selected' : ''}" data-index="${idx}"><td>${idx}</td><td>${escapeHtml(c.description || '—')}</td><td>${c.labelsKnown === true ? 'known' : 'prediction only'}</td><td>${fmtNumber(c.nCases)}</td><td>${c.grouping && c.grouping.configured ? escapeHtml(`${c.grouping.nGroups} groups`) : '—'}</td><td>${escapeHtml(arr(c.presentModalities).join(', ') || '—')}</td><td>${escapeHtml(arr(c.missingModalities).join(', ') || '—')}</td><td><span class="pill ${c.ready === true ? 'ok' : 'warn'}">${ready}</span></td></tr>`;
+        const ready = c.ready === true ? (c.wholeContainerLink ? 'potentially compatible' : 'ready') : 'incomplete';
+        return `<tr class="oocvRow ${Number(selectedOOCVIndex) === idx ? 'selected' : ''}" data-index="${idx}"><td>${idx}</td><td>${escapeHtml(c.description || '—')}</td><td>${c.labelsKnown === true ? 'known' : 'prediction only'}</td><td>${fmtNumber(c.nCases)}</td><td>${c.grouping && c.grouping.configured ? escapeHtml(`${c.grouping.nGroups} groups`) : '—'}</td><td>${escapeHtml(arr(c.presentModalities).join(', ') || '—')}</td><td>${escapeHtml(arr(c.missingModalities).join(', ') || '—')}</td><td><span class="pill ${ready === 'ready' ? 'ok' : ready === 'potentially compatible' ? 'oocvPotential' : 'warn'}">${ready}</span></td></tr>`;
       }).join('\n');
       document.querySelectorAll('.oocvRow').forEach((tr) => {
         tr.addEventListener('click', () => { selectedOOCVIndex = Number(tr.dataset.index); selectedOOCVModalityIndex = null; hideContextMenu(); renderSummary(); renderOOCVManager(); });
@@ -9940,9 +9839,9 @@ function renderOOCVManager() {
   setDisabled('createOOCVContainer', !enabled);
   setDisabled('deleteOOCVContainer', !enabled || !hasCurrent || current.canDelete !== true);
   setDisabled('configureOOCVGroups', !enabled || !hasCurrent || !mutable || !Number(current && current.nCases || 0));
-  setDisabled('importOOCVModality', !enabled || !hasCurrent || !mutable || nTrain < 1);
+  setDisabled('importOOCVModality', !enabled || !hasCurrent || !mutable || current.wholeContainerLink || nTrain < 1);
   setDisabled('externalizeOOCVModality', !enabled || !hasCurrent || !hasAnyPresentModality);
-  setDisabled('relinkOOCVModality', !enabled || !hasCurrent || nTrain < 1);
+  setDisabled('relinkOOCVModality', !enabled || !hasCurrent || current.wholeContainerLink || nTrain < 1);
   setDisabled('reimportOOCVModality', !enabled || !hasCurrent || !hasAnyPresentModality);
   renderOOCVModalityOverview(current);
   updateOOCVContextMenuItems();
@@ -9973,8 +9872,8 @@ function renderOOCVModalityOverview(current) {
   body.innerHTML = rows.map((r) => {
     const idx = Number(r.index || 0);
     const status = String(r.status || (r.present ? 'present' : 'missing'));
-    const link = r.storageMode === 'external' ? (r.externalBasename || (r.externalFileExists === false ? 'unresolved' : 'external')) : '—';
-    const nanFill = r.missingCasesFilledWithNaN ? `${fmtNumber(r.nMissingCasesFilledWithNaN)} filled` : 'no';
+    const link = r.storageMode === 'whole-container' ? r.externalBasename : (r.storageMode === 'external' ? (r.externalBasename ? r.externalBasename : (r.externalFileExists === false ? 'unresolved' : 'external')) : '—');
+    const nanFill = r.storageMode === 'whole-container' ? '—' : (r.missingCasesFilledWithNaN ? `${fmtNumber(r.nMissingCasesFilledWithNaN)} filled` : 'no');
     const ef = r.requiresEarlyFusionImputation ? 'required' : '—';
     const shiftStatus = String(r.distributionShiftStatus || '').toLowerCase();
     const shift = shiftStatus === 'warning' ? '<span class="pill warn">warning</span>' : (shiftStatus === 'ok' ? '<span class="pill ok">ok</span>' : '—');
@@ -9996,7 +9895,7 @@ function renderOOCVModalityOverview(current) {
       details.textContent = `Selected ${row.title || `modality #${row.index}`} — ${row.status || (row.present ? 'present' : 'missing')}.${qcText}${shiftText} Use Show diagnostics for details.`;
     }
   }
-  setVisible('modifyOOCVModality', current.canModify === true);
+  setVisible('modifyOOCVModality', current.canModify === true && !current.wholeContainerLink);
   setDisabled('modifyOOCVModality', !(row && row.present && current.canModify === true));
   setDisabled('showOOCVDiagnostics', !row);
   setDisabled('showOOCVModalityDiagnostics', !row);
@@ -10028,17 +9927,18 @@ function updateOOCVModalityContextMenuItems() {
   const current = selectedOOCVContainer();
   const row = selectedOOCVModalityRow();
   const hasRow = !!(current && row);
+  const modalityAction = hasRow && !current.wholeContainerLink;
   const present = !!(row && row.present);
   const mutable = !!(current && current.canModify === true);
   const external = row && String(row.storageMode || '').toLowerCase() === 'external';
   const importAction = menu.querySelector('button[data-action="import"]');
   if (importAction) importAction.textContent = oocvModalityActionLabel(row);
   const rules = {
-    import: enabled && hasRow && mutable && !present,
-    replace: enabled && hasRow && mutable && present,
-    externalize: enabled && hasRow && present && !external,
-    relink: enabled && hasRow,
-    reimport: enabled && hasRow && external && row.externalFileExists !== false,
+    import: enabled && modalityAction && mutable && !present,
+    replace: enabled && modalityAction && mutable && present,
+    externalize: enabled && modalityAction && present && !external,
+    relink: enabled && modalityAction,
+    reimport: enabled && modalityAction && external && row.externalFileExists !== false,
     qcSidecar: enabled && hasRow && !!(row && row.hasQCViewerCache)
   };
   menu.querySelectorAll('button[data-action]').forEach((btn) => {
@@ -12985,14 +12885,6 @@ async function searchFeatureProfileFeatures() {
   } catch(err) { results.textContent=`Feature search failed: ${err.message||String(err)}`; }
 }
 
-/**
- * inferPreviewColumnsFromRows  Provide the infer preview columns from rows helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-function inferPreviewColumnsFromRows(rows) {
-  const first = arr(rows).find((r) => r && typeof r === 'object');
-  return first ? Object.keys(first) : ['row','caseId','status'];
-}
 
 /**
  * renderPreview  Render the preview UI region from current browser state.
@@ -14623,16 +14515,6 @@ async function inspectConnectivityMatVariablesFor(kind, announce, force) {
     setMessage(`Could not inspect the ${isWeighting ? 'weighting' : 'connectivity'} MAT-file variables: ${err.message || String(err)}`, 'danger');
   }
 }
-/**
- * inspectConnectivityMatVariables  Provide the inspect connectivity mat variables helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-async function inspectConnectivityMatVariables() { return inspectConnectivityMatVariablesFor('data', true); }
-/**
- * inspectConnectivityWeightingMatVariables  Provide the inspect connectivity weighting mat variables helper used by DataIO browser page for import configuration, preview, QC and commit operations.
- * It supports DataIO browser page for import configuration, preview, QC and commit operations at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
- */
-async function inspectConnectivityWeightingMatVariables() { return inspectConnectivityMatVariablesFor('weighting', true); }
 
 
 

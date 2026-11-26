@@ -77,6 +77,7 @@ classdef NMMLIRuntimeTools
             deferArtifactScan = isstruct(opts) && isfield(opts,'deferArtifactScan') && logical(opts.deferArtifactScan);
             useArtifactCache = isstruct(opts) && isfield(opts,'useArtifactCache') && NMMLIRuntimeTools.toLogical(opts.useArtifactCache, false);
             list = NMAnalysisManagerTools.listAnalyses(NM);
+            eligible = NMAnalysisManagerTools.trainedRootMask(list);
             detail = NMMLIRuntimeTools.emptyMLISummary();
             template = struct('index',0,'id','','description','','rootdir','','status',NaN, ...
                 'enabled',false,'disabledReason','','enabledReason','', ...
@@ -93,7 +94,7 @@ classdef NMMLIRuntimeTools
                     trainedMask = logical(A.GDdims{1}.GridAct);
                 end
                 trainedCells = nnz(trainedMask);
-                enabled = isfinite(status) && status >= 1 && gdOK && trainedCells > 0;
+                enabled = eligible(i) && gdOK && trainedCells > 0;
                 reason = '';
                 if ~enabled
                     reason = 'Train at least one CV2 partition successfully before running ML interpretation.';
@@ -103,8 +104,7 @@ classdef NMMLIRuntimeTools
                 cards(i).id = list.ids{i};
                 cards(i).description = list.descriptions{i};
                 cards(i).rootdir = list.rootdirs{i};
-                if isempty(cards(i).rootdir) || exist(cards(i).rootdir,'dir') ~= 7
-                    enabled = false;
+                if ~list.rootExists(i)
                     reason = 'Analysis root path is stale or missing. Relink analysis root before running ML interpretation.';
                 end
                 cards(i).status = status;

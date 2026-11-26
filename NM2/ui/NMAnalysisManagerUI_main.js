@@ -297,10 +297,9 @@
    * actionButton  Provide the action button helper used by Analysis Manager browser page and miniature analysis-canvas inspector.
    * It supports Analysis Manager browser page and miniature analysis-canvas inspector at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
    */
-  function actionButton(label, action, disabled, title, cssClass){
+  function actionButton(label, action, disabled, title){
     const tt = title ? ` title="${esc(title)}"` : '';
-    const cls = cssClass ? ` class="${esc(cssClass)}"` : '';
-    return `<button type="button" data-action="${esc(action)}" ${disabled?'disabled':''}${tt}${cls}>${esc(label)}</button>`;
+    return `<button type="button" data-action="${esc(action)}" ${disabled?'disabled':''}${tt}>${esc(label)}</button>`;
   }
 
   /**
@@ -349,7 +348,6 @@
   function renderAnalysisCard(index, i, data){
     const card = document.createElement('article');
     const expanded = Number(index) === Number(SELECTED);
-    const completed = Number(data.status[i]) >= 1;
     const hasRoot = !!data.roots[i];
     const rootExists = data.rootExists[i] === true || data.rootExists[i] === 1 || data.rootExists[i] === 'true';
     const rootStale = hasRoot && !rootExists;
@@ -615,7 +613,6 @@
     const combinedPlan = prepSelected && trainSelected;
     const trainMode = runtimeTrainMode(runtime);
     const trainStage = runtimeTrainStageState(runtime);
-    const trainStageValid = !trainSelected || trainStage.valid;
     const trainStageBlocked = trainSelected && !trainStage.valid;
     const trainModeLabel = trainMode === 'results' ? 'existing CVresults' : (trainMode === 'datamat' ? 'existing CVdatamat' : (trainMode === 'preproc' ? 'existing PreprocData' : 'compute from scratch'));
     const canRun = (prepSelected || trainSelected) && !prepOverwriteNeeded && !trainOverwriteNeeded && !trainStageBlocked;
@@ -1198,14 +1195,6 @@
     return ['ok','info','warning','warn','error','danger','inactive'].includes(s) ? s : 'ok';
   }
 
-  /**
-   * svgText  Build the svg text shown to users in the browser UI.
-   * It supports Analysis Manager browser page and miniature analysis-canvas inspector at a local helper boundary rather than changing MATLAB-side NeuroMiner state.
-   */
-  function svgText(s, maxChars){
-    const t = String(s == null ? '' : s);
-    return esc(t.length > maxChars ? `${t.slice(0, Math.max(1, maxChars-1))}…` : t);
-  }
 
   /**
    * render  Render the render UI region from current browser state.
@@ -1353,7 +1342,7 @@
       const pick = await postJson('/api/pickpath', {kind:'directory', multiple:false, initial, timeout:240});
       const paths = arr(pick.paths);
       if(!paths.length) { setMsg('Analysis root relink cancelled.', 'warn'); return; }
-      run('analysis_manager_relink_root', {analysisIndex:index, newRootDir:paths[0], selectionKind:'auto'}, {inspectResponse:true});
+      run('analysis_manager_relink_root', {analysisIndex:index, newRootDir:paths[0], selectionKind:'auto', originatingPage:'analysis_manager'}, {inspectResponse:true});
     } catch(err){ setMsg(`Analysis root relink failed: ${err.message || String(err)}`, 'danger'); }
   }
 

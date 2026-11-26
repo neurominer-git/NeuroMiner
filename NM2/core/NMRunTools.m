@@ -695,16 +695,24 @@ classdef NMRunTools
             end
             NMRunTools.assertAnalysisReady(NM, analind, true);
             spec = NMRunTools.normalizeMLISpec(NM, analind, spec);
+            materialized = [];
             if NM.defs.analyses_locked
                 validateattributes(spec.oocvIndex, {'numeric'}, {'scalar','integer','positive'});
-                readiness = NMRunTools.oocvReadiness(NM, analind, spec.oocvIndex);
+                [readiness, materialized] = NMRunTools.oocvReadiness(NM, analind, spec.oocvIndex, true);
                 if ~readiness.ready
                     error('NMRunTools:mliOOCVNotReady', 'OOCV dataset %d is not ready for MLI analysis %d: %s', spec.oocvIndex, analind, readiness.message);
                 end
             end
             [inp, resolveReport] = NMRunTools.mliInp(NM, analind, spec);
             NMRunTools.establishLegacyRuntimeContext(NM, spec);
+            if ~isempty(materialized)
+                original = NM.OOCV{spec.oocvIndex};
+                NM.OOCV{spec.oocvIndex} = materialized;
+            end
             [act, NM, inpOut] = nk_MLInterpreterPrep(NM, 12, inp, 'NM API');
+            if ~isempty(materialized)
+                NM.OOCV{spec.oocvIndex} = original;
+            end
             exportReport = struct('ok',true,'message','Relevance-map export was not requested.', ...
                 'analysisIndex',analind,'nFiles',0,'nErrors',0,'nSkipped',0,'files',struct([]),'errors',{{}},'skipped',{{}});
             if logical(spec.exportRelevanceMaps)
@@ -784,15 +792,22 @@ classdef NMRunTools
                 'exportState',NMRunTools.fieldOr(NM.defs,'export_state',struct()));
         end
 
-        function out = oocvReadiness(NM, analind, oocvind)
+        function [out, materialized] = oocvReadiness(NM, analind, oocvind, inspectArchive)
             % oocvReadiness  Validate one trained-analysis/OOCV-dataset application pair.
             %
             % This is the public runtime projection of DataIO's OOCV readiness
             % authority. Required modality identity remains derived from the
             % selected trained analysis; dataset integrity remains validated by
-            % NMDataIOOOCVReadinessTools.
-            if nargin < 2 || isempty(analind), analind = 1; end
-            if nargin < 3 || isempty(oocvind), oocvind = 1; end
+            % NMDataIOOOCVReadinessTools. Optional materialized output is
+            % execution-local; never include it in the readiness report.
+            arguments
+                NM
+                analind = 1
+                oocvind = 1
+                inspectArchive = false
+            end
+            if isempty(analind), analind = 1; end
+            if isempty(oocvind), oocvind = 1; end
             NMRunTools.assertAnalysisReady(NM, analind, true);
             if ~isstruct(NM) || ~isfield(NM,'OOCV') || ~iscell(NM.OOCV) || ...
                     oocvind < 1 || oocvind > numel(NM.OOCV) || isempty(NM.OOCV{oocvind})
@@ -807,7 +822,7 @@ classdef NMRunTools
             if exist('NMDataIOOOCVReadinessTools','class') ~= 8 && exist('NMDataIOOOCVReadinessTools','file') ~= 2
                 error('NMRunTools:oocvReadinessUnavailable', 'NMDataIOOOCVReadinessTools is not available on the MATLAB path.');
             end
-            [report, messages] = NMDataIOOOCVReadinessTools.validate(NM, target, required);
+            [report, messages, resolvedY, materialized] = NMDataIOOOCVReadinessTools.validate(NM, target, required, inspectArchive);
             TP = NM.analysis{analind}.params.TrainParam;
             if TP.STACKING.flag == 1
                 sources = TP.STACKING.sel_anal;
@@ -821,6 +836,7 @@ classdef NMRunTools
                 end
             end
             ready = isstruct(report) && isfield(report,'ready') && logical(report.ready);
+            if ~ready, materialized = []; end
             message = NMRunTools.reportMessage(report);
             if exist('NMDataIOMessageTools','class') == 8 || exist('NMDataIOMessageTools','file') == 2
                 strip = NMDataIOMessageTools.highestPriorityStrip(messages, message);
@@ -831,7 +847,10 @@ classdef NMRunTools
                 ~isempty(NMRunTools.fieldOr(report,'unresolvedExternalLinks',{})) || ...
                 ~isempty(NMRunTools.fieldOr(report,'externalHashMismatches',{})) || ...
                 isempty(NMRunTools.fieldOr(report,'nCases',[]));
-            if ~structuralBlock
+            if ~structuralBlock && (~report.partlyCompatible || (inspectArchive && report.ready))
+                if report.partlyCompatible
+                    NM.OOCV{oocvind}.Y = resolvedY;
+                end
                 applicationPreproc = NMOOCVApplicationPreprocTools.assess(NM, analind, oocvind);
             end
             out = struct('ok',true,'ready',ready,'message',message,'analysisIndex',analind, ...
@@ -885,7 +904,7 @@ classdef NMRunTools
             NMRunTools.assertFunction('nk_OOCVPrep');
             NMRunTools.assertAnalysisReady(NM, analind, true);
             spec = NMRunTools.normalizeOOCVSpec(NM, analind, oocvind, spec);
-            ready = NMRunTools.oocvReadiness(NM, analind, oocvind);
+            [ready, materialized] = NMRunTools.oocvReadiness(NM, analind, oocvind, true);
             if ~logical(ready.ready)
                 error('NMRunTools:oocvNotReady', 'OOCV dataset %d is not ready for analysis %d: %s', oocvind, analind, ready.message);
             end
@@ -894,7 +913,15 @@ classdef NMRunTools
             inp = NMRunTools.attachOOCVApplicationPreproc( ...
                 inp, NM, analind, oocvind, ready.applicationPreproc);
             NMRunTools.establishLegacyRuntimeContext(NM, spec);
+            if ~isempty(materialized)
+                original = NM.OOCV{oocvind};
+                NM.OOCV{oocvind} = materialized;
+            end
             [act, NM, inp] = nk_OOCVPrep(NM, 10, inp, 'NM API');
+            if ~isempty(materialized)
+                original.analysis_used = NM.OOCV{oocvind}.analysis_used;
+                NM.OOCV{oocvind} = original;
+            end
             status = NMRunTools.analysisStatus(NM, analind);
             out = struct('ok',true, 'message',sprintf('OOCV runner completed for analysis %d / OOCV %d.', analind, oocvind), ...
                 'runner','applyOOCV', 'act',act, 'inp',inp, 'analysisIndex',analind, 'oocvIndex',oocvind, ...

@@ -170,13 +170,20 @@ classdef NMAnalysisManagerUI
                     end
                 case {'analysis_manager_relink_root'}
                     handled = true;
+                    [spec, relinkContext] = NMAnalysisManagerUI.relinkSpecFromRequest(req);
+                    if strcmp(spec.selectionKind,'bulk_parent')
+                        analind = req.analysisIndex;
+                    else
+                        analind = NMAnalysisManagerUI.requestAnalysisIndex(req);
+                    end
                     [sessionNM, ~] = NMDataIOUI.loadSessionNM(NM, tmpDir);
-                    analind = NMAnalysisManagerUI.requestAnalysisIndex(req);
-                    spec = NMAnalysisManagerUI.relinkSpecFromRequest(req);
                     try
                         [sessionNM, mgrOut] = NMAnalysisManagerTools.relinkAnalysisRoot(sessionNM, analind, spec);
                         NMDataIOUI.saveSessionNM(sessionNM, tmpDir);
-                        state = NMAnalysisManagerUI.stateFromNM(sessionNM, ctx);
+                        state = [];
+                        if strcmp(relinkContext.originatingPage, 'analysis_manager')
+                            state = NMAnalysisManagerUI.stateFromNM(sessionNM, ctx);
+                        end
                         out = NMAnalysisManagerUI.serviceOK(op, mgrOut.message, state, mgrOut);
                     catch ME
                         out = NMAnalysisManagerUI.serviceError(op, ME, 'Relinking the analysis root failed.');
@@ -483,8 +490,19 @@ classdef NMAnalysisManagerUI
             end
         end
 
-        function spec = relinkSpecFromRequest(req)
-            % relinkSpecFromRequest  Normalize root/parent relink input from browser/API requests.
+        function [spec, relinkContext] = relinkSpecFromRequest(req)
+            % relinkSpecFromRequest  Normalize relink selection and originating page.
+            relinkContext = struct('originatingPage','analysis_manager');
+            if isfield(req,'originatingPage')
+                originatingPage = req.originatingPage;
+                if ~((ischar(originatingPage) && isrow(originatingPage)) || ...
+                        (isstring(originatingPage) && isscalar(originatingPage))) || ...
+                        ~any(strcmp(originatingPage, {'analysis_manager','workbench'}))
+                    error('NMAnalysisManagerUI:badRelinkOriginatingPage', ...
+                        'Relink originatingPage must be analysis_manager or workbench.');
+                end
+                relinkContext.originatingPage = char(originatingPage);
+            end
             spec = struct('newRootDir','', 'selectionKind','auto');
             pathNames = {'newRootDir','newParentDir','parentdir','rootdir'};
             for i = 1:numel(pathNames)

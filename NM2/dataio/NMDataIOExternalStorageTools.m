@@ -226,26 +226,47 @@ classdef NMDataIOExternalStorageTools
             messages = [messages; NMDataIOMessageTools.make('ok', false, 'reimportLinkedModality', sprintf('Re-imported linked data for %s into memory.', NMDataIOImportTargetTools.targetLabel(importTarget)), 0, 'green*')];
         end
 
-        function [valid, detail, modality, externalInfo] = validateMatFeatureFile(matFile, D, varind, importTarget)
+        function [valid, detail, modality, externalInfo, archive] = validateMatFeatureFile(matFile, D, varind, importTarget, wholeContainer)
             % validateMatFeatureFile  Validate that an external MAT file matches the target modality schema and compatibility hash.
             %
             % Consumes matFile, D, varind, importTarget; returns valid, detail, modality, externalInfo.
             % It protects externalized modality data with compatibility metadata so relinking cannot silently change feature semantics.
             % Diagnostics are returned as structured messages for explicit UI/API handling.
+            arguments
+                matFile
+                D = struct()
+                varind = []
+                importTarget = []
+                wholeContainer = false
+            end
             valid = false;
             detail = '';
             modality = NaN;
             externalInfo = struct();
-            if nargin < 2, D = struct(); end
-            if nargin < 3, varind = []; end
-            if nargin < 4, importTarget = []; end
+            archive = [];
             try
-                vars = whos('-file', matFile);
+                if wholeContainer && nargout >= 5
+                    OOCV = nk_LoadLinkedData(struct('Y',matFile),[]);
+                    vars = whos('OOCV');
+                else
+                    vars = whos('-file', matFile);
+                end
             catch ME
                 detail = sprintf('Could not inspect MAT-file %s. %s (%s)', matFile, ME.message, ME.identifier);
                 return;
             end
             names = {vars.name};
+            if wholeContainer
+                entry = vars(strcmp(names,'OOCV'));
+                valid = ~isempty(entry) && strcmp(entry.class,'struct') && prod(entry.size) == 1;
+                if valid
+                    if nargout >= 5, archive = OOCV; end
+                    detail = 'MAT-file contains a scalar OOCV structure.';
+                else
+                    detail = sprintf('Linked archive %s must contain one scalar OOCV structure.',matFile);
+                end
+                return;
+            end
             if ~any(strcmp(names,'Y')) && ~any(strcmp(names,'OOCV'))
                 detail = sprintf('MAT-file %s does not contain a Y or OOCV variable.', matFile);
                 return;
@@ -678,6 +699,11 @@ classdef NMDataIOExternalStorageTools
             if NMDataIOImportTargetTools.isOOCV(importTarget)
                 [D, targetMessages] = NMDataIOImportTargetTools.getContainer(NM, importTarget);
                 messages = [messages; targetMessages];
+                [~, wholeLink] = NMDataIOOOCVReadinessTools.storageEntries(D,0);
+                if ~isempty(wholeLink)
+                    messages = [messages; NMDataIOMessageTools.make('danger', true, source, ...
+                        'Individual modality storage operations are unavailable for a whole-container link.', 1, 'red*')];
+                end
             else
                 D = NM;
                 [ok, msg] = NMDataIOModalityMutationTools.validateIndex(NM, importTarget.varind);

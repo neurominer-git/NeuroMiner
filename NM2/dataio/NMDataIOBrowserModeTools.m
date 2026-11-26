@@ -97,7 +97,7 @@ classdef NMDataIOBrowserModeTools
             state.containers = struct('index', {}, 'description', {}, 'labelsKnown', {}, 'nCases', {}, ...
                 'analysisUsed', {}, 'canModify', {}, 'canDelete', {}, 'deleteMessage', {}, ...
                 'grouping', {}, 'presentModalities', {}, 'incompleteModalities', {}, 'missingModalities', {}, 'nFeatures', {}, 'nExternalized', {}, ...
-                'modalities', {}, 'ready', {}, 'message', {}, 'readiness', {});
+                'modalities', {}, 'ready', {}, 'message', {}, 'readiness', {}, 'wholeContainerLink', {});
             if ~isstruct(NM) || ~isfield(NM,'OOCV') || isempty(NM.OOCV) || ~iscell(NM.OOCV)
                 state.nContainers = 0;
                 state.activeIndex = [];
@@ -117,7 +117,8 @@ classdef NMDataIOBrowserModeTools
                 c.canDelete = lifecycle.canDelete;
                 c.deleteMessage = lifecycle.deleteMessage;
                 c.grouping = NMDataIOBrowserModeTools.oocvGroupingState(D);
-                modalityRows = NMDataIOBrowserModeTools.oocvModalityRows(NM, D, state.nTrainingModalities);
+                [modalityRows, wholeLink] = NMDataIOBrowserModeTools.oocvModalityRows(NM, D, state.nTrainingModalities);
+                c.wholeContainerLink = ~isempty(wholeLink);
                 presentRows = modalityRows([modalityRows.present]);
                 present = [presentRows.index];
                 incomplete = [modalityRows(strcmpi({modalityRows.status}, 'incomplete')).index];
@@ -131,9 +132,14 @@ classdef NMDataIOBrowserModeTools
                 c.modalities = modalityRows;
                 trainingModalities = 1:max(0,state.nTrainingModalities);
                 c.missingModalities = setdiff(trainingModalities, [present incomplete]);
+                if c.wholeContainerLink
+                    c.missingModalities = [];
+                    c.nFeatures = NaN;
+                    c.nExternalized = NaN;
+                end
                 target = struct('scope','oocv','containerField','OOCV','containerIndex',i,'varind',1);
                 % DataIO validates only committed modalities. Analysis-specific modality completeness is enforced by NMRunTools.oocvReadiness.
-                if isempty(present)
+                if isempty(present) && ~c.wholeContainerLink
                     c.ready = false;
                     if ~isempty(incomplete)
                         c.message = sprintf('OOCV/application dataset has unfinished modality import(s): %s.', ...
@@ -166,7 +172,7 @@ classdef NMDataIOBrowserModeTools
             if state.nContainers > 0, state.activeIndex = state.containers(1).index; else, state.activeIndex = []; end
         end
 
-        function rows = oocvModalityRows(NM, D, nTrainingModalities)
+        function [rows, wholeLink] = oocvModalityRows(NM, D, nTrainingModalities)
             % oocvModalityRows  Summarize OOCV modalities relative to training modalities for the manager table.
             %
             % Consumes NM, D, nTrainingModalities; returns rows.
@@ -182,6 +188,7 @@ classdef NMDataIOBrowserModeTools
                 'requiresEarlyFusionImputation', {}, 'hasQC', {}, 'hasQCReport', {}, 'hasQCViewerCache', {}, ...
                 'hasQCSidecar', {}, 'qcCacheStatus', {}, 'qcCacheDurability', {}, 'qcSidecarFile', {}, 'qcSidecarRoot', {}, ...
                 'distributionShiftStatus', {}, 'distributionShiftSummary', {}, 'qcSummary', {}, 'referenceShift', {}, 'message', {}, 'diagnostics', {});
+            [entries, wholeLink] = NMDataIOOOCVReadinessTools.storageEntries(D,nTrainingModalities);
             for v = 1:nTrainingModalities
                 r = struct();
                 r.index = v;
@@ -213,9 +220,15 @@ classdef NMDataIOBrowserModeTools
                 r.referenceShift = struct();
                 r.message = 'Missing in this OOCV/application dataset.';
                 r.diagnostics = {};
-                if isstruct(D) && isfield(D,'Y') && iscell(D.Y) && numel(D.Y) >= v && ~isempty(D.Y{v})
+                if ~isempty(wholeLink)
+                    r.status = 'unverified';
+                    r.storageMode = 'whole-container';
+                    [~,name,ext] = fileparts(wholeLink);
+                    r.externalBasename = [name ext];
+                    r.message = 'Historical whole-container link; individual modality presence is unverified.';
+                elseif ~isempty(entries{v})
                     r.present = true;
-                    Yv = D.Y{v};
+                    Yv = entries{v};
                     directNCases = NaN;
                     directNFeatures = NaN;
                     if isnumeric(Yv) || islogical(Yv)
@@ -287,7 +300,9 @@ classdef NMDataIOBrowserModeTools
                         end
                     end
                 end
-                r = NMDataIOBrowserModeTools.attachOOCVQCArtifactSummary(NM, D, r, v);
+                if isempty(wholeLink)
+                    r = NMDataIOBrowserModeTools.attachOOCVQCArtifactSummary(NM, D, r, v);
+                end
                 rows(end+1) = r; %#ok<AGROW>
             end
         end
@@ -780,6 +795,13 @@ classdef NMDataIOBrowserModeTools
             [D, containerMessages] = NMDataIOImportTargetTools.getContainer(NM, target);
             messages = [messages; containerMessages];
             if NMDataIOMessageTools.hasFatal(messages)
+                importState = struct();
+                return;
+            end
+            [~, wholeLink] = NMDataIOOOCVReadinessTools.storageEntries(D,0);
+            if ~isempty(wholeLink)
+                messages = [messages; NMDataIOMessageTools.make('danger', true, 'prepareOOCVImportState', ...
+                    'Individual modality import is unavailable for a whole-container link.', 1, 'red*')];
                 importState = struct();
                 return;
             end

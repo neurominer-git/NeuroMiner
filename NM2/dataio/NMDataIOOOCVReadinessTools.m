@@ -16,11 +16,10 @@ classdef NMDataIOOOCVReadinessTools
             nTrain = NMDataIOImportTargetTools.nTrainingModalities(NM);
             for o = 1:numel(NM.OOCV)
                 D = NM.OOCV{o};
-                % nm2-allow: NMDataIOBrowserModeTools.createOOCVContainer creates drafts without committed Y.
-                if ~isstruct(D) || ~isfield(D,'Y') || ~iscell(D.Y), continue; end
-                present = find(~cellfun(@isempty,D.Y(1:min(nTrain,numel(D.Y)))));
-                if isempty(present) || any(arrayfun(@(v)NMDataIOModalityMutationTools.isUncommittedDraftModality(D,v), ...
-                        setdiff(1:nTrain,present)))
+                [entries, wholeLink] = NMDataIOOOCVReadinessTools.storageEntries(D,0);
+                present = find(~cellfun(@isempty,entries(1:min(nTrain,numel(entries)))));
+                if isempty(wholeLink) && (isempty(present) || any(arrayfun(@(v)NMDataIOModalityMutationTools.isUncommittedDraftModality(D,v), ...
+                        setdiff(1:nTrain,present))))
                     continue;
                 end
                 target = struct('scope','oocv','containerField','OOCV','containerIndex',o,'varind',1);
@@ -34,14 +33,62 @@ classdef NMDataIOOOCVReadinessTools
             end
         end
 
-        function [report, messages] = validate(NM, importTarget, requiredModalities)
+        function [entries, wholeLink, linkError, archive, materialized] = storageEntries(D, nSlots, inspectArchive)
+            if nargin < 3, inspectArchive = false; end
+            % Interpret storage without manufacturing modality presence or changing the container.
+            entries = {};
+            wholeLink = '';
+            linkError = '';
+            archive = [];
+            materialized = [];
+            if isstruct(D) && isfield(D,'Y')
+                if iscell(D.Y)
+                    entries = D.Y;
+                elseif ischar(D.Y) && isrow(D.Y)
+                    wholeLink = D.Y;
+                end
+            end
+            if isempty(wholeLink)
+                if numel(entries) < nSlots
+                    entries{nSlots} = [];
+                end
+            elseif nargout >= 3
+                if ~isfile(wholeLink)
+                    linkError = sprintf('Linked OOCV archive is unavailable: %s',wholeLink);
+                elseif inspectArchive
+                    [ok, detail, ~, ~, archive] = NMDataIOExternalStorageTools.validateMatFeatureFile(wholeLink,[],[],[],true);
+                    if ~ok
+                        linkError = detail;
+                        return;
+                    end
+                    % Preserve retained labels/groups/covariates; nk_CompatY used archived Y and descriptors.
+                    materialized = D;
+                    if isfield(archive,'Y'), materialized.Y = archive.Y; end
+                    if isfield(archive,'datadescriptor')
+                        materialized.datadescriptor = archive.datadescriptor;
+                    elseif isfield(materialized,'datadescriptor')
+                        materialized = rmfield(materialized,'datadescriptor');
+                    end
+                end
+            end
+        end
+
+        function [report, messages, resolvedY, resolvedContainer] = validate(NM, importTarget, requiredModalities, inspectArchive)
             % validate  Validate OOCV/application readiness for the modality set supplied by the caller.
             %
             % Consumes NM, importTarget, requiredModalities; returns report, messages.
             % It participates in target-aware import flow by distinguishing training NM from OOCV/application containers.
             % Diagnostics are returned as structured messages for explicit UI/API handling.
+            arguments
+                NM
+                importTarget = []
+                requiredModalities = []
+                inspectArchive = false
+            end
             messages = NMDataIOMessageTools.emptyMessages();
-            if nargin < 2 || isempty(importTarget)
+            resolvedY = {};
+            resolvedContainer = [];
+            if isempty(importTarget)
                 importTarget = struct('scope','oocv','containerField','OOCV','containerIndex',1);
             end
             importTarget = NMDataIOImportTargetTools.normalize(NM, importTarget);
@@ -52,7 +99,7 @@ classdef NMDataIOOOCVReadinessTools
                 report.ready = false;
                 return;
             end
-            if nargin < 3 || isempty(requiredModalities)
+            if isempty(requiredModalities)
                 nTrain = NMDataIOImportTargetTools.nTrainingModalities(NM);
                 requiredModalities = 1:nTrain;
             end
@@ -102,6 +149,26 @@ classdef NMDataIOOOCVReadinessTools
                 messages = [messages; labelMessages];
             end
 
+            [~, wholeLink, linkError, archive, materialized] = NMDataIOOOCVReadinessTools.storageEntries( ...
+                D,0,inspectArchive && ~NMDataIOMessageTools.hasFatal(messages));
+            if ~isempty(wholeLink)
+                if ~isempty(linkError)
+                    report.unresolvedExternalLinks = {wholeLink};
+                    messages = [messages; NMDataIOMessageTools.make('danger', true, 'OOCVReadiness', linkError, 1, 'red*')];
+                    return;
+                end
+                report.partlyCompatible = true;
+                report.ready = ~NMDataIOMessageTools.hasFatal(messages);
+                if ~inspectArchive || ~report.ready
+                    messages = [messages; NMDataIOMessageTools.make('warn', false, 'OOCVReadiness', ...
+                        'Potentially compatible: historical OOCV archive exists. File contents, modality coverage and scientific metadata are unverified. Selection is permitted; execution still requires current scientific validation. Application preprocessing is not assessed yet.', 2, 'orange')];
+                    return;
+                end
+                if ~isequaln(archive.cases(:),D.cases(:))
+                    error('NMDataIOOOCVReadinessTools:OOCVCaseAxisMismatch','Linked archive case order differs from the retained OOCV case axis.');
+                end
+                D = archive;
+            end
             for i = 1:numel(requiredModalities)
                 v = requiredModalities(i);
                 if ~isfield(D,'Y') || ~iscell(D.Y) || numel(D.Y) < v || isempty(D.Y{v})
@@ -206,6 +273,10 @@ classdef NMDataIOOOCVReadinessTools
             end
             report.ready = ~NMDataIOMessageTools.hasFatal(messages);
             if report.ready
+                if report.partlyCompatible
+                    resolvedY = D.Y;
+                    resolvedContainer = materialized;
+                end
                 messages = [messages; NMDataIOMessageTools.make('ok', false, 'OOCVReadiness', ...
                     sprintf('OOCV/application dataset is ready for the required modality/modalities: %s.', NMDataIOOOCVReadinessTools.joinNumeric(requiredModalities)), 0, 'green*')];
             end
@@ -219,6 +290,7 @@ classdef NMDataIOOOCVReadinessTools
             % It preserves existing DataIO invariants and does not silently reinterpret source semantics.
             report = struct();
             report.ready = false;
+            report.partlyCompatible = false;
             report.importTarget = importTarget;
             report.requiredModalities = requiredModalities;
             report.presentModalities = [];

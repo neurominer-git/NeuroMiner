@@ -290,7 +290,7 @@ classdef NMOOCVRunnerUI
         function analyses = analysisCards(NM, list)
             analyses = repmat(struct('index',0,'id','','description','','rootdir','','status',NaN, ...
                 'enabled',false,'disabledReason','','ix',0,'jx',0,'GridAct',false(0,0)),1,0);
-            if list.count == 0, return; end
+            eligible = NMAnalysisManagerTools.trainedRootMask(list);
             for i = 1:list.count
                 A = NM.analysis{i};
                 if isempty(A) || ~isstruct(A), continue; end
@@ -306,7 +306,7 @@ classdef NMOOCVRunnerUI
                 elseif c.ix > 0 && c.jx > 0
                     c.GridAct = true(c.ix,c.jx);
                 end
-                c.enabled = isfinite(c.status) && c.status >= 1 && list.rootExists(i);
+                c.enabled = eligible(i);
                 if ~list.rootExists(i), c.disabledReason = 'Analysis root path is stale or missing. Relink the analysis root in Analysis Manager before OOCV application.'; elseif ~c.enabled, c.disabledReason = 'Analysis has no completed trained result state.'; end
                 analyses(end+1) = c; %#ok<AGROW>
             end

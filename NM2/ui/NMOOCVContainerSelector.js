@@ -17,9 +17,9 @@
         const host=body.querySelector('.oocvDatasetModalTableWrap');
         const draw=()=>{
           host.innerHTML=`<table class="oocvDatasetTable"><thead><tr><th>#</th><th>Dataset</th><th>Labels</th><th>Cases</th><th>Modalities</th><th>Status</th></tr></thead><tbody>${rows.map(c=>{
-            const idx=Number(c.index||0), mods=arr(c.presentModalities).join(', ')||'—',ready=!!spec.isReady(c);
-            const status=ready?'ready':spec.pendingStatus;
-            return `<tr class="oocvDatasetModalRow ${Number(working)===idx?'selected':''}" data-index="${idx}" tabindex="0" aria-selected="${Number(working)===idx?'true':'false'}"><td>${idx}</td><td>${esc(c.description||`OOCV ${idx}`)}</td><td>${bool(c.labelsKnown)?'known':'prediction only'}</td><td>${fmtNumber(c.nCases)}</td><td>${esc(mods)}</td><td><span class="pill ${ready?'ok':'warn'}">${esc(status)}</span></td></tr>`;
+            const idx=Number(c.index||0), mods=c.wholeContainerLink?'unverified':(arr(c.presentModalities).join(', ')||'—'),ready=!!spec.isReady(c);
+            const status=ready?(c.wholeContainerLink?'potentially compatible':'ready'):spec.pendingStatus;
+            return `<tr class="oocvDatasetModalRow ${Number(working)===idx?'selected':''}" data-index="${idx}" tabindex="0" aria-selected="${Number(working)===idx?'true':'false'}"><td>${idx}</td><td>${esc(c.description||`OOCV ${idx}`)}</td><td>${bool(c.labelsKnown)?'known':'prediction only'}</td><td>${fmtNumber(c.nCases)}</td><td>${esc(mods)}</td><td><span class="pill ${status==='ready'?'ok':status==='potentially compatible'?'oocvPotential':'warn'}" title="${esc(c.wholeContainerLink?c.message:'')}">${esc(status)}</span></td></tr>`;
           }).join('')}</tbody></table>`;
           if(applyButton) applyButton.disabled=!working;
           host.querySelectorAll('.oocvDatasetModalRow').forEach(tr=>{
@@ -42,7 +42,7 @@
   function renderControl(host, spec){
     const rows=spec.containers;
     const selected=rows.find(c=>Number(c.index)===Number(spec.selectedIndex));
-    const summary=selected ? `${selected.description||`OOCV ${selected.index}`} · ${fmtNumber(selected.nCases)} cases · modality/modalities ${arr(selected.presentModalities).join(', ')||'—'} · ${bool(selected.labelsKnown)?'labels known':'prediction only'}`
+    const summary=selected ? `${selected.description||`OOCV ${selected.index}`} · ${fmtNumber(selected.nCases)} cases · modality/modalities ${selected.wholeContainerLink?'unverified':(arr(selected.presentModalities).join(', ')||'—')} · ${bool(selected.labelsKnown)?'labels known':'prediction only'}${selected.wholeContainerLink?' · '+selected.message:''}`
       : rows.length ? spec.emptyText : spec.unavailableText;
     host.innerHTML=`<div class="oocvRunnerSectionHeader"><label class="nmRunnerSectionTitle">${esc(spec.label)}</label><span class="muted">${rows.length} suitable container${rows.length===1?'':'s'}</span></div>`+
       `<div class="oocvDatasetSummary"><div class="oocvDatasetSelectionText">${esc(summary)}</div><button id="selectOOCVDataset" class="oocvSelectorButton nmActionButton" type="button">Select OOCV data…</button></div>`+

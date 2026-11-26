@@ -50,6 +50,10 @@ classdef NMAnalysisManagerTools
             end
         end
 
+        function mask = trainedRootMask(list)
+            mask = isfinite(list.status) & list.status >= 1 & list.rootExists;
+        end
+
         function out = inspectAnalysis(NM, analind, spec)
             % inspectAnalysis  Return a read-only analysis inspection payload.
             %
@@ -372,9 +376,8 @@ classdef NMAnalysisManagerTools
             %
             % spec.newRootDir: selected directory supplied by browser/API callers.
             % spec.newParentDir: compatibility alias for the selected directory.
-            % spec.selectionKind: 'auto' (default), 'root', or 'parent'.
+            % spec.selectionKind: 'auto' (default), 'root', 'parent', or 'bulk_parent' (index vector).
 
-            NMAnalysisManagerTools.assertAnalysisIndex(NM, analind);
             if nargin < 3 || isempty(spec), spec = struct(); end
             selectedDir = NMAnalysisManagerTools.fieldOr(spec,'newRootDir','');
             if isempty(selectedDir)
@@ -385,6 +388,11 @@ classdef NMAnalysisManagerTools
                 error('NMAnalysisManagerTools:missingAnalysisPathTools', ...
                     'NMAnalysisPathTools is required for portable analysis-root relinking.');
             end
+            if strcmp(selectionKind,'bulk_parent')
+                [NM, out] = NMAnalysisPathTools.relinkAnalysisRoots(NM, analind, selectedDir);
+                return;
+            end
+            NMAnalysisManagerTools.assertAnalysisIndex(NM, analind);
             [NM, out] = NMAnalysisPathTools.relinkAnalysisRoot(NM, analind, selectedDir, selectionKind);
         end
 
@@ -805,8 +813,6 @@ classdef NMAnalysisManagerTools
             results.canOpenResultsViewer = completed && results.resultsViewerAvailable;
             if ~completed
                 results.resultsViewerReason = 'Results Viewer requires a completed analysis with status >= 1.';
-            elseif ~results.resultsViewerAvailable
-                results.resultsViewerReason = 'NM2 Results Viewer is not available on the MATLAB path.';
             else
                 results.resultsViewerReason = '';
             end

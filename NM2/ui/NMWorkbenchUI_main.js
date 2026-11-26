@@ -139,8 +139,6 @@
       card.innerHTML = `<div class="wbStatusLabel">${esc(item.label)}</div><div class="wbStatusValue">${esc(item.value)}</div>`;
       grid.appendChild(card);
     });
-    const msg = el('workbenchMessage');
-    if(msg) msg.textContent = STATE.message || '';
   }
 
   /**
@@ -210,7 +208,6 @@
     renderModuleList([m], containerId);
     const card = el(containerId) ? el(containerId).querySelector('.wbModuleCard') : null;
     if(card && complete){
-      card.classList.add('wbGateComplete');
       const reason = card.querySelector('.wbDisabledReason');
       if(reason) reason.remove();
     }
@@ -299,27 +296,6 @@
     setGateState(modelGate, locked, !!(lockModels && lockModels.enabled));
   }
 
-  /**
-   * renderWorkflowDividers  Render the workflow dividers UI region from current browser state.
-   * It is a browser rendering helper: it updates DOM or SVG state from already retrieved NeuroMiner payloads and does not define new scientific results.
-   * Side effects: updates DOM markup, CSS classes or control state for the active browser page.
-   */
-  function renderWorkflowDividers(){
-    const defs = STATE.defs || {};
-    const importDivider = el('importFinalizedDivider');
-    const appDivider = el('applicationStageDivider');
-    const imported = !!defs.import_finished;
-    const locked = !!defs.analyses_locked;
-    const scrambled = !!defs.data_scrambled;
-    if(importDivider) importDivider.hidden = !imported;
-    if(appDivider){
-      appDivider.hidden = !locked;
-      appDivider.classList.toggle('wbApplicationDividerPrivacy', locked && scrambled);
-      appDivider.classList.toggle('wbApplicationDividerStandard', locked && !scrambled);
-      const label = appDivider.querySelector('span');
-      if(label) label.textContent = scrambled ? 'Privacy Preserving OOCV Mode Activated' : 'OOCV Mode Activated';
-    }
-  }
 
   /**
    * render  Render the render UI region from current browser state.
@@ -329,7 +305,6 @@
   function render(){
     renderStatus();
     renderModules();
-    renderWorkflowDividers();
     renderStagePresentation();
     window.NM_WORKBENCH_STATE = STATE;
     if(window.NMModuleNavigationRail && typeof window.NMModuleNavigationRail.refresh === 'function') window.NMModuleNavigationRail.refresh();
@@ -346,57 +321,20 @@
       if(!res || res.ok === false) throw new Error((res && (res.message || res.error)) || 'Workbench refresh failed.');
       if(res.state) STATE = res.state;
       render();
+      return true;
     } catch(err){
       setMsg(`Workbench refresh failed: ${err.message || String(err)}`, 'danger');
     }
   }
 
 
-  /**
-   * normalizedPage  Normalize d page payloads into the browser-side model used by the UI.
-   * It is a normalization helper that makes heterogeneous backend/browser values safe for downstream UI state.
-   */
-  function normalizedPage(page){
-    const p = String(page == null ? '' : page).trim().toLowerCase();
-    const map = {
-      'nm_dataio_overview.html':'dataio',
-      'nm_train_template_menu.html':'template',
-      'nm_analysis_manager.html':'analysis_manager',
-      'nm_preprocess_runner.html':'preprocess',
-      'nm_ml_train_runner.html':'mltrain',
-      'nm_vis_runner.html':'visualization',
-      'nm_mli_runner.html':'mli',
-      'nm_model_export_runner.html':'model_export',
-      'results_viewer':'results',
-      'results_alpha':'results_alpha',
-      'nm_results_viewer_alpha.html':'results_alpha'
-    };
-    return map[p] || p;
-  }
-
-  /**
-   * openResultsViewer  Open the results viewer panel, dialog or linked UI target.
-   * It belongs to the browser/MATLAB bridge path and must keep request payloads aligned with the MATLAB service contract.
-   * Side effects: may send a request to the local MATLAB bridge and update browser-side UI state from the response.
-   */
-  async function openResultsViewer(){
-    try{
-      setMsg('Opening NM Results Viewer...', 'info');
-      const res = await matlabService({operation:'app_open_results_viewer', timeout:120});
-      if(!res || res.ok === false) throw new Error((res && (res.message || res.error)) || 'Opening NM Results Viewer failed.');
-      setMsg(res.message || 'NM Results Viewer opened.', 'ok');
-    } catch(err){
-      setMsg(`Cannot open NM Results Viewer: ${err.message || String(err)}`, 'danger');
-    }
-  }
 
   /**
    * runWorkbenchGate  Provide the run workbench gate helper used by NM 2.0 workbench landing page.
    * It belongs to the browser/MATLAB bridge path and must keep request payloads aligned with the MATLAB service contract.
    * Side effects: may send a request to the local MATLAB bridge and update browser-side UI state from the response.
    */
-  async function runWorkbenchGate(moduleOrPage){
-    const key = (moduleOrPage && typeof moduleOrPage === 'object') ? String(moduleOrPage.key || '') : String(moduleOrPage || '');
+  async function runWorkbenchGate(key){
     let operation = '';
     let confirmText = '';
     if(key === 'lock_data'){
@@ -434,13 +372,14 @@
    * It belongs to the browser/MATLAB bridge path and must keep request payloads aligned with the MATLAB service contract.
    * Side effects: may send a request to the local MATLAB bridge and update browser-side UI state from the response.
    */
-  async function openModule(moduleOrPage){
-    if(await runWorkbenchGate(moduleOrPage)) return;
-    const moduleKey = (moduleOrPage && typeof moduleOrPage === 'object') ? String(moduleOrPage.key || '') : '';
-    const rawPage = (moduleOrPage && typeof moduleOrPage === 'object') ? (moduleOrPage.page || moduleOrPage.key || '') : moduleOrPage;
-    const page = normalizedPage(rawPage);
-    if(page === 'results'){ await openResultsViewer(); return; }
+  async function openModule(module){
+    const {key:moduleKey, page} = module;
+    if(await runWorkbenchGate(moduleKey)) return;
     try{
+      if(moduleKey === 'analysis_root_updater'){
+        await openAnalysisRoots();
+        return;
+      }
       const profileId = NM_UI_CLIENT_PROFILE ? nmProfileId(`open_${page}`) : "";
       const navStartEpoch = Date.now();
       const res = await matlabService({operation:'app_prepare_page', page, moduleKey, profileId, timeout:240});
@@ -456,6 +395,72 @@
     } catch(err){
       setMsg(`Cannot open module: ${err.message || String(err)}`, 'danger');
     }
+  }
+
+  async function openAnalysisRoots(){
+    async function inventory(){
+      const res = await matlabService({operation:'analysis_manager_list', timeout:120});
+      if(!res.ok) throw new Error(res.message);
+      return res.state.analyses;
+    }
+    let list = await inventory();
+    const icon = window.NMModuleIconSet.svg('refresh');
+    const modal = NMModal.open({title:'Analysis root directory updater',size:'wide',dismissOnBackdrop:false,
+      html:'<p role="status" class="wbRelinkReport"></p><fieldset class="wbRelinkControls"></fieldset>',
+      actions:[{label:'Close',onClick:m => m.close()}]});
+    const [report, controls] = modal.body.children;
+    const selected = () => Array.from(controls.querySelectorAll('input[data-root]:checked'), input => Number(input.value));
+    function renderRoots(selection = arr(list.indices)){
+      const indices = arr(list.indices), ids = arr(list.ids), roots = arr(list.rootdirs), accessible = arr(list.rootExists);
+      const missing = indices.filter((index,i) => !accessible[i]);
+      const bulk = missing.length > 1;
+      const rows = indices.map((index,i) => `<div class="wbRelinkRow">${bulk && !accessible[i] ? `<input type="checkbox" data-root value="${index}" aria-label="Select ${esc(ids[i])}" ${selection.includes(index) ? 'checked' : ''}>` : ''}
+        <div><strong>${esc(ids[i])}</strong> — ${accessible[i] ? 'Accessible' : 'Missing'}<div><small>${esc(roots[i])}</small></div></div>
+        <button type="button" class="nmModalBtn" data-root="${index}" title="Select the relocated analysis folder or its immediate parent" aria-label="Relink ${esc(ids[i])}">${icon} Relink</button></div>`);
+      controls.innerHTML = `<p>${indices.length} retained analyses · ${missing.length} missing roots</p>${bulk ? '<label><input type="checkbox" data-select-all> Select all missing roots</label>' : ''}${rows.join('')}${bulk ? `<p>Select a common parent containing the original analysis directory names.</p><button type="button" class="nmModalBtn nmModalBtn-primary" data-root="bulk">${icon} Relink selected</button>` : ''}`;
+      if(bulk) updateSelection(controls);
+    }
+    function updateSelection(target){
+      if(target.matches('[data-select-all]')) controls.querySelectorAll('input[data-root]').forEach(input => { input.checked = target.checked; });
+      const count = selected().length;
+      controls.querySelector('[data-select-all]').checked = count === arr(list.rootExists).filter(x => !x).length;
+      controls.querySelector('button[data-root="bulk"]').disabled = count < 2;
+    }
+    controls.onchange = event => updateSelection(event.target);
+    async function relink(event){
+      const button = event.target.closest('button[data-root]');
+      if(!button || controls.disabled) return;
+      const selection = selected(), bulk = button.dataset.root === 'bulk';
+      const analysisIndex = bulk ? selection : Number(button.dataset.root);
+      controls.disabled = true;
+      modal.opts.dismissOnEscape = false;
+      const closeButtons = modal.dialog.querySelectorAll('.nmModalClose,.nmModalFoot .nmModalBtn');
+      closeButtons.forEach(button => { button.disabled = true; });
+      let committed = false;
+      try{
+        const pick = await postJson('/api/pickpath',{kind:'directory',multiple:false,initial:'',title:bulk ? 'Select common parent directory' : 'Select analysis root or immediate parent',timeout:240});
+        if(pick.error) throw new Error(pick.error);
+        const paths = arr(pick.paths);
+        if(!paths.length){ report.textContent = 'Relinking cancelled.'; return; }
+        const res = await matlabService({operation:'analysis_manager_relink_root',originatingPage:'workbench',analysisIndex,newRootDir:paths[0],selectionKind:bulk ? 'bulk_parent' : 'auto',timeout:240});
+        if(!res.ok) throw new Error(res.message);
+        committed = true;
+        report.textContent = res.message;
+        if(bulk) report.textContent += '\n' + arr(res.succeededIndices).map(index => `Relinked: ${arr(list.ids)[arr(list.indices).indexOf(index)]}`).concat(arr(res.failedIndices).map((index,j) => `${arr(list.ids)[arr(list.indices).indexOf(index)]}: ${arr(res.failedMessages)[j]}`)).join('\n');
+        if(!await refresh()) throw new Error('Workbench refresh failed.');
+        list = await inventory();
+        renderRoots(selection);
+        committed = false;
+      } finally {
+        controls.disabled = committed;
+        modal.opts.dismissOnEscape = true;
+        closeButtons.forEach(button => { button.disabled = false; });
+      }
+    }
+    controls.onclick = event => relink(event).catch(err => {
+      report.textContent += `\n${controls.disabled ? 'Relinking saved, but refresh failed. Close and reopen the updater.' : 'Relinking failed.'} ${err.message}`;
+    });
+    renderRoots();
   }
 
   function openLicense(){
@@ -476,6 +481,7 @@
     modal.dialog.classList.add('wbCreditsDialog');
   }
 
+  window.NMWorkbenchUIRefresh = refresh;
   document.addEventListener('DOMContentLoaded', () => {
     const f = el('finish'); if(f){ f.insertAdjacentHTML('afterbegin', window.NMModuleIconSet.svg('quit_nm')); f.onclick = () => window.NMModuleNavigationRail.workspaceAction('quit').catch(err => setMsg(`ERROR while closing workbench: ${err.message || String(err)}`, 'danger')); }
     el('wbContributors').onclick = openContributors;
