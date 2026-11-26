@@ -1803,8 +1803,9 @@ classdef NMRunTools
         end
 
         function [preprocmat, source] = scanPreprocDataFiles(rootdir, dataId, inp, GridAct, files)
+            meta = strcmp(inp.metastr,'_META');
             if nargin < 5 || isempty(files)
-                files = NMRunTools.collectPreprocDataFiles(rootdir, dataId);
+                files = NMRunTools.collectPreprocDataFiles(rootdir, dataId, meta);
                 source = sprintf('scanned PreprocData files below %s', rootdir);
             else
                 files = cellstr(files);
@@ -1814,7 +1815,11 @@ classdef NMRunTools
                 error('NMRunTools:noPreprocDataFiles', 'No PreprocData files for ID %s were found below %s.', dataId, rootdir);
             end
             nStreams = NMRunTools.preprocStreamCount(inp);
-            labels = NMRunTools.preprocStreamLabels(inp, nStreams);
+            if meta
+                labels = {'PreprocDataMeta_ID'};
+            else
+                labels = NMRunTools.preprocStreamLabels(inp, nStreams);
+            end
             cvsz = size(GridAct);
             perStream = cell(nStreams,1);
             for ss = 1:nStreams
@@ -1854,7 +1859,7 @@ classdef NMRunTools
             end
         end
 
-        function files = collectPreprocDataFiles(rootdir, dataId)
+        function files = collectPreprocDataFiles(rootdir, dataId, meta)
             rootdir = char(string(rootdir));
             dataId = char(string(dataId));
             files = {};
@@ -1863,7 +1868,8 @@ classdef NMRunTools
                 if isempty(dirs{dd}), continue; end
                 D = dir(fullfile(dirs{dd}, sprintf('*PreprocData*ID%s*.mat', dataId)));
                 for ii = 1:numel(D)
-                    if ~D(ii).isdir && isempty(regexp(D(ii).name, 'PreprocDataParam|PreprocDataMeta', 'once'))
+                    if ~D(ii).isdir && isempty(regexp(D(ii).name, 'PreprocDataParam', 'once')) && ...
+                            (contains(D(ii).name,'PreprocDataMeta') == meta)
                         files{end+1,1} = fullfile(D(ii).folder,D(ii).name); %#ok<AGROW>
                     end
                 end
